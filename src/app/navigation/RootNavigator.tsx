@@ -1,53 +1,78 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
-import { Text, useColorScheme } from 'react-native';
+import {
+  BookOpen,
+  Compass,
+  Heart,
+  UserRound,
+  type LucideIcon,
+} from 'lucide-react-native';
 
+import { TabIcon } from '@/components/navigation/TabIcon';
 import { ROUTES } from '@/constants/routes';
 import { ExploreScreen } from '@/features/explore/screens/ExploreScreen';
-import { HomeScreen } from '@/features/home/screens/HomeScreen';
+import { LibraryScreen } from '@/features/library/screens/LibraryScreen';
+import { ProfileScreen } from '@/features/profile/screens/ProfileScreen';
+import { WishlistScreen } from '@/features/wishlist/screens/WishlistScreen';
 
 import type { RootTabParamList } from './types';
+import { useTabBarOptions } from './useTabBarOptions';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
-function HomeTabIcon({ color }: { color: string }) {
-  return <Text className="text-lg" style={{ color }}>⌂</Text>;
+function makeTabIcon(Icon: LucideIcon) {
+  return function TabBarIcon({
+    color,
+    focused,
+  }: {
+    color: string;
+    focused: boolean;
+  }) {
+    return <TabIcon Icon={Icon} color={color} focused={focused} />;
+  };
 }
 
-function ExploreTabIcon({ color }: { color: string }) {
-  return <Text className="text-lg" style={{ color }}>✦</Text>;
-}
+const ExploreTabIcon = makeTabIcon(Compass);
+const LibraryTabIcon = makeTabIcon(BookOpen);
+const WishlistTabIcon = makeTabIcon(Heart);
+const ProfileTabIcon = makeTabIcon(UserRound);
 
 export function RootNavigator() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const screenOptions = useTabBarOptions();
 
   return (
     <NavigationContainer>
-      <Tab.Navigator
-        screenOptions={{
-          headerShown: false,
-          tabBarActiveTintColor: isDark ? '#8fcfaa' : '#287851',
-          tabBarInactiveTintColor: isDark ? '#94a3b8' : '#64748b',
-          tabBarStyle: {
-            backgroundColor: isDark ? '#0f172a' : '#ffffff',
-            borderTopColor: isDark ? '#1e293b' : '#e2e8f0',
-          },
-        }}>
-        <Tab.Screen
-          name={ROUTES.HOME}
-          component={HomeScreen}
-          options={{
-            tabBarLabel: 'Home',
-            tabBarIcon: HomeTabIcon,
-          }}
-        />
+      <Tab.Navigator screenOptions={screenOptions}>
         <Tab.Screen
           name={ROUTES.EXPLORE}
           component={ExploreScreen}
           options={{
             tabBarLabel: 'Explore',
             tabBarIcon: ExploreTabIcon,
+          }}
+        />
+        <Tab.Screen
+          name={ROUTES.LIBRARY}
+          component={LibraryScreen}
+          options={{
+            tabBarLabel: 'Library',
+            tabBarIcon: LibraryTabIcon,
+          }}
+        />
+        <Tab.Screen
+          name={ROUTES.WISHLIST}
+          component={WishlistScreen}
+          options={{
+            tabBarLabel: 'Wishlist',
+            tabBarIcon: WishlistTabIcon,
+          }}
+        />
+        <Tab.Screen
+          name={ROUTES.PROFILE}
+          component={ProfileScreen}
+          options={{
+            tabBarLabel: 'Profile',
+            tabBarIcon: ProfileTabIcon,
           }}
         />
       </Tab.Navigator>

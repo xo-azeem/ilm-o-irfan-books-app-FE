@@ -46,8 +46,10 @@ src/
 │   └── ui/
 ├── constants/              # App-wide constants (routes, config)
 ├── features/               # Feature modules (screens + feature logic)
-│   ├── home/
-│   └── explore/
+│   ├── explore/
+│   ├── library/
+│   ├── wishlist/
+│   └── profile/
 ├── hooks/                  # Shared React hooks
 └── theme/                  # Design tokens
 ```

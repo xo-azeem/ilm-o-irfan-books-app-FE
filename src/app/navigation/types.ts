@@ -2,9 +2,9 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { CompositeScreenProps } from '@react-navigation/native';
 
 export type RootTabParamList = {
-  Explore: undefined;
-  Library: undefined;
-  Wishlist: undefined;
+  Home: undefined;
+  Search: undefined;
+  MyLibrary: undefined;
   Profile: undefined;
 };
 

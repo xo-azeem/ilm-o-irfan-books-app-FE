@@ -2,7 +2,8 @@ import { View } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
 
 import { ListRow, Screen, ScreenHeader, Section } from '@/components/layout';
-import { Text } from '@/components/ui';
+import { DisplayText, Text } from '@/components/ui';
+import { palette } from '@/theme/palette';
 
 const settingsRows = [
   { title: 'Account', subtitle: 'Sign in to sync progress' },
@@ -16,20 +17,20 @@ export function ProfileScreen() {
     <Screen>
       <ScreenHeader title="Profile" subtitle="Your learning space." />
 
-      <View className="mb-6 items-center rounded-[20px] bg-ios-surface px-5 py-6 dark:bg-ios-surface-dark">
-        <View className="mb-4 h-20 w-20 items-center justify-center rounded-full bg-ios-fill dark:bg-ios-fill-dark">
-          <Text className="text-[28px] font-semibold text-ios-label dark:text-ios-label-dark">
+      <View className="mb-6 items-center rounded-[20px] bg-app-surface px-5 py-6 dark:bg-app-surface-dark">
+        <View className="mb-4 h-20 w-20 items-center justify-center rounded-full bg-app-fill dark:bg-app-fill-dark">
+          <DisplayText className="text-[28px] font-bold text-app-primary dark:text-app-primary-dark">
             IO
-          </Text>
+          </DisplayText>
         </View>
-        <Text className="text-[22px] font-semibold text-ios-label dark:text-ios-label-dark">
+        <DisplayText className="text-[22px] font-semibold text-app-ink dark:text-app-ink-dark">
           Guest learner
-        </Text>
-        <Text className="mt-1 text-[15px] text-ios-secondary dark:text-ios-secondary-dark">
+        </DisplayText>
+        <Text className="mt-1 text-[15px] text-app-muted dark:text-app-muted-dark">
           Sign in to personalize your journey
         </Text>
-        <View className="mt-5 w-full rounded-[14px] bg-ios-label px-4 py-3 dark:bg-ios-label-dark">
-          <Text className="text-center text-[17px] font-semibold text-white dark:text-black">
+        <View className="mt-5 w-full rounded-[14px] bg-app-primary px-4 py-3 dark:bg-app-primary-dark">
+          <Text className="text-center text-[17px] font-semibold text-app-on-primary dark:text-app-on-primary-dark">
             Continue with Apple
           </Text>
         </View>
@@ -43,11 +44,11 @@ export function ProfileScreen() {
         ].map(stat => (
           <View
             key={stat.label}
-            className="flex-1 items-center rounded-[16px] bg-ios-surface px-3 py-4 dark:bg-ios-surface-dark">
-            <Text className="text-[22px] font-bold text-ios-label dark:text-ios-label-dark">
+            className="flex-1 items-center rounded-[16px] border border-app-border bg-app-surface px-3 py-4 dark:border-app-border-dark dark:bg-app-surface-dark">
+            <DisplayText className="text-[22px] font-bold text-app-primary dark:text-app-primary-dark">
               {stat.value}
-            </Text>
-            <Text className="mt-1 text-[13px] text-ios-secondary dark:text-ios-secondary-dark">
+            </DisplayText>
+            <Text className="mt-1 text-[13px] text-app-muted dark:text-app-muted-dark">
               {stat.label}
             </Text>
           </View>
@@ -62,7 +63,7 @@ export function ProfileScreen() {
             subtitle={row.subtitle}
             isLast={index === settingsRows.length - 1}
             trailing={
-              <ChevronRight color="#C7C7CC" size={18} strokeWidth={2} />
+              <ChevronRight color={palette.yellowGreen} size={18} strokeWidth={2} />
             }
           />
         ))}

@@ -3,6 +3,7 @@ import { Heart } from 'lucide-react-native';
 
 import { EmptyState, ListRow, Screen, ScreenHeader, Section } from '@/components/layout';
 import { Text } from '@/components/ui';
+import { palette } from '@/theme/palette';
 
 const wishlistItems = [
   {
@@ -36,8 +37,13 @@ export function WishlistScreen() {
               subtitle={item.subtitle}
               isLast={index === wishlistItems.length - 1}
               leading={
-                <View className="h-9 w-9 items-center justify-center rounded-[10px] bg-rose-50 dark:bg-rose-950">
-                  <Heart color="#FF3B30" size={16} strokeWidth={2.2} fill="#FF3B30" />
+                <View className="h-9 w-9 items-center justify-center rounded-[10px] bg-app-fill dark:bg-app-fill-dark">
+                  <Heart
+                    color={palette.green}
+                    size={16}
+                    strokeWidth={2.2}
+                    fill={palette.yellowGreen}
+                  />
                 </View>
               }
             />
@@ -50,8 +56,8 @@ export function WishlistScreen() {
         />
       )}
 
-      <View className="mt-6 rounded-[16px] bg-ios-surface px-4 py-4 dark:bg-ios-surface-dark">
-        <Text className="text-[15px] leading-5 text-ios-secondary dark:text-ios-secondary-dark">
+      <View className="mt-6 rounded-[16px] border border-app-border bg-app-surface-raised px-4 py-4 dark:border-app-border-dark dark:bg-app-surface-raised-dark">
+        <Text className="text-[15px] leading-5 text-app-muted dark:text-app-muted-dark">
           Your wishlist syncs across devices once you sign in.
         </Text>
       </View>

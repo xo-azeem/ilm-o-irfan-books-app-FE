@@ -6,7 +6,12 @@ module.exports = {
     extend: {
       fontFamily: {
         sans: ['DMSans'],
-        display: ['Literata'],
+      },
+      letterSpacing: {
+        sleek: '-0.02em',
+        snug: '-0.01em',
+        label: '0.08em',
+        wide: '0.04em',
       },
       colors: {
         palette: {

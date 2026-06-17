@@ -59,7 +59,6 @@
 	<key>UIAppFonts</key>
 	<array>
 		<string>DMSans.ttf</string>
-		<string>Literata.ttf</string>
 	</array>
 </dict>
 </plist>

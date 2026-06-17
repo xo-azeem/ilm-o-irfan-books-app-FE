@@ -7,17 +7,22 @@ type TextProps = PropsWithChildren<{
   style?: TextStyle;
 }>;
 
+const bodyBase = 'font-sans tracking-snug text-app-ink dark:text-app-ink-dark';
+const headingBase =
+  'font-sans font-semibold tracking-sleek text-app-ink dark:text-app-ink-dark';
+
 export function Text({ children, className, numberOfLines, style }: TextProps) {
   return (
     <RNText
       numberOfLines={numberOfLines}
       style={style}
-      className={`font-sans text-app-ink dark:text-app-ink-dark ${className ?? ''}`}>
+      className={`${bodyBase} ${className ?? ''}`}>
       {children}
     </RNText>
   );
 }
 
+/** Headings — same DM Sans family, tighter tracking and semibold weight. */
 export function DisplayText({
   children,
   className,
@@ -28,7 +33,7 @@ export function DisplayText({
     <RNText
       numberOfLines={numberOfLines}
       style={style}
-      className={`font-display text-app-ink dark:text-app-ink-dark ${className ?? ''}`}>
+      className={`${headingBase} ${className ?? ''}`}>
       {children}
     </RNText>
   );

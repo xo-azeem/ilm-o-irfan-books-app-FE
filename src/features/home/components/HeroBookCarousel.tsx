@@ -20,7 +20,7 @@ import { BookOpen, Bookmark, ChevronRight, Star, UserRound } from 'lucide-react-
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
-import { fonts, palette, theme } from '@/theme/palette';
+import { fonts, palette, theme, typography } from '@/theme/palette';
 import type { HeroCarouselBook } from '@/features/explore/data/exploreContent';
 
 type AppColors = (typeof theme)['light'] | (typeof theme)['dark'];
@@ -515,17 +515,17 @@ const styles = StyleSheet.create({
     gap: 1,
   },
   headerTitle: {
-    fontFamily: fonts.display,
+    fontFamily: fonts.sans,
     fontSize: 18,
     fontWeight: '700',
-    letterSpacing: -0.3,
+    letterSpacing: typography.snug,
     lineHeight: 21,
   },
   headerSub: {
     fontFamily: fonts.sans,
     fontSize: 11,
     fontWeight: '500',
-    letterSpacing: 0.5,
+    letterSpacing: typography.wide,
   },
   profileBtn: {
     width: 40,
@@ -607,10 +607,11 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   coverTitle: {
-    fontFamily: fonts.display,
+    fontFamily: fonts.sans,
     fontSize: 11,
     fontWeight: '600',
     lineHeight: 14,
+    letterSpacing: typography.snug,
     color: '#FFFFFF',
   },
   panel: {
@@ -669,26 +670,28 @@ const styles = StyleSheet.create({
     fontFamily: fonts.sans,
     fontSize: 10,
     fontWeight: '600',
-    letterSpacing: 1.2,
+    letterSpacing: typography.label,
     marginBottom: 4,
   },
   panelTitle: {
-    fontFamily: fonts.display,
+    fontFamily: fonts.sans,
     fontSize: 18,
     fontWeight: '700',
     lineHeight: 22,
-    letterSpacing: -0.3,
+    letterSpacing: typography.tight,
   },
   panelAuthor: {
     flex: 1,
     fontFamily: fonts.sans,
     fontSize: 12,
     fontWeight: '500',
+    letterSpacing: typography.normal,
   },
   panelDesc: {
     fontFamily: fonts.sans,
     fontSize: 12,
     lineHeight: 18,
+    letterSpacing: typography.snug,
   },
   metaInline: {
     flexDirection: 'row',
@@ -727,7 +730,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.sans,
     fontSize: 14,
     fontWeight: '600',
-    letterSpacing: 0.1,
+    letterSpacing: typography.wide,
   },
   saveBtn: {
     width: 44,

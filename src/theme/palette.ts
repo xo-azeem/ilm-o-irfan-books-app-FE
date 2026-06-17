@@ -54,7 +54,16 @@ export const theme = {
 
 export const fonts = {
   sans: 'DMSans',
-  display: 'Literata',
+} as const;
+
+/** Shared letter-spacing for a modern, airy type rhythm. */
+export const typography = {
+  tight: -0.4,
+  snug: -0.2,
+  normal: 0,
+  wide: 0.4,
+  wider: 0.8,
+  label: 1.1,
 } as const;
 
 export const layout = {

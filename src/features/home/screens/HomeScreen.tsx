@@ -7,7 +7,6 @@ import type { RootTabParamList } from '@/app/navigation/types';
 import { ROUTES } from '@/constants/routes';
 
 import { BookCoverCard } from '@/features/explore/components/BookCoverCard';
-import { CategoryBrowseSection } from '@/features/explore/components/CategoryBrowseSection';
 import { CollectionCard } from '@/features/explore/components/CollectionCard';
 import { ExploreSectionHeader } from '@/features/explore/components/ExploreSectionHeader';
 import {
@@ -45,8 +44,6 @@ export function HomeScreen() {
           </ScrollView>
         </View>
 
-        <CategoryBrowseSection />
-
         <View className="mb-8">
           <ExploreSectionHeader title="New arrivals" subtitle="Fresh on the shelf" />
           <ScrollView
@@ -55,7 +52,7 @@ export function HomeScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerClassName="gap-4 pr-5">
             {newArrivals.map(book => (
-              <BookCoverCard key={book.id} book={book} width={112} />
+              <BookCoverCard key={book.id} book={book} />
             ))}
           </ScrollView>
         </View>

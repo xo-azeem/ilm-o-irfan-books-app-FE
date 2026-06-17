@@ -3,6 +3,7 @@ import { Search, X } from 'lucide-react-native';
 
 import { Screen, ScreenHeader, Section } from '@/components/layout';
 import { Text } from '@/components/ui';
+import { CategoryBrowseSection } from '@/features/explore/components/CategoryBrowseSection';
 import { palette } from '@/theme/palette';
 
 const recentSearches = [
@@ -51,6 +52,8 @@ export function SearchScreen() {
           </View>
         </View>
       ) : null}
+
+      <CategoryBrowseSection />
 
       <Section title="Popular topics">
         {popularTopics.map((topic, index) => (

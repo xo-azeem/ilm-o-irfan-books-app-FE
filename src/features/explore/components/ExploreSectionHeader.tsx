@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
-import { Pressable, View, useColorScheme } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
 
 import { DisplayText, Text } from '@/components/ui';
-import { theme } from '@/theme/palette';
+import { useTheme } from '@/theme/ThemeContext';
 
 type ExploreSectionHeaderProps = {
   title: string;
@@ -20,8 +20,7 @@ export function ExploreSectionHeader({
   onActionPress,
   trailing,
 }: ExploreSectionHeaderProps) {
-  const isDark = useColorScheme() === 'dark';
-  const colors = isDark ? theme.dark : theme.light;
+  const { colors } = useTheme();
 
   return (
     <View className="mb-4 flex-row items-end justify-between gap-3">

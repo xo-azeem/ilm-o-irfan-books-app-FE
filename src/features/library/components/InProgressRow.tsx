@@ -2,9 +2,13 @@ import { memo } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { DisplayText, Text } from '@/components/ui';
+import { useTheme } from '@/theme/ThemeContext';
 import type { ReadingBook } from '@/features/library/data/libraryContent';
 
-import { LIBRARY_COVER_WIDTH } from '../constants';
+import {
+  getLibraryPressHighlight,
+  LIBRARY_COVER_WIDTH,
+} from '../constants';
 import { BookSpine } from './BookSpine';
 import { LibraryProgressBar } from './LibraryProgressBar';
 
@@ -19,12 +23,17 @@ export const InProgressRow = memo(function InProgressRow({
   isLast,
   onPress,
 }: InProgressRowProps) {
+  const { isDark } = useTheme();
   const percent = Math.round(book.progress * 100);
+  const pressHighlight = getLibraryPressHighlight(isDark);
 
   return (
     <Pressable
       onPress={onPress}
-      className={`flex-row items-start gap-4 px-4 py-3.5 active:opacity-60 ${
+      style={({ pressed }) =>
+        pressed ? { backgroundColor: pressHighlight } : undefined
+      }
+      className={`flex-row items-start gap-4 px-4 py-3.5 ${
         !isLast ? 'border-b border-app-border dark:border-app-border-dark' : ''
       }`}>
       <BookSpine

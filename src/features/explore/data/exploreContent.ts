@@ -20,6 +20,10 @@ export type BookItem = {
   tag?: string;
 };
 
+export type SearchCatalogBook = BookItem & {
+  description: string;
+};
+
 export type HeroCarouselBook = BookItem & {
   description: string;
   readTime: string;
@@ -233,7 +237,21 @@ export const curatedCollections = [
   },
 ];
 
-function toBookItem(book: BookItem): BookItem {
+const searchBookDescriptions: Record<string, string> = {
+  n1: 'A concise introduction to the principles of Islamic jurisprudence.',
+  n2: 'Step-by-step lessons that make classical Arabic grammar approachable.',
+  n3: 'Reflections on moral responsibility, compassion, and living with purpose.',
+};
+
+const heroDescriptionByTitle = new Map(
+  heroCarouselBooks.map(book => [book.title, book.description]),
+);
+
+function toSearchCatalogBook(
+  book: BookItem | HeroCarouselBook,
+): SearchCatalogBook {
+  const heroBook = 'description' in book ? book : null;
+
   return {
     id: book.id,
     title: book.title,
@@ -242,19 +260,24 @@ function toBookItem(book: BookItem): BookItem {
     coverColorDark: book.coverColorDark,
     rating: book.rating,
     tag: book.tag,
+    description:
+      heroBook?.description ??
+      searchBookDescriptions[book.id] ??
+      heroDescriptionByTitle.get(book.title) ??
+      `A thoughtful read by ${book.author}.`,
   };
 }
 
-export const searchCatalogBooks: BookItem[] = (() => {
+export const searchCatalogBooks: SearchCatalogBook[] = (() => {
   const seen = new Set<string>();
-  const books: BookItem[] = [];
+  const books: SearchCatalogBook[] = [];
 
   for (const book of [...trendingBooks, ...newArrivals, ...heroCarouselBooks]) {
     if (seen.has(book.id)) {
       continue;
     }
     seen.add(book.id);
-    books.push(toBookItem(book));
+    books.push(toSearchCatalogBook(book));
   }
 
   return books;

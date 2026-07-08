@@ -4,10 +4,9 @@ import {
   Text,
   StyleSheet,
   View,
-  useColorScheme,
   useWindowDimensions,
 } from 'react-native';
-import { memo, useCallback, useEffect, useRef, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useIsFocused } from '@react-navigation/native';
 import Animated, {
   cancelAnimation,
@@ -29,6 +28,7 @@ import { BookOpen, Bookmark, ChevronRight, Star, UserRound } from 'lucide-react-
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
+import { useTheme } from '@/theme/ThemeContext';
 import { fonts, palette, theme, typography } from '@/theme/palette';
 import type { HeroCarouselBook } from '@/features/explore/data/exploreContent';
 
@@ -59,12 +59,14 @@ const GlassPanel = memo(function GlassPanel({
   coverColor,
   isDark,
   height,
+  showGradient,
   children,
 }: {
   panelId: string;
   coverColor: string;
   isDark: boolean;
   height: number;
+  showGradient: boolean;
   children: ReactNode;
 }) {
   const gradientId = `glass-${panelId}`;
@@ -81,22 +83,27 @@ const GlassPanel = memo(function GlassPanel({
       <View
         style={[StyleSheet.absoluteFill, { backgroundColor: panelFrost(isDark) }]}
       />
-      <Svg
-        style={[StyleSheet.absoluteFill, { zIndex: 0 }]}
-        preserveAspectRatio="none">
-        <Defs>
-          <LinearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor="#FFFFFF" stopOpacity={isDark ? 0.16 : 0.38} />
-            <Stop offset="0.5" stopColor="#FFFFFF" stopOpacity={isDark ? 0.03 : 0.08} />
-            <Stop
-              offset="1"
-              stopColor={isDark ? '#000000' : '#142818'}
-              stopOpacity={isDark ? 0.18 : 0.04}
-            />
-          </LinearGradient>
-        </Defs>
-        <Rect width="100%" height="100%" fill={`url(#${gradientId})`} />
-      </Svg>
+      {/* The gradient sheen is a purely decorative SVG overlay. It is only
+          mounted for the visible page and its neighbors to keep startup cheap;
+          off-screen pages fall back to the flat frost fill above. */}
+      {showGradient ? (
+        <Svg
+          style={[StyleSheet.absoluteFill, { zIndex: 0 }]}
+          preserveAspectRatio="none">
+          <Defs>
+            <LinearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor="#FFFFFF" stopOpacity={isDark ? 0.16 : 0.38} />
+              <Stop offset="0.5" stopColor="#FFFFFF" stopOpacity={isDark ? 0.03 : 0.08} />
+              <Stop
+                offset="1"
+                stopColor={isDark ? '#000000' : '#142818'}
+                stopOpacity={isDark ? 0.18 : 0.04}
+              />
+            </LinearGradient>
+          </Defs>
+          <Rect width="100%" height="100%" fill={`url(#${gradientId})`} />
+        </Svg>
+      ) : null}
       <View style={[styles.panelSheen, { backgroundColor: panelSheen(isDark) }]} />
 
       <View style={styles.panelContent}>{children}</View>
@@ -302,6 +309,7 @@ type CarouselPageProps = {
   coverColor: string;
   isDark: boolean;
   pageHeight: number;
+  showGradient: boolean;
   onBookPress?: (book: HeroCarouselBook) => void;
 };
 
@@ -317,6 +325,7 @@ const CarouselPage = memo(function CarouselPage({
   coverColor,
   isDark,
   pageHeight,
+  showGradient,
   onBookPress,
 }: CarouselPageProps) {
   const handlePress = useCallback(() => {
@@ -368,7 +377,8 @@ const CarouselPage = memo(function CarouselPage({
         panelId={book.id}
         coverColor={coverColor}
         isDark={isDark}
-        height={panelHeight}>
+        height={panelHeight}
+        showGradient={showGradient}>
         <BookDescription
           book={book}
           colors={colors}
@@ -417,8 +427,7 @@ export const HeroBookCarousel = memo(function HeroBookCarousel({
   onBookPress,
   onProfilePress,
 }: HeroBookCarouselProps) {
-  const isDark = useColorScheme() === 'dark';
-  const colors = isDark ? theme.dark : theme.light;
+  const { isDark, colors } = useTheme();
   const { width: screenWidth } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
@@ -427,6 +436,9 @@ export const HeroBookCarousel = memo(function HeroBookCarousel({
   const scrollX = useSharedValue(0);
   const isAutoScrolling = useSharedValue(false);
   const activeIndexRef = useRef(0);
+  // Drives which pages mount the decorative SVG gradient (active ± 1). Kept in
+  // React state (not just the ref) so mounting/unmounting re-renders correctly.
+  const [activeIndex, setActiveIndex] = useState(0);
   const isUserInteractingRef = useRef(false);
   const autoScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isFocusedRef = useRef(isFocused);
@@ -465,6 +477,8 @@ export const HeroBookCarousel = memo(function HeroBookCarousel({
 
       const nextIndex = (activeIndexRef.current + 1) % booksLengthRef.current;
       activeIndexRef.current = nextIndex;
+      // Mount the incoming page's gradient before it slides into view.
+      setActiveIndex(nextIndex);
       const offsetX = nextIndex * screenWidthRef.current;
 
       runOnUI((x: number) => {
@@ -518,7 +532,9 @@ export const HeroBookCarousel = memo(function HeroBookCarousel({
 
   const handleScrollSettled = useCallback(
     (offsetX: number) => {
-      activeIndexRef.current = Math.round(offsetX / screenWidthRef.current);
+      const settledIndex = Math.round(offsetX / screenWidthRef.current);
+      activeIndexRef.current = settledIndex;
+      setActiveIndex(settledIndex);
 
       if (isUserInteractingRef.current) {
         isUserInteractingRef.current = false;
@@ -583,6 +599,7 @@ export const HeroBookCarousel = memo(function HeroBookCarousel({
               coverColor={isDark ? book.coverColorDark : book.coverColor}
               isDark={isDark}
               pageHeight={pageHeight}
+              showGradient={Math.abs(index - activeIndex) <= 1}
               onBookPress={onBookPress}
             />
           ))}

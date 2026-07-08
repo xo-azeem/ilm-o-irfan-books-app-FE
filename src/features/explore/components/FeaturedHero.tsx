@@ -1,7 +1,8 @@
-import { Pressable, StyleSheet, View, useColorScheme } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { ArrowRight, Star } from 'lucide-react-native';
 
 import { DisplayText, Text } from '@/components/ui';
+import { useTheme } from '@/theme/ThemeContext';
 import { palette } from '@/theme/palette';
 
 import type { BookItem } from '../data/exploreContent';
@@ -12,7 +13,7 @@ type FeaturedHeroProps = {
 };
 
 export function FeaturedHero({ book, onPress }: FeaturedHeroProps) {
-  const isDark = useColorScheme() === 'dark';
+  const { isDark } = useTheme();
   const coverColor = isDark ? book.coverColorDark : book.coverColor;
 
   return (

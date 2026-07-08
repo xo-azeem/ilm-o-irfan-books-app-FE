@@ -2,8 +2,10 @@ import { memo } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { DisplayText, Text } from '@/components/ui';
+import { useTheme } from '@/theme/ThemeContext';
 import type { LibraryBook } from '@/features/library/data/libraryContent';
 
+import { getLibraryRipple } from '../constants';
 import { BookSpine } from './BookSpine';
 
 type FinishedBookCardProps = {
@@ -17,8 +19,14 @@ export const FinishedBookCard = memo(function FinishedBookCard({
   width = 96,
   onPress,
 }: FinishedBookCardProps) {
+  const { isDark } = useTheme();
+
   return (
-    <Pressable onPress={onPress} style={{ width }} className="active:opacity-80">
+    <Pressable
+      onPress={onPress}
+      android_ripple={getLibraryRipple(isDark)}
+      style={{ width }}
+      className="active:opacity-80">
       <BookSpine
         title={book.title}
         coverColor={book.coverColor}

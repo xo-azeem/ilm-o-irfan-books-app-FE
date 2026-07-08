@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { Platform, Pressable, StyleSheet, View, useColorScheme } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import {
   BookOpen,
@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Text } from '@/components/ui';
 import { ROUTES, ROUTE_LABELS, type RouteName } from '@/constants/routes';
-import { theme } from '@/theme/palette';
+import { useTheme } from '@/theme/ThemeContext';
 
 const CIRCLE_RADIUS = 20;
 const TAB_BAR_HEIGHT = 70;
@@ -29,8 +29,7 @@ const TAB_CONFIG: Record<RouteName, TabConfig> = {
 };
 
 export const CustomTabBar = memo(function CustomTabBar({ state, navigation }: BottomTabBarProps) {
-  const isDark = useColorScheme() === 'dark';
-  const colors = isDark ? theme.dark : theme.light;
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const bottomPadding =
     Platform.OS === 'ios' ? insets.bottom : Math.max(insets.bottom, 8);

@@ -1,9 +1,9 @@
 import { memo } from 'react';
-import { Pressable, View, useColorScheme } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { Pencil } from 'lucide-react-native';
 
 import { DisplayText, Text } from '@/components/ui';
-import { theme } from '@/theme/palette';
+import { useTheme } from '@/theme/ThemeContext';
 import type { ProfileUser } from '@/features/profile/data/profileContent';
 
 type ProfileHeaderProps = {
@@ -15,8 +15,7 @@ export const ProfileHeader = memo(function ProfileHeader({
   user,
   onEdit,
 }: ProfileHeaderProps) {
-  const isDark = useColorScheme() === 'dark';
-  const colors = isDark ? theme.dark : theme.light;
+  const { colors } = useTheme();
 
   return (
     <View className="mb-8 items-center px-2 pt-1">

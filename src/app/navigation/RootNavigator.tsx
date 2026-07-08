@@ -18,11 +18,10 @@ export function RootNavigator() {
     <View className="flex-1">
       <NavigationContainer>
         <Tab.Navigator
-          detachInactiveScreens={false}
           tabBar={props => <CustomTabBar {...props} />}
           screenOptions={{
             headerShown: false,
-            lazy: false,
+            lazy: true,
             freezeOnBlur: true,
             animation: 'none',
           }}>

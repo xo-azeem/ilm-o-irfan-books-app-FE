@@ -1,5 +1,5 @@
 import type { PropsWithChildren } from 'react';
-import { Platform, StatusBar, useColorScheme } from 'react-native';
+import { Platform, StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
   SafeAreaProvider,
@@ -7,9 +7,10 @@ import {
 } from 'react-native-safe-area-context';
 
 import { ThemeProvider } from '@/app/providers/ThemeProvider';
+import { ThemeStateProvider, useTheme } from '@/theme/ThemeContext';
 
 function AppShell({ children }: PropsWithChildren) {
-  const isDark = useColorScheme() === 'dark';
+  const { isDark } = useTheme();
 
   return (
     <GestureHandlerRootView className="flex-1 bg-app-bg dark:bg-app-bg-dark">
@@ -28,7 +29,9 @@ function AppShell({ children }: PropsWithChildren) {
 export function AppProviders({ children }: PropsWithChildren) {
   return (
     <ThemeProvider>
-      <AppShell>{children}</AppShell>
+      <ThemeStateProvider>
+        <AppShell>{children}</AppShell>
+      </ThemeStateProvider>
     </ThemeProvider>
   );
 }

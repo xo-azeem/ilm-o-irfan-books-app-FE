@@ -1,5 +1,5 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Appearance } from 'react-native';
+import { MMKV } from 'react-native-mmkv';
 import { create } from 'zustand';
 import {
   createJSONStorage,
@@ -32,29 +32,50 @@ export function applyThemePreference(preference: ThemePreference) {
   }
 }
 
-// Guards against the persistence native module being unavailable (e.g. before
-// a native rebuild after installing AsyncStorage). Any storage failure is
-// swallowed so the app always renders with the default preference.
-const safeStorage: StateStorage = {
-  getItem: async name => {
+// MMKV is a synchronous native store, so the persisted preference is available
+// on the very first render — this removes the async hydration gate and the
+// startup theme flash entirely. Guarded so a missing native binary (e.g. before
+// a native rebuild after install) transparently falls back to in-memory state
+// instead of crashing at launch.
+let mmkv: MMKV | null = null;
+try {
+  mmkv = new MMKV({ id: 'ilm-app-storage' });
+} catch (error) {
+  if (__DEV__) {
+    console.warn('[theme] MMKV unavailable; using in-memory storage', error);
+  }
+}
+
+const memoryStore = new Map<string, string>();
+
+const themeStorage: StateStorage = {
+  getItem: name => {
     try {
-      return await AsyncStorage.getItem(name);
+      return mmkv ? mmkv.getString(name) ?? null : memoryStore.get(name) ?? null;
     } catch {
-      return null;
+      return memoryStore.get(name) ?? null;
     }
   },
-  setItem: async (name, value) => {
+  setItem: (name, value) => {
     try {
-      await AsyncStorage.setItem(name, value);
+      if (mmkv) {
+        mmkv.set(name, value);
+      } else {
+        memoryStore.set(name, value);
+      }
     } catch {
-      // ignore write failures
+      memoryStore.set(name, value);
     }
   },
-  removeItem: async name => {
+  removeItem: name => {
     try {
-      await AsyncStorage.removeItem(name);
+      if (mmkv) {
+        mmkv.delete(name);
+      } else {
+        memoryStore.delete(name);
+      }
     } catch {
-      // ignore remove failures
+      memoryStore.delete(name);
     }
   },
 };
@@ -70,11 +91,11 @@ export const useThemeStore = create<ThemeState>()(
     }),
     {
       name: 'ilm-theme-preference',
-      storage: createJSONStorage(() => safeStorage),
+      storage: createJSONStorage(() => themeStorage),
+      // Runs synchronously with MMKV, so the saved theme is applied to the
+      // native Appearance before the first frame paints.
       onRehydrateStorage: () => state => {
-        if (state) {
-          applyThemePreference(state.themePreference);
-        }
+        applyThemePreference(state?.themePreference ?? 'system');
       },
     },
   ),

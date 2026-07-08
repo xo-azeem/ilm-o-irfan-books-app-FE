@@ -1,7 +1,7 @@
 import { View } from 'react-native';
 import { Search } from 'lucide-react-native';
 
-import { Screen, ScreenHeader } from '@/components/layout';
+import { Screen } from '@/components/layout';
 import { DisplayText, Text } from '@/components/ui';
 import { searchCatalogBooks } from '@/features/explore/data/exploreContent';
 import { palette } from '@/theme/palette';
@@ -12,27 +12,30 @@ import { SearchCategorySection } from '../components/SearchCategoryRow';
 export function SearchScreen() {
   return (
     <Screen>
-      <ScreenHeader title="Search" subtitle="Find books, authors, and topics." />
+      <View className="mt-4">
+        <View className="flex-row items-center gap-3 rounded-[18px] border border-app-border bg-app-surface px-5 py-4 dark:border-app-border-dark dark:bg-app-surface-dark">
+          <Search size={21} color={palette.yellowGreen} strokeWidth={2} />
+          <Text className="flex-1 text-[16px] text-app-faint dark:text-app-faint-dark">
+            Search books, authors, topics…
+          </Text>
+        </View>
 
-      <View className="mb-7 flex-row items-center gap-3 rounded-2xl border border-app-border bg-app-surface px-4 py-3.5 dark:border-app-border-dark dark:bg-app-surface-dark">
-        <Search size={18} color={palette.yellowGreen} strokeWidth={2} />
-        <Text className="flex-1 text-[15px] text-app-faint dark:text-app-faint-dark">
-          Search books, authors, topics…
-        </Text>
-      </View>
+        <View className="mt-14">
+          <SearchCategorySection />
+        </View>
 
-      <SearchCategorySection />
-
-      <View className="mb-2">
-        <View className="mb-4 gap-0.5">
-          <DisplayText className="text-[17px] font-semibold tracking-tight text-app-ink dark:text-app-ink-dark">
+        <View className="mt-14 gap-1.5">
+          <DisplayText className="text-[22px] font-bold leading-7 tracking-tight text-app-ink dark:text-app-ink-dark">
             All books
           </DisplayText>
           <Text className="text-[13px] text-app-muted dark:text-app-muted-dark">
             {searchCatalogBooks.length} titles in the catalog
           </Text>
         </View>
-        <SearchBookGrid books={searchCatalogBooks} />
+
+        <View className="mt-4">
+          <SearchBookGrid books={searchCatalogBooks} />
+        </View>
       </View>
     </Screen>
   );

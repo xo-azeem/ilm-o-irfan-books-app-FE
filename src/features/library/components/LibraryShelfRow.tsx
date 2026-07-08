@@ -1,10 +1,10 @@
 import { memo } from 'react';
-import { View, useColorScheme } from 'react-native';
+import { View } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
 
 import { ListRow } from '@/components/layout';
 import { Text } from '@/components/ui';
-import { theme } from '@/theme/palette';
+import { useTheme } from '@/theme/ThemeContext';
 import type { LibraryShelf } from '@/features/library/data/libraryContent';
 
 type LibraryShelfRowProps = {
@@ -18,8 +18,7 @@ export const LibraryShelfRow = memo(function LibraryShelfRow({
   isLast,
   onPress,
 }: LibraryShelfRowProps) {
-  const isDark = useColorScheme() === 'dark';
-  const colors = isDark ? theme.dark : theme.light;
+  const { isDark, colors } = useTheme();
   const accent = isDark ? shelf.accentDark : shelf.accent;
   const Icon = shelf.icon;
 

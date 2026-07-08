@@ -4,6 +4,7 @@ import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
 import { useAppInsets } from '@/hooks/useAppInsets';
 import { DisplayText, Text } from '@/components/ui';
+import { useTheme } from '@/theme/ThemeContext';
 
 type ScreenProps = PropsWithChildren<{
   scrollable?: boolean;
@@ -115,6 +116,7 @@ export function ListRow({
   isLast = false,
   onPress,
 }: ListRowProps) {
+  const { colors } = useTheme();
   const rowClassName = `min-h-[52px] flex-row items-center gap-3 px-4 py-3 ${
     !isLast ? 'border-b border-app-border dark:border-app-border-dark' : ''
   }`;
@@ -141,10 +143,15 @@ export function ListRow({
   );
 
   if (onPress) {
+    const pressHighlight = colors.fill;
+
     return (
       <Pressable
         onPress={onPress}
-        className={`${rowClassName} active:opacity-55`}
+        style={({ pressed }) =>
+          pressed ? { backgroundColor: pressHighlight } : undefined
+        }
+        className={rowClassName}
         accessibilityRole="button">
         {content}
       </Pressable>

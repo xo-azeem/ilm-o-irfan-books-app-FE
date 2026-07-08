@@ -1,9 +1,9 @@
 import { memo } from 'react';
-import { Pressable, View, useColorScheme } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { Check } from 'lucide-react-native';
 
 import { Text } from '@/components/ui';
-import { theme } from '@/theme/palette';
+import { useTheme } from '@/theme/ThemeContext';
 
 type ProfileOptionRowProps = {
   label: string;
@@ -20,8 +20,7 @@ export const ProfileOptionRow = memo(function ProfileOptionRow({
   onPress,
   isLast = false,
 }: ProfileOptionRowProps) {
-  const isDark = useColorScheme() === 'dark';
-  const colors = isDark ? theme.dark : theme.light;
+  const { colors } = useTheme();
 
   return (
     <Pressable

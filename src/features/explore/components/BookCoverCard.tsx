@@ -1,8 +1,9 @@
 import { memo } from 'react';
-import { Pressable, StyleSheet, View, useColorScheme } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { Star } from 'lucide-react-native';
 
 import { DisplayText, Text } from '@/components/ui';
+import { useTheme } from '@/theme/ThemeContext';
 import { palette } from '@/theme/palette';
 
 import type { BookItem } from '../data/exploreContent';
@@ -18,7 +19,7 @@ export const BookCoverCard = memo(function BookCoverCard({
   width = 128,
   onPress,
 }: BookCoverCardProps) {
-  const isDark = useColorScheme() === 'dark';
+  const { isDark } = useTheme();
   const coverColor = isDark ? book.coverColorDark : book.coverColor;
   const coverHeight = width * 1.45;
 

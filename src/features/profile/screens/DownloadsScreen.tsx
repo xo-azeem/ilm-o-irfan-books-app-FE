@@ -1,5 +1,5 @@
 import { memo, useCallback, useState } from 'react';
-import { Pressable, View, useColorScheme } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { Trash2 } from 'lucide-react-native';
 
 import { Section } from '@/components/layout';
@@ -8,11 +8,12 @@ import { BookSpine } from '@/features/library/components/BookSpine';
 import { LIBRARY_COVER_WIDTH } from '@/features/library/constants';
 import { ProfileSubScreenLayout } from '@/features/profile/components/ProfileSubScreenLayout';
 import { downloadedBooks } from '@/features/profile/data/profileContent';
+import { useTheme } from '@/theme/ThemeContext';
 
 const COVER_WIDTH = Math.round(LIBRARY_COVER_WIDTH * 0.55);
 
 export const DownloadsScreen = memo(function DownloadsScreen() {
-  const isDark = useColorScheme() === 'dark';
+  const { isDark } = useTheme();
   const [items, setItems] = useState(downloadedBooks);
 
   const removeItem = useCallback((id: string) => {

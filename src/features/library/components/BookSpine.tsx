@@ -1,7 +1,10 @@
 import { memo } from 'react';
-import { Platform, StyleSheet, View, useColorScheme } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { DisplayText } from '@/components/ui';
+import { useTheme } from '@/theme/ThemeContext';
+
+import { getBookSpineShadow } from '../constants';
 
 type BookSpineProps = {
   title: string;
@@ -16,7 +19,7 @@ export const BookSpine = memo(function BookSpine({
   coverColorDark,
   width,
 }: BookSpineProps) {
-  const isDark = useColorScheme() === 'dark';
+  const { isDark } = useTheme();
   const color = isDark ? coverColorDark : coverColor;
   const height = width * 1.45;
 
@@ -24,11 +27,11 @@ export const BookSpine = memo(function BookSpine({
     <View
       style={[
         styles.cover,
+        getBookSpineShadow(isDark),
         {
           width,
           height,
           backgroundColor: color,
-          shadowOpacity: isDark ? 0.24 : 0.12,
         },
       ]}>
       <View style={styles.spine} />
@@ -50,10 +53,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     justifyContent: 'flex-end',
     padding: 10,
-    shadowColor: '#1C2B22',
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
-    ...Platform.select({ android: { elevation: 4 } }),
   },
   spine: {
     position: 'absolute',

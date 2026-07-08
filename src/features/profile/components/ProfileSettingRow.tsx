@@ -1,10 +1,10 @@
 import { memo } from 'react';
-import { Pressable, View, useColorScheme } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
 
 import { ListRow } from '@/components/layout';
 import { Text } from '@/components/ui';
-import { theme } from '@/theme/palette';
+import { useTheme } from '@/theme/ThemeContext';
 import type { ProfileRow } from '@/features/profile/data/profileContent';
 
 type ProfileSettingRowProps = {
@@ -18,8 +18,7 @@ export const ProfileSettingRow = memo(function ProfileSettingRow({
   isLast,
   onPress,
 }: ProfileSettingRowProps) {
-  const isDark = useColorScheme() === 'dark';
-  const colors = isDark ? theme.dark : theme.light;
+  const { isDark, colors } = useTheme();
   const accent = isDark ? row.accentDark : row.accent;
   const Icon = row.icon;
 

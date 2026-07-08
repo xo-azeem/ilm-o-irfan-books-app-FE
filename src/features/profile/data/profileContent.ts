@@ -14,7 +14,9 @@ import {
   UserRound,
 } from 'lucide-react-native';
 
-import { palette } from '@/theme/palette';
+import { coverColors, palette } from '@/theme/palette';
+import type { ProfileStackScreen } from '@/features/profile/navigation/types';
+import type { ThemePreference } from '@/stores/themeStore';
 
 export type ProfileUser = {
   name: string;
@@ -38,6 +40,7 @@ export type ProfileRow = {
   accent: string;
   accentDark: string;
   destructive?: boolean;
+  screen?: ProfileStackScreen;
 };
 
 export type ProfileGroup = {
@@ -71,6 +74,7 @@ export const profileGroups: ProfileGroup[] = [
         icon: UserRound,
         accent: palette.green,
         accentDark: palette.yellowGreen,
+        screen: 'PersonalDetails',
       },
       {
         id: 'row-subscription',
@@ -79,6 +83,7 @@ export const profileGroups: ProfileGroup[] = [
         icon: CreditCard,
         accent: '#C9940A',
         accentDark: palette.sunflower,
+        screen: 'Subscription',
       },
       {
         id: 'row-downloads',
@@ -87,6 +92,7 @@ export const profileGroups: ProfileGroup[] = [
         icon: Download,
         accent: '#2A9B72',
         accentDark: '#4EC4A0',
+        screen: 'Downloads',
       },
     ],
   },
@@ -101,14 +107,15 @@ export const profileGroups: ProfileGroup[] = [
         icon: Bell,
         accent: '#7CB518',
         accentDark: palette.chartreuse,
+        screen: 'Notifications',
       },
       {
         id: 'row-appearance',
         label: 'Appearance',
-        value: 'System',
         icon: Moon,
         accent: '#4A9E5C',
         accentDark: '#72B878',
+        screen: 'Appearance',
       },
       {
         id: 'row-language',
@@ -117,6 +124,7 @@ export const profileGroups: ProfileGroup[] = [
         icon: Globe,
         accent: palette.yellowGreen,
         accentDark: palette.limelight,
+        screen: 'Language',
       },
     ],
   },
@@ -130,6 +138,7 @@ export const profileGroups: ProfileGroup[] = [
         icon: CircleHelp,
         accent: palette.green,
         accentDark: palette.yellowGreen,
+        screen: 'HelpCenter',
       },
       {
         id: 'row-rate',
@@ -137,6 +146,7 @@ export const profileGroups: ProfileGroup[] = [
         icon: Star,
         accent: '#C9940A',
         accentDark: palette.sunflower,
+        screen: 'RateApp',
       },
       {
         id: 'row-privacy',
@@ -144,6 +154,7 @@ export const profileGroups: ProfileGroup[] = [
         icon: Shield,
         accent: '#2A9B72',
         accentDark: '#4EC4A0',
+        screen: 'PrivacySecurity',
       },
       {
         id: 'row-about',
@@ -152,6 +163,7 @@ export const profileGroups: ProfileGroup[] = [
         icon: Info,
         accent: '#4A9E5C',
         accentDark: '#72B878',
+        screen: 'About',
       },
     ],
   },
@@ -177,3 +189,144 @@ export const readingHighlight = {
   subtitle: '8 of 12 books completed',
   progress: 8 / 12,
 };
+
+export const personalDetailsFields = [
+  { id: 'name', label: 'Full name', value: profileUser.name },
+  { id: 'email', label: 'Email', value: profileUser.email },
+  { id: 'phone', label: 'Phone', value: '+92 300 123 4567' },
+  { id: 'location', label: 'Location', value: 'Lahore, Pakistan' },
+];
+
+export const subscriptionPlan = {
+  name: 'Premium',
+  price: 'Rs 1,499 / month',
+  renewsOn: 'Renews on 15 Aug 2026',
+  features: [
+    'Unlimited access to all books',
+    'Offline downloads',
+    'Audio lessons & highlights',
+    'Early access to new releases',
+  ],
+};
+
+export const downloadedBooks = [
+  {
+    id: 'dl1',
+    title: 'Introduction to Usul al-Fiqh',
+    author: 'Dr. Yasir Qadhi',
+    size: '24 MB',
+    coverColor: coverColors.forest.light,
+    coverColorDark: coverColors.forest.dark,
+  },
+  {
+    id: 'dl2',
+    title: 'Seerah: Early Makkah',
+    author: 'Sh. Yasir',
+    size: '18 MB',
+    coverColor: coverColors.lime.light,
+    coverColorDark: coverColors.lime.dark,
+  },
+  {
+    id: 'dl3',
+    title: 'Purification of the Heart',
+    author: 'Hamza Yusuf',
+    size: '21 MB',
+    coverColor: coverColors.olive.light,
+    coverColorDark: coverColors.olive.dark,
+  },
+  {
+    id: 'dl4',
+    title: 'Inner Dimensions of Prayer',
+    author: 'Ibn Qayyim',
+    size: '16 MB',
+    coverColor: coverColors.emerald.light,
+    coverColorDark: coverColors.emerald.dark,
+  },
+  {
+    id: 'dl5',
+    title: 'Revival of the Sciences',
+    author: 'Al-Ghazali',
+    size: '29 MB',
+    coverColor: coverColors.pine.light,
+    coverColorDark: coverColors.pine.dark,
+  },
+  {
+    id: 'dl6',
+    title: 'Arabic Grammar Made Easy',
+    author: 'Dr. V. Abdur Rahim',
+    size: '14 MB',
+    coverColor: coverColors.sage.light,
+    coverColorDark: coverColors.sage.dark,
+  },
+];
+
+export const helpTopics = [
+  {
+    id: 'help1',
+    question: 'How do I download books for offline reading?',
+    answer:
+      'Open any book and tap the download icon on the reader screen. Downloaded titles appear under Profile → Downloads.',
+  },
+  {
+    id: 'help2',
+    question: 'Can I sync progress across devices?',
+    answer:
+      'Yes. Sign in with the same account on each device and your reading progress, highlights, and saved lessons will stay in sync.',
+  },
+  {
+    id: 'help3',
+    question: 'How do I manage my subscription?',
+    answer:
+      'Go to Profile → Subscription to view your plan, renewal date, and billing options.',
+  },
+  {
+    id: 'help4',
+    question: 'How do I change the app language?',
+    answer:
+      'Open Profile → Language and choose from the available languages. The app will apply your selection immediately.',
+  },
+];
+
+export const languageOptions = [
+  { id: 'en', label: 'English', description: 'Default' },
+  { id: 'ur', label: 'Urdu', description: 'اردو' },
+  { id: 'ar', label: 'Arabic', description: 'العربية' },
+];
+
+export const appearanceOptions: {
+  id: ThemePreference;
+  label: string;
+  description: string;
+}[] = [
+  { id: 'system', label: 'System', description: 'Match device settings' },
+  { id: 'light', label: 'Light', description: 'Always use light mode' },
+  { id: 'dark', label: 'Dark', description: 'Always use dark mode' },
+];
+
+export const privacyOptions = [
+  {
+    id: 'privacy-profile',
+    label: 'Profile visibility',
+    description: 'Show reading activity to friends',
+    defaultValue: false,
+  },
+  {
+    id: 'privacy-analytics',
+    label: 'Usage analytics',
+    description: 'Help improve the app with anonymous data',
+    defaultValue: true,
+  },
+  {
+    id: 'privacy-biometric',
+    label: 'Biometric lock',
+    description: 'Require Face ID or fingerprint to open',
+    defaultValue: false,
+  },
+];
+
+export const aboutDetails = [
+  { id: 'about-version', label: 'Version', value: '1.0.0' },
+  { id: 'about-build', label: 'Build', value: '2026.07.08' },
+  { id: 'about-platform', label: 'Platform', value: 'React Native' },
+  { id: 'about-support', label: 'Support', value: 'support@ilmoirfan.com' },
+];

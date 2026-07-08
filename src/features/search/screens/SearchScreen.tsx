@@ -1,4 +1,3 @@
-import { memo } from 'react';
 import { View } from 'react-native';
 import { Search } from 'lucide-react-native';
 
@@ -10,7 +9,7 @@ import { palette } from '@/theme/palette';
 import { SearchBookGrid } from '../components/SearchBookGrid';
 import { SearchCategorySection } from '../components/SearchCategoryRow';
 
-export const SearchScreen = memo(function SearchScreen() {
+export function SearchScreen() {
   return (
     <Screen>
       <ScreenHeader title="Search" subtitle="Find books, authors, and topics." />
@@ -37,4 +36,4 @@ export const SearchScreen = memo(function SearchScreen() {
       </View>
     </Screen>
   );
-});
+}

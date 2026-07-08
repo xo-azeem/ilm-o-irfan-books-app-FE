@@ -1,5 +1,7 @@
-import { memo } from 'react';
-import { View } from 'react-native';
+import { useCallback } from 'react';
+import { Alert, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { Screen, ScreenHeader, Section } from '@/components/layout';
 import { Text } from '@/components/ui';
@@ -8,17 +10,44 @@ import {
   profileStats,
   profileUser,
 } from '@/features/profile/data/profileContent';
+import type { ProfileStackParamList, ProfileStackScreen } from '@/features/profile/navigation/types';
+import { THEME_PREFERENCE_LABELS, useThemeStore } from '@/stores/themeStore';
 
 import { ProfileHeader } from '../components/ProfileHeader';
 import { ProfileSettingRow } from '../components/ProfileSettingRow';
 import { ProfileStatsRow } from '../components/ProfileStatsRow';
 
-export const ProfileScreen = memo(function ProfileScreen() {
+export function ProfileScreen() {
+  const navigation =
+    useNavigation<NativeStackNavigationProp<ProfileStackParamList>>();
+  const themePreference = useThemeStore(state => state.themePreference);
+
+  const handleEditProfile = useCallback(() => {
+    navigation.navigate('PersonalDetails');
+  }, [navigation]);
+
+  const handleRowPress = useCallback(
+    (rowId: string, screen?: ProfileStackScreen) => {
+      if (rowId === 'row-signout') {
+        Alert.alert('Sign out', 'Are you sure you want to sign out?', [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Sign out', style: 'destructive' },
+        ]);
+        return;
+      }
+
+      if (screen) {
+        navigation.navigate(screen);
+      }
+    },
+    [navigation],
+  );
+
   return (
     <Screen contentContainerClassName="px-5 pt-0">
       <ScreenHeader title="Profile" />
 
-      <ProfileHeader user={profileUser} />
+      <ProfileHeader user={profileUser} onEdit={handleEditProfile} />
 
       <ProfileStatsRow stats={profileStats} />
 
@@ -28,8 +57,13 @@ export const ProfileScreen = memo(function ProfileScreen() {
             {group.rows.map((row, index) => (
               <ProfileSettingRow
                 key={row.id}
-                row={row}
+                row={
+                  row.id === 'row-appearance'
+                    ? { ...row, value: THEME_PREFERENCE_LABELS[themePreference] }
+                    : row
+                }
                 isLast={index === group.rows.length - 1}
+                onPress={() => handleRowPress(row.id, row.screen)}
               />
             ))}
           </Section>
@@ -41,4 +75,4 @@ export const ProfileScreen = memo(function ProfileScreen() {
       </Text>
     </Screen>
   );
-});
+}

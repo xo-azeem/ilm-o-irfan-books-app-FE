@@ -1,4 +1,4 @@
-import { memo, useCallback } from 'react';
+import { useCallback } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -18,7 +18,7 @@ import {
 } from '@/features/explore/data/exploreContent';
 import { HeroBookCarousel } from '@/features/home/components/HeroBookCarousel';
 
-export const HomeScreen = memo(function HomeScreen() {
+export function HomeScreen() {
   const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
   const handleProfilePress = useCallback(() => {
     navigation.navigate(ROUTES.PROFILE);
@@ -84,4 +84,4 @@ export const HomeScreen = memo(function HomeScreen() {
       </View>
     </Screen>
   );
-});
+}

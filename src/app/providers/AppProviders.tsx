@@ -6,9 +6,10 @@ import {
   initialWindowMetrics,
 } from 'react-native-safe-area-context';
 
-export function AppProviders({ children }: PropsWithChildren) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+import { ThemeProvider } from '@/app/providers/ThemeProvider';
+
+function AppShell({ children }: PropsWithChildren) {
+  const isDark = useColorScheme() === 'dark';
 
   return (
     <GestureHandlerRootView className="flex-1 bg-app-bg dark:bg-app-bg-dark">
@@ -21,5 +22,13 @@ export function AppProviders({ children }: PropsWithChildren) {
         {children}
       </SafeAreaProvider>
     </GestureHandlerRootView>
+  );
+}
+
+export function AppProviders({ children }: PropsWithChildren) {
+  return (
+    <ThemeProvider>
+      <AppShell>{children}</AppShell>
+    </ThemeProvider>
   );
 }

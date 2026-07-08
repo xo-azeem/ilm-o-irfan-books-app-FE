@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Pressable, StyleSheet, View, useColorScheme } from 'react-native';
 import { Star } from 'lucide-react-native';
 
@@ -12,7 +13,7 @@ type BookCoverCardProps = {
   onPress?: () => void;
 };
 
-export function BookCoverCard({
+export const BookCoverCard = memo(function BookCoverCard({
   book,
   width = 128,
   onPress,
@@ -82,7 +83,7 @@ export function BookCoverCard({
       </View>
     </Pressable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   cover: {

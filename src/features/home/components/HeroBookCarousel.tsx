@@ -7,13 +7,22 @@ import {
   useColorScheme,
   useWindowDimensions,
 } from 'react-native';
-import type { ReactNode } from 'react';
+import { memo, useCallback, useEffect, useRef, type ReactNode } from 'react';
+import { useIsFocused } from '@react-navigation/native';
 import Animated, {
+  cancelAnimation,
+  Easing,
   Extrapolation,
   interpolate,
+  runOnJS,
+  runOnUI,
+  scrollTo,
+  useAnimatedReaction,
+  useAnimatedRef,
   useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
+  withTiming,
   type SharedValue,
 } from 'react-native-reanimated';
 import { BookOpen, Bookmark, ChevronRight, Star, UserRound } from 'lucide-react-native';
@@ -29,6 +38,9 @@ const COVER_W_RATIO = 0.46;
 const COVER_ASPECT = 1.48;
 const PANEL_RADIUS = 28;
 const PANEL_OVERLAP = 32;
+const AUTO_SCROLL_INTERVAL_MS = 4000;
+const AUTO_SCROLL_DURATION_MS = 800;
+const AUTO_SCROLL_EASING = Easing.bezier(0.4, 0, 0.2, 1);
 
 function panelFrost(isDark: boolean) {
   return isDark ? 'rgba(18, 26, 20, 0.78)' : 'rgba(255, 255, 255, 0.72)';
@@ -42,7 +54,7 @@ function glassRim(isDark: boolean) {
   return isDark ? 'rgba(255, 255, 255, 0.22)' : 'rgba(255, 255, 255, 0.85)';
 }
 
-function GlassPanel({
+const GlassPanel = memo(function GlassPanel({
   panelId,
   coverColor,
   isDark,
@@ -90,7 +102,7 @@ function GlassPanel({
       <View style={styles.panelContent}>{children}</View>
     </View>
   );
-}
+});
 
 function ReadNowButton({
   colors,
@@ -145,7 +157,7 @@ type BookDescriptionProps = {
   onPress?: () => void;
 };
 
-function BookDescription({
+const BookDescription = memo(function BookDescription({
   book,
   colors,
   isDark,
@@ -196,9 +208,9 @@ function BookDescription({
       </View>
     </View>
   );
-}
+});
 
-function CarouselHeader({
+const CarouselHeader = memo(function CarouselHeader({
   colors,
   isDark,
   onProfilePress,
@@ -247,9 +259,9 @@ function CarouselHeader({
       </Pressable>
     </View>
   );
-}
+});
 
-function BookCover({
+const BookCover = memo(function BookCover({
   book,
   coverColor,
   width,
@@ -276,7 +288,7 @@ function BookCover({
       </View>
     </View>
   );
-}
+});
 
 type CarouselPageProps = {
   book: HeroCarouselBook;
@@ -290,10 +302,10 @@ type CarouselPageProps = {
   coverColor: string;
   isDark: boolean;
   pageHeight: number;
-  onPress?: () => void;
+  onBookPress?: (book: HeroCarouselBook) => void;
 };
 
-function CarouselPage({
+const CarouselPage = memo(function CarouselPage({
   book,
   index,
   scrollX,
@@ -305,8 +317,12 @@ function CarouselPage({
   coverColor,
   isDark,
   pageHeight,
-  onPress,
+  onBookPress,
 }: CarouselPageProps) {
+  const handlePress = useCallback(() => {
+    onBookPress?.(book);
+  }, [book, onBookPress]);
+
   const inputRange = [
     (index - 1) * screenWidth,
     index * screenWidth,
@@ -357,14 +373,14 @@ function CarouselPage({
           book={book}
           colors={colors}
           isDark={isDark}
-          onPress={onPress}
+          onPress={handlePress}
         />
       </GlassPanel>
     </View>
   );
-}
+});
 
-function CarouselDot({
+const CarouselDot = memo(function CarouselDot({
   index,
   scrollX,
   screenWidth,
@@ -388,7 +404,7 @@ function CarouselDot({
   }));
 
   return <Animated.View style={[styles.dot, dotStyle]} />;
-}
+});
 
 type HeroBookCarouselProps = {
   books?: HeroCarouselBook[];
@@ -396,7 +412,7 @@ type HeroBookCarouselProps = {
   onProfilePress?: () => void;
 };
 
-export function HeroBookCarousel({
+export const HeroBookCarousel = memo(function HeroBookCarousel({
   books = [],
   onBookPress,
   onProfilePress,
@@ -405,8 +421,21 @@ export function HeroBookCarousel({
   const colors = isDark ? theme.dark : theme.light;
   const { width: screenWidth } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const isFocused = useIsFocused();
 
+  const scrollRef = useAnimatedRef<Animated.ScrollView>();
   const scrollX = useSharedValue(0);
+  const isAutoScrolling = useSharedValue(false);
+  const activeIndexRef = useRef(0);
+  const isUserInteractingRef = useRef(false);
+  const autoScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isFocusedRef = useRef(isFocused);
+  const screenWidthRef = useRef(screenWidth);
+  const booksLengthRef = useRef(books.length);
+
+  isFocusedRef.current = isFocused;
+  screenWidthRef.current = screenWidth;
+  booksLengthRef.current = books.length;
 
   const coverWidth = Math.round(screenWidth * COVER_W_RATIO);
   const coverHeight = Math.round(coverWidth * COVER_ASPECT);
@@ -415,8 +444,94 @@ export function HeroBookCarousel({
   const pageHeight = stageHeight + panelHeight - PANEL_OVERLAP;
   const totalHeight = pageHeight;
 
+  const clearAutoScrollTimer = useCallback(() => {
+    if (autoScrollTimerRef.current) {
+      clearTimeout(autoScrollTimerRef.current);
+      autoScrollTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleAutoScroll = useCallback(() => {
+    clearAutoScrollTimer();
+
+    if (booksLengthRef.current <= 1 || !isFocusedRef.current || isUserInteractingRef.current) {
+      return;
+    }
+
+    autoScrollTimerRef.current = setTimeout(() => {
+      if (isUserInteractingRef.current || !isFocusedRef.current) {
+        return;
+      }
+
+      const nextIndex = (activeIndexRef.current + 1) % booksLengthRef.current;
+      activeIndexRef.current = nextIndex;
+      const offsetX = nextIndex * screenWidthRef.current;
+
+      runOnUI((x: number) => {
+        'worklet';
+        isAutoScrolling.value = true;
+        scrollX.value = withTiming(
+          x,
+          {
+            duration: AUTO_SCROLL_DURATION_MS,
+            easing: AUTO_SCROLL_EASING,
+          },
+          finished => {
+            if (finished) {
+              isAutoScrolling.value = false;
+              runOnJS(scheduleAutoScroll)();
+            }
+          },
+        );
+      })(offsetX);
+    }, AUTO_SCROLL_INTERVAL_MS);
+  }, [clearAutoScrollTimer, isAutoScrolling, scrollX]);
+
+  useAnimatedReaction(
+    () => scrollX.value,
+    (offset, previous) => {
+      if (isAutoScrolling.value && offset !== previous) {
+        scrollTo(scrollRef, offset, 0, false);
+      }
+    },
+  );
+
+  useEffect(() => {
+    if (isFocused) {
+      scheduleAutoScroll();
+    } else {
+      clearAutoScrollTimer();
+    }
+
+    return clearAutoScrollTimer;
+  }, [clearAutoScrollTimer, isFocused, scheduleAutoScroll, books.length]);
+
+  const handleScrollBeginDrag = useCallback(() => {
+    isUserInteractingRef.current = true;
+    clearAutoScrollTimer();
+    runOnUI(() => {
+      'worklet';
+      cancelAnimation(scrollX);
+      isAutoScrolling.value = false;
+    })();
+  }, [clearAutoScrollTimer, isAutoScrolling, scrollX]);
+
+  const handleScrollSettled = useCallback(
+    (offsetX: number) => {
+      activeIndexRef.current = Math.round(offsetX / screenWidthRef.current);
+
+      if (isUserInteractingRef.current) {
+        isUserInteractingRef.current = false;
+        scheduleAutoScroll();
+      }
+    },
+    [scheduleAutoScroll],
+  );
+
   const onScroll = useAnimatedScrollHandler(event => {
-    scrollX.value = event.contentOffset.x;
+    if (!isAutoScrolling.value) {
+      scrollX.value = event.contentOffset.x;
+    }
   });
 
   if (books.length === 0) {
@@ -435,6 +550,7 @@ export function HeroBookCarousel({
 
       <View style={[styles.carouselBody, { height: totalHeight }]}>
         <Animated.ScrollView
+          ref={scrollRef}
           horizontal
           pagingEnabled
           nestedScrollEnabled
@@ -442,6 +558,15 @@ export function HeroBookCarousel({
           scrollEventThrottle={16}
           decelerationRate="fast"
           onScroll={onScroll}
+          onScrollBeginDrag={handleScrollBeginDrag}
+          onMomentumScrollEnd={event =>
+            handleScrollSettled(event.nativeEvent.contentOffset.x)
+          }
+          onScrollEndDrag={event => {
+            if (event.nativeEvent.velocity?.x === 0) {
+              handleScrollSettled(event.nativeEvent.contentOffset.x);
+            }
+          }}
           style={StyleSheet.absoluteFill}
           contentContainerStyle={{ width: screenWidth * books.length }}>
           {books.map((book, index) => (
@@ -458,7 +583,7 @@ export function HeroBookCarousel({
               coverColor={isDark ? book.coverColorDark : book.coverColor}
               isDark={isDark}
               pageHeight={pageHeight}
-              onPress={() => onBookPress?.(book)}
+              onBookPress={onBookPress}
             />
           ))}
         </Animated.ScrollView>
@@ -477,7 +602,7 @@ export function HeroBookCarousel({
       </View>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   root: {

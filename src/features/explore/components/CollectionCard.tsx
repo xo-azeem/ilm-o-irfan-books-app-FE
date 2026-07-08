@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { DisplayText, Text } from '@/components/ui';
@@ -10,7 +11,7 @@ type CollectionCardProps = {
   onPress?: () => void;
 };
 
-export function CollectionCard({
+function CollectionCardComponent({
   title,
   subtitle,
   bookCount,
@@ -32,8 +33,10 @@ export function CollectionCard({
         {subtitle}
       </Text>
       <Text className="text-[12px] font-medium text-app-primary dark:text-app-primary-dark">
-        {bookCount} books →
+        {bookCount} books {'\u2192'}
       </Text>
     </Pressable>
   );
 }
+
+export const CollectionCard = memo(CollectionCardComponent);

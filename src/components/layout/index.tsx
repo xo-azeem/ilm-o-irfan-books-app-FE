@@ -1,5 +1,5 @@
 import type { PropsWithChildren, ReactNode } from 'react';
-import { ScrollView, View, type ScrollViewProps } from 'react-native';
+import { Pressable, ScrollView, View, type ScrollViewProps } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
 import { useAppInsets } from '@/hooks/useAppInsets';
@@ -113,12 +113,14 @@ export function ListRow({
   leading,
   trailing,
   isLast = false,
+  onPress,
 }: ListRowProps) {
-  return (
-    <View
-      className={`min-h-[52px] flex-row items-center gap-3 px-4 py-3 ${
-        !isLast ? 'border-b border-app-border dark:border-app-border-dark' : ''
-      }`}>
+  const rowClassName = `min-h-[52px] flex-row items-center gap-3 px-4 py-3 ${
+    !isLast ? 'border-b border-app-border dark:border-app-border-dark' : ''
+  }`;
+
+  const content = (
+    <>
       {leading}
       <View className="min-w-0 flex-1 gap-0.5">
         <Text
@@ -135,8 +137,21 @@ export function ListRow({
         ) : null}
       </View>
       {trailing}
-    </View>
+    </>
   );
+
+  if (onPress) {
+    return (
+      <Pressable
+        onPress={onPress}
+        className={`${rowClassName} active:opacity-55`}
+        accessibilityRole="button">
+        {content}
+      </Pressable>
+    );
+  }
+
+  return <View className={rowClassName}>{content}</View>;
 }
 
 type MediaCardProps = {

@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Platform, Pressable, StyleSheet, View, useColorScheme } from 'react-native';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import {
@@ -27,7 +28,7 @@ const TAB_CONFIG: Record<RouteName, TabConfig> = {
   [ROUTES.PROFILE]: { Icon: UserRound },
 };
 
-export function CustomTabBar({ state, navigation }: BottomTabBarProps) {
+export const CustomTabBar = memo(function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const isDark = useColorScheme() === 'dark';
   const colors = isDark ? theme.dark : theme.light;
   const insets = useSafeAreaInsets();
@@ -112,7 +113,7 @@ export function CustomTabBar({ state, navigation }: BottomTabBarProps) {
       })}
     </View>
   );
-}
+});
 
 export const customTabBarHeight = TAB_BAR_HEIGHT;
 

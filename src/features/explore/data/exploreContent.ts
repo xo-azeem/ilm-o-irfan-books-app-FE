@@ -232,3 +232,30 @@ export const curatedCollections = [
     accent: palette.sunflower,
   },
 ];
+
+function toBookItem(book: BookItem): BookItem {
+  return {
+    id: book.id,
+    title: book.title,
+    author: book.author,
+    coverColor: book.coverColor,
+    coverColorDark: book.coverColorDark,
+    rating: book.rating,
+    tag: book.tag,
+  };
+}
+
+export const searchCatalogBooks: BookItem[] = (() => {
+  const seen = new Set<string>();
+  const books: BookItem[] = [];
+
+  for (const book of [...trendingBooks, ...newArrivals, ...heroCarouselBooks]) {
+    if (seen.has(book.id)) {
+      continue;
+    }
+    seen.add(book.id);
+    books.push(toBookItem(book));
+  }
+
+  return books;
+})();

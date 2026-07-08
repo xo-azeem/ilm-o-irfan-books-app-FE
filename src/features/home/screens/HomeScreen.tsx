@@ -1,3 +1,4 @@
+import { memo, useCallback } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -17,18 +18,18 @@ import {
 } from '@/features/explore/data/exploreContent';
 import { HeroBookCarousel } from '@/features/home/components/HeroBookCarousel';
 
-
-// Test commit
-export function HomeScreen() {
+export const HomeScreen = memo(function HomeScreen() {
   const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
+  const handleProfilePress = useCallback(() => {
+    navigation.navigate(ROUTES.PROFILE);
+  }, [navigation]);
 
   return (
     <Screen contentContainerClassName="px-0 pt-0" safeAreaEdges={['left', 'right']}>
       <HeroBookCarousel
         books={heroCarouselBooks}
-        onProfilePress={() => navigation.navigate(ROUTES.PROFILE)}
+        onProfilePress={handleProfilePress}
       />
-
       <View className="px-5 pt-0">
         <View className="mb-8">
           <ExploreSectionHeader
@@ -83,4 +84,4 @@ export function HomeScreen() {
       </View>
     </Screen>
   );
-}
+});

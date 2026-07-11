@@ -6,7 +6,7 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
-import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useRef, type ReactNode } from 'react';
 import { useIsFocused } from '@react-navigation/native';
 import Animated, {
   cancelAnimation,
@@ -26,7 +26,6 @@ import Animated, {
 } from 'react-native-reanimated';
 import { BookOpen, Bookmark, ChevronRight, Star, UserRound } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { useTheme } from '@/theme/ThemeContext';
 import { fonts, palette, theme, typography } from '@/theme/palette';
@@ -36,18 +35,66 @@ type AppColors = (typeof theme)['light'] | (typeof theme)['dark'];
 
 const COVER_W_RATIO = 0.46;
 const COVER_ASPECT = 1.48;
-const PANEL_RADIUS = 28;
+const PANEL_HEIGHT = 206;
 const PANEL_OVERLAP = 32;
+const COVER_PANEL_GAP = 8;
+const STAGE_HEADER_SPACE = 72;
 const AUTO_SCROLL_INTERVAL_MS = 4000;
 const AUTO_SCROLL_DURATION_MS = 800;
 const AUTO_SCROLL_EASING = Easing.bezier(0.4, 0, 0.2, 1);
 
-function panelFrost(isDark: boolean) {
-  return isDark ? 'rgba(18, 26, 20, 0.78)' : 'rgba(255, 255, 255, 0.72)';
+const scheduleAutoScrollRef: { current: () => void } = { current: () => {} };
+
+function onAutoScrollTimingComplete() {
+  scheduleAutoScrollRef.current();
 }
 
-function panelSheen(isDark: boolean) {
-  return isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(255, 255, 255, 0.55)';
+function parseHex(hex: string) {
+  if (!hex?.startsWith('#')) {
+    return null;
+  }
+
+  const value = Number.parseInt(hex.slice(1), 16);
+  if (Number.isNaN(value)) {
+    return null;
+  }
+
+  return {
+    r: (value >> 16) & 255,
+    g: (value >> 8) & 255,
+    b: value & 255,
+  };
+}
+
+function blendHex(base: string, r: number, g: number, b: number, alpha: number) {
+  const baseRgb = parseHex(base);
+  if (!baseRgb) {
+    return base;
+  }
+
+  const inv = 1 - alpha;
+  return `rgb(${Math.round(r * alpha + baseRgb.r * inv)},${Math.round(g * alpha + baseRgb.g * inv)},${Math.round(b * alpha + baseRgb.b * inv)})`;
+}
+
+/** Single uniform opaque fill — no top sheen or two-tone gradient. */
+function panelOpaqueFill(coverColor: string, isDark: boolean) {
+  return isDark
+    ? blendHex(coverColor, 18, 26, 20, 0.88)
+    : blendHex(coverColor, 255, 255, 255, 0.82);
+}
+
+function darkenFill(fill: string, amount: number) {
+  const match = fill.match(/rgb\((\d+),(\d+),(\d+)\)/);
+  if (!match) {
+    return fill;
+  }
+
+  const r = Number(match[1]);
+  const g = Number(match[2]);
+  const b = Number(match[3]);
+  const inv = 1 - amount;
+
+  return `rgb(${Math.round(r * inv)},${Math.round(g * inv)},${Math.round(b * inv)})`;
 }
 
 function glassRim(isDark: boolean) {
@@ -55,57 +102,22 @@ function glassRim(isDark: boolean) {
 }
 
 const GlassPanel = memo(function GlassPanel({
-  panelId,
-  coverColor,
+  panelFill,
   isDark,
   height,
-  showGradient,
   children,
 }: {
-  panelId: string;
-  coverColor: string;
+  panelFill: string;
   isDark: boolean;
   height: number;
-  showGradient: boolean;
   children: ReactNode;
 }) {
-  const gradientId = `glass-${panelId}`;
-
   return (
-    <View style={[styles.panel, { height, borderTopColor: glassRim(isDark) }]}>
-      {/* background layers — rendered first so content sits on top */}
-      <View
-        style={[
-          StyleSheet.absoluteFill,
-          { backgroundColor: coverColor, opacity: isDark ? 0.38 : 0.28 },
-        ]}
-      />
-      <View
-        style={[StyleSheet.absoluteFill, { backgroundColor: panelFrost(isDark) }]}
-      />
-      {/* The gradient sheen is a purely decorative SVG overlay. It is only
-          mounted for the visible page and its neighbors to keep startup cheap;
-          off-screen pages fall back to the flat frost fill above. */}
-      {showGradient ? (
-        <Svg
-          style={[StyleSheet.absoluteFill, { zIndex: 0 }]}
-          preserveAspectRatio="none">
-          <Defs>
-            <LinearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0" stopColor="#FFFFFF" stopOpacity={isDark ? 0.16 : 0.38} />
-              <Stop offset="0.5" stopColor="#FFFFFF" stopOpacity={isDark ? 0.03 : 0.08} />
-              <Stop
-                offset="1"
-                stopColor={isDark ? '#000000' : '#142818'}
-                stopOpacity={isDark ? 0.18 : 0.04}
-              />
-            </LinearGradient>
-          </Defs>
-          <Rect width="100%" height="100%" fill={`url(#${gradientId})`} />
-        </Svg>
-      ) : null}
-      <View style={[styles.panelSheen, { backgroundColor: panelSheen(isDark) }]} />
-
+    <View
+      style={[
+        styles.panel,
+        { height, borderTopColor: glassRim(isDark), backgroundColor: panelFill },
+      ]}>
       <View style={styles.panelContent}>{children}</View>
     </View>
   );
@@ -113,11 +125,19 @@ const GlassPanel = memo(function GlassPanel({
 
 function ReadNowButton({
   colors,
+  panelFill,
+  coverColor,
+  isDark,
   onPress,
 }: {
   colors: AppColors;
+  panelFill: string;
+  coverColor: string;
+  isDark: boolean;
   onPress?: () => void;
 }) {
+  const buttonFill = darkenFill(panelFill, isDark ? 0.14 : 0.08);
+
   return (
     <Pressable
       onPress={onPress}
@@ -125,9 +145,16 @@ function ReadNowButton({
         styles.readBtnWrap,
         { opacity: pressed ? 0.88 : 1 },
       ]}>
-      <View style={[styles.readBtn, { backgroundColor: colors.primary }]}>
-        <Text style={[styles.readBtnLabel, { color: colors.onPrimary }]}>Read now</Text>
-        <ChevronRight color={colors.onPrimary} size={16} strokeWidth={2} />
+      <View
+        style={[
+          styles.readBtn,
+          {
+            backgroundColor: buttonFill,
+            borderColor: coverColor,
+          },
+        ]}>
+        <Text style={[styles.readBtnLabel, { color: colors.ink }]}>Read now</Text>
+        <ChevronRight color={colors.ink} size={16} strokeWidth={2} />
       </View>
     </Pressable>
   );
@@ -161,6 +188,8 @@ type BookDescriptionProps = {
   book: HeroCarouselBook;
   colors: AppColors;
   isDark: boolean;
+  panelFill: string;
+  coverColor: string;
   onPress?: () => void;
 };
 
@@ -168,6 +197,8 @@ const BookDescription = memo(function BookDescription({
   book,
   colors,
   isDark,
+  panelFill,
+  coverColor,
   onPress,
 }: BookDescriptionProps) {
   return (
@@ -210,7 +241,13 @@ const BookDescription = memo(function BookDescription({
       </View>
 
       <View style={styles.actions}>
-        <ReadNowButton colors={colors} onPress={onPress} />
+        <ReadNowButton
+          colors={colors}
+          panelFill={panelFill}
+          coverColor={coverColor}
+          isDark={isDark}
+          onPress={onPress}
+        />
         <SaveBookButton colors={colors} isDark={isDark} onPress={onPress} />
       </View>
     </View>
@@ -308,8 +345,7 @@ type CarouselPageProps = {
   colors: AppColors;
   coverColor: string;
   isDark: boolean;
-  pageHeight: number;
-  showGradient: boolean;
+  stageHeight: number;
   onBookPress?: (book: HeroCarouselBook) => void;
 };
 
@@ -324,18 +360,21 @@ const CarouselPage = memo(function CarouselPage({
   colors,
   coverColor,
   isDark,
-  pageHeight,
-  showGradient,
+  stageHeight,
   onBookPress,
 }: CarouselPageProps) {
+  const panelFill = panelOpaqueFill(coverColor, isDark);
+  const pageHeight = stageHeight + panelHeight - PANEL_OVERLAP;
+  const layoutWidth = Math.max(screenWidth, 1);
+
   const handlePress = useCallback(() => {
     onBookPress?.(book);
   }, [book, onBookPress]);
 
   const inputRange = [
-    (index - 1) * screenWidth,
-    index * screenWidth,
-    (index + 1) * screenWidth,
+    (index - 1) * layoutWidth,
+    index * layoutWidth,
+    (index + 1) * layoutWidth,
   ];
 
   const glowStyle = useAnimatedStyle(() => ({
@@ -354,15 +393,20 @@ const CarouselPage = memo(function CarouselPage({
   });
 
   return (
-    <View style={{ width: screenWidth, height: pageHeight }}>
-      <View style={[styles.stagePage, { height: pageHeight }]}>
+    <View style={{ width: layoutWidth, height: pageHeight }}>
+      <View style={[styles.stagePage, { height: stageHeight }]}>
         <Animated.View
-          style={[StyleSheet.absoluteFill, { backgroundColor: coverColor }, glowStyle]}
+          style={[
+            styles.stageGlow,
+            { backgroundColor: coverColor },
+            glowStyle,
+          ]}
         />
         <Animated.View
           style={[
+            styles.coverWrap,
             coverStyle,
-            { paddingBottom: panelHeight - PANEL_OVERLAP + 8 },
+            { paddingBottom: COVER_PANEL_GAP },
           ]}>
           <BookCover
             book={book}
@@ -374,15 +418,15 @@ const CarouselPage = memo(function CarouselPage({
       </View>
 
       <GlassPanel
-        panelId={book.id}
-        coverColor={coverColor}
+        panelFill={panelFill}
         isDark={isDark}
-        height={panelHeight}
-        showGradient={showGradient}>
+        height={panelHeight}>
         <BookDescription
           book={book}
           colors={colors}
           isDark={isDark}
+          panelFill={panelFill}
+          coverColor={coverColor}
           onPress={handlePress}
         />
       </GlassPanel>
@@ -428,7 +472,8 @@ export const HeroBookCarousel = memo(function HeroBookCarousel({
   onProfilePress,
 }: HeroBookCarouselProps) {
   const { isDark, colors } = useTheme();
-  const { width: screenWidth } = useWindowDimensions();
+  const { width: windowWidth } = useWindowDimensions();
+  const layoutWidth = Math.max(windowWidth, 1);
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
 
@@ -436,24 +481,20 @@ export const HeroBookCarousel = memo(function HeroBookCarousel({
   const scrollX = useSharedValue(0);
   const isAutoScrolling = useSharedValue(false);
   const activeIndexRef = useRef(0);
-  // Drives which pages mount the decorative SVG gradient (active ± 1). Kept in
-  // React state (not just the ref) so mounting/unmounting re-renders correctly.
-  const [activeIndex, setActiveIndex] = useState(0);
   const isUserInteractingRef = useRef(false);
   const autoScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isFocusedRef = useRef(isFocused);
-  const screenWidthRef = useRef(screenWidth);
+  const screenWidthRef = useRef(layoutWidth);
   const booksLengthRef = useRef(books.length);
 
   isFocusedRef.current = isFocused;
-  screenWidthRef.current = screenWidth;
+  screenWidthRef.current = layoutWidth;
   booksLengthRef.current = books.length;
 
-  const coverWidth = Math.round(screenWidth * COVER_W_RATIO);
+  const coverWidth = Math.round(layoutWidth * COVER_W_RATIO);
   const coverHeight = Math.round(coverWidth * COVER_ASPECT);
-  const stageHeight = coverHeight + insets.top + 72;
-  const panelHeight = 206;
-  const pageHeight = stageHeight + panelHeight - PANEL_OVERLAP;
+  const stageHeight = coverHeight + insets.top + STAGE_HEADER_SPACE;
+  const pageHeight = stageHeight + PANEL_HEIGHT - PANEL_OVERLAP;
   const totalHeight = pageHeight;
 
   const clearAutoScrollTimer = useCallback(() => {
@@ -477,9 +518,15 @@ export const HeroBookCarousel = memo(function HeroBookCarousel({
 
       const nextIndex = (activeIndexRef.current + 1) % booksLengthRef.current;
       activeIndexRef.current = nextIndex;
-      // Mount the incoming page's gradient before it slides into view.
-      setActiveIndex(nextIndex);
-      const offsetX = nextIndex * screenWidthRef.current;
+      const width = screenWidthRef.current;
+      if (width <= 0) {
+        return;
+      }
+
+      const offsetX = nextIndex * width;
+      if (!Number.isFinite(offsetX)) {
+        return;
+      }
 
       runOnUI((x: number) => {
         'worklet';
@@ -493,13 +540,15 @@ export const HeroBookCarousel = memo(function HeroBookCarousel({
           finished => {
             if (finished) {
               isAutoScrolling.value = false;
-              runOnJS(scheduleAutoScroll)();
+              runOnJS(onAutoScrollTimingComplete)();
             }
           },
         );
       })(offsetX);
     }, AUTO_SCROLL_INTERVAL_MS);
   }, [clearAutoScrollTimer, isAutoScrolling, scrollX]);
+
+  scheduleAutoScrollRef.current = scheduleAutoScroll;
 
   useAnimatedReaction(
     () => scrollX.value,
@@ -532,9 +581,16 @@ export const HeroBookCarousel = memo(function HeroBookCarousel({
 
   const handleScrollSettled = useCallback(
     (offsetX: number) => {
-      const settledIndex = Math.round(offsetX / screenWidthRef.current);
+      const width = screenWidthRef.current;
+      if (width <= 0 || booksLengthRef.current === 0) {
+        return;
+      }
+
+      const settledIndex = Math.min(
+        Math.max(Math.round(offsetX / width), 0),
+        booksLengthRef.current - 1,
+      );
       activeIndexRef.current = settledIndex;
-      setActiveIndex(settledIndex);
 
       if (isUserInteractingRef.current) {
         isUserInteractingRef.current = false;
@@ -584,22 +640,21 @@ export const HeroBookCarousel = memo(function HeroBookCarousel({
             }
           }}
           style={StyleSheet.absoluteFill}
-          contentContainerStyle={{ width: screenWidth * books.length }}>
+          contentContainerStyle={{ width: layoutWidth * books.length }}>
           {books.map((book, index) => (
             <CarouselPage
               key={book.id}
               book={book}
               index={index}
               scrollX={scrollX}
-              screenWidth={screenWidth}
-              panelHeight={panelHeight}
+              screenWidth={layoutWidth}
+              panelHeight={PANEL_HEIGHT}
               coverWidth={coverWidth}
               coverHeight={coverHeight}
               colors={colors}
               coverColor={isDark ? book.coverColorDark : book.coverColor}
               isDark={isDark}
-              pageHeight={pageHeight}
-              showGradient={Math.abs(index - activeIndex) <= 1}
+              stageHeight={stageHeight}
               onBookPress={onBookPress}
             />
           ))}
@@ -612,7 +667,7 @@ export const HeroBookCarousel = memo(function HeroBookCarousel({
             key={book.id}
             index={index}
             scrollX={scrollX}
-            screenWidth={screenWidth}
+            screenWidth={layoutWidth}
             activeColor={colors.primary}
           />
         ))}
@@ -685,6 +740,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'flex-end',
     overflow: 'hidden',
+  },
+  stageGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  coverWrap: {
+    zIndex: 1,
   },
   dotsWrap: {
     flexDirection: 'row',
@@ -762,10 +827,8 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     overflow: 'hidden',
-    zIndex: 2,
+    zIndex: 0,
     flexDirection: 'column',
-    borderTopLeftRadius: PANEL_RADIUS,
-    borderTopRightRadius: PANEL_RADIUS,
     borderTopWidth: StyleSheet.hairlineWidth,
     ...Platform.select({
       ios: {
@@ -777,15 +840,6 @@ const styles = StyleSheet.create({
       android: { elevation: 8 },
     }),
   },
-  panelSheen: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 48,
-    borderTopLeftRadius: PANEL_RADIUS,
-    borderTopRightRadius: PANEL_RADIUS,
-  },
   panelContent: {
     flex: 1,
     paddingHorizontal: 20,
@@ -794,10 +848,12 @@ const styles = StyleSheet.create({
   },
   descRoot: {
     flex: 1,
+    minHeight: 0,
     justifyContent: 'space-between',
   },
   descBody: {
     flex: 1,
+    minHeight: 0,
     justifyContent: 'center',
   },
   authorMetaRow: {
@@ -853,11 +909,12 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
     paddingTop: 4,
+    flexShrink: 0,
   },
   readBtnWrap: {
-    flex: 1,
+    flexShrink: 1,
   },
   readBtn: {
     flexDirection: 'row',
@@ -867,6 +924,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     height: 44,
     paddingHorizontal: 18,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   readBtnLabel: {
     fontFamily: fonts.sans,

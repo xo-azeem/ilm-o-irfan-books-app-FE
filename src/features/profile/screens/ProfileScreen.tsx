@@ -3,19 +3,20 @@ import { Alert, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-import { Screen, ScreenHeader, Section } from '@/components/layout';
+import { Screen, Section } from '@/components/layout';
 import { Text } from '@/components/ui';
 import {
+  profileAchievements,
   profileGroups,
-  profileStats,
+  profileLessonsSummary,
   profileUser,
 } from '@/features/profile/data/profileContent';
 import type { ProfileStackParamList, ProfileStackScreen } from '@/features/profile/navigation/types';
 import { THEME_PREFERENCE_LABELS, useThemeStore } from '@/stores/themeStore';
 
+import { ProfileAchievements } from '../components/ProfileAchievements';
 import { ProfileHeader } from '../components/ProfileHeader';
 import { ProfileSettingRow } from '../components/ProfileSettingRow';
-import { ProfileStatsRow } from '../components/ProfileStatsRow';
 
 export function ProfileScreen() {
   const navigation =
@@ -45,13 +46,15 @@ export function ProfileScreen() {
 
   return (
     <Screen contentContainerClassName="px-5 pt-0">
-      <ScreenHeader title="Profile" />
-
       <ProfileHeader user={profileUser} onEdit={handleEditProfile} />
 
-      <ProfileStatsRow stats={profileStats} />
-
       <View className="gap-7">
+        <ProfileAchievements
+          achievements={profileAchievements}
+          lessonsLabel={profileLessonsSummary.label}
+          lessonsValue={profileLessonsSummary.value}
+        />
+
         {profileGroups.map(group => (
           <Section key={group.id} title={group.title || undefined}>
             {group.rows.map((row, index) => (

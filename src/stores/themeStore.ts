@@ -1,5 +1,5 @@
 import { Appearance } from 'react-native';
-import { MMKV } from 'react-native-mmkv';
+import { createMMKV, type MMKV } from 'react-native-mmkv';
 import { create } from 'zustand';
 import {
   createJSONStorage,
@@ -39,7 +39,7 @@ export function applyThemePreference(preference: ThemePreference) {
 // instead of crashing at launch.
 let mmkv: MMKV | null = null;
 try {
-  mmkv = new MMKV({ id: 'ilm-app-storage' });
+  mmkv = createMMKV({ id: 'ilm-app-storage' });
 } catch (error) {
   if (__DEV__) {
     console.warn('[theme] MMKV unavailable; using in-memory storage', error);
@@ -70,7 +70,7 @@ const themeStorage: StateStorage = {
   removeItem: name => {
     try {
       if (mmkv) {
-        mmkv.delete(name);
+        mmkv.remove(name);
       } else {
         memoryStore.delete(name);
       }

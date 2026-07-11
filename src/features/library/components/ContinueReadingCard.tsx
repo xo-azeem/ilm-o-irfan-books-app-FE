@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { Platform, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { Play } from 'lucide-react-native';
 
 import { DisplayText, Text } from '@/components/ui';
@@ -16,11 +16,13 @@ import { LibraryProgressBar } from './LibraryProgressBar';
 
 type ContinueReadingCardProps = {
   book: ReadingBook;
+  embedded?: boolean;
   onPress?: () => void;
 };
 
 export const ContinueReadingCard = memo(function ContinueReadingCard({
   book,
+  embedded = false,
   onPress,
 }: ContinueReadingCardProps) {
   const { isDark, colors } = useTheme();
@@ -30,24 +32,36 @@ export const ContinueReadingCard = memo(function ContinueReadingCard({
   return (
     <Pressable
       onPress={onPress}
-      android_ripple={getLibraryRipple(isDark)}
-      style={[
-        getLibraryCardShadow(isDark),
-        {
-          borderColor: colors.border,
-          backgroundColor: colors.surface,
-        },
-      ]}
-      className="overflow-hidden rounded-[24px] border p-5 active:opacity-95">
-      <View
-        pointerEvents="none"
-        className="absolute inset-0 rounded-[24px]"
-        style={{ backgroundColor: `${tint}${isDark ? '18' : '10'}` }}
-      />
-
-      <Text className="mb-4 text-[11px] font-semibold uppercase tracking-widest text-app-primary dark:text-app-primary-dark">
-        Continue reading
-      </Text>
+      android_ripple={embedded ? undefined : getLibraryRipple(isDark)}
+      style={
+        embedded
+          ? undefined
+          : [
+              getLibraryCardShadow(isDark),
+              {
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
+              },
+            ]
+      }
+      className={
+        embedded
+          ? 'p-4 active:opacity-95'
+          : 'overflow-hidden rounded-[24px] border p-5 active:opacity-95'
+      }>
+      {!embedded ? (
+        <View
+          pointerEvents="none"
+          className="absolute inset-0 rounded-[24px]"
+          style={{ backgroundColor: `${tint}${isDark ? '18' : '10'}` }}
+        />
+      ) : (
+        <View
+          pointerEvents="none"
+          className="absolute inset-0"
+          style={{ backgroundColor: `${tint}${isDark ? '12' : '08'}` }}
+        />
+      )}
 
       <View className="flex-row gap-4">
         <BookSpine
@@ -60,7 +74,7 @@ export const ContinueReadingCard = memo(function ContinueReadingCard({
         <View className="min-w-0 flex-1 justify-between py-0.5">
           <View className="gap-1">
             <DisplayText
-              className="text-[19px] font-bold leading-[23px] text-app-ink dark:text-app-ink-dark"
+              className="text-[18px] font-bold leading-[22px] text-app-ink dark:text-app-ink-dark"
               numberOfLines={2}>
               {book.title}
             </DisplayText>
@@ -69,12 +83,17 @@ export const ContinueReadingCard = memo(function ContinueReadingCard({
               numberOfLines={1}>
               {book.author}
             </Text>
+            <Text
+              className="text-[12px] text-app-faint dark:text-app-faint-dark"
+              numberOfLines={1}>
+              {book.chapter}
+            </Text>
           </View>
 
-          <View className="gap-1.5">
+          <View className="mt-3 gap-1.5">
             <View className="flex-row items-center gap-2">
               <LibraryProgressBar value={book.progress} />
-              <Text className="text-[12px] font-semibold text-app-ink dark:text-app-ink-dark">
+              <Text className="text-[12px] font-semibold tabular-nums text-app-ink dark:text-app-ink-dark">
                 {percent}%
               </Text>
             </View>
@@ -85,14 +104,14 @@ export const ContinueReadingCard = memo(function ContinueReadingCard({
         </View>
       </View>
 
-      <View className="mt-5 flex-row items-center justify-center gap-2 rounded-[16px] bg-app-primary py-3.5 dark:bg-app-primary-dark">
+      <View className="mt-4 flex-row items-center justify-center gap-2 rounded-[14px] bg-app-primary py-3 dark:bg-app-primary-dark">
         <Play
-          size={15}
+          size={14}
           color={colors.onPrimary}
           fill={colors.onPrimary}
           strokeWidth={1}
         />
-        <Text className="text-[15px] font-semibold text-app-on-primary dark:text-app-on-primary-dark">
+        <Text className="text-[14px] font-semibold text-app-on-primary dark:text-app-on-primary-dark">
           Resume reading
         </Text>
       </View>

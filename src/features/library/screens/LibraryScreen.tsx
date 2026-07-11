@@ -3,15 +3,13 @@ import { ScrollView, View } from 'react-native';
 import { Screen, ScreenHeader, Section } from '@/components/layout';
 import { DisplayText, Text } from '@/components/ui';
 import {
-  continueReading,
   finishedBooks,
   inProgressBooks,
   libraryShelves,
 } from '@/features/library/data/libraryContent';
 
-import { ContinueReadingCard } from '../components/ContinueReadingCard';
 import { FinishedBookCard } from '../components/FinishedBookCard';
-import { InProgressRow } from '../components/InProgressRow';
+import { InProgressSection } from '../components/InProgressSection';
 import { LibraryShelfRow } from '../components/LibraryShelfRow';
 
 function SectionHeading({ title, action }: { title: string; action?: string }) {
@@ -34,22 +32,7 @@ export function LibraryScreen() {
     <Screen>
       <ScreenHeader title="My Library" subtitle="Pick up where you left off." />
 
-      <View className="mb-8">
-        <ContinueReadingCard book={continueReading} />
-      </View>
-
-      <View className="mb-8">
-        <SectionHeading title="In progress" action="See all" />
-        <Section>
-          {inProgressBooks.map((book, index) => (
-            <InProgressRow
-              key={book.id}
-              book={book}
-              isLast={index === inProgressBooks.length - 1}
-            />
-          ))}
-        </Section>
-      </View>
+      <InProgressSection books={inProgressBooks} />
 
       <View className="mb-8">
         <SectionHeading title="Shelves" />

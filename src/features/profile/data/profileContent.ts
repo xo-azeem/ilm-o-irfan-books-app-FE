@@ -2,15 +2,19 @@ import type { LucideIcon } from 'lucide-react-native';
 import {
   Bell,
   BookOpen,
+  Bookmark,
   CircleHelp,
   CreditCard,
   Download,
+  Flame,
   Globe,
   Info,
   LogOut,
   Moon,
   Shield,
   Star,
+  Sun,
+  Smartphone,
   UserRound,
 } from 'lucide-react-native';
 
@@ -30,6 +34,16 @@ export type ProfileStat = {
   id: string;
   label: string;
   value: string;
+};
+
+export type ProfileAchievement = {
+  id: string;
+  label: string;
+  value: string;
+  caption: string;
+  icon: LucideIcon;
+  accent: string;
+  accentDark: string;
 };
 
 export type ProfileRow = {
@@ -62,6 +76,32 @@ export const profileStats: ProfileStat[] = [
   { id: 'stat-streak', label: 'Day streak', value: '5' },
   { id: 'stat-saved', label: 'Saved', value: '9' },
 ];
+
+export const profileAchievements: ProfileAchievement[] = [
+  {
+    id: 'achievement-streak',
+    label: 'Day streak',
+    value: '5',
+    caption: 'Keep the momentum',
+    icon: Flame,
+    accent: palette.sunflower,
+    accentDark: palette.sunflower,
+  },
+  {
+    id: 'achievement-saved',
+    label: 'Saved',
+    value: '9',
+    caption: 'In your library',
+    icon: Bookmark,
+    accent: palette.green,
+    accentDark: palette.yellowGreen,
+  },
+];
+
+export const profileLessonsSummary = {
+  label: 'Lessons',
+  value: profileStats.find(stat => stat.id === 'stat-lessons')?.value ?? '0',
+};
 
 export const profileGroups: ProfileGroup[] = [
   {
@@ -190,11 +230,37 @@ export const readingHighlight = {
   progress: 8 / 12,
 };
 
+export type PersonalDetails = {
+  fullName: string;
+  email: string;
+  phone: string;
+  dateOfBirth: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+};
+
+export const personalDetailsDefaults: PersonalDetails = {
+  fullName: profileUser.name,
+  email: profileUser.email,
+  phone: '+92 300 123 4567',
+  dateOfBirth: '14 March 1996',
+  addressLine1: '42 Garden Town',
+  addressLine2: 'Block C, Street 7',
+  city: 'Lahore',
+  state: 'Punjab',
+  postalCode: '54000',
+  country: 'Pakistan',
+};
+
 export const personalDetailsFields = [
   { id: 'name', label: 'Full name', value: profileUser.name },
   { id: 'email', label: 'Email', value: profileUser.email },
-  { id: 'phone', label: 'Phone', value: '+92 300 123 4567' },
-  { id: 'location', label: 'Location', value: 'Lahore, Pakistan' },
+  { id: 'phone', label: 'Phone', value: personalDetailsDefaults.phone },
+  { id: 'location', label: 'Location', value: `${personalDetailsDefaults.city}, ${personalDetailsDefaults.country}` },
 ];
 
 export const subscriptionPlan = {
@@ -293,14 +359,32 @@ export const languageOptions = [
   { id: 'ar', label: 'Arabic', description: 'العربية' },
 ];
 
-export const appearanceOptions: {
+export type AppearanceOption = {
   id: ThemePreference;
   label: string;
   description: string;
-}[] = [
-  { id: 'system', label: 'System', description: 'Match device settings' },
-  { id: 'light', label: 'Light', description: 'Always use light mode' },
-  { id: 'dark', label: 'Dark', description: 'Always use dark mode' },
+  icon: LucideIcon;
+};
+
+export const appearanceOptions: AppearanceOption[] = [
+  {
+    id: 'system',
+    label: 'System',
+    description: 'Match device settings',
+    icon: Smartphone,
+  },
+  {
+    id: 'light',
+    label: 'Light',
+    description: 'Always use light mode',
+    icon: Sun,
+  },
+  {
+    id: 'dark',
+    label: 'Dark',
+    description: 'Always use dark mode',
+    icon: Moon,
+  },
 ];
 
 export const privacyOptions = [

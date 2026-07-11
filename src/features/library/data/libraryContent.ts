@@ -39,24 +39,17 @@ export type LibraryShelf = {
   accentDark: string;
 };
 
-export const continueReading: ReadingBook = {
-  id: 'lib-continue',
-  title: 'Introduction to Usul al-Fiqh',
-  author: 'Dr. Yasir Qadhi',
-  chapter: 'Chapter 4 · The Sources of Law',
-  timeLeft: '18 min left in this chapter',
-  progress: 0.35,
-  coverColor: coverColors.forest.light,
-  coverColorDark: coverColors.forest.dark,
-};
-
-export const readingStats: LibraryStat[] = [
-  { id: 'stat-reading', label: 'Reading', value: '3' },
-  { id: 'stat-finished', label: 'Finished', value: '12' },
-  { id: 'stat-streak', label: 'Day streak', value: '5' },
-];
-
 export const inProgressBooks: ReadingBook[] = [
+  {
+    id: 'lib-continue',
+    title: 'Introduction to Usul al-Fiqh',
+    author: 'Dr. Yasir Qadhi',
+    chapter: 'Chapter 4 · The Sources of Law',
+    timeLeft: '18 min left in this chapter',
+    progress: 0.35,
+    coverColor: coverColors.forest.light,
+    coverColorDark: coverColors.forest.dark,
+  },
   {
     id: 'ip1',
     title: 'Seerah: Early Makkah',
@@ -87,6 +80,14 @@ export const inProgressBooks: ReadingBook[] = [
     coverColor: coverColors.emerald.light,
     coverColorDark: coverColors.emerald.dark,
   },
+];
+
+export const continueReading = inProgressBooks[0]!;
+
+export const readingStats: LibraryStat[] = [
+  { id: 'stat-reading', label: 'Reading', value: '3' },
+  { id: 'stat-finished', label: 'Finished', value: '12' },
+  { id: 'stat-streak', label: 'Day streak', value: '5' },
 ];
 
 export const libraryShelves: LibraryShelf[] = [

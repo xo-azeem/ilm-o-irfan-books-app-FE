@@ -24,9 +24,10 @@ import Animated, {
   withTiming,
   type SharedValue,
 } from 'react-native-reanimated';
-import { BookOpen, Bookmark, ChevronRight, Star, UserRound } from 'lucide-react-native';
+import { Bookmark, ChevronRight, Star, UserRound } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AppLogo } from '@/components/brand';
 import { useTheme } from '@/theme/ThemeContext';
 import { BookCoverPlaceholder } from '@/components/books';
 import { fonts, palette, theme, typography } from '@/theme/palette';
@@ -269,9 +270,7 @@ const CarouselHeader = memo(function CarouselHeader({
   return (
     <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
       <View style={styles.headerBrand}>
-        <View style={[styles.headerLogo, { backgroundColor: colors.primary }]}>
-          <BookOpen color={colors.onPrimary} size={19} strokeWidth={1.8} />
-        </View>
+        <AppLogo />
         <View style={styles.headerText}>
           <Text style={[styles.headerTitle, { color: colors.ink }]}>
             Ilm o Irfan
@@ -700,13 +699,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-  },
-  headerLogo: {
-    width: 42,
-    height: 42,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   headerText: {
     gap: 1,

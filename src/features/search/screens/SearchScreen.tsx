@@ -2,16 +2,16 @@ import { useCallback, useState } from 'react';
 import { View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { BookOpen, Search } from 'lucide-react-native';
+import { Search } from 'lucide-react-native';
 
 import type { RootStackParamList } from '@/app/navigation/types';
+import { AppLogo } from '@/components/brand';
 import { Screen } from '@/components/layout';
 import { DisplayText, Text } from '@/components/ui';
 import { ROUTES } from '@/constants/routes';
 import type { SearchCatalogBook } from '@/features/explore/data/exploreContent';
 import { searchCatalogBooks } from '@/features/explore/data/exploreContent';
 import { palette } from '@/theme/palette';
-import { useTheme } from '@/theme/ThemeContext';
 
 import { SearchBookGrid } from '../components/SearchBookGrid';
 import { SearchBookList } from '../components/SearchBookList';
@@ -22,7 +22,6 @@ import {
 } from '../components/SearchViewToggle';
 
 export function SearchScreen() {
-  const { colors } = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [viewMode, setViewMode] = useState<SearchBookViewMode>('grid');
 
@@ -36,9 +35,7 @@ export function SearchScreen() {
   return (
     <Screen>
       <View className="mb-5 mt-4 flex-row items-center gap-3">
-        <View className="h-10 w-10 items-center justify-center rounded-[12px] bg-app-primary dark:bg-app-primary-dark">
-          <BookOpen color={colors.onPrimary} size={20} strokeWidth={1.75} />
-        </View>
+        <AppLogo />
         <DisplayText className="text-[22px] font-bold leading-7 tracking-tight text-app-ink dark:text-app-ink-dark">
           Ilm o Irfan
         </DisplayText>

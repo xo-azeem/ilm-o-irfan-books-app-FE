@@ -5,6 +5,8 @@ export const ROUTES = {
   PROFILE: 'Profile',
   MAIN_TABS: 'MainTabs',
   BOOK_DETAIL: 'BookDetail',
+  LOGIN: 'Login',
+  SIGN_UP: 'SignUp',
 } as const;
 
 export type RouteName = (typeof ROUTES)[keyof typeof ROUTES];
@@ -14,4 +16,8 @@ export const ROUTE_LABELS: Record<RouteName, string> = {
   [ROUTES.SEARCH]: 'Search',
   [ROUTES.MY_LIBRARY]: 'My Library',
   [ROUTES.PROFILE]: 'Profile',
+  [ROUTES.MAIN_TABS]: 'Main',
+  [ROUTES.BOOK_DETAIL]: 'Book',
+  [ROUTES.LOGIN]: 'Login',
+  [ROUTES.SIGN_UP]: 'Sign up',
 };

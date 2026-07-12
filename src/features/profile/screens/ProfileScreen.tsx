@@ -1,10 +1,12 @@
 import { useCallback } from 'react';
 import { Alert, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { CommonActions, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
+import type { RootStackParamList } from '@/app/navigation/types';
 import { Screen, Section } from '@/components/layout';
 import { Text } from '@/components/ui';
+import { ROUTES } from '@/constants/routes';
 import {
   profileAchievements,
   profileGroups,
@@ -12,6 +14,7 @@ import {
   profileUser,
 } from '@/features/profile/data/profileContent';
 import type { ProfileStackParamList, ProfileStackScreen } from '@/features/profile/navigation/types';
+import { useAuthStore } from '@/stores/authStore';
 import { THEME_PREFERENCE_LABELS, useThemeStore } from '@/stores/themeStore';
 
 import { ProfileAchievements } from '../components/ProfileAchievements';
@@ -21,6 +24,8 @@ import { ProfileSettingRow } from '../components/ProfileSettingRow';
 export function ProfileScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<ProfileStackParamList>>();
+  const rootNavigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const signOut = useAuthStore(state => state.signOut);
   const themePreference = useThemeStore(state => state.themePreference);
 
   const handleEditProfile = useCallback(() => {
@@ -32,7 +37,19 @@ export function ProfileScreen() {
       if (rowId === 'row-signout') {
         Alert.alert('Sign out', 'Are you sure you want to sign out?', [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Sign out', style: 'destructive' },
+          {
+            text: 'Sign out',
+            style: 'destructive',
+            onPress: () => {
+              signOut();
+              rootNavigation.dispatch(
+                CommonActions.reset({
+                  index: 0,
+                  routes: [{ name: ROUTES.LOGIN }],
+                }),
+              );
+            },
+          },
         ]);
         return;
       }
@@ -41,7 +58,7 @@ export function ProfileScreen() {
         navigation.navigate(screen);
       }
     },
-    [navigation],
+    [navigation, rootNavigation, signOut],
   );
 
   return (

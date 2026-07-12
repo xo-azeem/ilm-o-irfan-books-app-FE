@@ -5,11 +5,14 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { CustomTabBar } from '@/components/navigation/CustomTabBar';
 import { ROUTES } from '@/constants/routes';
+import { LoginScreen } from '@/features/auth/screens/LoginScreen';
+import { SignUpScreen } from '@/features/auth/screens/SignUpScreen';
 import { BookDetailScreen } from '@/features/book-detail/screens/BookDetailScreen';
 import { HomeScreen } from '@/features/home/screens/HomeScreen';
 import { LibraryScreen } from '@/features/library/screens/LibraryScreen';
 import { ProfileNavigator } from '@/features/profile/navigation/ProfileNavigator';
 import { SearchScreen } from '@/features/search/screens/SearchScreen';
+import { useAuthStore } from '@/stores/authStore';
 
 import type { RootStackParamList, RootTabParamList } from './types';
 
@@ -35,14 +38,27 @@ function MainTabs() {
 }
 
 export function RootNavigator() {
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
+
   return (
     <View className="flex-1">
       <NavigationContainer>
         <Stack.Navigator
+          initialRouteName={isAuthenticated ? ROUTES.MAIN_TABS : ROUTES.LOGIN}
           screenOptions={{
             headerShown: false,
             contentStyle: { flex: 1 },
           }}>
+          <Stack.Screen
+            name={ROUTES.LOGIN}
+            component={LoginScreen}
+            options={{ animation: 'fade' }}
+          />
+          <Stack.Screen
+            name={ROUTES.SIGN_UP}
+            component={SignUpScreen}
+            options={{ animation: 'slide_from_right' }}
+          />
           <Stack.Screen name={ROUTES.MAIN_TABS} component={MainTabs} />
           <Stack.Screen
             name={ROUTES.BOOK_DETAIL}

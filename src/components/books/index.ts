@@ -1,0 +1,1 @@
+export { BookCoverPlaceholder } from './BookCoverPlaceholder';

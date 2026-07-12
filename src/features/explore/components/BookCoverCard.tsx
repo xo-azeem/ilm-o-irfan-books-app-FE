@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Star } from 'lucide-react-native';
 
 import { DisplayText, Text } from '@/components/ui';
+import { BookCoverPlaceholder } from '@/components/books';
 import { useTheme } from '@/theme/ThemeContext';
 import { palette } from '@/theme/palette';
 
@@ -28,25 +29,18 @@ export const BookCoverCard = memo(function BookCoverCard({
       onPress={onPress}
       style={{ width }}
       className="active:opacity-80">
-      <View
-        className="overflow-hidden rounded-xl"
+      <BookCoverPlaceholder
+        width={width}
+        height={coverHeight}
+        coverColor={coverColor}
+        borderRadius={12}
+        tag={book.tag}
         style={[
           styles.cover,
           {
-            width,
-            height: coverHeight,
-            backgroundColor: coverColor,
             shadowOpacity: isDark ? 0.2 : 0.1,
           },
         ]}>
-        <View style={styles.spine} />
-        {book.tag ? (
-          <View style={styles.tag}>
-            <Text style={styles.tagText} className="text-[10px] font-medium">
-              {book.tag}
-            </Text>
-          </View>
-        ) : null}
         <View style={styles.coverTitleWrap}>
           <DisplayText
             style={styles.coverTitle}
@@ -55,7 +49,7 @@ export const BookCoverCard = memo(function BookCoverCard({
             {book.title}
           </DisplayText>
         </View>
-      </View>
+      </BookCoverPlaceholder>
 
       <View className="mt-2.5 gap-0.5">
         <DisplayText
@@ -92,26 +86,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     shadowRadius: 6,
     elevation: 3,
-  },
-  spine: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    height: '100%',
-    width: 3,
-    backgroundColor: 'rgba(255, 255, 255, 0.18)',
-  },
-  tag: {
-    position: 'absolute',
-    right: 8,
-    top: 8,
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
-  },
-  tagText: {
-    color: palette.green,
   },
   coverTitleWrap: {
     flex: 1,

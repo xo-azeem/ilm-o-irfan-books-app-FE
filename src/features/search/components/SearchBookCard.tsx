@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Star } from 'lucide-react-native';
 
 import { DisplayText, Text } from '@/components/ui';
+import { BookCoverPlaceholder } from '@/components/books';
 import type { SearchCatalogBook } from '@/features/explore/data/exploreContent';
 import { useTheme } from '@/theme/ThemeContext';
 import { palette } from '@/theme/palette';
@@ -10,50 +11,48 @@ import { palette } from '@/theme/palette';
 type SearchBookCardProps = {
   book: SearchCatalogBook;
   width: number;
+  height: number;
+  coverHeight: number;
+  bodyHeight: number;
   onPress?: () => void;
 };
 
 export const SearchBookCard = memo(function SearchBookCard({
   book,
   width,
+  height,
+  coverHeight,
+  bodyHeight,
   onPress,
 }: SearchBookCardProps) {
   const { isDark } = useTheme();
   const coverColor = isDark ? book.coverColorDark : book.coverColor;
-  const coverHeight = width * 1.32;
 
   return (
     <Pressable
       onPress={onPress}
-      style={{ width }}
+      style={{ width, height }}
       className="active:opacity-90">
-      <View className="overflow-hidden rounded-[16px] bg-app-surface dark:bg-app-surface-dark">
-        <View
-          style={[
-            styles.cover,
-            {
-              width,
-              height: coverHeight,
-              backgroundColor: coverColor,
-            },
-          ]}>
-          <View style={styles.spine} />
-          {book.tag ? (
-            <View style={styles.tag}>
-              <Text style={styles.tagText} className="text-[10px] font-semibold">
-                {book.tag}
-              </Text>
-            </View>
-          ) : null}
-        </View>
+      <View
+        style={{ height }}
+        className="overflow-hidden rounded-[16px] bg-app-surface dark:bg-app-surface-dark">
+        <BookCoverPlaceholder
+          width={width}
+          height={coverHeight}
+          coverColor={coverColor}
+          borderRadius={0}
+          tag={book.tag}
+        />
 
-        <View style={styles.body}>
-          <DisplayText
-            style={styles.title}
-            className="text-[14px] font-semibold text-app-ink dark:text-app-ink-dark"
-            numberOfLines={2}>
-            {book.title}
-          </DisplayText>
+        <View style={[styles.body, { height: bodyHeight }]}>
+          <View style={styles.titleSlot}>
+            <DisplayText
+              style={styles.title}
+              className="text-[14px] font-semibold text-app-ink dark:text-app-ink-dark"
+              numberOfLines={2}>
+              {book.title}
+            </DisplayText>
+          </View>
 
           <View style={styles.metaRow}>
             <Text
@@ -79,12 +78,14 @@ export const SearchBookCard = memo(function SearchBookCard({
             ) : null}
           </View>
 
-          <Text
-            style={styles.description}
-            className="text-[12px] text-app-faint dark:text-app-faint-dark"
-            numberOfLines={2}>
-            {book.description}
-          </Text>
+          <View style={styles.descriptionSlot}>
+            <Text
+              style={styles.description}
+              className="text-[12px] text-app-faint dark:text-app-faint-dark"
+              numberOfLines={2}>
+              {book.description}
+            </Text>
+          </View>
         </View>
       </View>
     </Pressable>
@@ -92,34 +93,16 @@ export const SearchBookCard = memo(function SearchBookCard({
 });
 
 const styles = StyleSheet.create({
-  cover: {
-    overflow: 'hidden',
-  },
-  spine: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    height: '100%',
-    width: 3,
-    backgroundColor: 'rgba(255, 255, 255, 0.18)',
-  },
-  tag: {
-    position: 'absolute',
-    right: 10,
-    top: 10,
-    borderRadius: 7,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
-  },
-  tagText: {
-    color: palette.green,
-  },
   body: {
     paddingHorizontal: 14,
     paddingTop: 12,
     paddingBottom: 14,
     gap: 8,
+    overflow: 'hidden',
+  },
+  titleSlot: {
+    height: 38,
+    justifyContent: 'flex-start',
   },
   title: {
     lineHeight: 19,
@@ -129,6 +112,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    minHeight: 17,
+  },
+  descriptionSlot: {
+    height: 36,
+    justifyContent: 'flex-start',
   },
   author: {
     lineHeight: 17,

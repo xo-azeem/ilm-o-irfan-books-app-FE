@@ -282,3 +282,42 @@ export const searchCatalogBooks: SearchCatalogBook[] = (() => {
 
   return books;
 })();
+
+export type BookDetail = SearchCatalogBook & {
+  genre: string;
+  readTime: string;
+  price: number;
+  format: string;
+};
+
+const heroBookById = new Map(heroCarouselBooks.map(book => [book.id, book]));
+const heroBookByTitle = new Map(heroCarouselBooks.map(book => [book.title, book]));
+
+function deriveBookPrice(id: string, rating?: number): number {
+  let hash = 0;
+  for (let index = 0; index < id.length; index += 1) {
+    hash = (hash + id.charCodeAt(index) * 11) % 97;
+  }
+
+  const base = 6.99 + (hash % 12);
+  const premium = rating != null && rating >= 4.8 ? 2.5 : 0;
+
+  return Math.round((base + premium) * 100) / 100;
+}
+
+export function getBookById(id: string): BookDetail | undefined {
+  const book = searchCatalogBooks.find(entry => entry.id === id);
+  if (!book) {
+    return undefined;
+  }
+
+  const heroBook = heroBookById.get(id) ?? heroBookByTitle.get(book.title);
+
+  return {
+    ...book,
+    genre: heroBook?.genre ?? 'Islamic Studies',
+    readTime: heroBook?.readTime ?? '3 hr read',
+    price: deriveBookPrice(book.id, book.rating),
+    format: 'Digital edition',
+  };
+}

@@ -1,15 +1,16 @@
 import { useCallback } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
+import type { RootStackParamList } from '@/app/navigation/types';
 import { Screen } from '@/components/layout';
-import type { RootTabParamList } from '@/app/navigation/types';
 import { ROUTES } from '@/constants/routes';
 
 import { BookCoverCard } from '@/features/explore/components/BookCoverCard';
 import { CollectionCard } from '@/features/explore/components/CollectionCard';
 import { ExploreSectionHeader } from '@/features/explore/components/ExploreSectionHeader';
+import type { BookItem } from '@/features/explore/data/exploreContent';
 import {
   curatedCollections,
   heroCarouselBooks,
@@ -19,7 +20,15 @@ import {
 import { HeroBookCarousel } from '@/features/home/components/HeroBookCarousel';
 
 export function HomeScreen() {
-  const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+
+  const handleBookPress = useCallback(
+    (book: BookItem) => {
+      navigation.navigate(ROUTES.BOOK_DETAIL, { bookId: book.id });
+    },
+    [navigation],
+  );
+
   const handleProfilePress = useCallback(() => {
     navigation.navigate(ROUTES.PROFILE);
   }, [navigation]);
@@ -29,6 +38,7 @@ export function HomeScreen() {
       <HeroBookCarousel
         books={heroCarouselBooks}
         onProfilePress={handleProfilePress}
+        onBookPress={handleBookPress}
       />
       <View className="px-5 pt-0">
         <View className="mb-8">
@@ -42,7 +52,11 @@ export function HomeScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerClassName="gap-4 pr-5">
             {trendingBooks.map(book => (
-              <BookCoverCard key={book.id} book={book} />
+              <BookCoverCard
+                key={book.id}
+                book={book}
+                onPress={() => handleBookPress(book)}
+              />
             ))}
           </ScrollView>
         </View>
@@ -55,7 +69,11 @@ export function HomeScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerClassName="gap-4 pr-5">
             {newArrivals.map(book => (
-              <BookCoverCard key={book.id} book={book} />
+              <BookCoverCard
+                key={book.id}
+                book={book}
+                onPress={() => handleBookPress(book)}
+              />
             ))}
           </ScrollView>
         </View>

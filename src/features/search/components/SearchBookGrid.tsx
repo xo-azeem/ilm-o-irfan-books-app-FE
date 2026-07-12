@@ -1,28 +1,38 @@
 import { memo } from 'react';
-import { View, useWindowDimensions } from 'react-native';
+import { View } from 'react-native';
 
 import type { SearchCatalogBook } from '@/features/explore/data/exploreContent';
 
-import { SearchBookCard } from './SearchBookCard';
+import { useSearchGridMetrics } from '../hooks/useSearchGridMetrics';
 
-const GRID_GAP = 16;
-const GRID_ROW_GAP = 24;
-const SCREEN_PADDING = 20;
+import { SearchBookCard } from './SearchBookCard';
 
 type SearchBookGridProps = {
   books: SearchCatalogBook[];
+  onBookPress?: (book: SearchCatalogBook) => void;
 };
 
-export const SearchBookGrid = memo(function SearchBookGrid({ books }: SearchBookGridProps) {
-  const { width: screenWidth } = useWindowDimensions();
-  const cardWidth = (screenWidth - SCREEN_PADDING * 2 - GRID_GAP) / 2;
+export const SearchBookGrid = memo(function SearchBookGrid({
+  books,
+  onBookPress,
+}: SearchBookGridProps) {
+  const { cardWidth, cardHeight, coverHeight, bodyHeight, columnGap, rowGap } =
+    useSearchGridMetrics();
 
   return (
     <View
       className="flex-row flex-wrap"
-      style={{ columnGap: GRID_GAP, rowGap: GRID_ROW_GAP }}>
+      style={{ columnGap, rowGap }}>
       {books.map(book => (
-        <SearchBookCard key={book.id} book={book} width={cardWidth} />
+        <SearchBookCard
+          key={book.id}
+          book={book}
+          width={cardWidth}
+          height={cardHeight}
+          coverHeight={coverHeight}
+          bodyHeight={bodyHeight}
+          onPress={onBookPress ? () => onBookPress(book) : undefined}
+        />
       ))}
     </View>
   );

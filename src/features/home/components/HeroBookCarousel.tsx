@@ -28,6 +28,7 @@ import { BookOpen, Bookmark, ChevronRight, Star, UserRound } from 'lucide-react-
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/theme/ThemeContext';
+import { BookCoverPlaceholder } from '@/components/books';
 import { fonts, palette, theme, typography } from '@/theme/palette';
 import type { HeroCarouselBook } from '@/features/explore/data/exploreContent';
 
@@ -317,20 +318,19 @@ const BookCover = memo(function BookCover({
   height: number;
 }) {
   return (
-    <View style={[styles.cover, { width, height, backgroundColor: coverColor }]}>
-      <View style={styles.coverSpine} />
-      <View style={styles.coverGloss} />
-      {book.tag ? (
-        <View style={styles.coverTag}>
-          <Text style={styles.coverTagLabel}>{book.tag}</Text>
-        </View>
-      ) : null}
+    <BookCoverPlaceholder
+      width={width}
+      height={height}
+      coverColor={coverColor}
+      borderRadius={14}
+      tag={book.tag}
+      style={styles.cover}>
       <View style={styles.coverFooter}>
         <Text style={styles.coverTitle} numberOfLines={3}>
           {book.title}
         </Text>
       </View>
-    </View>
+    </BookCoverPlaceholder>
   );
 });
 
@@ -766,8 +766,6 @@ const styles = StyleSheet.create({
   cover: {
     borderRadius: 14,
     overflow: 'hidden',
-    justifyContent: 'flex-end',
-    padding: 11,
     ...Platform.select({
       ios: {
         shadowColor: '#1C2B22',
@@ -778,40 +776,10 @@ const styles = StyleSheet.create({
       android: { elevation: 12 },
     }),
   },
-  coverSpine: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 3,
-    backgroundColor: 'rgba(0,0,0,0.15)',
-  },
-  coverGloss: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '40%',
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-  coverTag: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  coverTagLabel: {
-    fontFamily: fonts.sans,
-    fontSize: 8,
-    fontWeight: '700',
-    color: palette.green,
-    letterSpacing: 0.5,
-  },
   coverFooter: {
+    flex: 1,
     justifyContent: 'flex-end',
+    padding: 11,
   },
   coverTitle: {
     fontFamily: fonts.sans,

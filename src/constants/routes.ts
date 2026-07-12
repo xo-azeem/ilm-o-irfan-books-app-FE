@@ -3,6 +3,8 @@ export const ROUTES = {
   SEARCH: 'Search',
   MY_LIBRARY: 'MyLibrary',
   PROFILE: 'Profile',
+  MAIN_TABS: 'MainTabs',
+  BOOK_DETAIL: 'BookDetail',
 } as const;
 
 export type RouteName = (typeof ROUTES)[keyof typeof ROUTES];

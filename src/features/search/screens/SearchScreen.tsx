@@ -1,9 +1,14 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BookOpen, Search } from 'lucide-react-native';
 
+import type { RootStackParamList } from '@/app/navigation/types';
 import { Screen } from '@/components/layout';
 import { DisplayText, Text } from '@/components/ui';
+import { ROUTES } from '@/constants/routes';
+import type { SearchCatalogBook } from '@/features/explore/data/exploreContent';
 import { searchCatalogBooks } from '@/features/explore/data/exploreContent';
 import { palette } from '@/theme/palette';
 import { useTheme } from '@/theme/ThemeContext';
@@ -18,7 +23,15 @@ import {
 
 export function SearchScreen() {
   const { colors } = useTheme();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [viewMode, setViewMode] = useState<SearchBookViewMode>('grid');
+
+  const handleBookPress = useCallback(
+    (book: SearchCatalogBook) => {
+      navigation.navigate(ROUTES.BOOK_DETAIL, { bookId: book.id });
+    },
+    [navigation],
+  );
 
   return (
     <Screen>
@@ -52,9 +65,9 @@ export function SearchScreen() {
 
         <View className="mt-4">
           {viewMode === 'grid' ? (
-            <SearchBookGrid books={searchCatalogBooks} />
+            <SearchBookGrid books={searchCatalogBooks} onBookPress={handleBookPress} />
           ) : (
-            <SearchBookList books={searchCatalogBooks} />
+            <SearchBookList books={searchCatalogBooks} onBookPress={handleBookPress} />
           )}
         </View>
       </View>

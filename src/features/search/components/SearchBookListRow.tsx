@@ -1,8 +1,9 @@
 import { memo } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { Star } from 'lucide-react-native';
 
 import { DisplayText, Text } from '@/components/ui';
+import { BookCoverPlaceholder } from '@/components/books';
 import type { SearchCatalogBook } from '@/features/explore/data/exploreContent';
 import { useTheme } from '@/theme/ThemeContext';
 import { palette } from '@/theme/palette';
@@ -27,17 +28,12 @@ export const SearchBookListRow = memo(function SearchBookListRow({
   return (
     <Pressable onPress={onPress} className="active:opacity-90">
       <View className="flex-row items-start gap-4 py-4">
-        <View
-          style={[
-            styles.cover,
-            {
-              width: COVER_WIDTH,
-              height: COVER_HEIGHT,
-              backgroundColor: coverColor,
-            },
-          ]}>
-          <View style={styles.spine} />
-        </View>
+        <BookCoverPlaceholder
+          width={COVER_WIDTH}
+          height={COVER_HEIGHT}
+          coverColor={coverColor}
+          borderRadius={12}
+        />
 
         <View className="min-w-0 flex-1 justify-center gap-1.5">
           <View className="flex-row items-start gap-2">
@@ -89,19 +85,4 @@ export const SearchBookListRow = memo(function SearchBookListRow({
       </View>
     </Pressable>
   );
-});
-
-const styles = StyleSheet.create({
-  cover: {
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  spine: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    height: '100%',
-    width: 3,
-    backgroundColor: 'rgba(255, 255, 255, 0.18)',
-  },
 });

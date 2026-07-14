@@ -7,6 +7,7 @@ export type RootStackParamList = {
   SignUp: undefined;
   MainTabs: undefined;
   BookDetail: { bookId: string };
+  BookReader: { bookId: string };
 };
 
 export type RootTabParamList = {

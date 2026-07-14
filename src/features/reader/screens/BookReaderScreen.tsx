@@ -1,0 +1,611 @@
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  ActivityIndicator,
+  Animated,
+  Pressable,
+  StyleSheet,
+  View,
+  useColorScheme,
+} from 'react-native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RouteProp } from '@react-navigation/native';
+import Pdf from 'react-native-pdf';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ChevronLeft, Minus, Plus, RotateCcw } from 'lucide-react-native';
+
+import type { RootStackParamList } from '@/app/navigation/types';
+import { Text } from '@/components/ui';
+import { getBookPdfSource, type BookPdfSource } from '@/constants/books';
+import { palette } from '@/theme/palette';
+import { useTheme } from '@/theme/ThemeContext';
+
+type BookReaderRouteProp = RouteProp<RootStackParamList, 'BookReader'>;
+type BookReaderNavigationProp = NativeStackNavigationProp<RootStackParamList, 'BookReader'>;
+
+const MIN_SCALE = 1;
+const MAX_SCALE = 4;
+const SCALE_STEP = 0.25;
+const EDGE_MARGIN = 16;
+const BACK_BUTTON_SIZE = 48;
+const DOCK_BUTTON_HEIGHT = 46;
+const DOCK_WIDTH = 50;
+
+// Continuous zoom (press-and-hold) tuning
+const HOLD_INITIAL_DELAY = 320; // ms before continuous zoom kicks in
+const HOLD_REPEAT_INTERVAL = 80; // ms between steps while held
+const ZOOM_BADGE_HIDE_DELAY = 1000; // ms of inactivity before the % badge fades out
+
+type GlassTokens = {
+  fill: string;
+  tint: string;
+  border: string;
+  rim: string;
+  divider: string;
+  shadow: string;
+};
+
+function getGlassTokens(isDark: boolean): GlassTokens {
+  return isDark
+    ? {
+        fill: 'rgba(22, 28, 22, 0.88)',
+        tint: 'rgba(255, 255, 255, 0.06)',
+        border: 'rgba(255, 255, 255, 0.14)',
+        rim: 'rgba(255, 255, 255, 0.22)',
+        divider: 'rgba(255, 255, 255, 0.10)',
+        shadow: 'rgba(0, 0, 0, 0.45)',
+      }
+    : {
+        fill: 'rgba(255, 255, 255, 0.84)',
+        tint: 'rgba(255, 255, 255, 0.42)',
+        border: 'rgba(20, 40, 24, 0.08)',
+        rim: 'rgba(255, 255, 255, 0.95)',
+        divider: 'rgba(20, 40, 24, 0.08)',
+        shadow: 'rgba(20, 40, 24, 0.16)',
+      };
+}
+
+/* ---------------------------------- Glass ---------------------------------- */
+
+type GlassSurfaceProps = {
+  isDark: boolean;
+  children: ReactNode;
+  style?: object;
+  radius?: number;
+};
+
+function GlassSurface({ isDark, children, style, radius = 999 }: GlassSurfaceProps) {
+  const glass = getGlassTokens(isDark);
+
+  return (
+    <View
+      style={[
+        styles.glassSurface,
+        {
+          borderRadius: radius,
+          backgroundColor: glass.fill,
+          borderColor: glass.border,
+          shadowColor: glass.shadow,
+        },
+        style,
+      ]}>
+      <View
+        pointerEvents="none"
+        style={[
+          StyleSheet.absoluteFill,
+          {
+            borderRadius: radius,
+            backgroundColor: glass.tint,
+          },
+        ]}
+      />
+      <View
+        pointerEvents="none"
+        style={[
+          styles.glassHighlight,
+          {
+            borderRadius: Math.max(radius - 1, 0),
+            backgroundColor: glass.rim,
+          },
+        ]}
+      />
+      {children}
+    </View>
+  );
+}
+
+/* ------------------------------- Icon button -------------------------------- */
+
+type GlassIconButtonProps = {
+  onPress: () => void;
+  onHoldStep?: () => void; // called repeatedly while pressed & held
+  disabled?: boolean;
+  accessibilityLabel: string;
+  children: ReactNode;
+  height?: number;
+};
+
+function GlassIconButton({
+  onPress,
+  onHoldStep,
+  disabled = false,
+  accessibilityLabel,
+  children,
+  height = DOCK_BUTTON_HEIGHT,
+}: GlassIconButtonProps) {
+  const pressScale = useRef(new Animated.Value(1)).current;
+  const holdTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const holdInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const clearHold = useCallback(() => {
+    if (holdTimeout.current) {
+      clearTimeout(holdTimeout.current);
+      holdTimeout.current = null;
+    }
+    if (holdInterval.current) {
+      clearInterval(holdInterval.current);
+      holdInterval.current = null;
+    }
+  }, []);
+
+  useEffect(() => () => clearHold(), [clearHold]);
+
+  const handlePressIn = useCallback(() => {
+    Animated.spring(pressScale, {
+      toValue: 0.9,
+      useNativeDriver: true,
+      speed: 40,
+      bounciness: 6,
+    }).start();
+
+    if (onHoldStep) {
+      holdTimeout.current = setTimeout(() => {
+        holdInterval.current = setInterval(() => {
+          onHoldStep();
+        }, HOLD_REPEAT_INTERVAL);
+      }, HOLD_INITIAL_DELAY);
+    }
+  }, [onHoldStep, pressScale]);
+
+  const handlePressOut = useCallback(() => {
+    Animated.spring(pressScale, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 40,
+      bounciness: 6,
+    }).start();
+    clearHold();
+  }, [clearHold, pressScale]);
+
+  return (
+    <Pressable
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      disabled={disabled}
+      hitSlop={6}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      style={[styles.glassIconButton, { height, opacity: disabled ? 0.32 : 1 }]}>
+      <Animated.View style={{ transform: [{ scale: pressScale }] }}>{children}</Animated.View>
+    </Pressable>
+  );
+}
+
+/* --------------------------------- PDF view ---------------------------------- */
+
+type PdfDocumentProps = {
+  source: BookPdfSource;
+  scale: number;
+  onLoadComplete: (totalPages: number) => void;
+  onError: () => void;
+  onPageChanged: (page: number, totalPages: number) => void;
+  onScaleChanged: (scale: number) => void;
+};
+
+const ReaderPdf = memo(function ReaderPdfView({
+  source,
+  scale,
+  onLoadComplete,
+  onError,
+  onPageChanged,
+  onScaleChanged,
+}: PdfDocumentProps) {
+  const { colors } = useTheme();
+
+  return (
+    <Pdf
+      source={source}
+      style={styles.pdf}
+      scale={scale}
+      minScale={MIN_SCALE}
+      maxScale={MAX_SCALE}
+      spacing={4}
+      fitPolicy={0}
+      enablePaging={false}
+      enableDoubleTapZoom
+      enableAntialiasing
+      scrollEnabled
+      showsVerticalScrollIndicator={false}
+      showsHorizontalScrollIndicator={false}
+      trustAllCerts={false}
+      onScaleChanged={onScaleChanged}
+      onLoadComplete={onLoadComplete}
+      onPageChanged={onPageChanged}
+      onError={onError}
+      renderActivityIndicator={() => (
+        <View style={styles.loader}>
+          <ActivityIndicator color={colors.primary} size="large" />
+        </View>
+      )}
+    />
+  );
+});
+
+/* ---------------------------------- Chrome ----------------------------------- */
+
+type ReaderChromeProps = {
+  isDark: boolean;
+  iconColor: string;
+  page: number;
+  totalPages: number;
+  hasError: boolean;
+  canZoomIn: boolean;
+  canZoomOut: boolean;
+  canReset: boolean;
+  zoomPercent: number;
+  zoomBadgeOpacity: Animated.Value;
+  onBack: () => void;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onResetZoom: () => void;
+  insetTop: number;
+  insetRight: number;
+  insetBottom: number;
+  insetLeft: number;
+};
+
+function ReaderChrome({
+  isDark,
+  iconColor,
+  page,
+  totalPages,
+  hasError,
+  canZoomIn,
+  canZoomOut,
+  canReset,
+  zoomPercent,
+  zoomBadgeOpacity,
+  onBack,
+  onZoomIn,
+  onZoomOut,
+  onResetZoom,
+  insetTop,
+  insetRight,
+  insetBottom,
+  insetLeft,
+}: ReaderChromeProps) {
+  const glass = getGlassTokens(isDark);
+
+  return (
+    <View
+      pointerEvents="box-none"
+      style={[
+        StyleSheet.absoluteFill,
+        {
+          paddingTop: insetTop + EDGE_MARGIN,
+          paddingRight: insetRight + EDGE_MARGIN,
+          paddingBottom: insetBottom + EDGE_MARGIN,
+          paddingLeft: insetLeft + EDGE_MARGIN,
+        },
+      ]}>
+      <View pointerEvents="box-none" style={styles.chromeColumn}>
+        <GlassSurface isDark={isDark} radius={BACK_BUTTON_SIZE / 2} style={styles.backButton}>
+          <GlassIconButton
+            onPress={onBack}
+            accessibilityLabel="Close reader"
+            height={BACK_BUTTON_SIZE}>
+            <ChevronLeft size={22} color={iconColor} strokeWidth={2.25} />
+          </GlassIconButton>
+        </GlassSurface>
+
+        <View pointerEvents="box-none" style={styles.bottomCluster}>
+          {totalPages > 0 ? (
+            <GlassSurface isDark={isDark} style={styles.pagePill}>
+              <Text className="px-4 py-2 text-[12px] font-semibold tabular-nums text-app-ink dark:text-app-ink-dark">
+                {page} / {totalPages}
+              </Text>
+            </GlassSurface>
+          ) : null}
+
+          <View pointerEvents="box-none" style={styles.zoomCluster}>
+            <Animated.View
+              pointerEvents="none"
+              style={[styles.zoomBadgeWrap, { opacity: zoomBadgeOpacity }]}>
+              <GlassSurface isDark={isDark} style={styles.zoomBadge}>
+                <Text className="px-3 py-1.5 text-[11px] font-semibold tabular-nums text-app-ink dark:text-app-ink-dark">
+                  {zoomPercent}%
+                </Text>
+              </GlassSurface>
+            </Animated.View>
+
+            <GlassSurface isDark={isDark} radius={DOCK_WIDTH / 2} style={styles.zoomDock}>
+              <GlassIconButton
+                onPress={onZoomIn}
+                onHoldStep={onZoomIn}
+                disabled={!canZoomIn || hasError}
+                accessibilityLabel="Zoom in">
+                <Plus size={20} color={iconColor} strokeWidth={2.25} />
+              </GlassIconButton>
+
+              <View style={[styles.dockDivider, { backgroundColor: glass.divider }]} />
+
+              <GlassIconButton
+                onPress={onResetZoom}
+                disabled={!canReset || hasError}
+                accessibilityLabel="Reset zoom">
+                <RotateCcw size={17} color={iconColor} strokeWidth={2.25} />
+              </GlassIconButton>
+
+              <View style={[styles.dockDivider, { backgroundColor: glass.divider }]} />
+
+              <GlassIconButton
+                onPress={onZoomOut}
+                onHoldStep={onZoomOut}
+                disabled={!canZoomOut || hasError}
+                accessibilityLabel="Zoom out">
+                <Minus size={20} color={iconColor} strokeWidth={2.25} />
+              </GlassIconButton>
+            </GlassSurface>
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+/* ---------------------------------- Screen ------------------------------------ */
+
+export function BookReaderScreen() {
+  const navigation = useNavigation<BookReaderNavigationProp>();
+  const route = useRoute<BookReaderRouteProp>();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  const insets = useSafeAreaInsets();
+
+  const pdfSource = useMemo(() => getBookPdfSource(route.params.bookId), [route.params.bookId]);
+
+  const scaleRef = useRef(1);
+  const scaleDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [controlScale, setControlScale] = useState(MIN_SCALE);
+  const [scaleSnapshot, setScaleSnapshot] = useState(MIN_SCALE);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+
+  // Live zoom % badge — fades in on change, fades out after inactivity
+  const zoomBadgeOpacity = useRef(new Animated.Value(0)).current;
+  const zoomBadgeHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flashZoomBadge = useCallback(() => {
+    if (zoomBadgeHideTimer.current) {
+      clearTimeout(zoomBadgeHideTimer.current);
+    }
+    Animated.timing(zoomBadgeOpacity, {
+      toValue: 1,
+      duration: 120,
+      useNativeDriver: true,
+    }).start();
+    zoomBadgeHideTimer.current = setTimeout(() => {
+      Animated.timing(zoomBadgeOpacity, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }).start();
+    }, ZOOM_BADGE_HIDE_DELAY);
+  }, [zoomBadgeOpacity]);
+
+  useEffect(() => {
+    return () => {
+      if (zoomBadgeHideTimer.current) {
+        clearTimeout(zoomBadgeHideTimer.current);
+      }
+    };
+  }, []);
+
+  const handleScaleChanged = useCallback(
+    (scale: number) => {
+      scaleRef.current = scale;
+
+      if (scaleDebounceRef.current) {
+        clearTimeout(scaleDebounceRef.current);
+      }
+
+      scaleDebounceRef.current = setTimeout(() => {
+        setScaleSnapshot(scale);
+      }, 120);
+
+      flashZoomBadge();
+    },
+    [flashZoomBadge]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (scaleDebounceRef.current) {
+        clearTimeout(scaleDebounceRef.current);
+      }
+    };
+  }, []);
+
+  const handleLoadComplete = useCallback((numberOfPages: number) => {
+    setTotalPages(numberOfPages);
+    setIsLoading(false);
+    setHasError(false);
+  }, []);
+
+  const handlePageChanged = useCallback((currentPage: number, numberOfPages: number) => {
+    setPage(currentPage);
+    setTotalPages(numberOfPages);
+  }, []);
+
+  const handleError = useCallback(() => {
+    setHasError(true);
+    setIsLoading(false);
+  }, []);
+
+  const applyScale = useCallback(
+    (next: number) => {
+      const clamped = Number(Math.min(Math.max(next, MIN_SCALE), MAX_SCALE).toFixed(2));
+      scaleRef.current = clamped;
+      setScaleSnapshot(clamped);
+      setControlScale(clamped);
+      flashZoomBadge();
+    },
+    [flashZoomBadge]
+  );
+
+  const handleZoomIn = useCallback(() => {
+    applyScale(scaleRef.current + SCALE_STEP);
+  }, [applyScale]);
+
+  const handleZoomOut = useCallback(() => {
+    applyScale(scaleRef.current - SCALE_STEP);
+  }, [applyScale]);
+
+  const handleResetZoom = useCallback(() => {
+    applyScale(MIN_SCALE);
+  }, [applyScale]);
+
+  const iconColor = isDark ? palette.chartreuse : palette.green;
+  const canZoomOut = scaleSnapshot > MIN_SCALE;
+  const canZoomIn = scaleSnapshot < MAX_SCALE;
+  const canReset = scaleSnapshot !== MIN_SCALE;
+  const zoomPercent = Math.round(scaleSnapshot * 100);
+
+  return (
+    <View className="flex-1 bg-[#ECECEB] dark:bg-[#101410]">
+      {hasError ? (
+        <View
+          className="flex-1 items-center justify-center px-8"
+          style={{
+            paddingTop: insets.top,
+            paddingBottom: insets.bottom,
+          }}>
+          <Text className="text-center text-[15px] text-app-muted dark:text-app-muted-dark">
+            Unable to open this book. Please try again later.
+          </Text>
+        </View>
+      ) : (
+        <ReaderPdf
+          source={pdfSource}
+          scale={controlScale}
+          onLoadComplete={handleLoadComplete}
+          onError={handleError}
+          onPageChanged={handlePageChanged}
+          onScaleChanged={handleScaleChanged}
+        />
+      )}
+
+      <ReaderChrome
+        isDark={isDark}
+        iconColor={iconColor}
+        page={page}
+        totalPages={totalPages}
+        hasError={hasError}
+        canZoomIn={canZoomIn}
+        canZoomOut={canZoomOut}
+        canReset={canReset}
+        zoomPercent={zoomPercent}
+        zoomBadgeOpacity={zoomBadgeOpacity}
+        onBack={() => navigation.goBack()}
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
+        onResetZoom={handleResetZoom}
+        insetTop={insets.top}
+        insetRight={insets.right}
+        insetBottom={insets.bottom}
+        insetLeft={insets.left}
+      />
+
+      {isLoading && !hasError ? (
+        <View
+          pointerEvents="none"
+          style={StyleSheet.absoluteFill}
+          className="items-center justify-center bg-[#ECECEB]/70 dark:bg-[#101410]/70">
+          <ActivityIndicator color={iconColor} size="large" />
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  pdf: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  loader: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chromeColumn: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  bottomCluster: {
+    alignSelf: 'flex-end',
+    alignItems: 'flex-end',
+    gap: 10,
+  },
+  zoomCluster: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  glassSurface: {
+    overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.16,
+    shadowRadius: 14,
+    elevation: 6,
+  },
+  glassHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 10,
+    right: 10,
+    height: 1,
+    opacity: 0.6,
+  },
+  glassIconButton: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backButton: {
+    width: BACK_BUTTON_SIZE,
+    height: BACK_BUTTON_SIZE,
+    alignSelf: 'flex-start',
+  },
+  pagePill: {
+    alignSelf: 'flex-end',
+  },
+  zoomBadgeWrap: {
+    alignSelf: 'center',
+  },
+  zoomBadge: {
+    minWidth: 44,
+    alignItems: 'center',
+  },
+  zoomDock: {
+    width: DOCK_WIDTH,
+    overflow: 'hidden',
+  },
+  dockDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: 12,
+  },
+});

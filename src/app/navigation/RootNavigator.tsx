@@ -8,6 +8,7 @@ import { ROUTES } from '@/constants/routes';
 import { LoginScreen } from '@/features/auth/screens/LoginScreen';
 import { SignUpScreen } from '@/features/auth/screens/SignUpScreen';
 import { BookDetailScreen } from '@/features/book-detail/screens/BookDetailScreen';
+import { BookReaderScreen } from '@/features/reader/screens/BookReaderScreen';
 import { HomeScreen } from '@/features/home/screens/HomeScreen';
 import { LibraryScreen } from '@/features/library/screens/LibraryScreen';
 import { ProfileNavigator } from '@/features/profile/navigation/ProfileNavigator';
@@ -63,6 +64,11 @@ export function RootNavigator() {
           <Stack.Screen
             name={ROUTES.BOOK_DETAIL}
             component={BookDetailScreen}
+            options={{ animation: 'slide_from_right' }}
+          />
+          <Stack.Screen
+            name={ROUTES.BOOK_READER}
+            component={BookReaderScreen}
             options={{ animation: 'slide_from_right' }}
           />
         </Stack.Navigator>

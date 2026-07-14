@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -9,6 +9,7 @@ import { ChevronLeft } from 'lucide-react-native';
 import type { RootStackParamList } from '@/app/navigation/types';
 import { DisplayText, Text } from '@/components/ui';
 import { BookCoverPlaceholder } from '@/components/books';
+import { ROUTES } from '@/constants/routes';
 import { getBookById } from '@/features/explore/data/exploreContent';
 import { palette } from '@/theme/palette';
 import { useTheme } from '@/theme/ThemeContext';
@@ -75,6 +76,14 @@ export function BookDetailScreen() {
   const layout = useBookDetailLayout();
 
   const book = getBookById(route.params.bookId);
+
+  const handleReadBook = useCallback(() => {
+    if (!book) {
+      return;
+    }
+
+    navigation.navigate(ROUTES.BOOK_READER, { bookId: book.id });
+  }, [book, navigation]);
 
   if (!book) {
     return (
@@ -245,6 +254,7 @@ export function BookDetailScreen() {
             </Text>
           </Pressable>
           <Pressable
+            onPress={handleReadBook}
             accessibilityRole="button"
             accessibilityLabel={`Read ${book.title}`}
             style={{

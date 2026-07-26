@@ -27,7 +27,7 @@ export function Screen({
       <SafeAreaView
         className="flex-1 bg-app-bg dark:bg-app-bg-dark"
         edges={safeAreaEdges}>
-        <View className={`flex-1 px-5 ${contentContainerClassName ?? ''}`}>
+        <View className={`flex-1 ${contentContainerClassName ?? 'px-5'}`}>
           {children}
         </View>
       </SafeAreaView>

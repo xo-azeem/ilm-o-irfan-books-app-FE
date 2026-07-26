@@ -21,7 +21,7 @@ export const SearchBookList = memo(function SearchBookList({
           key={book.id}
           book={book}
           isLast={index === books.length - 1}
-          onPress={onBookPress ? () => onBookPress(book) : undefined}
+          onPress={onBookPress}
         />
       ))}
     </View>

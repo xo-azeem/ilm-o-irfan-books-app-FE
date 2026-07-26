@@ -14,7 +14,7 @@ type SearchBookCardProps = {
   height: number;
   coverHeight: number;
   bodyHeight: number;
-  onPress?: () => void;
+  onPress?: (book: SearchCatalogBook) => void;
 };
 
 export const SearchBookCard = memo(function SearchBookCard({
@@ -30,7 +30,7 @@ export const SearchBookCard = memo(function SearchBookCard({
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={onPress ? () => onPress(book) : undefined}
       style={{ width, height }}
       className="active:opacity-90">
       <View

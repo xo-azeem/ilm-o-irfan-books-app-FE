@@ -12,7 +12,7 @@ import type { BookItem } from '../data/exploreContent';
 type BookCoverCardProps = {
   book: BookItem;
   width?: number;
-  onPress?: () => void;
+  onPress?: (book: BookItem) => void;
 };
 
 export const BookCoverCard = memo(function BookCoverCard({
@@ -26,7 +26,7 @@ export const BookCoverCard = memo(function BookCoverCard({
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={onPress ? () => onPress(book) : undefined}
       style={{ width }}
       className="active:opacity-80">
       <BookCoverPlaceholder

@@ -55,7 +55,7 @@ export function HomeScreen() {
               <BookCoverCard
                 key={book.id}
                 book={book}
-                onPress={() => handleBookPress(book)}
+                onPress={handleBookPress}
               />
             ))}
           </ScrollView>
@@ -72,7 +72,7 @@ export function HomeScreen() {
               <BookCoverCard
                 key={book.id}
                 book={book}
-                onPress={() => handleBookPress(book)}
+                onPress={handleBookPress}
               />
             ))}
           </ScrollView>

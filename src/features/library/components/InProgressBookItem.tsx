@@ -5,7 +5,6 @@ import Animated, {
   Easing,
   FadeInUp,
   FadeOutUp,
-  LinearTransition,
 } from 'react-native-reanimated';
 
 import { DisplayText, Text } from '@/components/ui';
@@ -17,9 +16,6 @@ import { BookSpine } from './BookSpine';
 import { LibraryProgressBar } from './LibraryProgressBar';
 
 const COVER_WIDTH = 68;
-const LAYOUT_TRANSITION = LinearTransition.duration(240).easing(
-  Easing.out(Easing.cubic),
-);
 const BUTTON_ENTER = FadeInUp.duration(240).easing(Easing.out(Easing.cubic));
 const BUTTON_EXIT = FadeOutUp.duration(180).easing(Easing.in(Easing.cubic));
 
@@ -65,11 +61,9 @@ export const InProgressBookItem = memo(function InProgressBookItem({
   const pressHighlight = getLibraryPressHighlight(isDark);
 
   return (
-    <Animated.View
-      layout={LAYOUT_TRANSITION}
+    <View
       className={`px-3 ${!isLast ? 'border-b border-app-border dark:border-app-border-dark' : ''}`}>
-      <Animated.View
-        layout={LAYOUT_TRANSITION}
+      <View
         className={`my-1.5 overflow-hidden rounded-[14px] ${
           isSelected ? 'bg-app-fill dark:bg-app-fill-dark' : ''
         }`}>
@@ -125,12 +119,11 @@ export const InProgressBookItem = memo(function InProgressBookItem({
           <Animated.View
             entering={BUTTON_ENTER}
             exiting={BUTTON_EXIT}
-            layout={LAYOUT_TRANSITION}
             className="px-3 pb-3.5 pt-0.5">
             <ResumeButton onPress={onResume} labelColor={colors.onPrimary} />
           </Animated.View>
         ) : null}
-      </Animated.View>
-    </Animated.View>
+      </View>
+    </View>
   );
 });

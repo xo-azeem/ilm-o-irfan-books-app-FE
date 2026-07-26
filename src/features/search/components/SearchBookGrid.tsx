@@ -31,7 +31,7 @@ export const SearchBookGrid = memo(function SearchBookGrid({
           height={cardHeight}
           coverHeight={coverHeight}
           bodyHeight={bodyHeight}
-          onPress={onBookPress ? () => onBookPress(book) : undefined}
+          onPress={onBookPress}
         />
       ))}
     </View>

@@ -1,7 +1,9 @@
-import { Pressable } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 
 import { Text } from '@/components/ui';
+import { useTheme } from '@/theme/ThemeContext';
 
+import { useAuthLayoutMetrics } from '../hooks/useAuthLayoutMetrics';
 import { GoogleLogoIcon } from './GoogleLogoIcon';
 
 type GoogleSignInButtonProps = {
@@ -9,22 +11,50 @@ type GoogleSignInButtonProps = {
   label?: string;
 };
 
-const GOOGLE_ICON_SIZE = 22;
+const GOOGLE_ICON_SIZE = 20;
 
 export function GoogleSignInButton({
   onPress,
   label = 'Continue with Google',
 }: GoogleSignInButtonProps) {
+  const { isDark, colors } = useTheme();
+  const layout = useAuthLayoutMetrics(false);
+
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
-      className="flex-row items-center justify-center gap-3 rounded-[14px] border border-app-border bg-app-surface py-3.5 active:opacity-85 dark:border-app-border-dark dark:bg-app-surface-dark">
+      style={({ pressed }) => [
+        styles.button,
+        {
+          height: layout.buttonHeight,
+          borderRadius: layout.radius,
+          opacity: pressed ? 0.88 : 1,
+          backgroundColor: isDark
+            ? 'rgba(255,255,255,0.06)'
+            : 'rgba(255,255,255,0.92)',
+          borderColor: isDark
+            ? 'rgba(240,246,236,0.12)'
+            : 'rgba(20,40,24,0.10)',
+        },
+      ]}>
       <GoogleLogoIcon size={GOOGLE_ICON_SIZE} />
-      <Text className="text-[16px] font-semibold text-app-ink dark:text-app-ink-dark">
+      <Text
+        className="font-semibold text-app-ink dark:text-app-ink-dark"
+        style={{ fontSize: 16, color: colors.ink }}>
         {label}
       </Text>
     </Pressable>
   );
 }
+
+const styles = StyleSheet.create({
+  button: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+  },
+});

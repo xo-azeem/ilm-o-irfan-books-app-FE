@@ -1,8 +1,7 @@
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { useNavigation, CommonActions } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { CommonActions } from '@react-navigation/native';
 
 import type { RootStackParamList } from '@/app/navigation/types';
 import { Text } from '@/components/ui';
@@ -59,16 +58,19 @@ export function LoginScreen() {
   return (
     <AuthLayout
       scrollable={false}
-      title="Welcome back"
-      subtitle="Sign in to continue your journey of knowledge and reflection."
+      title="Sign in"
+      subtitle="Continue your library of knowledge and reflection."
       footer={
         <Pressable
           onPress={() => navigation.navigate(ROUTES.SIGN_UP)}
-          className="px-2 py-1 active:opacity-70">
-          <Text className="text-center text-[15px] leading-[22px] text-app-muted dark:text-app-muted-dark">
+          hitSlop={8}
+          style={({ pressed }) => ({ opacity: pressed ? 0.65 : 1 })}>
+          <Text
+            className="text-center text-app-muted dark:text-app-muted-dark"
+            style={styles.footerText}>
             New here?{' '}
             <Text className="font-semibold text-app-primary dark:text-app-primary-dark">
-              Create an account
+              Create account
             </Text>
           </Text>
         </Pressable>
@@ -78,32 +80,46 @@ export function LoginScreen() {
           label="Email"
           value={email}
           onChangeText={setEmail}
-          placeholder="you@example.com"
+          placeholder="name@example.com"
           keyboardType="email-address"
           autoCapitalize="none"
           textContentType="emailAddress"
           autoComplete="email"
+          returnKeyType="next"
         />
 
         <AuthField
           label="Password"
           value={password}
           onChangeText={setPassword}
-          placeholder="Enter your password"
+          placeholder="Your password"
           secureTextEntry
           textContentType="password"
           autoComplete="password"
+          returnKeyType="go"
+          onSubmitEditing={handleSignIn}
         />
       </View>
 
-      <View style={{ gap: layout.actionGap }}>
+      <View style={{ gap: layout.fieldGap + 4 }}>
         <Pressable
           onPress={handleSignIn}
           accessibilityRole="button"
           accessibilityLabel="Sign in"
-          style={{ backgroundColor: colors.primary }}
-          className="items-center rounded-[14px] py-3.5 active:opacity-90">
-          <Text className="text-[16px] font-semibold text-white">Sign in</Text>
+          style={({ pressed }) => [
+            styles.primaryBtn,
+            {
+              height: layout.buttonHeight,
+              borderRadius: layout.radius,
+              backgroundColor: colors.primary,
+              opacity: pressed ? 0.9 : 1,
+            },
+          ]}>
+          <Text
+            className="font-semibold"
+            style={{ fontSize: 17, color: colors.onPrimary }}>
+            Sign in
+          </Text>
         </Pressable>
 
         <AuthDivider />
@@ -113,3 +129,14 @@ export function LoginScreen() {
     </AuthLayout>
   );
 }
+
+const styles = StyleSheet.create({
+  primaryBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  footerText: {
+    fontSize: 15,
+    lineHeight: 22,
+  },
+});

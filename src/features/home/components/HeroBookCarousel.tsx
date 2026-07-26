@@ -28,8 +28,9 @@ import { Bookmark, ChevronRight, Star, UserRound } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppLogo } from '@/components/brand';
-import { useTheme } from '@/theme/ThemeContext';
 import { BookCoverPlaceholder } from '@/components/books';
+import { useHeaderBrandMetrics } from '@/hooks/useHeaderBrandMetrics';
+import { useTheme } from '@/theme/ThemeContext';
 import { fonts, palette, theme, typography } from '@/theme/palette';
 import type { HeroCarouselBook } from '@/features/explore/data/exploreContent';
 
@@ -40,7 +41,6 @@ const COVER_ASPECT = 1.48;
 const PANEL_HEIGHT = 206;
 const PANEL_OVERLAP = 32;
 const COVER_PANEL_GAP = 8;
-const STAGE_HEADER_SPACE = 72;
 const AUTO_SCROLL_INTERVAL_MS = 4000;
 const AUTO_SCROLL_DURATION_MS = 800;
 const AUTO_SCROLL_EASING = Easing.bezier(0.4, 0, 0.2, 1);
@@ -265,18 +265,37 @@ const CarouselHeader = memo(function CarouselHeader({
   isDark: boolean;
   onProfilePress?: () => void;
 }) {
-  const insets = useSafeAreaInsets();
+  const brand = useHeaderBrandMetrics();
 
   return (
-    <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-      <View style={styles.headerBrand}>
-        <AppLogo />
+    <View
+      style={[
+        styles.header,
+        {
+          paddingTop: brand.topInset + brand.paddingTop,
+          paddingBottom: brand.paddingBottom,
+        },
+      ]}>
+      <View style={[styles.headerBrand, { gap: brand.brandGap }]}>
+        <AppLogo size={brand.logoSize} />
         <View style={styles.headerText}>
-          <Text style={[styles.headerTitle, { color: colors.ink }]}>
+          <Text
+            style={[
+              styles.headerTitle,
+              {
+                color: colors.ink,
+                fontSize: brand.titleSize,
+                lineHeight: brand.titleLineHeight,
+              },
+            ]}>
             Ilm o Irfan
           </Text>
-          <Text style={[styles.headerSub, { color: colors.primary }]}>
-            bookstore
+          <Text
+            style={[
+              styles.headerSub,
+              { color: colors.primary, fontSize: brand.subtitleSize },
+            ]}>
+            E-BookStore
           </Text>
         </View>
       </View>
@@ -290,6 +309,9 @@ const CarouselHeader = memo(function CarouselHeader({
           style={[
             styles.profileBtn,
             {
+              width: brand.profileBtnSize,
+              height: brand.profileBtnSize,
+              borderRadius: brand.profileBtnSize / 2,
               backgroundColor: isDark
                 ? 'rgba(255,255,255,0.10)'
                 : 'rgba(255,255,255,0.55)',
@@ -298,7 +320,11 @@ const CarouselHeader = memo(function CarouselHeader({
                 : 'rgba(20,40,24,0.10)',
             },
           ]}>
-          <UserRound color={colors.muted} size={20} strokeWidth={1.5} />
+          <UserRound
+            color={colors.muted}
+            size={brand.profileIconSize}
+            strokeWidth={1.5}
+          />
         </View>
       </Pressable>
     </View>
@@ -474,11 +500,13 @@ export const HeroBookCarousel = memo(function HeroBookCarousel({
   const { width: windowWidth } = useWindowDimensions();
   const layoutWidth = Math.max(windowWidth, 1);
   const insets = useSafeAreaInsets();
+  const brand = useHeaderBrandMetrics();
   const isFocused = useIsFocused();
 
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
   const scrollX = useSharedValue(0);
   const isAutoScrolling = useSharedValue(false);
+  const isFocusedSV = useSharedValue(isFocused);
   const activeIndexRef = useRef(0);
   const isUserInteractingRef = useRef(false);
   const autoScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -492,7 +520,7 @@ export const HeroBookCarousel = memo(function HeroBookCarousel({
 
   const coverWidth = Math.round(layoutWidth * COVER_W_RATIO);
   const coverHeight = Math.round(coverWidth * COVER_ASPECT);
-  const stageHeight = coverHeight + insets.top + STAGE_HEADER_SPACE;
+  const stageHeight = coverHeight + insets.top + brand.stageHeaderSpace;
   const pageHeight = stageHeight + PANEL_HEIGHT - PANEL_OVERLAP;
   const totalHeight = pageHeight;
 
@@ -552,21 +580,43 @@ export const HeroBookCarousel = memo(function HeroBookCarousel({
   useAnimatedReaction(
     () => scrollX.value,
     (offset, previous) => {
-      if (isAutoScrolling.value && offset !== previous) {
+      if (
+        isFocusedSV.value &&
+        isAutoScrolling.value &&
+        offset !== previous
+      ) {
         scrollTo(scrollRef, offset, 0, false);
       }
     },
   );
 
   useEffect(() => {
+    isFocusedSV.value = isFocused;
+
     if (isFocused) {
       scheduleAutoScroll();
-    } else {
-      clearAutoScrollTimer();
+      return clearAutoScrollTimer;
     }
 
+    // Stop JS timers and any in-flight UI-thread scroll when leaving Home,
+    // so tab switches aren't fighting an active carousel animation.
+    clearAutoScrollTimer();
+    runOnUI(() => {
+      'worklet';
+      cancelAnimation(scrollX);
+      isAutoScrolling.value = false;
+    })();
+
     return clearAutoScrollTimer;
-  }, [clearAutoScrollTimer, isFocused, scheduleAutoScroll, books.length]);
+  }, [
+    clearAutoScrollTimer,
+    isAutoScrolling,
+    isFocused,
+    isFocusedSV,
+    scheduleAutoScroll,
+    scrollX,
+    books.length,
+  ]);
 
   const handleScrollBeginDrag = useCallback(() => {
     isUserInteractingRef.current = true;
@@ -692,34 +742,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingBottom: 14,
     backgroundColor: 'transparent',
   },
   headerBrand: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
   },
   headerText: {
     gap: 1,
   },
   headerTitle: {
     fontFamily: fonts.sans,
-    fontSize: 18,
     fontWeight: '700',
     letterSpacing: typography.snug,
-    lineHeight: 21,
   },
   headerSub: {
     fontFamily: fonts.sans,
-    fontSize: 11,
     fontWeight: '500',
     letterSpacing: typography.wide,
   },
   profileBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: StyleSheet.hairlineWidth,

@@ -4,6 +4,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  StyleSheet,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,7 +12,7 @@ import { ChevronLeft } from 'lucide-react-native';
 
 import { AppLogo } from '@/components/brand';
 import { DisplayText, Text } from '@/components/ui';
-import { palette } from '@/theme/palette';
+import { useTheme } from '@/theme/ThemeContext';
 
 import { useAuthLayoutMetrics } from '../hooks/useAuthLayoutMetrics';
 
@@ -31,27 +32,27 @@ export function AuthLayout({
   scrollable = false,
   children,
 }: AuthLayoutProps) {
+  const { colors } = useTheme();
   const layout = useAuthLayoutMetrics(scrollable);
 
   const header = (
-    <View className="items-center">
+    <View style={{ gap: layout.headerGap }}>
       <AppLogo size={layout.logoSize} />
-      <View
-        className="items-center px-2"
-        style={{ marginTop: layout.logoToTitleGap, gap: layout.titleSubtitleGap }}>
+      <View style={{ gap: 8, maxWidth: 340 }}>
         <DisplayText
-          className="text-center font-bold tracking-tight text-app-ink dark:text-app-ink-dark"
+          className="font-bold tracking-tight text-app-ink dark:text-app-ink-dark"
           style={{
-            fontSize: layout.compact ? 26 : 28,
-            lineHeight: layout.compact ? 32 : 34,
+            fontSize: layout.titleSize,
+            lineHeight: layout.titleLineHeight,
+            letterSpacing: -0.6,
           }}>
           {title}
         </DisplayText>
         <Text
-          className="max-w-[292px] text-center text-app-muted dark:text-app-muted-dark"
+          className="text-app-muted dark:text-app-muted-dark"
           style={{
-            fontSize: layout.compact ? 15 : 16,
-            lineHeight: layout.compact ? 22 : 24,
+            fontSize: layout.subtitleSize,
+            lineHeight: Math.round(layout.subtitleSize * 1.45),
           }}>
           {subtitle}
         </Text>
@@ -59,46 +60,56 @@ export function AuthLayout({
     </View>
   );
 
-  const body = (
+  const content = (
     <View
-      style={{
-        width: '100%',
-        maxWidth: layout.contentMaxWidth,
-        paddingHorizontal: layout.horizontalPadding,
-        alignSelf: 'center',
-        flex: scrollable ? undefined : 1,
-      }}>
+      style={[
+        styles.content,
+        {
+          maxWidth: layout.contentMaxWidth,
+          paddingHorizontal: layout.horizontalPadding,
+          paddingTop: layout.topPad,
+          paddingBottom: layout.bottomPad,
+          flex: scrollable ? undefined : 1,
+        },
+      ]}>
       {onBack ? (
         <Pressable
           onPress={onBack}
           accessibilityRole="button"
           accessibilityLabel="Go back"
-          className="-ml-1 flex-row items-center gap-0.5 self-start py-1 active:opacity-60"
-          style={{ marginBottom: layout.compact ? 8 : 12 }}>
-          <ChevronLeft size={22} color={palette.green} strokeWidth={2.25} />
-          <Text className="text-[15px] font-medium text-app-primary dark:text-app-primary-dark">
+          hitSlop={12}
+          style={({ pressed }) => [
+            styles.backBtn,
+            { opacity: pressed ? 0.55 : 1, marginBottom: layout.compact ? 8 : 12 },
+          ]}>
+          <ChevronLeft size={22} color={colors.primary} strokeWidth={2.25} />
+          <Text
+            className="text-[17px] font-medium text-app-primary dark:text-app-primary-dark"
+            style={{ marginLeft: -2 }}>
             Back
           </Text>
         </Pressable>
-      ) : (
-        <View style={{ height: layout.compact ? 20 : 28 }} />
-      )}
+      ) : null}
 
       {scrollable ? (
         <>
-          {header}
-          <View style={{ marginTop: layout.headerToFormGap, gap: layout.blockGap }}>
+          <View style={{ marginTop: onBack ? 0 : layout.logoToTitleGap * 0.35 }}>
+            {header}
+          </View>
+          <View style={{ marginTop: layout.titleToFormGap, gap: layout.sectionGap }}>
             {children}
           </View>
           {footer ? (
-            <View style={{ marginTop: layout.footerGap, alignItems: 'center' }}>{footer}</View>
+            <View style={{ marginTop: layout.footerGap, alignItems: 'center' }}>
+              {footer}
+            </View>
           ) : null}
         </>
       ) : (
-        <View className="flex-1 justify-between">
+        <View style={styles.fillColumn}>
           <View>
-            {header}
-            <View style={{ marginTop: layout.headerToFormGap, gap: layout.blockGap }}>
+            <View style={{ marginTop: layout.logoToTitleGap * 0.4 }}>{header}</View>
+            <View style={{ marginTop: layout.titleToFormGap, gap: layout.sectionGap }}>
               {children}
             </View>
           </View>
@@ -118,23 +129,43 @@ export function AuthLayout({
       edges={['top', 'left', 'right', 'bottom']}>
       <KeyboardAvoidingView
         className="flex-1"
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}>
         {scrollable ? (
           <ScrollView
             className="flex-1"
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{
-              flexGrow: 1,
-              alignItems: 'center',
-              paddingBottom: layout.footerGap,
-            }}>
-            {body}
+            contentContainerStyle={styles.scrollContent}
+            bounces>
+            {content}
           </ScrollView>
         ) : (
-          <View className="flex-1">{body}</View>
+          <View className="flex-1">{content}</View>
         )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  content: {
+    width: '100%',
+    alignSelf: 'center',
+  },
+  fillColumn: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    alignItems: 'center',
+  },
+  backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    marginLeft: -6,
+    paddingVertical: 4,
+  },
+});

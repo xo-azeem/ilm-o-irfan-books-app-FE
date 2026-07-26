@@ -1,8 +1,7 @@
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { useNavigation, CommonActions } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { CommonActions } from '@react-navigation/native';
 
 import type { RootStackParamList } from '@/app/navigation/types';
 import { Text } from '@/components/ui';
@@ -11,6 +10,7 @@ import { AuthDivider } from '@/features/auth/components/AuthDivider';
 import { AuthField } from '@/features/auth/components/AuthField';
 import { AuthLayout } from '@/features/auth/components/AuthLayout';
 import { GoogleSignInButton } from '@/features/auth/components/GoogleSignInButton';
+import { useAuthLayoutMetrics } from '@/features/auth/hooks/useAuthLayoutMetrics';
 import { useAuthStore } from '@/stores/authStore';
 import { useTheme } from '@/theme/ThemeContext';
 
@@ -38,15 +38,13 @@ export function SignUpScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { colors } = useTheme();
   const signIn = useAuthStore(state => state.signIn);
+  const layout = useAuthLayoutMetrics(true);
 
   const [form, setForm] = useState<SignUpForm>(initialForm);
 
-  const updateField = useCallback(
-    (key: keyof SignUpForm, value: string) => {
-      setForm(current => ({ ...current, [key]: value }));
-    },
-    [],
-  );
+  const updateField = useCallback((key: keyof SignUpForm, value: string) => {
+    setForm(current => ({ ...current, [key]: value }));
+  }, []);
 
   const completeSignUp = useCallback(() => {
     signIn();
@@ -103,13 +101,16 @@ export function SignUpScreen() {
     <AuthLayout
       scrollable
       title="Create account"
-      subtitle="Join Ilm o Irfan and start building your personal Islamic library."
+      subtitle="Build your personal Islamic library in a few steps."
       onBack={() => navigation.goBack()}
       footer={
         <Pressable
           onPress={() => navigation.navigate(ROUTES.LOGIN)}
-          className="py-2 active:opacity-70">
-          <Text className="text-[15px] text-app-muted dark:text-app-muted-dark">
+          hitSlop={8}
+          style={({ pressed }) => ({ opacity: pressed ? 0.65 : 1 })}>
+          <Text
+            className="text-center text-app-muted dark:text-app-muted-dark"
+            style={styles.footerText}>
             Already have an account?{' '}
             <Text className="font-semibold text-app-primary dark:text-app-primary-dark">
               Sign in
@@ -117,65 +118,84 @@ export function SignUpScreen() {
           </Text>
         </Pressable>
       }>
-      <AuthField
-        label="Full name"
-        value={form.fullName}
-        onChangeText={value => updateField('fullName', value)}
-        placeholder="Your full name"
-        autoCapitalize="words"
-        textContentType="name"
-        autoComplete="name"
-      />
+      <View style={{ gap: layout.fieldGap }}>
+        <AuthField
+          label="Full name"
+          value={form.fullName}
+          onChangeText={value => updateField('fullName', value)}
+          placeholder="Your full name"
+          autoCapitalize="words"
+          textContentType="name"
+          autoComplete="name"
+          returnKeyType="next"
+        />
 
-      <AuthField
-        label="Email"
-        value={form.email}
-        onChangeText={value => updateField('email', value)}
-        placeholder="you@example.com"
-        keyboardType="email-address"
-        autoCapitalize="none"
-        textContentType="emailAddress"
-        autoComplete="email"
-      />
+        <AuthField
+          label="Email"
+          value={form.email}
+          onChangeText={value => updateField('email', value)}
+          placeholder="name@example.com"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          textContentType="emailAddress"
+          autoComplete="email"
+          returnKeyType="next"
+        />
 
-      <AuthField
-        label="Phone number"
-        value={form.phone}
-        onChangeText={value => updateField('phone', value)}
-        placeholder="+1 555 000 0000"
-        keyboardType="phone-pad"
-        textContentType="telephoneNumber"
-        autoComplete="tel"
-      />
+        <AuthField
+          label="Phone"
+          value={form.phone}
+          onChangeText={value => updateField('phone', value)}
+          placeholder="+1 555 000 0000"
+          keyboardType="phone-pad"
+          textContentType="telephoneNumber"
+          autoComplete="tel"
+          returnKeyType="next"
+        />
 
-      <AuthField
-        label="Password"
-        value={form.password}
-        onChangeText={value => updateField('password', value)}
-        placeholder="At least 8 characters"
-        secureTextEntry
-        textContentType="newPassword"
-        autoComplete="password-new"
-      />
+        <AuthField
+          label="Password"
+          value={form.password}
+          onChangeText={value => updateField('password', value)}
+          placeholder="At least 8 characters"
+          secureTextEntry
+          textContentType="newPassword"
+          autoComplete="password-new"
+          returnKeyType="next"
+        />
 
-      <AuthField
-        label="Confirm password"
-        value={form.confirmPassword}
-        onChangeText={value => updateField('confirmPassword', value)}
-        placeholder="Re-enter your password"
-        secureTextEntry
-        textContentType="newPassword"
-        autoComplete="password-new"
-      />
+        <AuthField
+          label="Confirm password"
+          value={form.confirmPassword}
+          onChangeText={value => updateField('confirmPassword', value)}
+          placeholder="Re-enter your password"
+          secureTextEntry
+          textContentType="newPassword"
+          autoComplete="password-new"
+          returnKeyType="go"
+          onSubmitEditing={handleCreateAccount}
+        />
+      </View>
 
-      <View className="gap-3 pt-1">
+      <View style={{ gap: layout.fieldGap + 4 }}>
         <Pressable
           onPress={handleCreateAccount}
           accessibilityRole="button"
           accessibilityLabel="Create account"
-          style={{ backgroundColor: colors.primary }}
-          className="items-center rounded-[14px] py-4 active:opacity-90">
-          <Text className="text-[16px] font-semibold text-white">Create account</Text>
+          style={({ pressed }) => [
+            styles.primaryBtn,
+            {
+              height: layout.buttonHeight,
+              borderRadius: layout.radius,
+              backgroundColor: colors.primary,
+              opacity: pressed ? 0.9 : 1,
+            },
+          ]}>
+          <Text
+            className="font-semibold"
+            style={{ fontSize: 17, color: colors.onPrimary }}>
+            Create account
+          </Text>
         </Pressable>
 
         <AuthDivider />
@@ -188,3 +208,14 @@ export function SignUpScreen() {
     </AuthLayout>
   );
 }
+
+const styles = StyleSheet.create({
+  primaryBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  footerText: {
+    fontSize: 15,
+    lineHeight: 22,
+  },
+});

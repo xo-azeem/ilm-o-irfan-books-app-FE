@@ -14,7 +14,7 @@ const COVER_HEIGHT = COVER_WIDTH * 1.32;
 type SearchBookListRowProps = {
   book: SearchCatalogBook;
   isLast?: boolean;
-  onPress?: () => void;
+  onPress?: (book: SearchCatalogBook) => void;
 };
 
 export const SearchBookListRow = memo(function SearchBookListRow({
@@ -26,7 +26,9 @@ export const SearchBookListRow = memo(function SearchBookListRow({
   const coverColor = isDark ? book.coverColorDark : book.coverColor;
 
   return (
-    <Pressable onPress={onPress} className="active:opacity-90">
+    <Pressable
+      onPress={onPress ? () => onPress(book) : undefined}
+      className="active:opacity-90">
       <View className="flex-row items-start gap-4 py-4">
         <BookCoverPlaceholder
           width={COVER_WIDTH}

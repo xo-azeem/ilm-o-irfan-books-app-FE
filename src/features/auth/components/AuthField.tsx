@@ -1,5 +1,7 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import {
+  Platform,
+  StyleSheet,
   TextInput,
   View,
   type KeyboardTypeOptions,
@@ -7,9 +9,10 @@ import {
 } from 'react-native';
 
 import { Text } from '@/components/ui';
+import { fonts, typography } from '@/theme/palette';
 import { useTheme } from '@/theme/ThemeContext';
 
-const FIELD_MIN_HEIGHT = 52;
+import { useAuthLayoutMetrics } from '../hooks/useAuthLayoutMetrics';
 
 type AuthFieldProps = {
   label: string;
@@ -21,6 +24,8 @@ type AuthFieldProps = {
   secureTextEntry?: boolean;
   textContentType?: TextInputProps['textContentType'];
   autoComplete?: TextInputProps['autoComplete'];
+  returnKeyType?: TextInputProps['returnKeyType'];
+  onSubmitEditing?: TextInputProps['onSubmitEditing'];
 };
 
 export const AuthField = memo(function AuthField({
@@ -33,17 +38,41 @@ export const AuthField = memo(function AuthField({
   secureTextEntry = false,
   textContentType,
   autoComplete,
+  returnKeyType,
+  onSubmitEditing,
 }: AuthFieldProps) {
-  const { colors } = useTheme();
+  const { isDark, colors } = useTheme();
+  const layout = useAuthLayoutMetrics(false);
+  const [focused, setFocused] = useState(false);
 
   return (
     <View style={{ gap: 8 }}>
-      <Text className="px-1 text-[13px] font-medium text-app-muted dark:text-app-muted-dark">
+      <Text
+        className="text-app-muted dark:text-app-muted-dark"
+        style={{
+          fontSize: 13,
+          fontWeight: '500',
+          letterSpacing: typography.wide,
+          paddingHorizontal: 2,
+        }}>
         {label}
       </Text>
       <View
-        className="justify-center rounded-[14px] border border-app-border bg-app-surface px-4 dark:border-app-border-dark dark:bg-app-surface-dark"
-        style={{ minHeight: FIELD_MIN_HEIGHT }}>
+        style={{
+          height: layout.fieldHeight,
+          borderRadius: layout.inputRadius,
+          paddingHorizontal: 16,
+          justifyContent: 'center',
+          backgroundColor: isDark
+            ? 'rgba(255,255,255,0.06)'
+            : 'rgba(255,255,255,0.92)',
+          borderWidth: StyleSheet.hairlineWidth * 2,
+          borderColor: focused
+            ? colors.primary
+            : isDark
+              ? 'rgba(240,246,236,0.12)'
+              : 'rgba(20,40,24,0.10)',
+        }}>
         <TextInput
           value={value}
           onChangeText={onChangeText}
@@ -55,8 +84,19 @@ export const AuthField = memo(function AuthField({
           secureTextEntry={secureTextEntry}
           textContentType={textContentType}
           autoComplete={autoComplete}
-          className="w-full text-[16px] leading-[22px] text-app-ink dark:text-app-ink-dark"
-          style={{ minHeight: FIELD_MIN_HEIGHT - 24 }}
+          returnKeyType={returnKeyType}
+          onSubmitEditing={onSubmitEditing}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          selectionColor={colors.primary}
+          style={{
+            fontFamily: fonts.sans,
+            fontSize: 17,
+            letterSpacing: typography.snug,
+            color: colors.ink,
+            paddingVertical: Platform.OS === 'ios' ? 12 : 10,
+            margin: 0,
+          }}
         />
       </View>
     </View>

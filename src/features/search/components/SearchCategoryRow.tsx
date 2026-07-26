@@ -1,11 +1,31 @@
-import { memo, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, View } from 'react-native';
-import { Check, ChevronDown, Layers } from 'lucide-react-native';
+import { Check, ChevronDown, Layers, Search, X } from 'lucide-react-native';
+import Animated, {
+  Easing,
+  FadeIn,
+  FadeOut,
+  LinearTransition,
+} from 'react-native-reanimated';
 
 import { DisplayText, Text } from '@/components/ui';
 import { categories } from '@/features/explore/data/exploreContent';
 import type { CategoryItem } from '@/features/explore/data/exploreContent';
 import { useTheme } from '@/theme/ThemeContext';
+
+import {
+  ExpandableSearchField,
+  SEARCH_FIELD_HEIGHT,
+  SEARCH_GLASS_BUTTON_SIZE,
+  SearchGlassButton,
+} from './CollapsibleSearchBar';
+
+const LAYOUT = LinearTransition.duration(260).easing(Easing.bezier(0.22, 1, 0.36, 1));
+const ENTER = FadeIn.duration(220).easing(Easing.bezier(0.22, 1, 0.36, 1));
+const EXIT = FadeOut.duration(180).easing(Easing.bezier(0.22, 1, 0.36, 1));
+
+/** Title (28) + gap (6) + subtitle (~18) — keeps open/closed rows on the same top edge. */
+const HEADING_SLOT_HEIGHT = Math.max(52, SEARCH_GLASS_BUTTON_SIZE, SEARCH_FIELD_HEIGHT);
 
 type Anchor = { x: number; y: number; width: number; height: number };
 
@@ -55,10 +75,27 @@ const CategoryOption = memo(function CategoryOption({
   );
 });
 
-export const SearchCategorySection = memo(function SearchCategorySection() {
+type SearchCategorySectionProps = {
+  searchOpen: boolean;
+  searchQuery: string;
+  onSearchQueryChange: (query: string) => void;
+  onOpenSearch: () => void;
+  onCloseSearch: () => void;
+  onSearchRowLayout?: (bottomY: number) => void;
+};
+
+export const SearchCategorySection = memo(function SearchCategorySection({
+  searchOpen,
+  searchQuery,
+  onSearchQueryChange,
+  onOpenSearch,
+  onCloseSearch,
+  onSearchRowLayout,
+}: SearchCategorySectionProps) {
   const { isDark, colors } = useTheme();
 
   const triggerRef = useRef<View>(null);
+  const searchRowRef = useRef<View>(null);
   const [open, setOpen] = useState(false);
   const [anchor, setAnchor] = useState<Anchor | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -70,6 +107,20 @@ export const SearchCategorySection = memo(function SearchCategorySection() {
       ? selected.accentDark
       : selected.accent
     : colors.primary;
+
+  const reportSearchRowBottom = () => {
+    searchRowRef.current?.measureInWindow((_x, y, _w, h) => {
+      onSearchRowLayout?.(y + h);
+    });
+  };
+
+  useEffect(() => {
+    if (!searchOpen) {
+      return undefined;
+    }
+    const timer = setTimeout(reportSearchRowBottom, 32);
+    return () => clearTimeout(timer);
+  }, [searchOpen]);
 
   const openMenu = () => {
     triggerRef.current?.measureInWindow((x, y, width, height) => {
@@ -85,13 +136,59 @@ export const SearchCategorySection = memo(function SearchCategorySection() {
 
   return (
     <View>
-      <View className="mb-6 gap-1.5">
-        <DisplayText className="text-[22px] font-bold leading-7 tracking-tight text-app-ink dark:text-app-ink-dark">
-          Browse categories
-        </DisplayText>
-        <Text className="text-[13px] text-app-muted dark:text-app-muted-dark">
-          Filter the catalog by topic
-        </Text>
+      <View
+        ref={searchRowRef}
+        onLayout={reportSearchRowBottom}
+        className="mb-6"
+        style={{
+          height: HEADING_SLOT_HEIGHT,
+          justifyContent: 'flex-start',
+        }}>
+        <Animated.View layout={LAYOUT} style={{ height: HEADING_SLOT_HEIGHT }}>
+          {searchOpen ? (
+            <Animated.View
+              entering={ENTER}
+              exiting={EXIT}
+              className="flex-row items-center gap-3"
+              style={{ height: SEARCH_FIELD_HEIGHT }}>
+              <ExpandableSearchField
+                value={searchQuery}
+                onChangeText={onSearchQueryChange}
+              />
+              <SearchGlassButton
+                accessibilityLabel="Close search"
+                onPress={onCloseSearch}
+                icon={<X color={colors.primary} size={20} strokeWidth={2} />}
+              />
+            </Animated.View>
+          ) : (
+            <Animated.View
+              entering={ENTER}
+              exiting={EXIT}
+              className="flex-row items-start justify-between gap-3"
+              style={{ height: HEADING_SLOT_HEIGHT }}>
+              <View className="min-w-0 flex-1 gap-1.5">
+                <DisplayText className="text-[22px] font-bold leading-7 tracking-tight text-app-ink dark:text-app-ink-dark">
+                  Browse Categories
+                </DisplayText>
+                <Text className="text-[13px] text-app-muted dark:text-app-muted-dark">
+                  Filter the catalog by topic
+                </Text>
+              </View>
+              <View
+                style={{
+                  height: SEARCH_FIELD_HEIGHT,
+                  justifyContent: 'center',
+                }}>
+                <SearchGlassButton
+                  accessibilityLabel="Open search"
+                  onPress={onOpenSearch}
+                  icon={<Search color={colors.primary} size={20} strokeWidth={2} />}
+                />
+              </View>
+            </Animated.View>
+          )}
+        </Animated.View>
       </View>
 
       <Pressable

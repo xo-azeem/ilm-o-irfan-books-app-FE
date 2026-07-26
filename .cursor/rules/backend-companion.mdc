@@ -1,0 +1,34 @@
+---
+description: Backend lives in Ilm-o-Irfan-App-BE; follow backend-stack.md for all BE work
+alwaysApply: true
+---
+
+# Backend companion repo
+
+This repo is the **React Native frontend** for Ilm o Irfan. Backend work does **not** belong here.
+
+## Backend source path
+
+- Path: `D:\Projects\Ilm-o-Irfan-App-BE`
+- All backend changes (schema, migrations, RLS, Auth, Storage, Edge Functions, seed data, Supabase config) must be made in that repo.
+
+## Source of truth for backend design
+
+- FE copy: `docs/backend-stack.md`
+- BE copy: `D:\Projects\Ilm-o-Irfan-App-BE\docs\backend-stack.md`
+
+Stack: **Supabase** (PostgreSQL, Auth, Storage, Edge Functions) + **RevenueCat**. No custom Node/Nest/Express API, no Redis for v1.
+
+## When the user asks for backend work
+
+1. **Work in** `D:\Projects\Ilm-o-Irfan-App-BE` (not this FE repo).
+2. **Read** `docs/backend-stack.md` (either copy) before designing or implementing.
+3. **Align with this FE app** (screens, stores, types, expected API shapes).
+4. Implement only what that request needs; keep FE ↔ BE contracts matched.
+
+## Do not
+
+- Add a separate REST/Nest/Express API in either repo unless the user explicitly asks.
+- Put backend migrations, Edge Functions, or Supabase config in this FE repo.
+- Put PDF/cover bytes in Postgres — use Storage paths.
+- Allow client writes to `entitlements` — webhook / service role only.

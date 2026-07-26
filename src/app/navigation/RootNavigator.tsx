@@ -1,5 +1,8 @@
 import { View } from 'react-native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import {
+  createBottomTabNavigator,
+  type BottomTabBarProps,
+} from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
@@ -20,14 +23,21 @@ import type { RootStackParamList, RootTabParamList } from './types';
 const Tab = createBottomTabNavigator<RootTabParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+const STACK_CONTENT_STYLE = { flex: 1 } as const;
+
+function renderTabBar(props: BottomTabBarProps) {
+  return <CustomTabBar {...props} />;
+}
+
 function MainTabs() {
   return (
     <Tab.Navigator
-      tabBar={props => <CustomTabBar {...props} />}
+      tabBar={renderTabBar}
       screenOptions={{
         headerShown: false,
         lazy: true,
         freezeOnBlur: true,
+        detachInactiveScreens: true,
         animation: 'none',
       }}>
       <Tab.Screen name={ROUTES.HOME} component={HomeScreen} />
@@ -48,7 +58,9 @@ export function RootNavigator() {
           initialRouteName={isAuthenticated ? ROUTES.MAIN_TABS : ROUTES.LOGIN}
           screenOptions={{
             headerShown: false,
-            contentStyle: { flex: 1 },
+            contentStyle: STACK_CONTENT_STYLE,
+            freezeOnBlur: true,
+            detachInactiveScreens: true,
           }}>
           <Stack.Screen
             name={ROUTES.LOGIN}

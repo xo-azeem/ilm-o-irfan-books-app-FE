@@ -17,6 +17,8 @@ import type { ProfileStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<ProfileStackParamList>();
 
+const STACK_CONTENT_STYLE = { flex: 1 } as const;
+
 export function ProfileNavigator() {
   return (
     <View className="flex-1 bg-app-bg dark:bg-app-bg-dark">
@@ -24,7 +26,9 @@ export function ProfileNavigator() {
         screenOptions={{
           headerShown: false,
           animation: 'slide_from_right',
-          contentStyle: { flex: 1 },
+          contentStyle: STACK_CONTENT_STYLE,
+          freezeOnBlur: true,
+          detachInactiveScreens: true,
         }}>
         <Stack.Screen name="ProfileMain" component={ProfileScreen} />
         <Stack.Screen name="PersonalDetails" component={PersonalDetailsScreen} />

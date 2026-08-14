@@ -1,4 +1,5 @@
 import 'react-native-gesture-handler';
+import 'react-native-url-polyfill/auto';
 
 import { enableFreeze, enableScreens } from 'react-native-screens';
 import { AppRegistry } from 'react-native';

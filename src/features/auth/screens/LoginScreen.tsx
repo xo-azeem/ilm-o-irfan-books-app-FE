@@ -11,7 +11,7 @@ import { AuthField } from '@/features/auth/components/AuthField';
 import { AuthLayout } from '@/features/auth/components/AuthLayout';
 import { GoogleSignInButton } from '@/features/auth/components/GoogleSignInButton';
 import { useAuthLayoutMetrics } from '@/features/auth/hooks/useAuthLayoutMetrics';
-import { useAuthStore } from '@/stores/authStore';
+import { signInWithEmail } from '@/lib/supabase';
 import { useTheme } from '@/theme/ThemeContext';
 
 function isValidEmail(email: string): boolean {
@@ -21,23 +21,22 @@ function isValidEmail(email: string): boolean {
 export function LoginScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { colors } = useTheme();
-  const signIn = useAuthStore(state => state.signIn);
   const layout = useAuthLayoutMetrics(false);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const completeSignIn = useCallback(() => {
-    signIn();
+  const goToApp = useCallback(() => {
     navigation.dispatch(
       CommonActions.reset({
         index: 0,
         routes: [{ name: ROUTES.MAIN_TABS }],
       }),
     );
-  }, [navigation, signIn]);
+  }, [navigation]);
 
-  const handleSignIn = useCallback(() => {
+  const handleSignIn = useCallback(async () => {
     if (!email.trim() || !password.trim()) {
       Alert.alert('Missing details', 'Please enter your email and password.');
       return;
@@ -48,12 +47,25 @@ export function LoginScreen() {
       return;
     }
 
-    completeSignIn();
-  }, [completeSignIn, email, password]);
+    setIsSubmitting(true);
+    try {
+      await signInWithEmail({ email, password });
+      goToApp();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unable to sign in. Try again.';
+      Alert.alert('Sign in failed', message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [email, goToApp, password]);
 
   const handleGoogleSignIn = useCallback(() => {
-    completeSignIn();
-  }, [completeSignIn]);
+    Alert.alert(
+      'Coming soon',
+      'Google sign-in will be enabled after OAuth is configured in Supabase.',
+    );
+  }, []);
 
   return (
     <AuthLayout
@@ -86,6 +98,7 @@ export function LoginScreen() {
           textContentType="emailAddress"
           autoComplete="email"
           returnKeyType="next"
+          editable={!isSubmitting}
         />
 
         <AuthField
@@ -98,12 +111,14 @@ export function LoginScreen() {
           autoComplete="password"
           returnKeyType="go"
           onSubmitEditing={handleSignIn}
+          editable={!isSubmitting}
         />
       </View>
 
       <View style={{ gap: layout.fieldGap + 4 }}>
         <Pressable
           onPress={handleSignIn}
+          disabled={isSubmitting}
           accessibilityRole="button"
           accessibilityLabel="Sign in"
           style={({ pressed }) => [
@@ -112,13 +127,13 @@ export function LoginScreen() {
               height: layout.buttonHeight,
               borderRadius: layout.radius,
               backgroundColor: colors.primary,
-              opacity: pressed ? 0.9 : 1,
+              opacity: pressed || isSubmitting ? 0.75 : 1,
             },
           ]}>
           <Text
             className="font-semibold"
             style={{ fontSize: 17, color: colors.onPrimary }}>
-            Sign in
+            {isSubmitting ? 'Signing in…' : 'Sign in'}
           </Text>
         </Pressable>
 

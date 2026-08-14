@@ -41,13 +41,19 @@ export function ProfileScreen() {
             text: 'Sign out',
             style: 'destructive',
             onPress: () => {
-              signOut();
-              rootNavigation.dispatch(
-                CommonActions.reset({
-                  index: 0,
-                  routes: [{ name: ROUTES.LOGIN }],
-                }),
-              );
+              void (async () => {
+                try {
+                  await signOut();
+                } catch {
+                  // Local state still clears in the store finally block.
+                }
+                rootNavigation.dispatch(
+                  CommonActions.reset({
+                    index: 0,
+                    routes: [{ name: ROUTES.LOGIN }],
+                  }),
+                );
+              })();
             },
           },
         ]);

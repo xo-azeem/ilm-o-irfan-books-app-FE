@@ -26,6 +26,7 @@ type AuthFieldProps = {
   autoComplete?: TextInputProps['autoComplete'];
   returnKeyType?: TextInputProps['returnKeyType'];
   onSubmitEditing?: TextInputProps['onSubmitEditing'];
+  editable?: boolean;
 };
 
 export const AuthField = memo(function AuthField({
@@ -38,6 +39,7 @@ export const AuthField = memo(function AuthField({
   secureTextEntry = false,
   textContentType,
   autoComplete,
+  editable = true,
   returnKeyType,
   onSubmitEditing,
 }: AuthFieldProps) {
@@ -72,6 +74,7 @@ export const AuthField = memo(function AuthField({
             : isDark
               ? 'rgba(240,246,236,0.12)'
               : 'rgba(20,40,24,0.10)',
+          opacity: editable ? 1 : 0.6,
         }}>
         <TextInput
           value={value}
@@ -86,6 +89,7 @@ export const AuthField = memo(function AuthField({
           autoComplete={autoComplete}
           returnKeyType={returnKeyType}
           onSubmitEditing={onSubmitEditing}
+          editable={editable}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           selectionColor={colors.primary}

@@ -1,3 +1,4 @@
+import type { Session, User } from '@supabase/supabase-js';
 import { createMMKV, type MMKV } from 'react-native-mmkv';
 import { create } from 'zustand';
 import {
@@ -6,10 +7,18 @@ import {
   type StateStorage,
 } from 'zustand/middleware';
 
+import { signOut as supabaseSignOut } from '@/lib/supabase/auth';
+
 type AuthState = {
   isAuthenticated: boolean;
+  isHydrated: boolean;
+  userId: string | null;
+  email: string | null;
+  /** @deprecated Prefer setSession from auth listener */
   signIn: () => void;
-  signOut: () => void;
+  setSession: (session: Session | null) => void;
+  setHydrated: (value: boolean) => void;
+  signOut: () => Promise<void>;
 };
 
 let mmkv: MMKV | null = null;
@@ -53,16 +62,53 @@ const authStorage: StateStorage = {
   },
 };
 
+function userFromSession(session: Session | null): Pick<User, 'id' | 'email'> | null {
+  if (!session?.user) {
+    return null;
+  }
+  return { id: session.user.id, email: session.user.email ?? undefined };
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
     set => ({
       isAuthenticated: false,
+      isHydrated: false,
+      userId: null,
+      email: null,
       signIn: () => set({ isAuthenticated: true }),
-      signOut: () => set({ isAuthenticated: false }),
+      setSession: session => {
+        const user = userFromSession(session);
+        set({
+          isAuthenticated: Boolean(session),
+          userId: user?.id ?? null,
+          email: user?.email ?? null,
+        });
+      },
+      setHydrated: value => set({ isHydrated: value }),
+      signOut: async () => {
+        try {
+          await supabaseSignOut();
+        } finally {
+          set({
+            isAuthenticated: false,
+            userId: null,
+            email: null,
+          });
+        }
+      },
     }),
     {
       name: 'ilm-auth-session',
       storage: createJSONStorage(() => authStorage),
+      partialize: state => ({
+        isAuthenticated: state.isAuthenticated,
+        userId: state.userId,
+        email: state.email,
+      }),
+      onRehydrateStorage: () => state => {
+        state?.setHydrated(true);
+      },
     },
   ),
 );

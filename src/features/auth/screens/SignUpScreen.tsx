@@ -11,7 +11,7 @@ import { AuthField } from '@/features/auth/components/AuthField';
 import { AuthLayout } from '@/features/auth/components/AuthLayout';
 import { GoogleSignInButton } from '@/features/auth/components/GoogleSignInButton';
 import { useAuthLayoutMetrics } from '@/features/auth/hooks/useAuthLayoutMetrics';
-import { useAuthStore } from '@/stores/authStore';
+import { signUpWithEmail } from '@/lib/supabase';
 import { useTheme } from '@/theme/ThemeContext';
 
 type SignUpForm = {
@@ -37,24 +37,23 @@ function isValidEmail(email: string): boolean {
 export function SignUpScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { colors } = useTheme();
-  const signIn = useAuthStore(state => state.signIn);
   const layout = useAuthLayoutMetrics(true);
 
   const [form, setForm] = useState<SignUpForm>(initialForm);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const updateField = useCallback((key: keyof SignUpForm, value: string) => {
     setForm(current => ({ ...current, [key]: value }));
   }, []);
 
-  const completeSignUp = useCallback(() => {
-    signIn();
+  const goToApp = useCallback(() => {
     navigation.dispatch(
       CommonActions.reset({
         index: 0,
         routes: [{ name: ROUTES.MAIN_TABS }],
       }),
     );
-  }, [navigation, signIn]);
+  }, [navigation]);
 
   const validateForm = useCallback((): boolean => {
     if (!form.fullName.trim()) {
@@ -85,17 +84,47 @@ export function SignUpScreen() {
     return true;
   }, [form]);
 
-  const handleCreateAccount = useCallback(() => {
+  const handleCreateAccount = useCallback(async () => {
     if (!validateForm()) {
       return;
     }
 
-    completeSignUp();
-  }, [completeSignUp, validateForm]);
+    setIsSubmitting(true);
+    try {
+      const data = await signUpWithEmail({
+        fullName: form.fullName,
+        email: form.email,
+        phone: form.phone,
+        password: form.password,
+      });
+
+      if (!data.session) {
+        Alert.alert(
+          'Check your email',
+          'Account created. Confirm your email if required, then sign in.',
+          [{ text: 'OK', onPress: () => navigation.navigate(ROUTES.LOGIN) }],
+        );
+        return;
+      }
+
+      goToApp();
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Unable to create account. Try again.';
+      Alert.alert('Sign up failed', message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [form, goToApp, navigation, validateForm]);
 
   const handleGoogleSignUp = useCallback(() => {
-    completeSignUp();
-  }, [completeSignUp]);
+    Alert.alert(
+      'Coming soon',
+      'Google sign-up will be enabled after OAuth is configured in Supabase.',
+    );
+  }, []);
 
   return (
     <AuthLayout
@@ -128,6 +157,7 @@ export function SignUpScreen() {
           textContentType="name"
           autoComplete="name"
           returnKeyType="next"
+          editable={!isSubmitting}
         />
 
         <AuthField
@@ -140,6 +170,7 @@ export function SignUpScreen() {
           textContentType="emailAddress"
           autoComplete="email"
           returnKeyType="next"
+          editable={!isSubmitting}
         />
 
         <AuthField
@@ -151,6 +182,7 @@ export function SignUpScreen() {
           textContentType="telephoneNumber"
           autoComplete="tel"
           returnKeyType="next"
+          editable={!isSubmitting}
         />
 
         <AuthField
@@ -162,6 +194,7 @@ export function SignUpScreen() {
           textContentType="newPassword"
           autoComplete="password-new"
           returnKeyType="next"
+          editable={!isSubmitting}
         />
 
         <AuthField
@@ -174,12 +207,14 @@ export function SignUpScreen() {
           autoComplete="password-new"
           returnKeyType="go"
           onSubmitEditing={handleCreateAccount}
+          editable={!isSubmitting}
         />
       </View>
 
       <View style={{ gap: layout.fieldGap + 4 }}>
         <Pressable
           onPress={handleCreateAccount}
+          disabled={isSubmitting}
           accessibilityRole="button"
           accessibilityLabel="Create account"
           style={({ pressed }) => [
@@ -188,13 +223,13 @@ export function SignUpScreen() {
               height: layout.buttonHeight,
               borderRadius: layout.radius,
               backgroundColor: colors.primary,
-              opacity: pressed ? 0.9 : 1,
+              opacity: pressed || isSubmitting ? 0.75 : 1,
             },
           ]}>
           <Text
             className="font-semibold"
             style={{ fontSize: 17, color: colors.onPrimary }}>
-            Create account
+            {isSubmitting ? 'Creating…' : 'Create account'}
           </Text>
         </Pressable>
 

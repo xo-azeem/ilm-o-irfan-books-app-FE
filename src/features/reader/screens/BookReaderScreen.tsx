@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -12,11 +12,13 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import Pdf from 'react-native-pdf';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, Minus, Plus, RotateCcw } from 'lucide-react-native';
+import { ChevronLeft, Download, Highlighter, Minus, Plus, RotateCcw } from 'lucide-react-native';
 
 import type { RootStackParamList } from '@/app/navigation/types';
 import { Text } from '@/components/ui';
-import { getBookPdfSource, type BookPdfSource } from '@/constants/books';
+import type { BookPdfSource } from '@/constants/books';
+import { useHighlightMutation, useHighlights, useProgressMutation } from '@/hooks/useAccount';
+import { downloadPdf, resolvePdfSource } from '@/services/pdf';
 import { palette } from '@/theme/palette';
 import { useTheme } from '@/theme/ThemeContext';
 
@@ -259,6 +261,9 @@ type ReaderChromeProps = {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onResetZoom: () => void;
+  onDownload: () => void;
+  onHighlight: () => void;
+  isDownloading: boolean;
   insetTop: number;
   insetRight: number;
   insetBottom: number;
@@ -280,6 +285,9 @@ function ReaderChrome({
   onZoomIn,
   onZoomOut,
   onResetZoom,
+  onDownload,
+  onHighlight,
+  isDownloading,
   insetTop,
   insetRight,
   insetBottom,
@@ -300,14 +308,33 @@ function ReaderChrome({
         },
       ]}>
       <View pointerEvents="box-none" style={styles.chromeColumn}>
-        <GlassSurface isDark={isDark} radius={BACK_BUTTON_SIZE / 2} style={styles.backButton}>
-          <GlassIconButton
-            onPress={onBack}
-            accessibilityLabel="Close reader"
-            height={BACK_BUTTON_SIZE}>
-            <ChevronLeft size={22} color={iconColor} strokeWidth={2.25} />
-          </GlassIconButton>
-        </GlassSurface>
+        <View style={styles.leftCluster}>
+          <GlassSurface isDark={isDark} radius={BACK_BUTTON_SIZE / 2} style={styles.backButton}>
+            <GlassIconButton
+              onPress={onBack}
+              accessibilityLabel="Close reader"
+              height={BACK_BUTTON_SIZE}>
+              <ChevronLeft size={22} color={iconColor} strokeWidth={2.25} />
+            </GlassIconButton>
+          </GlassSurface>
+          <GlassSurface isDark={isDark} radius={BACK_BUTTON_SIZE / 2} style={styles.toolButton}>
+            <GlassIconButton
+              onPress={onDownload}
+              disabled={isDownloading}
+              accessibilityLabel="Download for offline reading"
+              height={BACK_BUTTON_SIZE}>
+              <Download size={20} color={iconColor} strokeWidth={2.25} />
+            </GlassIconButton>
+          </GlassSurface>
+          <GlassSurface isDark={isDark} radius={BACK_BUTTON_SIZE / 2} style={styles.toolButton}>
+            <GlassIconButton
+              onPress={onHighlight}
+              accessibilityLabel="Save current page highlight"
+              height={BACK_BUTTON_SIZE}>
+              <Highlighter size={20} color={iconColor} strokeWidth={2.25} />
+            </GlassIconButton>
+          </GlassSurface>
+        </View>
 
         <View pointerEvents="box-none" style={styles.bottomCluster}>
           {totalPages > 0 ? (
@@ -373,7 +400,44 @@ export function BookReaderScreen() {
   const isDark = colorScheme === 'dark';
   const insets = useSafeAreaInsets();
 
-  const pdfSource = useMemo(() => getBookPdfSource(route.params.bookId), [route.params.bookId]);
+  const [pdfSource, setPdfSource] = useState<BookPdfSource | null>(null);
+  const [sourceError, setSourceError] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const progressMutation = useProgressMutation();
+  const highlightMutation = useHighlightMutation(route.params.bookId);
+  useHighlights(route.params.bookId);
+  const pendingProgress = useRef<{ page: number; totalPages: number } | null>(null);
+  const progressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    setPdfSource(null);
+    setSourceError(false);
+    void resolvePdfSource(route.params.bookId)
+      .then(uri => {
+        if (active) setPdfSource({ uri, cache: true, cacheFileName: `${route.params.bookId}.pdf` });
+      })
+      .catch(() => {
+        if (active) setSourceError(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [route.params.bookId]);
+
+  const flushProgress = useCallback(() => {
+    const value = pendingProgress.current;
+    if (!value?.totalPages) return;
+    progressMutation.mutate({ bookId: route.params.bookId, ...value });
+    pendingProgress.current = null;
+  }, [progressMutation, route.params.bookId]);
+
+  useEffect(() => () => {
+    if (progressTimer.current) {
+      clearTimeout(progressTimer.current);
+    }
+    flushProgress();
+  }, [flushProgress]);
 
   const scaleRef = useRef(1);
   const scaleDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -448,12 +512,35 @@ export function BookReaderScreen() {
   const handlePageChanged = useCallback((currentPage: number, numberOfPages: number) => {
     setPage(currentPage);
     setTotalPages(numberOfPages);
-  }, []);
+    pendingProgress.current = { page: currentPage, totalPages: numberOfPages };
+    if (progressTimer.current) {
+      clearTimeout(progressTimer.current);
+    }
+    progressTimer.current = setTimeout(flushProgress, 1500);
+  }, [flushProgress]);
 
   const handleError = useCallback(() => {
     setHasError(true);
     setIsLoading(false);
   }, []);
+
+  const handleDownload = useCallback(async () => {
+    setIsDownloading(true);
+    try {
+      const uri = await downloadPdf(route.params.bookId);
+      setPdfSource({ uri, cache: true, cacheFileName: `${route.params.bookId}.pdf` });
+    } catch {
+      setSourceError(true);
+    } finally {
+      setIsDownloading(false);
+    }
+  }, [route.params.bookId]);
+
+  const handleHighlight = useCallback(() => {
+    if (page > 0) {
+      highlightMutation.mutate(page);
+    }
+  }, [highlightMutation, page]);
 
   const applyScale = useCallback(
     (next: number) => {
@@ -486,7 +573,7 @@ export function BookReaderScreen() {
 
   return (
     <View className="flex-1 bg-[#ECECEB] dark:bg-[#101410]">
-      {hasError ? (
+      {hasError || sourceError ? (
         <View
           className="flex-1 items-center justify-center px-8"
           style={{
@@ -494,10 +581,10 @@ export function BookReaderScreen() {
             paddingBottom: insets.bottom,
           }}>
           <Text className="text-center text-[15px] text-app-muted dark:text-app-muted-dark">
-            Unable to open this book. Please try again later.
+            Unable to open this book. If it is premium, an active entitlement is required.
           </Text>
         </View>
-      ) : (
+      ) : pdfSource ? (
         <ReaderPdf
           source={pdfSource}
           scale={controlScale}
@@ -506,7 +593,7 @@ export function BookReaderScreen() {
           onPageChanged={handlePageChanged}
           onScaleChanged={handleScaleChanged}
         />
-      )}
+      ) : null}
 
       <ReaderChrome
         isDark={isDark}
@@ -523,6 +610,9 @@ export function BookReaderScreen() {
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
         onResetZoom={handleResetZoom}
+        onDownload={() => { void handleDownload(); }}
+        onHighlight={handleHighlight}
+        isDownloading={isDownloading}
         insetTop={insets.top}
         insetRight={insets.right}
         insetBottom={insets.bottom}
@@ -555,6 +645,10 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'space-between',
   },
+  leftCluster: {
+    alignSelf: 'flex-start',
+    gap: 10,
+  },
   bottomCluster: {
     alignSelf: 'flex-end',
     alignItems: 'flex-end',
@@ -586,6 +680,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   backButton: {
+    width: BACK_BUTTON_SIZE,
+    height: BACK_BUTTON_SIZE,
+    alignSelf: 'flex-start',
+  },
+  toolButton: {
     width: BACK_BUTTON_SIZE,
     height: BACK_BUTTON_SIZE,
     alignSelf: 'flex-start',

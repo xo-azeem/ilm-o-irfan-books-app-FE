@@ -1,11 +1,18 @@
+import Config from 'react-native-config';
+
+function required(name: 'SUPABASE_URL' | 'SUPABASE_ANON_KEY'): string {
+  const value = Config[name]?.trim();
+  if (!value) {
+    throw new Error(`Missing required app configuration: ${name}`);
+  }
+  return value;
+}
+
 /**
- * Supabase public config for the React Native app.
- * Anon key is safe with RLS. Never add the service_role key here.
- *
- * Values mirror `.env` — update both when rotating keys.
+ * Public client configuration. The anon key is safe to ship only because the
+ * backend enforces RLS; service-role credentials must never be added here.
  */
 export const env = {
-  supabaseUrl: 'https://rwnmckrepvycydmtgvcq.supabase.co',
-  supabaseAnonKey:
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ3bm1ja3JlcHZ5Y3lkbXRndmNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2NjI1MjgsImV4cCI6MjEwMTIzODUyOH0.NI0_4BQVXAriEk3YHyMMsfqYundJbMTbfoxBu7pl8lU',
+  supabaseUrl: required('SUPABASE_URL'),
+  supabaseAnonKey: required('SUPABASE_ANON_KEY'),
 } as const;

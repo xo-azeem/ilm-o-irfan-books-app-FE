@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, View } from 'react-native';
 import { useNavigation, CommonActions } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
@@ -10,9 +10,7 @@ import { AuthDivider } from '@/features/auth/components/AuthDivider';
 import { AuthField } from '@/features/auth/components/AuthField';
 import { AuthLayout } from '@/features/auth/components/AuthLayout';
 import { GoogleSignInButton } from '@/features/auth/components/GoogleSignInButton';
-import { useAuthLayoutMetrics } from '@/features/auth/hooks/useAuthLayoutMetrics';
 import { signUpWithEmail } from '@/lib/supabase';
-import { useTheme } from '@/theme/ThemeContext';
 
 type SignUpForm = {
   fullName: string;
@@ -36,8 +34,6 @@ function isValidEmail(email: string): boolean {
 
 export function SignUpScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { colors } = useTheme();
-  const layout = useAuthLayoutMetrics(true);
 
   const [form, setForm] = useState<SignUpForm>(initialForm);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -128,7 +124,6 @@ export function SignUpScreen() {
 
   return (
     <AuthLayout
-      scrollable
       title="Create account"
       subtitle="Build your personal Islamic library in a few steps."
       onBack={() => navigation.goBack()}
@@ -136,10 +131,8 @@ export function SignUpScreen() {
         <Pressable
           onPress={() => navigation.navigate(ROUTES.LOGIN)}
           hitSlop={8}
-          style={({ pressed }) => ({ opacity: pressed ? 0.65 : 1 })}>
-          <Text
-            className="text-center text-app-muted dark:text-app-muted-dark"
-            style={styles.footerText}>
+          className="active:opacity-65">
+          <Text className="text-center text-[15px] leading-[22px] text-app-muted dark:text-app-muted-dark">
             Already have an account?{' '}
             <Text className="font-semibold text-app-primary dark:text-app-primary-dark">
               Sign in
@@ -147,7 +140,7 @@ export function SignUpScreen() {
           </Text>
         </Pressable>
       }>
-      <View style={{ gap: layout.fieldGap }}>
+      <View className="gap-3">
         <AuthField
           label="Full name"
           value={form.fullName}
@@ -211,24 +204,17 @@ export function SignUpScreen() {
         />
       </View>
 
-      <View style={{ gap: layout.fieldGap + 4 }}>
+      <View className="gap-4">
         <Pressable
           onPress={handleCreateAccount}
           disabled={isSubmitting}
           accessibilityRole="button"
           accessibilityLabel="Create account"
-          style={({ pressed }) => [
-            styles.primaryBtn,
-            {
-              height: layout.buttonHeight,
-              borderRadius: layout.radius,
-              backgroundColor: colors.primary,
-              opacity: pressed || isSubmitting ? 0.75 : 1,
-            },
-          ]}>
-          <Text
-            className="font-semibold"
-            style={{ fontSize: 17, color: colors.onPrimary }}>
+          className="h-[52px] items-center justify-center rounded-[14px] bg-app-primary dark:bg-app-primary-dark"
+          style={({ pressed }) => ({
+            opacity: pressed || isSubmitting ? 0.75 : 1,
+          })}>
+          <Text className="text-[17px] font-semibold text-app-on-primary dark:text-app-on-primary-dark">
             {isSubmitting ? 'Creating…' : 'Create account'}
           </Text>
         </Pressable>
@@ -243,14 +229,3 @@ export function SignUpScreen() {
     </AuthLayout>
   );
 }
-
-const styles = StyleSheet.create({
-  primaryBtn: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  footerText: {
-    fontSize: 15,
-    lineHeight: 22,
-  },
-});

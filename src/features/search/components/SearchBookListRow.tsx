@@ -4,7 +4,7 @@ import { Star } from 'lucide-react-native';
 
 import { DisplayText, Text } from '@/components/ui';
 import { BookCoverPlaceholder } from '@/components/books';
-import type { SearchCatalogBook } from '@/features/explore/data/exploreContent';
+import type { CatalogBook } from '@/services/catalog';
 import { useTheme } from '@/theme/ThemeContext';
 import { palette } from '@/theme/palette';
 
@@ -12,9 +12,9 @@ const COVER_WIDTH = 76;
 const COVER_HEIGHT = COVER_WIDTH * 1.32;
 
 type SearchBookListRowProps = {
-  book: SearchCatalogBook;
+  book: CatalogBook;
   isLast?: boolean;
-  onPress?: (book: SearchCatalogBook) => void;
+  onPress?: (book: CatalogBook) => void;
 };
 
 export const SearchBookListRow = memo(function SearchBookListRow({

@@ -1,15 +1,15 @@
 import { memo } from 'react';
 import { View } from 'react-native';
 
-import type { SearchCatalogBook } from '@/features/explore/data/exploreContent';
+import type { CatalogBook } from '@/services/catalog';
 
 import { useSearchGridMetrics } from '../hooks/useSearchGridMetrics';
 
 import { SearchBookCard } from './SearchBookCard';
 
 type SearchBookGridProps = {
-  books: SearchCatalogBook[];
-  onBookPress?: (book: SearchCatalogBook) => void;
+  books: CatalogBook[];
+  onBookPress?: (book: CatalogBook) => void;
 };
 
 export const SearchBookGrid = memo(function SearchBookGrid({

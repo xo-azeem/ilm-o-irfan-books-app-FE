@@ -1,6 +1,7 @@
 import type { PropsWithChildren } from 'react';
 import { Platform, StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { QueryClientProvider } from '@tanstack/react-query';
 import {
   SafeAreaProvider,
   initialWindowMetrics,
@@ -8,6 +9,7 @@ import {
 
 import { AuthSessionProvider } from '@/app/providers/AuthSessionProvider';
 import { ThemeProvider } from '@/app/providers/ThemeProvider';
+import { queryClient } from '@/lib/queryClient';
 import { ThemeStateProvider, useTheme } from '@/theme/ThemeContext';
 
 function AppShell({ children }: PropsWithChildren) {
@@ -29,12 +31,14 @@ function AppShell({ children }: PropsWithChildren) {
 
 export function AppProviders({ children }: PropsWithChildren) {
   return (
-    <ThemeProvider>
-      <ThemeStateProvider>
-        <AuthSessionProvider>
-          <AppShell>{children}</AppShell>
-        </AuthSessionProvider>
-      </ThemeStateProvider>
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <ThemeStateProvider>
+          <AuthSessionProvider>
+            <AppShell>{children}</AppShell>
+          </AuthSessionProvider>
+        </ThemeStateProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }

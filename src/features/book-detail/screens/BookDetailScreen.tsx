@@ -4,13 +4,14 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft } from 'lucide-react-native';
+import { ChevronLeft, Heart } from 'lucide-react-native';
 
 import type { RootStackParamList } from '@/app/navigation/types';
 import { DisplayText, Text } from '@/components/ui';
 import { BookCoverPlaceholder } from '@/components/books';
 import { ROUTES } from '@/constants/routes';
-import { getBookById } from '@/features/explore/data/exploreContent';
+import { useBook } from '@/hooks/useCatalog';
+import { useWishlistMutation, useWishlistStatus } from '@/hooks/useAccount';
 import { palette } from '@/theme/palette';
 import { useTheme } from '@/theme/ThemeContext';
 
@@ -19,8 +20,8 @@ type BookDetailNavigationProp = NativeStackNavigationProp<RootStackParamList, 'B
 
 const COVER_ASPECT = 1.42;
 
-function formatPrice(price: number): string {
-  return `$${price.toFixed(2)}`;
+function formatPrice(price: number, currency: string): string {
+  return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(price);
 }
 
 function useBookDetailLayout() {
@@ -75,7 +76,9 @@ export function BookDetailScreen() {
   const { isDark, colors } = useTheme();
   const layout = useBookDetailLayout();
 
-  const book = getBookById(route.params.bookId);
+  const { data: book, isLoading } = useBook(route.params.bookId);
+  const { data: saved } = useWishlistStatus(route.params.bookId);
+  const wishlistMutation = useWishlistMutation(route.params.bookId);
 
   const handleReadBook = useCallback(() => {
     if (!book) {
@@ -85,7 +88,7 @@ export function BookDetailScreen() {
     navigation.navigate(ROUTES.BOOK_READER, { bookId: book.id });
   }, [book, navigation]);
 
-  if (!book) {
+  if (!book && !isLoading) {
     return (
       <View className="flex-1 bg-app-bg dark:bg-app-bg-dark">
         <View
@@ -107,6 +110,10 @@ export function BookDetailScreen() {
         </View>
       </View>
     );
+  }
+
+  if (!book) {
+    return <View className="flex-1 items-center justify-center bg-app-bg dark:bg-app-bg-dark"><Text>Loading book…</Text></View>;
   }
 
   const coverColor = isDark ? book.coverColorDark : book.coverColor;
@@ -188,7 +195,7 @@ export function BookDetailScreen() {
                 Price
               </Text>
               <Text className="text-[32px] font-bold tabular-nums tracking-tight text-app-ink dark:text-app-ink-dark">
-                {formatPrice(book.price)}
+                {formatPrice(book.price, book.currency)}
               </Text>
             </View>
             {book.rating != null ? (
@@ -245,13 +252,22 @@ export function BookDetailScreen() {
         }}>
         <View className="flex-row" style={{ gap: 10 }}>
           <Pressable
+            onPress={() => wishlistMutation.mutate(Boolean(saved))}
             accessibilityRole="button"
-            accessibilityLabel={`Buy ${book.title}`}
+            accessibilityLabel={saved ? 'Remove from wishlist' : 'Save to wishlist'}
             style={{ height: layout.footerButtonHeight }}
             className="flex-1 items-center justify-center rounded-[14px] border border-app-border bg-app-surface active:opacity-80 dark:border-app-border-dark dark:bg-app-surface-dark">
-            <Text className="text-[16px] font-semibold text-app-ink dark:text-app-ink-dark">
-              Buy {formatPrice(book.price)}
-            </Text>
+            <View className="flex-row items-center gap-2">
+              <Heart
+                size={16}
+                color={colors.primary}
+                fill={saved ? colors.primary : 'transparent'}
+                strokeWidth={2}
+              />
+              <Text className="text-[16px] font-semibold text-app-ink dark:text-app-ink-dark">
+                {saved ? 'Saved' : 'Save'}
+              </Text>
+            </View>
           </Pressable>
           <Pressable
             onPress={handleReadBook}

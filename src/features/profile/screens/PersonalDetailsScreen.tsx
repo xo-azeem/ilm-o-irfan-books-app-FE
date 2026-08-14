@@ -1,4 +1,4 @@
-import { memo, useCallback, useState, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { Text } from '@/components/ui';
@@ -8,6 +8,7 @@ import {
   personalDetailsDefaults,
   type PersonalDetails,
 } from '@/features/profile/data/profileContent';
+import { useProfile, useUpdateProfile } from '@/hooks/useAccount';
 
 function FormSection({
   title,
@@ -32,6 +33,20 @@ export const PersonalDetailsScreen = memo(function PersonalDetailsScreen() {
     personalDetailsDefaults,
   );
   const [draft, setDraft] = useState<PersonalDetails>(personalDetailsDefaults);
+  const { data: profile } = useProfile();
+  const updateProfile = useUpdateProfile();
+
+  useEffect(() => {
+    if (!profile) return;
+    const details: PersonalDetails = {
+      fullName: profile.fullName, email: profile.email, phone: profile.phone,
+      dateOfBirth: profile.dateOfBirth, addressLine1: profile.addressLine1,
+      addressLine2: profile.addressLine2, city: profile.city, state: profile.state,
+      postalCode: profile.postalCode, country: profile.country,
+    };
+    setSavedDetails(details);
+    setDraft(details);
+  }, [profile]);
 
   const updateDraft = useCallback(
     (key: keyof PersonalDetails, value: string) => {
@@ -50,10 +65,11 @@ export const PersonalDetailsScreen = memo(function PersonalDetailsScreen() {
     setIsEditing(false);
   }, [savedDetails]);
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
+    await updateProfile.mutateAsync(draft);
     setSavedDetails(draft);
     setIsEditing(false);
-  }, [draft]);
+  }, [draft, updateProfile]);
 
   const details = isEditing ? draft : savedDetails;
 
@@ -153,10 +169,11 @@ export const PersonalDetailsScreen = memo(function PersonalDetailsScreen() {
           {isEditing ? (
             <>
               <Pressable
-                onPress={handleSave}
+                onPress={() => void handleSave()}
+                disabled={updateProfile.isPending}
                 className="items-center rounded-[14px] bg-app-primary py-3.5 active:opacity-90 dark:bg-app-primary-dark">
                 <Text className="text-[16px] font-semibold text-app-on-primary dark:text-app-on-primary-dark">
-                  Save changes
+                  {updateProfile.isPending ? 'Saving…' : 'Save changes'}
                 </Text>
               </Pressable>
               <Pressable

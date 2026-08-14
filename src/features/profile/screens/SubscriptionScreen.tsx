@@ -6,9 +6,15 @@ import { Section } from '@/components/layout';
 import { DisplayText, Text } from '@/components/ui';
 import { palette } from '@/theme/palette';
 import { ProfileSubScreenLayout } from '@/features/profile/components/ProfileSubScreenLayout';
-import { subscriptionPlan } from '@/features/profile/data/profileContent';
+import { useSubscription } from '@/hooks/useAccount';
 
 export const SubscriptionScreen = memo(function SubscriptionScreen() {
+  const { data } = useSubscription();
+  const plan = data?.plan;
+  const price = plan
+    ? new Intl.NumberFormat(undefined, { style: 'currency', currency: plan.currency }).format(plan.price_cents / 100)
+    : 'No active plan';
+  const features = Array.isArray(plan?.features) ? plan.features.filter((item): item is string => typeof item === 'string') : [];
   return (
     <ProfileSubScreenLayout
       title="Subscription"
@@ -16,28 +22,28 @@ export const SubscriptionScreen = memo(function SubscriptionScreen() {
       <View className="mb-7 overflow-hidden rounded-[20px] bg-app-surface p-5 dark:bg-app-surface-dark">
         <View className="mb-1 flex-row items-center justify-between">
           <DisplayText className="text-[22px] font-bold text-app-ink dark:text-app-ink-dark">
-            {subscriptionPlan.name}
+            {data?.active ? plan?.name ?? 'Premium' : 'Free'}
           </DisplayText>
           <View className="rounded-full bg-app-fill px-3 py-1 dark:bg-app-fill-dark">
             <Text className="text-[11px] font-semibold uppercase tracking-wide text-app-primary dark:text-app-primary-dark">
-              Active
+              {data?.active ? 'Active' : 'Inactive'}
             </Text>
           </View>
         </View>
         <Text className="text-[15px] font-medium text-app-primary dark:text-app-primary-dark">
-          {subscriptionPlan.price}
+          {plan ? `${price} / ${plan.interval}` : 'Purchases coming soon'}
         </Text>
         <Text className="mt-1 text-[13px] text-app-muted dark:text-app-muted-dark">
-          {subscriptionPlan.renewsOn}
+          {data?.expiresAt ? `Renews on ${new Date(data.expiresAt).toLocaleDateString()}` : 'RevenueCat purchases are not yet available.'}
         </Text>
       </View>
 
       <Section title="Included">
-        {subscriptionPlan.features.map((feature, index) => (
+        {features.map((feature, index) => (
           <View
             key={feature}
             className={`flex-row items-center gap-3 px-4 py-3.5 ${
-              index < subscriptionPlan.features.length - 1
+              index < features.length - 1
                 ? 'border-b border-app-border dark:border-app-border-dark'
                 : ''
             }`}>

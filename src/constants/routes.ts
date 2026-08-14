@@ -6,6 +6,7 @@ export const ROUTES = {
   MAIN_TABS: 'MainTabs',
   BOOK_DETAIL: 'BookDetail',
   BOOK_READER: 'BookReader',
+  WISHLIST: 'Wishlist',
   LOGIN: 'Login',
   SIGN_UP: 'SignUp',
 } as const;
@@ -20,6 +21,7 @@ export const ROUTE_LABELS: Record<RouteName, string> = {
   [ROUTES.MAIN_TABS]: 'Main',
   [ROUTES.BOOK_DETAIL]: 'Book',
   [ROUTES.BOOK_READER]: 'Reader',
+  [ROUTES.WISHLIST]: 'Wishlist',
   [ROUTES.LOGIN]: 'Login',
   [ROUTES.SIGN_UP]: 'Sign up',
 };

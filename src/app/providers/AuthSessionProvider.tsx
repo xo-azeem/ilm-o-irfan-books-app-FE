@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from 'react';
 
+import { queryClient } from '@/lib/queryClient';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -20,6 +21,9 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      if (!session) {
+        queryClient.clear();
+      }
     });
 
     return () => {

@@ -1,29 +1,31 @@
 import { useCallback } from 'react';
-import { ScrollView, View } from 'react-native';
+import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import type { CompositeNavigationProp } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-import type { RootStackParamList } from '@/app/navigation/types';
+import type { RootStackParamList, RootTabParamList } from '@/app/navigation/types';
 import { Screen } from '@/components/layout';
 import { ROUTES } from '@/constants/routes';
 
 import { BookCoverCard } from '@/features/explore/components/BookCoverCard';
 import { CollectionCard } from '@/features/explore/components/CollectionCard';
 import { ExploreSectionHeader } from '@/features/explore/components/ExploreSectionHeader';
-import type { BookItem } from '@/features/explore/data/exploreContent';
-import {
-  curatedCollections,
-  heroCarouselBooks,
-  newArrivals,
-  trendingBooks,
-} from '@/features/explore/data/exploreContent';
+import { useHomeCatalog } from '@/hooks/useCatalog';
 import { HeroBookCarousel } from '@/features/home/components/HeroBookCarousel';
 
+type HomeNavigation = CompositeNavigationProp<
+  BottomTabNavigationProp<RootTabParamList, 'Home'>,
+  NativeStackNavigationProp<RootStackParamList>
+>;
+
 export function HomeScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation = useNavigation<HomeNavigation>();
+  const { data, isLoading } = useHomeCatalog();
 
   const handleBookPress = useCallback(
-    (book: BookItem) => {
+    (book: { id: string }) => {
       navigation.navigate(ROUTES.BOOK_DETAIL, { bookId: book.id });
     },
     [navigation],
@@ -36,7 +38,7 @@ export function HomeScreen() {
   return (
     <Screen contentContainerClassName="px-0 pt-0" safeAreaEdges={['left', 'right']}>
       <HeroBookCarousel
-        books={heroCarouselBooks}
+        books={data?.hero}
         onProfilePress={handleProfilePress}
         onBookPress={handleBookPress}
       />
@@ -51,7 +53,7 @@ export function HomeScreen() {
             nestedScrollEnabled
             showsHorizontalScrollIndicator={false}
             contentContainerClassName="gap-4 pr-5">
-            {trendingBooks.map(book => (
+            {(data?.trending ?? []).map(book => (
               <BookCoverCard
                 key={book.id}
                 book={book}
@@ -68,7 +70,7 @@ export function HomeScreen() {
             nestedScrollEnabled
             showsHorizontalScrollIndicator={false}
             contentContainerClassName="gap-4 pr-5">
-            {newArrivals.map(book => (
+            {(data?.arrivals ?? []).map(book => (
               <BookCoverCard
                 key={book.id}
                 book={book}
@@ -88,7 +90,7 @@ export function HomeScreen() {
             nestedScrollEnabled
             showsHorizontalScrollIndicator={false}
             contentContainerClassName="gap-3 pr-5">
-            {curatedCollections.map(collection => (
+            {(data?.collections ?? []).map(collection => (
               <CollectionCard
                 key={collection.id}
                 title={collection.title}
@@ -99,6 +101,7 @@ export function HomeScreen() {
             ))}
           </ScrollView>
         </View>
+        {isLoading ? <ActivityIndicator className="py-8" /> : null}
       </View>
     </Screen>
   );

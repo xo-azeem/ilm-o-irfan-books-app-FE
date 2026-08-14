@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, View } from 'react-native';
 import { Check, ChevronDown, Layers, Search, X } from 'lucide-react-native';
 import Animated, {
@@ -9,9 +9,8 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { DisplayText, Text } from '@/components/ui';
-import { categories } from '@/features/explore/data/exploreContent';
-import type { CategoryItem } from '@/features/explore/data/exploreContent';
 import { useTheme } from '@/theme/ThemeContext';
+import type { CatalogCategory } from '@/services/catalog';
 
 import {
   ExpandableSearchField,
@@ -30,7 +29,7 @@ const HEADING_SLOT_HEIGHT = Math.max(52, SEARCH_GLASS_BUTTON_SIZE, SEARCH_FIELD_
 type Anchor = { x: number; y: number; width: number; height: number };
 
 type CategoryOptionProps = {
-  category: CategoryItem;
+  category: CatalogCategory;
   isSelected: boolean;
   isLast: boolean;
   onPress: () => void;
@@ -76,6 +75,7 @@ const CategoryOption = memo(function CategoryOption({
 });
 
 type SearchCategorySectionProps = {
+  categories: CatalogCategory[];
   searchOpen: boolean;
   searchQuery: string;
   onSearchQueryChange: (query: string) => void;
@@ -85,6 +85,7 @@ type SearchCategorySectionProps = {
 };
 
 export const SearchCategorySection = memo(function SearchCategorySection({
+  categories,
   searchOpen,
   searchQuery,
   onSearchQueryChange,
@@ -108,11 +109,11 @@ export const SearchCategorySection = memo(function SearchCategorySection({
       : selected.accent
     : colors.primary;
 
-  const reportSearchRowBottom = () => {
+  const reportSearchRowBottom = useCallback(() => {
     searchRowRef.current?.measureInWindow((_x, y, _w, h) => {
       onSearchRowLayout?.(y + h);
     });
-  };
+  }, [onSearchRowLayout]);
 
   useEffect(() => {
     if (!searchOpen) {
@@ -120,7 +121,7 @@ export const SearchCategorySection = memo(function SearchCategorySection({
     }
     const timer = setTimeout(reportSearchRowBottom, 32);
     return () => clearTimeout(timer);
-  }, [searchOpen]);
+  }, [reportSearchRowBottom, searchOpen]);
 
   const openMenu = () => {
     triggerRef.current?.measureInWindow((x, y, width, height) => {

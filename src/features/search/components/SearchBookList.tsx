@@ -1,13 +1,13 @@
 import { memo } from 'react';
 import { View } from 'react-native';
 
-import type { SearchCatalogBook } from '@/features/explore/data/exploreContent';
+import type { CatalogBook } from '@/services/catalog';
 
 import { SearchBookListRow } from './SearchBookListRow';
 
 type SearchBookListProps = {
-  books: SearchCatalogBook[];
-  onBookPress?: (book: SearchCatalogBook) => void;
+  books: CatalogBook[];
+  onBookPress?: (book: CatalogBook) => void;
 };
 
 export const SearchBookList = memo(function SearchBookList({

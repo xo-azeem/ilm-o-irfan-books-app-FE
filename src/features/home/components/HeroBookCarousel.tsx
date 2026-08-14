@@ -32,7 +32,7 @@ import { BookCoverPlaceholder } from '@/components/books';
 import { useHeaderBrandMetrics } from '@/hooks/useHeaderBrandMetrics';
 import { useTheme } from '@/theme/ThemeContext';
 import { fonts, palette, theme, typography } from '@/theme/palette';
-import type { HeroCarouselBook } from '@/features/explore/data/exploreContent';
+import type { CatalogBook } from '@/services/catalog';
 
 type AppColors = (typeof theme)['light'] | (typeof theme)['dark'];
 
@@ -187,7 +187,7 @@ function SaveBookButton({
 }
 
 type BookDescriptionProps = {
-  book: HeroCarouselBook;
+  book: CatalogBook;
   colors: AppColors;
   isDark: boolean;
   panelFill: string;
@@ -337,7 +337,7 @@ const BookCover = memo(function BookCover({
   width,
   height,
 }: {
-  book: HeroCarouselBook;
+  book: CatalogBook;
   coverColor: string;
   width: number;
   height: number;
@@ -360,7 +360,7 @@ const BookCover = memo(function BookCover({
 });
 
 type CarouselPageProps = {
-  book: HeroCarouselBook;
+  book: CatalogBook;
   index: number;
   scrollX: SharedValue<number>;
   screenWidth: number;
@@ -371,7 +371,7 @@ type CarouselPageProps = {
   coverColor: string;
   isDark: boolean;
   stageHeight: number;
-  onBookPress?: (book: HeroCarouselBook) => void;
+  onBookPress?: (book: CatalogBook) => void;
 };
 
 const CarouselPage = memo(function CarouselPage({
@@ -486,8 +486,8 @@ const CarouselDot = memo(function CarouselDot({
 });
 
 type HeroBookCarouselProps = {
-  books?: HeroCarouselBook[];
-  onBookPress?: (book: HeroCarouselBook) => void;
+  books?: CatalogBook[];
+  onBookPress?: (book: CatalogBook) => void;
   onProfilePress?: () => void;
 };
 

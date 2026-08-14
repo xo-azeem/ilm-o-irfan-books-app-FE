@@ -16,6 +16,7 @@ import { HomeScreen } from '@/features/home/screens/HomeScreen';
 import { LibraryScreen } from '@/features/library/screens/LibraryScreen';
 import { ProfileNavigator } from '@/features/profile/navigation/ProfileNavigator';
 import { SearchScreen } from '@/features/search/screens/SearchScreen';
+import { WishlistScreen } from '@/features/wishlist/screens/WishlistScreen';
 import { useAuthStore } from '@/stores/authStore';
 
 import type { RootStackParamList, RootTabParamList } from './types';
@@ -81,6 +82,11 @@ export function RootNavigator() {
           <Stack.Screen
             name={ROUTES.BOOK_READER}
             component={BookReaderScreen}
+            options={{ animation: 'slide_from_right' }}
+          />
+          <Stack.Screen
+            name={ROUTES.WISHLIST}
+            component={WishlistScreen}
             options={{ animation: 'slide_from_right' }}
           />
         </Stack.Navigator>

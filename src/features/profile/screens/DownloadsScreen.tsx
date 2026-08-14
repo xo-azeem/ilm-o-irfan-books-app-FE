@@ -1,4 +1,4 @@
-import { memo, useCallback, useState } from 'react';
+import { memo, useCallback } from 'react';
 import { View } from 'react-native';
 import { Download } from 'lucide-react-native';
 
@@ -9,7 +9,8 @@ import {
   type DownloadedBook,
 } from '@/features/profile/components/DownloadBookRow';
 import { ProfileSubScreenLayout } from '@/features/profile/components/ProfileSubScreenLayout';
-import { downloadedBooks } from '@/features/profile/data/profileContent';
+import { useLibrary, useRemoveDownload } from '@/hooks/useAccount';
+import { removeLocalPdf } from '@/services/pdf';
 import { useTheme } from '@/theme/ThemeContext';
 
 function DownloadsSummary({
@@ -59,11 +60,20 @@ function DownloadsSummary({
 
 export const DownloadsScreen = memo(function DownloadsScreen() {
   const { colors } = useTheme();
-  const [items, setItems] = useState<DownloadedBook[]>(downloadedBooks);
+  const { data } = useLibrary();
+  const removeDownload = useRemoveDownload();
+  const items: DownloadedBook[] = (data?.downloads ?? []).map(book => ({
+    id: book.id, title: book.title, author: book.author,
+    size: `${Math.max(1, Math.round(book.sizeBytes / 1024 / 1024))} MB`,
+    coverColor: book.coverColor, coverColorDark: book.coverColorDark,
+  }));
 
   const removeItem = useCallback((id: string) => {
-    setItems(current => current.filter(item => item.id !== id));
-  }, []);
+    void (async () => {
+      await removeLocalPdf(id);
+      await removeDownload.mutateAsync(id);
+    })();
+  }, [removeDownload]);
 
   const totalSize = getDownloadsTotalSize(items);
 

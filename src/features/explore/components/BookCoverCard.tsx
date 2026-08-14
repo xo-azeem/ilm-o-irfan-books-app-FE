@@ -7,12 +7,12 @@ import { BookCoverPlaceholder } from '@/components/books';
 import { useTheme } from '@/theme/ThemeContext';
 import { palette } from '@/theme/palette';
 
-import type { BookItem } from '../data/exploreContent';
+import type { CatalogBook } from '@/services/catalog';
 
 type BookCoverCardProps = {
-  book: BookItem;
+  book: CatalogBook;
   width?: number;
-  onPress?: (book: BookItem) => void;
+  onPress?: (book: CatalogBook) => void;
 };
 
 export const BookCoverCard = memo(function BookCoverCard({

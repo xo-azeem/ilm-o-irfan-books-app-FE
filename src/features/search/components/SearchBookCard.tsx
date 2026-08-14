@@ -4,17 +4,17 @@ import { Star } from 'lucide-react-native';
 
 import { DisplayText, Text } from '@/components/ui';
 import { BookCoverPlaceholder } from '@/components/books';
-import type { SearchCatalogBook } from '@/features/explore/data/exploreContent';
+import type { CatalogBook } from '@/services/catalog';
 import { useTheme } from '@/theme/ThemeContext';
 import { palette } from '@/theme/palette';
 
 type SearchBookCardProps = {
-  book: SearchCatalogBook;
+  book: CatalogBook;
   width: number;
   height: number;
   coverHeight: number;
   bodyHeight: number;
-  onPress?: (book: SearchCatalogBook) => void;
+  onPress?: (book: CatalogBook) => void;
 };
 
 export const SearchBookCard = memo(function SearchBookCard({

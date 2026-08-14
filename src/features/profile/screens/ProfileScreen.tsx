@@ -2,20 +2,20 @@ import { useCallback } from 'react';
 import { Alert, View } from 'react-native';
 import { CommonActions, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Bookmark, Flame } from 'lucide-react-native';
 
 import type { RootStackParamList } from '@/app/navigation/types';
 import { Screen, Section } from '@/components/layout';
 import { Text } from '@/components/ui';
 import { ROUTES } from '@/constants/routes';
 import {
-  profileAchievements,
   profileGroups,
-  profileLessonsSummary,
-  profileUser,
 } from '@/features/profile/data/profileContent';
+import { useLibrary, useProfile, useSubscription } from '@/hooks/useAccount';
 import type { ProfileStackParamList, ProfileStackScreen } from '@/features/profile/navigation/types';
 import { useAuthStore } from '@/stores/authStore';
 import { THEME_PREFERENCE_LABELS, useThemeStore } from '@/stores/themeStore';
+import { palette } from '@/theme/palette';
 
 import { ProfileAchievements } from '../components/ProfileAchievements';
 import { ProfileHeader } from '../components/ProfileHeader';
@@ -27,6 +27,29 @@ export function ProfileScreen() {
   const rootNavigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const signOut = useAuthStore(state => state.signOut);
   const themePreference = useThemeStore(state => state.themePreference);
+  const { data: profile } = useProfile();
+  const { data: library } = useLibrary();
+  const { data: subscription } = useSubscription();
+  const profileUser = {
+    name: profile?.fullName || 'Your profile',
+    email: profile?.email || '',
+    initials: (profile?.fullName || 'Y').split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase(),
+    memberSince: profile?.memberSince || '',
+    plan: subscription?.active ? subscription.plan?.name ?? 'Premium' : 'Free',
+  };
+  const profileAchievements = [
+    { id: 'achievement-streak', label: 'Day streak', value: String(library?.streak ?? 0), caption: 'Keep the momentum', icon: Flame, accent: palette.sunflower, accentDark: palette.sunflower },
+    { id: 'achievement-saved', label: 'Saved', value: String(library?.wishlistCount ?? 0), caption: 'In your library', icon: Bookmark, accent: palette.green, accentDark: palette.yellowGreen },
+  ];
+  const profileLessonsSummary = { label: 'Lessons', value: String(library?.progress.length ?? 0) };
+  const dynamicGroups = profileGroups.map(group => ({
+    ...group,
+    rows: group.rows.map(row => row.id === 'row-downloads'
+      ? { ...row, value: String(library?.downloads.length ?? 0) }
+      : row.id === 'row-subscription'
+        ? { ...row, value: profileUser.plan }
+        : row),
+  }));
 
   const handleEditProfile = useCallback(() => {
     navigation.navigate('PersonalDetails');
@@ -78,7 +101,7 @@ export function ProfileScreen() {
           lessonsValue={profileLessonsSummary.value}
         />
 
-        {profileGroups.map(group => (
+        {dynamicGroups.map(group => (
           <Section key={group.id} title={group.title || undefined}>
             {group.rows.map((row, index) => (
               <ProfileSettingRow

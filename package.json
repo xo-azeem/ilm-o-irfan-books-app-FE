@@ -6,7 +6,8 @@
     "android": "react-native run-android",
     "ios": "react-native run-ios",
     "lint": "eslint .",
-    "start": "react-native start"
+    "start": "react-native start",
+    "test": "npx --yes tsx --test src/services/mappers.test.ts"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^3.1.1",
@@ -15,11 +16,13 @@
     "@react-navigation/native": "^7.2.6",
     "@react-navigation/native-stack": "^7.17.0",
     "@supabase/supabase-js": "^2.109.0",
+    "@tanstack/react-query": "^5.101.4",
     "lucide-react-native": "^1.17.0",
     "nativewind": "^4.2.5",
     "react": "19.2.3",
     "react-native": "0.85.3",
     "react-native-blob-util": "^0.24.10",
+    "react-native-config": "^1.6.1",
     "react-native-css-interop": "^0.2.5",
     "react-native-gesture-handler": "^3.0.0",
     "react-native-mmkv": "^4.3.2",
@@ -45,6 +48,7 @@
     "@react-native/eslint-config": "0.85.3",
     "@react-native/metro-config": "0.85.3",
     "@react-native/typescript-config": "0.85.3",
+    "@types/jest": "^30.0.0",
     "@types/react": "^19.2.0",
     "babel-plugin-module-resolver": "^5.0.3",
     "eslint": "^8.19.0",

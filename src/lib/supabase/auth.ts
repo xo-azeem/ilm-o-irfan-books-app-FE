@@ -84,15 +84,19 @@ export async function getSignedPdfUrl(bookId: string) {
     signedUrl?: string;
     error?: string;
     code?: string;
+    fileSizeBytes?: number | null;
   };
 
   if (!response.ok) {
-    throw new Error(payload.error ?? 'Failed to get signed PDF URL');
+    throw Object.assign(new Error(payload.error ?? 'Failed to get signed PDF URL'), {
+      code: payload.code,
+      status: response.status,
+    });
   }
 
   if (!payload.signedUrl) {
     throw new Error('Signed URL missing from response');
   }
 
-  return payload.signedUrl;
+  return { url: payload.signedUrl, fileSizeBytes: payload.fileSizeBytes ?? undefined };
 }

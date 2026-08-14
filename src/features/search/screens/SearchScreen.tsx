@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -8,9 +8,8 @@ import { AppLogo } from '@/components/brand';
 import { Screen } from '@/components/layout';
 import { DisplayText, Text } from '@/components/ui';
 import { ROUTES } from '@/constants/routes';
-import type { SearchCatalogBook } from '@/features/explore/data/exploreContent';
-import { searchCatalogBooks } from '@/features/explore/data/exploreContent';
 import { useHeaderBrandMetrics } from '@/hooks/useHeaderBrandMetrics';
+import { useCatalogSearch, useCategories } from '@/hooks/useCatalog';
 
 import { SearchDismissOverlay } from '../components/CollapsibleSearchBar';
 import { SearchBookGrid } from '../components/SearchBookGrid';
@@ -22,18 +21,6 @@ import {
 } from '../components/SearchViewToggle';
 import { useSearchGridMetrics } from '../hooks/useSearchGridMetrics';
 
-function filterCatalog(books: SearchCatalogBook[], query: string) {
-  const normalized = query.trim().toLowerCase();
-  if (!normalized) {
-    return books;
-  }
-
-  return books.filter(book => {
-    const haystack = `${book.title} ${book.author} ${book.tag ?? ''}`.toLowerCase();
-    return haystack.includes(normalized);
-  });
-}
-
 export function SearchScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const brand = useHeaderBrandMetrics();
@@ -44,6 +31,8 @@ export function SearchScreen() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [overlayTop, setOverlayTop] = useState(0);
+  const { data: books = [] } = useCatalogSearch(query);
+  const { data: categories = [] } = useCategories();
 
   const openSearch = useCallback(() => {
     setSearchOpen(true);
@@ -59,13 +48,8 @@ export function SearchScreen() {
     });
   }, []);
 
-  const filteredBooks = useMemo(
-    () => filterCatalog(searchCatalogBooks, query),
-    [query],
-  );
-
   const handleBookPress = useCallback(
-    (book: SearchCatalogBook) => {
+    (book: { id: string }) => {
       if (searchOpen) {
         closeSearch();
       }
@@ -114,6 +98,7 @@ export function SearchScreen() {
         </View>
 
         <SearchCategorySection
+          categories={categories}
           searchOpen={searchOpen}
           searchQuery={query}
           onSearchQueryChange={setQuery}
@@ -130,10 +115,14 @@ export function SearchScreen() {
         </View>
 
         <View className="mt-4">
-          {viewMode === 'grid' ? (
-            <SearchBookGrid books={filteredBooks} onBookPress={handleBookPress} />
+          {books.length === 0 ? (
+            <Text className="py-10 text-center text-[14px] text-app-muted dark:text-app-muted-dark">
+              {query.trim() ? 'No matching books yet.' : 'No published books are available yet.'}
+            </Text>
+          ) : viewMode === 'grid' ? (
+            <SearchBookGrid books={books} onBookPress={handleBookPress} />
           ) : (
-            <SearchBookList books={filteredBooks} onBookPress={handleBookPress} />
+            <SearchBookList books={books} onBookPress={handleBookPress} />
           )}
         </View>
       </Screen>

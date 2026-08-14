@@ -8,6 +8,7 @@ export type RootStackParamList = {
   MainTabs: undefined;
   BookDetail: { bookId: string };
   BookReader: { bookId: string };
+  Wishlist: undefined;
 };
 
 export type RootTabParamList = {

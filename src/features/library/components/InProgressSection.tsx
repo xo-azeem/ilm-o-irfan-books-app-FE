@@ -8,6 +8,7 @@ import { InProgressBookItem } from './InProgressBookItem';
 
 type InProgressSectionProps = {
   books: ReadingBook[];
+  onResume?: (bookId: string) => void;
 };
 
 function SectionHeading({ title, action }: { title: string; action?: string }) {
@@ -25,7 +26,10 @@ function SectionHeading({ title, action }: { title: string; action?: string }) {
   );
 }
 
-export function InProgressSection({ books }: InProgressSectionProps) {
+export function InProgressSection({
+  books,
+  onResume,
+}: InProgressSectionProps) {
   const [selectedId, setSelectedId] = useState(books[0]?.id ?? '');
 
   const handleSelect = useCallback((id: string) => {
@@ -47,6 +51,7 @@ export function InProgressSection({ books }: InProgressSectionProps) {
             isSelected={book.id === selectedId}
             isLast={index === books.length - 1}
             onSelect={() => handleSelect(book.id)}
+            onResume={() => onResume?.(book.id)}
           />
         ))}
       </View>

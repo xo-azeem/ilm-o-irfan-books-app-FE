@@ -103,7 +103,7 @@ You are choosing **Supabase, which uses PostgreSQL** — not “Postgres or Supa
 | Continue reading / save progress | App → PostgreSQL `reading_progress` (+ optional MMKV mirror) |
 | Wishlist | App → PostgreSQL `wishlist` |
 | Buy Premium | App → **RevenueCat** → Store billing → RevenueCat webhook → **Edge Function** → PostgreSQL `entitlements` |
-| Download / open PDF | App → **Edge Function** (auth + entitlement check) → **Storage** signed URL → download to **device FS** → `react-native-pdf` |
+| Download / open PDF | App → **Edge Function** (auth + **active entitlement**, or admin) → **Storage** signed URL → download to **device FS** → `react-native-pdf` |
 | Show subscription status | App → PostgreSQL `entitlements` (+ RevenueCat SDK for paywall UI) |
 | Theme / offline prefs | **MMKV** only |
 
@@ -167,7 +167,7 @@ One Supabase project is enough to start. Use separate projects (or branches) for
 
 | Table | Stores |
 | --- | --- |
-| `profiles` | `id` = `auth.users.id`, name, email, avatar, member-since |
+| `profiles` | `id` = `auth.users.id`, name, email, avatar, member-since, **`role` (`user` \| `admin`)** |
 
 #### Personal library
 
@@ -240,9 +240,9 @@ Rules:
 
 | Function | Responsibility |
 | --- | --- |
-| `get-signed-pdf` | Verify JWT → load book → check `is_premium` + `entitlements` → return signed Storage URL |
+| `get-signed-pdf` | Verify JWT → load book → **active entitlement for every book** (admins skip this and may preview drafts) → return signed Storage URL |
 | `revenuecat-webhook` | Verify webhook → upsert `entitlements` with service role |
-| (optional) admin ingest | Upload/register books (service role only) |
+| (in-app admin CMS) | Authenticated admins mutate catalog via RLS (`is_admin()` from JWT `app_metadata.app_role`); cover/PDF uploads go to Storage |
 
 Normal catalog reads/writes do **not** need Edge Functions — use the Supabase client + RLS.
 
@@ -332,9 +332,10 @@ books.pdf_path   → Storage bucket pdfs/
 | Data | Policy idea |
 | --- | --- |
 | Published books / categories / collections / plans | Public `SELECT` |
-| `profiles` | User reads/updates own row |
+| `profiles` | User reads/updates own contact fields (`role` is not client-writable); admins can `SELECT` all |
 | Progress, wishlist, downloads, highlights | User CRUD own rows only |
-| `entitlements` | User `SELECT` own; writes only via service role (webhook) |
+| `entitlements` | User `SELECT` own; admins `SELECT` all; writes only via service role (webhook) |
+| Catalog writes + unpublished rows | Admin JWT (`is_admin()`) only |
 
 ---
 
@@ -356,9 +357,9 @@ books.pdf_path   → Storage bucket pdfs/
 | Profile screen | `profiles` + aggregated stats |
 | Theme | MMKV / Zustand |
 | Subscription screen | `plans` + `entitlements` + RevenueCat paywall |
-| Premium gating | `entitlements` + Edge Function on PDF access |
+| Premium gating | `entitlements` + Edge Function — **every book** requires an active subscription (admins may preview) |
 | Push / email marketing | **Out of scope for v1** (add later if needed) |
-| Admin CMS for uploading books | Supabase Dashboard initially; optional admin web later |
+| Admin CMS for uploading books | **In-app admin panel** (admins routed there on login); RLS + Storage policies |
 | Analytics | Start with store + RevenueCat; optional product analytics later |
 | CDN | Supabase Storage CDN (Smart CDN on Pro) for covers/PDF egress |
 

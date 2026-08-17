@@ -68,5 +68,28 @@ describe('catalog mappers', () => {
     assert.equal(book.price, 0);
     assert.equal(book.coverUrl, 'https://example.test/ihya.webp');
     assert.equal(book.isPremium, false);
+    assert.equal(book.rating, 4.9);
+  });
+
+  it('coerces PostgREST numeric strings so UI toFixed does not crash', () => {
+    const book = mapCatalogBook({
+      id: '1',
+      title: 'Test',
+      author_name: 'Author',
+      cover_path: null,
+      cover_color: null,
+      cover_color_dark: null,
+      rating: '4.80',
+      tag: null,
+      genre: null,
+      read_time_minutes: 12,
+      price_cents: 0,
+      currency: 'USD',
+      format: 'Digital edition',
+      is_premium: false,
+    });
+
+    assert.equal(book.rating, 4.8);
+    assert.equal(book.rating?.toFixed(1), '4.8');
   });
 });

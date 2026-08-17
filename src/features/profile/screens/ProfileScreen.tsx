@@ -5,6 +5,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Bookmark, Flame } from 'lucide-react-native';
 
 import type { RootStackParamList } from '@/app/navigation/types';
+import { GuestAuthPanel } from '@/components/auth/GuestAuthPanel';
 import { Screen, Section } from '@/components/layout';
 import { Text } from '@/components/ui';
 import { ROUTES } from '@/constants/routes';
@@ -26,6 +27,7 @@ export function ProfileScreen() {
     useNavigation<NativeStackNavigationProp<ProfileStackParamList>>();
   const rootNavigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const signOut = useAuthStore(state => state.signOut);
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   const themePreference = useThemeStore(state => state.themePreference);
   const { data: profile } = useProfile();
   const { data: library } = useLibrary();
@@ -42,18 +44,28 @@ export function ProfileScreen() {
     { id: 'achievement-saved', label: 'Saved', value: String(library?.wishlistCount ?? 0), caption: 'In your library', icon: Bookmark, accent: palette.green, accentDark: palette.yellowGreen },
   ];
   const profileLessonsSummary = { label: 'Lessons', value: String(library?.progress.length ?? 0) };
-  const dynamicGroups = profileGroups.map(group => ({
-    ...group,
-    rows: group.rows.map(row => row.id === 'row-downloads'
-      ? { ...row, value: String(library?.downloads.length ?? 0) }
-      : row.id === 'row-subscription'
-        ? { ...row, value: profileUser.plan }
-        : row),
-  }));
+  const dynamicGroups = profileGroups
+    .map(group => ({
+      ...group,
+      rows: group.rows
+        .filter(row => isAuthenticated || row.id !== 'row-signout')
+        .map(row =>
+          row.id === 'row-downloads'
+            ? { ...row, value: String(library?.downloads.length ?? 0) }
+            : row.id === 'row-subscription'
+              ? { ...row, value: profileUser.plan }
+              : row,
+        ),
+    }))
+    .filter(group => group.rows.length > 0);
 
   const handleEditProfile = useCallback(() => {
+    if (!isAuthenticated) {
+      rootNavigation.navigate(ROUTES.LOGIN);
+      return;
+    }
     navigation.navigate('PersonalDetails');
-  }, [navigation]);
+  }, [isAuthenticated, navigation, rootNavigation]);
 
   const handleRowPress = useCallback(
     (rowId: string, screen?: ProfileStackScreen) => {
@@ -73,7 +85,7 @@ export function ProfileScreen() {
                 rootNavigation.dispatch(
                   CommonActions.reset({
                     index: 0,
-                    routes: [{ name: ROUTES.LOGIN }],
+                    routes: [{ name: ROUTES.MAIN_TABS }],
                   }),
                 );
               })();
@@ -83,23 +95,44 @@ export function ProfileScreen() {
         return;
       }
 
+      const needsAuth =
+        screen === 'PersonalDetails' ||
+        screen === 'Subscription' ||
+        screen === 'Downloads';
+
+      if (needsAuth && !isAuthenticated) {
+        rootNavigation.navigate(ROUTES.LOGIN);
+        return;
+      }
+
       if (screen) {
         navigation.navigate(screen);
       }
     },
-    [navigation, rootNavigation, signOut],
+    [isAuthenticated, navigation, rootNavigation, signOut],
   );
 
   return (
     <Screen contentContainerClassName="px-5 pt-0">
-      <ProfileHeader user={profileUser} onEdit={handleEditProfile} />
+      {isAuthenticated ? (
+        <ProfileHeader user={profileUser} onEdit={handleEditProfile} />
+      ) : (
+        <View className="mb-7 mt-2">
+          <GuestAuthPanel
+            title="Sign in to your library"
+            message="Browse freely. Sign in to manage your profile, subscription, and downloads."
+          />
+        </View>
+      )}
 
       <View className="gap-7">
-        <ProfileAchievements
-          achievements={profileAchievements}
-          lessonsLabel={profileLessonsSummary.label}
-          lessonsValue={profileLessonsSummary.value}
-        />
+        {isAuthenticated ? (
+          <ProfileAchievements
+            achievements={profileAchievements}
+            lessonsLabel={profileLessonsSummary.label}
+            lessonsValue={profileLessonsSummary.value}
+          />
+        ) : null}
 
         {dynamicGroups.map(group => (
           <Section key={group.id} title={group.title || undefined}>

@@ -7,7 +7,7 @@ export type CatalogListRow = {
   cover_path: string | null;
   cover_color: string | null;
   cover_color_dark: string | null;
-  rating: number | null;
+  rating: number | string | null;
   tag: string | null;
   genre: string | null;
   read_time_minutes: number | null;
@@ -36,6 +36,15 @@ export function formatReadTime(minutes: number | null): string {
 
 export function centsToAmount(cents: number): number {
   return cents / 100;
+}
+
+/** PostgREST often serializes `numeric` as a string. */
+export function asNumber(value: number | string | null | undefined): number | undefined {
+  if (value == null || value === '') {
+    return undefined;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
 }
 
 export function isEntitlementActive(
@@ -73,11 +82,11 @@ export function mapCatalogBook(
     coverColor: row.cover_color ?? fallbackCover.light,
     coverColorDark: row.cover_color_dark ?? fallbackCover.dark,
     coverUrl,
-    rating: row.rating ?? undefined,
+    rating: asNumber(row.rating),
     tag: row.tag ?? undefined,
     genre: row.genre ?? 'Islamic Studies',
     readTime: formatReadTime(row.read_time_minutes),
-    price: centsToAmount(row.price_cents),
+    price: centsToAmount(asNumber(row.price_cents) ?? 0),
     currency: row.currency,
     format: row.format,
     isPremium: row.is_premium,

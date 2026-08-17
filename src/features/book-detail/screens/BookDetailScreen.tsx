@@ -1,5 +1,5 @@
 import { useMemo, useCallback } from 'react';
-import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
@@ -12,6 +12,7 @@ import { BookCoverPlaceholder } from '@/components/books';
 import { ROUTES } from '@/constants/routes';
 import { useBook } from '@/hooks/useCatalog';
 import { useWishlistMutation, useWishlistStatus } from '@/hooks/useAccount';
+import { useAccess } from '@/lib/access';
 import { palette } from '@/theme/palette';
 import { useTheme } from '@/theme/ThemeContext';
 
@@ -79,14 +80,54 @@ export function BookDetailScreen() {
   const { data: book, isLoading } = useBook(route.params.bookId);
   const { data: saved } = useWishlistStatus(route.params.bookId);
   const wishlistMutation = useWishlistMutation(route.params.bookId);
+  const { isAuthenticated, canOpenBooks, isSubscriptionLoading } = useAccess();
+
+  const openPaywall = useCallback(() => {
+    navigation.navigate(ROUTES.MAIN_TABS, {
+      screen: ROUTES.PROFILE,
+      params: { screen: 'Subscription' },
+    });
+  }, [navigation]);
 
   const handleReadBook = useCallback(() => {
     if (!book) {
       return;
     }
 
+    if (!isAuthenticated) {
+      navigation.navigate(ROUTES.LOGIN, { returnTo: { bookId: book.id } });
+      return;
+    }
+
+    if (isSubscriptionLoading) {
+      return;
+    }
+
+    if (!canOpenBooks) {
+      Alert.alert(
+        'Subscription required',
+        'An active subscription is required to open books.',
+        [
+          { text: 'Not now', style: 'cancel' },
+          { text: 'View plans', onPress: openPaywall },
+        ],
+      );
+      return;
+    }
+
     navigation.navigate(ROUTES.BOOK_READER, { bookId: book.id });
-  }, [book, navigation]);
+  }, [book, canOpenBooks, isAuthenticated, isSubscriptionLoading, navigation, openPaywall]);
+
+  const handleWishlist = useCallback(() => {
+    if (!book) {
+      return;
+    }
+    if (!isAuthenticated) {
+      navigation.navigate(ROUTES.LOGIN, { returnTo: { bookId: book.id } });
+      return;
+    }
+    wishlistMutation.mutate(Boolean(saved));
+  }, [book, isAuthenticated, navigation, saved, wishlistMutation]);
 
   if (!book && !isLoading) {
     return (
@@ -252,7 +293,7 @@ export function BookDetailScreen() {
         }}>
         <View className="flex-row" style={{ gap: 10 }}>
           <Pressable
-            onPress={() => wishlistMutation.mutate(Boolean(saved))}
+            onPress={handleWishlist}
             accessibilityRole="button"
             accessibilityLabel={saved ? 'Remove from wishlist' : 'Save to wishlist'}
             style={{ height: layout.footerButtonHeight }}
@@ -278,7 +319,13 @@ export function BookDetailScreen() {
               backgroundColor: colors.primary,
             }}
             className="flex-1 items-center justify-center rounded-[14px] active:opacity-90">
-            <Text className="text-[16px] font-semibold text-white">Read book</Text>
+            <Text className="text-[16px] font-semibold text-white">
+              {!isAuthenticated
+                ? 'Sign in to read'
+                : canOpenBooks
+                  ? 'Read book'
+                  : 'Subscribe to read'}
+            </Text>
           </Pressable>
         </View>
       </View>

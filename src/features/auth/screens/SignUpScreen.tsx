@@ -1,7 +1,8 @@
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, View } from 'react-native';
-import { useNavigation, CommonActions } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RouteProp } from '@react-navigation/native';
 
 import type { RootStackParamList } from '@/app/navigation/types';
 import { Text } from '@/components/ui';
@@ -10,6 +11,7 @@ import { AuthDivider } from '@/features/auth/components/AuthDivider';
 import { AuthField } from '@/features/auth/components/AuthField';
 import { AuthLayout } from '@/features/auth/components/AuthLayout';
 import { GoogleSignInButton } from '@/features/auth/components/GoogleSignInButton';
+import { resumeAfterAuth, waitForAccessCheck } from '@/lib/access';
 import { signUpWithEmail } from '@/lib/supabase';
 
 type SignUpForm = {
@@ -34,6 +36,8 @@ function isValidEmail(email: string): boolean {
 
 export function SignUpScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const route = useRoute<RouteProp<RootStackParamList, 'SignUp'>>();
+  const returnTo = route.params?.returnTo;
 
   const [form, setForm] = useState<SignUpForm>(initialForm);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -41,15 +45,6 @@ export function SignUpScreen() {
   const updateField = useCallback((key: keyof SignUpForm, value: string) => {
     setForm(current => ({ ...current, [key]: value }));
   }, []);
-
-  const goToApp = useCallback(() => {
-    navigation.dispatch(
-      CommonActions.reset({
-        index: 0,
-        routes: [{ name: ROUTES.MAIN_TABS }],
-      }),
-    );
-  }, [navigation]);
 
   const validateForm = useCallback((): boolean => {
     if (!form.fullName.trim()) {
@@ -98,12 +93,16 @@ export function SignUpScreen() {
         Alert.alert(
           'Check your email',
           'Account created. Confirm your email if required, then sign in.',
-          [{ text: 'OK', onPress: () => navigation.navigate(ROUTES.LOGIN) }],
+          [{ text: 'OK', onPress: () => navigation.navigate(ROUTES.LOGIN, returnTo ? { returnTo } : undefined) }],
         );
         return;
       }
 
-      goToApp();
+      const userId = data.user?.id;
+      if (userId) {
+        await waitForAccessCheck(userId);
+      }
+      resumeAfterAuth(navigation, returnTo);
     } catch (error) {
       const message =
         error instanceof Error
@@ -113,7 +112,7 @@ export function SignUpScreen() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [form, goToApp, navigation, validateForm]);
+  }, [form, navigation, returnTo, validateForm]);
 
   const handleGoogleSignUp = useCallback(() => {
     Alert.alert(
@@ -129,7 +128,7 @@ export function SignUpScreen() {
       onBack={() => navigation.goBack()}
       footer={
         <Pressable
-          onPress={() => navigation.navigate(ROUTES.LOGIN)}
+          onPress={() => navigation.navigate(ROUTES.LOGIN, returnTo ? { returnTo } : undefined)}
           hitSlop={8}
           className="active:opacity-65">
           <Text className="text-center text-[15px] leading-[22px] text-app-muted dark:text-app-muted-dark">

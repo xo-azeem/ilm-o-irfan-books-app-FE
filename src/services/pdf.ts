@@ -1,6 +1,7 @@
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import { createMMKV } from 'react-native-mmkv';
 
+import { getBookPdfSource, type BookPdfSource } from '@/constants/books';
 import { getSignedPdfUrl } from '@/lib/supabase';
 import { syncDownload } from '@/services/account';
 
@@ -24,10 +25,27 @@ export async function getLocalPdf(bookId: string): Promise<string | null> {
   return `file://${path}`;
 }
 
-export async function resolvePdfSource(bookId: string): Promise<string> {
+function remoteSource(bookId: string, uri: string): BookPdfSource {
+  return { uri, cache: true, cacheFileName: `${bookId}.pdf` };
+}
+
+export async function resolvePdfSource(
+  bookId: string,
+  options?: { allowDevBundle?: boolean },
+): Promise<BookPdfSource> {
   const local = await getLocalPdf(bookId);
-  if (local) return local;
-  return (await getSignedPdfUrl(bookId)).url;
+  if (local) return remoteSource(bookId, local);
+
+  if (__DEV__ && options?.allowDevBundle) {
+    try {
+      return getBookPdfSource(bookId);
+    } catch {
+      // Bundled sample missing — fall through to signed URL.
+    }
+  }
+
+  const { url } = await getSignedPdfUrl(bookId);
+  return remoteSource(bookId, url);
 }
 
 export async function downloadPdf(bookId: string) {

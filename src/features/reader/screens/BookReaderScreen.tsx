@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -10,26 +10,26 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
-import Pdf from 'react-native-pdf';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, Download, Highlighter, Minus, Plus, RotateCcw } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Download, Highlighter, Minus, Plus, RotateCcw } from 'lucide-react-native';
 
 import type { RootStackParamList } from '@/app/navigation/types';
 import { Text } from '@/components/ui';
 import type { BookPdfSource } from '@/constants/books';
+import { ROUTES } from '@/constants/routes';
+import { BookPageFlip, type BookPageFlipHandle } from '@/features/reader/components/BookPageFlip';
+import { MAX_SCALE, MIN_SCALE, SCALE_STEP } from '@/features/reader/constants';
 import { useHighlightMutation, useHighlights, useProgressMutation } from '@/hooks/useAccount';
 import { downloadPdf, resolvePdfSource } from '@/services/pdf';
+import { useAccess } from '@/lib/access';
 import { palette } from '@/theme/palette';
-import { useTheme } from '@/theme/ThemeContext';
 
 type BookReaderRouteProp = RouteProp<RootStackParamList, 'BookReader'>;
 type BookReaderNavigationProp = NativeStackNavigationProp<RootStackParamList, 'BookReader'>;
 
-const MIN_SCALE = 1;
-const MAX_SCALE = 4;
-const SCALE_STEP = 0.25;
 const EDGE_MARGIN = 16;
 const BACK_BUTTON_SIZE = 48;
+const PAGE_NAV_SIZE = 40;
 const DOCK_BUTTON_HEIGHT = 46;
 const DOCK_WIDTH = 50;
 
@@ -194,56 +194,6 @@ function GlassIconButton({
   );
 }
 
-/* --------------------------------- PDF view ---------------------------------- */
-
-type PdfDocumentProps = {
-  source: BookPdfSource;
-  scale: number;
-  onLoadComplete: (totalPages: number) => void;
-  onError: () => void;
-  onPageChanged: (page: number, totalPages: number) => void;
-  onScaleChanged: (scale: number) => void;
-};
-
-const ReaderPdf = memo(function ReaderPdfView({
-  source,
-  scale,
-  onLoadComplete,
-  onError,
-  onPageChanged,
-  onScaleChanged,
-}: PdfDocumentProps) {
-  const { colors } = useTheme();
-
-  return (
-    <Pdf
-      source={source}
-      style={styles.pdf}
-      scale={scale}
-      minScale={MIN_SCALE}
-      maxScale={MAX_SCALE}
-      spacing={4}
-      fitPolicy={0}
-      enablePaging={false}
-      enableDoubleTapZoom
-      enableAntialiasing
-      scrollEnabled
-      showsVerticalScrollIndicator={false}
-      showsHorizontalScrollIndicator={false}
-      trustAllCerts={false}
-      onScaleChanged={onScaleChanged}
-      onLoadComplete={onLoadComplete}
-      onPageChanged={onPageChanged}
-      onError={onError}
-      renderActivityIndicator={() => (
-        <View style={styles.loader}>
-          <ActivityIndicator color={colors.primary} size="large" />
-        </View>
-      )}
-    />
-  );
-});
-
 /* ---------------------------------- Chrome ----------------------------------- */
 
 type ReaderChromeProps = {
@@ -263,6 +213,8 @@ type ReaderChromeProps = {
   onResetZoom: () => void;
   onDownload: () => void;
   onHighlight: () => void;
+  onPrevPage: () => void;
+  onNextPage: () => void;
   isDownloading: boolean;
   insetTop: number;
   insetRight: number;
@@ -287,6 +239,8 @@ function ReaderChrome({
   onResetZoom,
   onDownload,
   onHighlight,
+  onPrevPage,
+  onNextPage,
   isDownloading,
   insetTop,
   insetRight,
@@ -300,6 +254,7 @@ function ReaderChrome({
       pointerEvents="box-none"
       style={[
         StyleSheet.absoluteFill,
+        styles.chromeRoot,
         {
           paddingTop: insetTop + EDGE_MARGIN,
           paddingRight: insetRight + EDGE_MARGIN,
@@ -338,11 +293,33 @@ function ReaderChrome({
 
         <View pointerEvents="box-none" style={styles.bottomCluster}>
           {totalPages > 0 ? (
-            <GlassSurface isDark={isDark} style={styles.pagePill}>
-              <Text className="px-4 py-2 text-[12px] font-semibold tabular-nums text-app-ink dark:text-app-ink-dark">
-                {page} / {totalPages}
-              </Text>
-            </GlassSurface>
+            <View style={styles.pageNav}>
+              <GlassSurface isDark={isDark} radius={PAGE_NAV_SIZE / 2} style={styles.pageNavButton}>
+                <GlassIconButton
+                  onPress={onPrevPage}
+                  disabled={hasError || page <= 1}
+                  accessibilityLabel="Previous page"
+                  height={PAGE_NAV_SIZE}>
+                  <ChevronLeft size={20} color={iconColor} strokeWidth={2.25} />
+                </GlassIconButton>
+              </GlassSurface>
+
+              <GlassSurface isDark={isDark} style={styles.pagePill}>
+                <Text className="px-3.5 py-2 text-[12px] font-semibold tabular-nums text-app-ink dark:text-app-ink-dark">
+                  {page} / {totalPages}
+                </Text>
+              </GlassSurface>
+
+              <GlassSurface isDark={isDark} radius={PAGE_NAV_SIZE / 2} style={styles.pageNavButton}>
+                <GlassIconButton
+                  onPress={onNextPage}
+                  disabled={hasError || page >= totalPages}
+                  accessibilityLabel="Next page"
+                  height={PAGE_NAV_SIZE}>
+                  <ChevronRight size={20} color={iconColor} strokeWidth={2.25} />
+                </GlassIconButton>
+              </GlassSurface>
+            </View>
           ) : null}
 
           <View pointerEvents="box-none" style={styles.zoomCluster}>
@@ -403,27 +380,65 @@ export function BookReaderScreen() {
   const [pdfSource, setPdfSource] = useState<BookPdfSource | null>(null);
   const [sourceError, setSourceError] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const scaleRef = useRef(1);
+  const scaleDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [controlScale, setControlScale] = useState(MIN_SCALE);
+  const [scaleSnapshot, setScaleSnapshot] = useState(MIN_SCALE);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+  const { canOpenBooks, isAuthenticated, isSubscriptionLoading } = useAccess();
   const progressMutation = useProgressMutation();
   const highlightMutation = useHighlightMutation(route.params.bookId);
   useHighlights(route.params.bookId);
   const pendingProgress = useRef<{ page: number; totalPages: number } | null>(null);
   const progressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flipRef = useRef<BookPageFlipHandle>(null);
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      navigation.replace(ROUTES.LOGIN, { returnTo: { bookId: route.params.bookId } });
+      return;
+    }
+    if (isSubscriptionLoading) {
+      return;
+    }
+    if (!canOpenBooks) {
+      navigation.replace(ROUTES.BOOK_DETAIL, { bookId: route.params.bookId });
+      return;
+    }
+
     let active = true;
     setPdfSource(null);
     setSourceError(false);
-    void resolvePdfSource(route.params.bookId)
-      .then(uri => {
-        if (active) setPdfSource({ uri, cache: true, cacheFileName: `${route.params.bookId}.pdf` });
+    setPage(1);
+    setTotalPages(0);
+    setIsLoading(true);
+    setHasError(false);
+    scaleRef.current = MIN_SCALE;
+    setControlScale(MIN_SCALE);
+    setScaleSnapshot(MIN_SCALE);
+    void resolvePdfSource(route.params.bookId, { allowDevBundle: true })
+      .then(source => {
+        if (active) setPdfSource(source);
       })
       .catch(() => {
-        if (active) setSourceError(true);
+        if (active) {
+          setSourceError(true);
+          setIsLoading(false);
+        }
       });
     return () => {
       active = false;
     };
-  }, [route.params.bookId]);
+  }, [
+    canOpenBooks,
+    isAuthenticated,
+    isSubscriptionLoading,
+    navigation,
+    route.params.bookId,
+  ]);
 
   const flushProgress = useCallback(() => {
     const value = pendingProgress.current;
@@ -438,15 +453,6 @@ export function BookReaderScreen() {
     }
     flushProgress();
   }, [flushProgress]);
-
-  const scaleRef = useRef(1);
-  const scaleDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [controlScale, setControlScale] = useState(MIN_SCALE);
-  const [scaleSnapshot, setScaleSnapshot] = useState(MIN_SCALE);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
 
   // Live zoom % badge — fades in on change, fades out after inactivity
   const zoomBadgeOpacity = useRef(new Animated.Value(0)).current;
@@ -530,7 +536,7 @@ export function BookReaderScreen() {
       const uri = await downloadPdf(route.params.bookId);
       setPdfSource({ uri, cache: true, cacheFileName: `${route.params.bookId}.pdf` });
     } catch {
-      setSourceError(true);
+      // Keep the open document visible if an offline download fails.
     } finally {
       setIsDownloading(false);
     }
@@ -562,8 +568,17 @@ export function BookReaderScreen() {
   }, [applyScale]);
 
   const handleResetZoom = useCallback(() => {
+    if (scaleRef.current === MIN_SCALE) return;
     applyScale(MIN_SCALE);
   }, [applyScale]);
+
+  const handlePrevPage = useCallback(() => {
+    flipRef.current?.turn(-1);
+  }, []);
+
+  const handleNextPage = useCallback(() => {
+    flipRef.current?.turn(1);
+  }, []);
 
   const iconColor = isDark ? palette.chartreuse : palette.green;
   const canZoomOut = scaleSnapshot > MIN_SCALE;
@@ -581,17 +596,21 @@ export function BookReaderScreen() {
             paddingBottom: insets.bottom,
           }}>
           <Text className="text-center text-[15px] text-app-muted dark:text-app-muted-dark">
-            Unable to open this book. If it is premium, an active entitlement is required.
+            Unable to open this book. An active subscription is required.
           </Text>
         </View>
       ) : pdfSource ? (
-        <ReaderPdf
+        <BookPageFlip
+          ref={flipRef}
+          key={route.params.bookId}
           source={pdfSource}
           scale={controlScale}
           onLoadComplete={handleLoadComplete}
           onError={handleError}
           onPageChanged={handlePageChanged}
           onScaleChanged={handleScaleChanged}
+          onApplyScale={applyScale}
+          onResetZoom={handleResetZoom}
         />
       ) : null}
 
@@ -612,6 +631,8 @@ export function BookReaderScreen() {
         onResetZoom={handleResetZoom}
         onDownload={() => { void handleDownload(); }}
         onHighlight={handleHighlight}
+        onPrevPage={handlePrevPage}
+        onNextPage={handleNextPage}
         isDownloading={isDownloading}
         insetTop={insets.top}
         insetRight={insets.right}
@@ -622,7 +643,7 @@ export function BookReaderScreen() {
       {isLoading && !hasError ? (
         <View
           pointerEvents="none"
-          style={StyleSheet.absoluteFill}
+          style={[StyleSheet.absoluteFill, styles.loaderOverlay]}
           className="items-center justify-center bg-[#ECECEB]/70 dark:bg-[#101410]/70">
           <ActivityIndicator color={iconColor} size="large" />
         </View>
@@ -632,14 +653,13 @@ export function BookReaderScreen() {
 }
 
 const styles = StyleSheet.create({
-  pdf: {
-    flex: 1,
-    backgroundColor: 'transparent',
+  chromeRoot: {
+    zIndex: 50,
+    elevation: 24,
   },
-  loader: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+  loaderOverlay: {
+    zIndex: 20,
+    elevation: 8,
   },
   chromeColumn: {
     flex: 1,
@@ -664,7 +684,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.16,
     shadowRadius: 14,
-    elevation: 6,
+    elevation: 24,
   },
   glassHighlight: {
     position: 'absolute',
@@ -689,8 +709,18 @@ const styles = StyleSheet.create({
     height: BACK_BUTTON_SIZE,
     alignSelf: 'flex-start',
   },
+  pageNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  pageNavButton: {
+    width: PAGE_NAV_SIZE,
+    height: PAGE_NAV_SIZE,
+  },
   pagePill: {
-    alignSelf: 'flex-end',
+    minWidth: 72,
+    alignItems: 'center',
   },
   zoomBadgeWrap: {
     alignSelf: 'center',

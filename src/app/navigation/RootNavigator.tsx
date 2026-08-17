@@ -6,8 +6,10 @@ import {
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
+import { AuthSplash } from '@/app/navigation/AuthSplash';
 import { CustomTabBar } from '@/components/navigation/CustomTabBar';
 import { ROUTES } from '@/constants/routes';
+import { AdminNavigator } from '@/features/admin/navigation/AdminNavigator';
 import { LoginScreen } from '@/features/auth/screens/LoginScreen';
 import { SignUpScreen } from '@/features/auth/screens/SignUpScreen';
 import { BookDetailScreen } from '@/features/book-detail/screens/BookDetailScreen';
@@ -38,7 +40,6 @@ function MainTabs() {
         headerShown: false,
         lazy: true,
         freezeOnBlur: true,
-        detachInactiveScreens: true,
         animation: 'none',
       }}>
       <Tab.Screen name={ROUTES.HOME} component={HomeScreen} />
@@ -49,47 +50,58 @@ function MainTabs() {
   );
 }
 
+function ConsumerNavigator() {
+  return (
+    <Stack.Navigator
+      initialRouteName={ROUTES.MAIN_TABS}
+      screenOptions={{
+        headerShown: false,
+        contentStyle: STACK_CONTENT_STYLE,
+        freezeOnBlur: true,
+      }}>
+      <Stack.Screen name={ROUTES.MAIN_TABS} component={MainTabs} />
+      <Stack.Screen
+        name={ROUTES.LOGIN}
+        component={LoginScreen}
+        options={{ animation: 'fade' }}
+      />
+      <Stack.Screen
+        name={ROUTES.SIGN_UP}
+        component={SignUpScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name={ROUTES.BOOK_DETAIL}
+        component={BookDetailScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name={ROUTES.BOOK_READER}
+        component={BookReaderScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name={ROUTES.WISHLIST}
+        component={WishlistScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+    </Stack.Navigator>
+  );
+}
+
 export function RootNavigator() {
-  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
+  const isHydrated = useAuthStore(state => state.isHydrated);
+  const roleResolved = useAuthStore(state => state.roleResolved);
+  const isAdmin = useAuthStore(state => state.isAdmin);
+
+  if (!isHydrated || !roleResolved) {
+    return <AuthSplash />;
+  }
 
   return (
     <View className="flex-1">
       <NavigationContainer>
-        <Stack.Navigator
-          initialRouteName={isAuthenticated ? ROUTES.MAIN_TABS : ROUTES.LOGIN}
-          screenOptions={{
-            headerShown: false,
-            contentStyle: STACK_CONTENT_STYLE,
-            freezeOnBlur: true,
-            detachInactiveScreens: true,
-          }}>
-          <Stack.Screen
-            name={ROUTES.LOGIN}
-            component={LoginScreen}
-            options={{ animation: 'fade' }}
-          />
-          <Stack.Screen
-            name={ROUTES.SIGN_UP}
-            component={SignUpScreen}
-            options={{ animation: 'slide_from_right' }}
-          />
-          <Stack.Screen name={ROUTES.MAIN_TABS} component={MainTabs} />
-          <Stack.Screen
-            name={ROUTES.BOOK_DETAIL}
-            component={BookDetailScreen}
-            options={{ animation: 'slide_from_right' }}
-          />
-          <Stack.Screen
-            name={ROUTES.BOOK_READER}
-            component={BookReaderScreen}
-            options={{ animation: 'slide_from_right' }}
-          />
-          <Stack.Screen
-            name={ROUTES.WISHLIST}
-            component={WishlistScreen}
-            options={{ animation: 'slide_from_right' }}
-          />
-        </Stack.Navigator>
+        {isAdmin ? <AdminNavigator /> : <ConsumerNavigator />}
       </NavigationContainer>
     </View>
   );

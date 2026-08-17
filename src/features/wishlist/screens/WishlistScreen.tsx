@@ -5,14 +5,17 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Heart } from 'lucide-react-native';
 
 import type { RootStackParamList } from '@/app/navigation/types';
+import { GuestAuthPanel } from '@/components/auth/GuestAuthPanel';
 import { EmptyState, ListRow, Screen, ScreenHeader, Section } from '@/components/layout';
 import { Text } from '@/components/ui';
 import { ROUTES } from '@/constants/routes';
 import { useWishlist, useWishlistMutation } from '@/hooks/useAccount';
 import { palette } from '@/theme/palette';
+import { useAuthStore } from '@/stores/authStore';
 
 export function WishlistScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   const { data: items = [], isLoading } = useWishlist();
 
   const handlePress = useCallback(
@@ -26,7 +29,12 @@ export function WishlistScreen() {
     <Screen>
       <ScreenHeader title="Wishlist" subtitle="Saved for later reading." />
 
-      {isLoading ? (
+      {!isAuthenticated ? (
+        <GuestAuthPanel
+          title="Save books for later"
+          message="Sign in to keep a wishlist that syncs across your devices."
+        />
+      ) : isLoading ? (
         <ActivityIndicator className="py-10" />
       ) : items.length > 0 ? (
         <Section>

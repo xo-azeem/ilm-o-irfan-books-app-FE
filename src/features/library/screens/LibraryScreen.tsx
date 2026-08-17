@@ -6,11 +6,14 @@ import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import type { RootStackParamList, RootTabParamList } from '@/app/navigation/types';
+import { GuestAuthPanel } from '@/components/auth/GuestAuthPanel';
 import { Screen, ScreenHeader, Section } from '@/components/layout';
 import { DisplayText, Text } from '@/components/ui';
 import { ROUTES } from '@/constants/routes';
 import { libraryShelves } from '@/features/library/data/libraryContent';
 import { useLibrary } from '@/hooks/useAccount';
+import { useAccess } from '@/lib/access';
+import { useAuthStore } from '@/stores/authStore';
 
 import { FinishedBookCard } from '../components/FinishedBookCard';
 import { InProgressSection } from '../components/InProgressSection';
@@ -38,6 +41,8 @@ function SectionHeading({ title, action }: { title: string; action?: string }) {
 
 export function LibraryScreen() {
   const navigation = useNavigation<LibraryNavigation>();
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
+  const { canOpenBooks } = useAccess();
   const { data, isLoading } = useLibrary();
   const inProgressBooks = (data?.progress ?? []).map(book => ({
     ...book,
@@ -63,9 +68,13 @@ export function LibraryScreen() {
 
   const openBook = useCallback(
     (bookId: string) => {
+      if (!canOpenBooks) {
+        navigation.navigate(ROUTES.BOOK_DETAIL, { bookId });
+        return;
+      }
       navigation.navigate(ROUTES.BOOK_READER, { bookId });
     },
-    [navigation],
+    [canOpenBooks, navigation],
   );
 
   const handleShelfPress = useCallback(
@@ -85,10 +94,19 @@ export function LibraryScreen() {
     <Screen>
       <ScreenHeader title="My Library" subtitle="Pick up where you left off." />
 
-      {isLoading ? (
-        <ActivityIndicator className="py-8" />
+      {isAuthenticated ? (
+        isLoading ? (
+          <ActivityIndicator className="py-8" />
+        ) : (
+          <InProgressSection books={inProgressBooks} onResume={openBook} />
+        )
       ) : (
-        <InProgressSection books={inProgressBooks} onResume={openBook} />
+        <View className="mb-8">
+          <GuestAuthPanel
+            title="Your library lives here"
+            message="Sign in and subscribe to save progress, downloads, and finished titles."
+          />
+        </View>
       )}
 
       <View className="mb-8">

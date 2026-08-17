@@ -7,6 +7,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import type { RootStackParamList, RootTabParamList } from '@/app/navigation/types';
 import { Screen } from '@/components/layout';
+import { Text } from '@/components/ui';
 import { ROUTES } from '@/constants/routes';
 
 import { BookCoverCard } from '@/features/explore/components/BookCoverCard';
@@ -22,7 +23,7 @@ type HomeNavigation = CompositeNavigationProp<
 
 export function HomeScreen() {
   const navigation = useNavigation<HomeNavigation>();
-  const { data, isLoading } = useHomeCatalog();
+  const { data, isLoading, isError, error } = useHomeCatalog();
 
   const handleBookPress = useCallback(
     (book: { id: string }) => {
@@ -101,6 +102,11 @@ export function HomeScreen() {
             ))}
           </ScrollView>
         </View>
+        {isError ? (
+          <Text className="py-8 text-center text-[14px] text-app-muted dark:text-app-muted-dark">
+            {error instanceof Error ? error.message : 'Could not load catalog.'}
+          </Text>
+        ) : null}
         {isLoading ? <ActivityIndicator className="py-8" /> : null}
       </View>
     </Screen>

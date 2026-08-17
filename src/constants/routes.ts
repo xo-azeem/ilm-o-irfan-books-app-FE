@@ -25,3 +25,19 @@ export const ROUTE_LABELS: Record<RouteName, string> = {
   [ROUTES.LOGIN]: 'Login',
   [ROUTES.SIGN_UP]: 'Sign up',
 };
+
+export const ADMIN_ROUTES = {
+  OVERVIEW: 'AdminOverview',
+  BOOKS: 'AdminBooks',
+  CATALOG: 'AdminCatalog',
+  PEOPLE: 'AdminPeople',
+  BOOK_LIST: 'AdminBookList',
+  BOOK_EDITOR: 'AdminBookEditor',
+  PDF_PREVIEW: 'AdminPdfPreview',
+  CATALOG_HOME: 'AdminCatalogHome',
+  AUTHOR_EDITOR: 'AdminAuthorEditor',
+  CATEGORY_EDITOR: 'AdminCategoryEditor',
+  COLLECTION_EDITOR: 'AdminCollectionEditor',
+  PEOPLE_LIST: 'AdminPeopleList',
+  USER_DETAIL: 'AdminUserDetail',
+} as const;

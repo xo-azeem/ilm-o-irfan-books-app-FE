@@ -1,7 +1,8 @@
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, View } from 'react-native';
-import { useNavigation, CommonActions } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RouteProp } from '@react-navigation/native';
 
 import type { RootStackParamList } from '@/app/navigation/types';
 import { Text } from '@/components/ui';
@@ -10,6 +11,7 @@ import { AuthDivider } from '@/features/auth/components/AuthDivider';
 import { AuthField } from '@/features/auth/components/AuthField';
 import { AuthLayout } from '@/features/auth/components/AuthLayout';
 import { GoogleSignInButton } from '@/features/auth/components/GoogleSignInButton';
+import { resumeAfterAuth, waitForAccessCheck } from '@/lib/access';
 import { signInWithEmail } from '@/lib/supabase';
 
 function isValidEmail(email: string): boolean {
@@ -18,19 +20,12 @@ function isValidEmail(email: string): boolean {
 
 export function LoginScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const route = useRoute<RouteProp<RootStackParamList, 'Login'>>();
+  const returnTo = route.params?.returnTo;
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const goToApp = useCallback(() => {
-    navigation.dispatch(
-      CommonActions.reset({
-        index: 0,
-        routes: [{ name: ROUTES.MAIN_TABS }],
-      }),
-    );
-  }, [navigation]);
 
   const handleSignIn = useCallback(async () => {
     if (!email.trim() || !password.trim()) {
@@ -45,8 +40,12 @@ export function LoginScreen() {
 
     setIsSubmitting(true);
     try {
-      await signInWithEmail({ email, password });
-      goToApp();
+      const data = await signInWithEmail({ email, password });
+      const userId = data.user?.id;
+      if (userId) {
+        await waitForAccessCheck(userId);
+      }
+      resumeAfterAuth(navigation, returnTo);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Unable to sign in. Try again.';
@@ -54,7 +53,7 @@ export function LoginScreen() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [email, goToApp, password]);
+  }, [email, navigation, password, returnTo]);
 
   const handleGoogleSignIn = useCallback(() => {
     Alert.alert(
@@ -67,9 +66,10 @@ export function LoginScreen() {
     <AuthLayout
       title="Sign in"
       subtitle="Continue your library of knowledge and reflection."
+      onBack={() => navigation.goBack()}
       footer={
         <Pressable
-          onPress={() => navigation.navigate(ROUTES.SIGN_UP)}
+          onPress={() => navigation.navigate(ROUTES.SIGN_UP, returnTo ? { returnTo } : undefined)}
           hitSlop={8}
           className="active:opacity-65">
           <Text className="text-center text-[15px] leading-[22px] text-app-muted dark:text-app-muted-dark">

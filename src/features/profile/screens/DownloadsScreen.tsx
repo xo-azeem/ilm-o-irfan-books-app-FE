@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import { Download } from 'lucide-react-native';
 
 import { DisplayText, Text } from '@/components/ui';
+import { DownloadsCatalogSkeleton } from '@/components/skeletons/CatalogSkeletons';
 import {
   DownloadBookRow,
   getDownloadsTotalSize,
@@ -60,12 +61,13 @@ function DownloadsSummary({
 
 export const DownloadsScreen = memo(function DownloadsScreen() {
   const { colors } = useTheme();
-  const { data } = useLibrary();
+  const { data, isLoading } = useLibrary();
   const removeDownload = useRemoveDownload();
   const items: DownloadedBook[] = (data?.downloads ?? []).map(book => ({
     id: book.id, title: book.title, author: book.author,
     size: `${Math.max(1, Math.round(book.sizeBytes / 1024 / 1024))} MB`,
     coverColor: book.coverColor, coverColorDark: book.coverColorDark,
+    coverUrl: book.coverUrl,
   }));
 
   const removeItem = useCallback((id: string) => {
@@ -81,7 +83,9 @@ export const DownloadsScreen = memo(function DownloadsScreen() {
     <ProfileSubScreenLayout
       title="Downloads"
       subtitle="Books saved for offline reading.">
-      {items.length === 0 ? (
+      {isLoading ? (
+        <DownloadsCatalogSkeleton />
+      ) : items.length === 0 ? (
         <View className="items-center rounded-[16px] border border-app-border bg-app-surface px-6 py-14 dark:border-app-border-dark dark:bg-app-surface-dark">
           <View className="mb-4 h-12 w-12 items-center justify-center rounded-full bg-app-fill dark:bg-app-fill-dark">
             <Download size={22} color={colors.primary} strokeWidth={1.75} />

@@ -89,7 +89,7 @@ function AdminPeopleNavigator() {
 
 export function AdminNavigator() {
   return (
-    <View className="flex-1">
+    <View className="flex-1 bg-app-bg dark:bg-app-bg-dark">
       <Tab.Navigator
         tabBar={renderTabBar}
         screenOptions={{

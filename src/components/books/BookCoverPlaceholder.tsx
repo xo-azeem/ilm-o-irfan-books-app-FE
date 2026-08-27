@@ -1,14 +1,14 @@
-import { memo, type ReactNode } from 'react';
+import { memo, useEffect, useState, type ReactNode } from 'react';
 import { Image, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { Text } from '@/components/ui';
-import { bookCoverPlaceholder } from '@/constants/images';
 import { palette } from '@/theme/palette';
 
 type BookCoverPlaceholderProps = {
   width: number;
   height: number;
   coverColor?: string;
+  coverUrl?: string;
   borderRadius?: number;
   style?: StyleProp<ViewStyle>;
   showSpine?: boolean;
@@ -22,6 +22,7 @@ export const BookCoverPlaceholder = memo(function BookCoverPlaceholder({
   width,
   height,
   coverColor,
+  coverUrl,
   borderRadius = 14,
   style,
   showSpine = true,
@@ -30,6 +31,14 @@ export const BookCoverPlaceholder = memo(function BookCoverPlaceholder({
   tagPlacement = 'top-right',
   children,
 }: BookCoverPlaceholderProps) {
+  const [imageFailed, setImageFailed] = useState(false);
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [coverUrl]);
+
+  const showImage = Boolean(coverUrl) && !imageFailed;
+
   return (
     <View
       style={[
@@ -42,22 +51,18 @@ export const BookCoverPlaceholder = memo(function BookCoverPlaceholder({
         },
         style,
       ]}>
-      <Image
-        source={bookCoverPlaceholder}
-        style={styles.image}
-        resizeMode="cover"
-        accessibilityIgnoresInvertColors
-      />
-
-      {coverColor ? (
-        <View
-          pointerEvents="none"
-          style={[styles.tint, { backgroundColor: coverColor }]}
+      {coverUrl && !imageFailed ? (
+        <Image
+          source={{ uri: coverUrl }}
+          style={styles.image}
+          resizeMode="cover"
+          accessibilityIgnoresInvertColors
+          onError={() => setImageFailed(true)}
         />
       ) : null}
 
-      {showSheen ? <View pointerEvents="none" style={styles.sheen} /> : null}
-      {showSpine ? <View pointerEvents="none" style={styles.spine} /> : null}
+      {showSheen && !showImage ? <View pointerEvents="none" style={styles.sheen} /> : null}
+      {showSpine && !showImage ? <View pointerEvents="none" style={styles.spine} /> : null}
 
       {tag ? (
         <View
@@ -84,10 +89,6 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     width: '100%',
     height: '100%',
-  },
-  tint: {
-    ...StyleSheet.absoluteFillObject,
-    opacity: 0.14,
   },
   sheen: {
     position: 'absolute',

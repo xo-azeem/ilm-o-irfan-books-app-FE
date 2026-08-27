@@ -6,6 +6,7 @@ import { launchImageLibrary } from 'react-native-image-picker';
 import { pick, types, isErrorWithCode, errorCodes, keepLocalCopy } from '@react-native-documents/picker';
 
 import { Screen, ScreenHeader } from '@/components/layout';
+import { BookCoverPlaceholder } from '@/components/books';
 import { Text } from '@/components/ui';
 import { ADMIN_ROUTES } from '@/constants/routes';
 import {
@@ -27,6 +28,7 @@ import {
 import {
   COVER_MAX_BYTES,
   PDF_MAX_BYTES,
+  adminCoverUrl,
   slugify,
   uploadAdminCover,
   uploadAdminPdf,
@@ -262,6 +264,16 @@ export function AdminBookEditorScreen() {
         <Text className="text-[13px] text-app-muted dark:text-app-muted-dark">
           Cover: {coverPath ? 'uploaded' : 'none'} · PDF: {pdfPath ? 'uploaded' : 'none'}
         </Text>
+
+        <View className="items-start">
+          <BookCoverPlaceholder
+            width={96}
+            height={139}
+            coverColor={coverColor}
+            coverUrl={adminCoverUrl(coverPath)}
+            borderRadius={12}
+          />
+        </View>
 
         <AdminPrimaryButton
           label={uploading ? 'Uploading…' : 'Upload cover'}

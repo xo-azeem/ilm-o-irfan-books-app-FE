@@ -2,6 +2,7 @@ import { Alert, View } from 'react-native';
 import { useRoute, type RouteProp } from '@react-navigation/native';
 
 import { Screen, ScreenHeader } from '@/components/layout';
+import { ListRowsSkeleton } from '@/components/skeletons/CatalogSkeletons';
 import { Text } from '@/components/ui';
 import { AdminBackLink, AdminPrimaryButton } from '@/features/admin/components/AdminUi';
 import type { AdminPeopleStackParamList } from '@/features/admin/navigation/types';
@@ -12,7 +13,7 @@ import { useAuthStore } from '@/stores/authStore';
 export function AdminUserDetailScreen() {
   const route = useRoute<RouteProp<AdminPeopleStackParamList, 'AdminUserDetail'>>();
   const currentUserId = useAuthStore(state => state.userId);
-  const { data: user } = useAdminUser(route.params.userId);
+  const { data: user, isLoading } = useAdminUser(route.params.userId);
   const setRole = useSetUserRole();
 
   const subscribed = isEntitlementActive(user?.entitlement_status, user?.expires_at);
@@ -44,6 +45,15 @@ export function AdminUserDetailScreen() {
       ],
     );
   };
+
+  if (isLoading) {
+    return (
+      <Screen>
+        <AdminBackLink />
+        <ListRowsSkeleton rows={4} />
+      </Screen>
+    );
+  }
 
   if (!user) {
     return (

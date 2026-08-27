@@ -20,14 +20,16 @@ export function Screen({
   safeAreaEdges = ['top', 'left', 'right'],
   scrollViewProps,
 }: ScreenProps) {
-  const { scrollEndPadding } = useAppInsets();
+  const { scrollEndPadding, contentBottomInset } = useAppInsets();
 
   if (!scrollable) {
     return (
       <SafeAreaView
         className="flex-1 bg-app-bg dark:bg-app-bg-dark"
         edges={safeAreaEdges}>
-        <View className={`flex-1 ${contentContainerClassName ?? 'px-5'}`}>
+        <View
+          className={`flex-1 ${contentContainerClassName ?? 'px-5'}`}
+          style={{ paddingBottom: contentBottomInset }}>
           {children}
         </View>
       </SafeAreaView>

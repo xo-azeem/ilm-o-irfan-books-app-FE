@@ -34,6 +34,7 @@ export const SearchBookListRow = memo(function SearchBookListRow({
           width={COVER_WIDTH}
           height={COVER_HEIGHT}
           coverColor={coverColor}
+          coverUrl={book.coverUrl}
           borderRadius={12}
         />
 

@@ -1,13 +1,18 @@
-import { View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 import {
   createBottomTabNavigator,
   type BottomTabBarProps,
 } from '@react-navigation/bottom-tabs';
-import { NavigationContainer } from '@react-navigation/native';
+import {
+  DarkTheme,
+  DefaultTheme,
+  NavigationContainer,
+} from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { AuthSplash } from '@/app/navigation/AuthSplash';
-import { CustomTabBar } from '@/components/navigation/CustomTabBar';
+import { MainTabBar } from '@/components/navigation/MainTabBar';
 import { ROUTES } from '@/constants/routes';
 import { AdminNavigator } from '@/features/admin/navigation/AdminNavigator';
 import { LoginScreen } from '@/features/auth/screens/LoginScreen';
@@ -20,16 +25,15 @@ import { ProfileNavigator } from '@/features/profile/navigation/ProfileNavigator
 import { SearchScreen } from '@/features/search/screens/SearchScreen';
 import { WishlistScreen } from '@/features/wishlist/screens/WishlistScreen';
 import { useAuthStore } from '@/stores/authStore';
+import { useTheme } from '@/theme/ThemeContext';
 
 import type { RootStackParamList, RootTabParamList } from './types';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-const STACK_CONTENT_STYLE = { flex: 1 } as const;
-
 function renderTabBar(props: BottomTabBarProps) {
-  return <CustomTabBar {...props} />;
+  return <MainTabBar {...props} />;
 }
 
 function MainTabs() {
@@ -51,12 +55,18 @@ function MainTabs() {
 }
 
 function ConsumerNavigator() {
+  const { colors } = useTheme();
+  const contentStyle = useMemo(
+    () => ({ flex: 1, backgroundColor: colors.background }),
+    [colors.background],
+  );
+
   return (
     <Stack.Navigator
       initialRouteName={ROUTES.MAIN_TABS}
       screenOptions={{
         headerShown: false,
-        contentStyle: STACK_CONTENT_STYLE,
+        contentStyle,
         freezeOnBlur: true,
       }}>
       <Stack.Screen name={ROUTES.MAIN_TABS} component={MainTabs} />
@@ -93,16 +103,50 @@ export function RootNavigator() {
   const isHydrated = useAuthStore(state => state.isHydrated);
   const roleResolved = useAuthStore(state => state.roleResolved);
   const isAdmin = useAuthStore(state => state.isAdmin);
+  const { isDark, colors } = useTheme();
+  const [splashVisible, setSplashVisible] = useState(true);
 
-  if (!isHydrated || !roleResolved) {
-    return <AuthSplash />;
-  }
+  const sessionReady = isHydrated && roleResolved;
+  const hideSplash = useCallback(() => setSplashVisible(false), []);
+
+  const navigationTheme = useMemo(
+    () => ({
+      ...(isDark ? DarkTheme : DefaultTheme),
+      colors: {
+        ...(isDark ? DarkTheme.colors : DefaultTheme.colors),
+        primary: colors.primary,
+        background: colors.background,
+        card: colors.background,
+        text: colors.ink,
+        border: colors.border,
+        notification: colors.primary,
+      },
+    }),
+    [colors.background, colors.border, colors.ink, colors.primary, isDark],
+  );
 
   return (
-    <View className="flex-1">
-      <NavigationContainer>
-        {isAdmin ? <AdminNavigator /> : <ConsumerNavigator />}
-      </NavigationContainer>
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
+      {sessionReady ? (
+        <NavigationContainer theme={navigationTheme}>
+          {isAdmin ? <AdminNavigator /> : <ConsumerNavigator />}
+        </NavigationContainer>
+      ) : null}
+      {splashVisible ? (
+        <View style={styles.splashLayer} pointerEvents="auto">
+          <AuthSplash ready={sessionReady} onFinished={hideSplash} />
+        </View>
+      ) : null}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+  splashLayer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 10,
+  },
+});

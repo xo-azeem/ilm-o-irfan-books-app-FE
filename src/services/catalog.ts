@@ -50,7 +50,7 @@ const iconByKey: Record<string, LucideIcon> = {
 const LIST_FIELDS =
   'id,title,author_name,cover_path,cover_color,cover_color_dark,rating,tag,genre,read_time_minutes,price_cents,currency,format,is_premium';
 
-function coverUrl(path: string | null): string | undefined {
+export function publicCoverUrl(path: string | null): string | undefined {
   if (!path) {
     return undefined;
   }
@@ -75,7 +75,7 @@ function unwrap<T>(result: {
 }
 
 function toCatalogBook(row: CatalogListRow): CatalogBook {
-  return mapCatalogBook(row, coverUrl(row.cover_path));
+  return mapCatalogBook(row, publicCoverUrl(row.cover_path));
 }
 
 export { mapCatalogBook };

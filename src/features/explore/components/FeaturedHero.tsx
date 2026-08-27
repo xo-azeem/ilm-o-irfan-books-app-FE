@@ -2,13 +2,14 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { ArrowRight, Star } from 'lucide-react-native';
 
 import { DisplayText, Text } from '@/components/ui';
+import { BookCoverPlaceholder } from '@/components/books';
 import { useTheme } from '@/theme/ThemeContext';
 import { palette } from '@/theme/palette';
 
-import type { BookItem } from '../data/exploreContent';
+import type { CatalogBook } from '@/services/catalog';
 
 type FeaturedHeroProps = {
-  book: BookItem & { description: string; readTime: string };
+  book: CatalogBook;
   onPress?: () => void;
 };
 
@@ -80,17 +81,25 @@ export function FeaturedHero({ book, onPress }: FeaturedHeroProps) {
           </View>
         </View>
 
-        <View style={styles.miniCover}>
-          <View style={styles.miniSpine} />
-          <View style={styles.miniTitleWrap}>
-            <DisplayText
-              style={styles.miniTitle}
-              className="text-[11px] font-semibold leading-[14px]"
-              numberOfLines={4}>
-              {book.title}
-            </DisplayText>
-          </View>
-        </View>
+        <BookCoverPlaceholder
+          width={88}
+          height={128}
+          coverColor={coverColor}
+          coverUrl={book.coverUrl}
+          borderRadius={8}
+          showSpine
+          showSheen={!book.coverUrl}>
+          {book.coverUrl ? null : (
+            <View style={styles.miniTitleWrap}>
+              <DisplayText
+                style={styles.miniTitle}
+                className="text-[11px] font-semibold leading-[14px]"
+                numberOfLines={4}>
+                {book.title}
+              </DisplayText>
+            </View>
+          )}
+        </BookCoverPlaceholder>
       </View>
     </Pressable>
   );
@@ -151,23 +160,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 20,
     backgroundColor: 'rgba(255, 255, 255, 0.92)',
-  },
-  miniCover: {
-    width: 88,
-    height: 128,
-    overflow: 'hidden',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  miniSpine: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    height: '100%',
-    width: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
   },
   miniTitleWrap: {
     flex: 1,

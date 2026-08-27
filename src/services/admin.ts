@@ -1,7 +1,6 @@
 import ReactNativeBlobUtil from 'react-native-blob-util';
 
 import { supabase } from '@/lib/supabase';
-import { stripStoragePrefix } from '@/services/mappers';
 import {
   ADMIN_PAGE_SIZE,
   uniqueSlug,
@@ -15,6 +14,7 @@ import {
 } from '@/services/adminTypes';
 
 export * from '@/services/adminTypes';
+export { publicCoverUrl as adminCoverUrl } from '@/services/catalog';
 
 function unwrap<T>(result: {
   data: T;
@@ -100,7 +100,7 @@ export async function listAdminBooks(query: string, page = 0): Promise<AdminBook
 
   let builder = supabase
     .from('books')
-    .select('id,title,slug,is_published,is_premium,pdf_path,cover_path,updated_at,authors!inner(name)')
+    .select('id,title,slug,is_published,is_premium,pdf_path,cover_path,cover_color,updated_at,authors!inner(name)')
     .order('updated_at', { ascending: false })
     .range(from, to);
 
@@ -116,6 +116,7 @@ export async function listAdminBooks(query: string, page = 0): Promise<AdminBook
     is_premium: boolean;
     pdf_path: string | null;
     cover_path: string | null;
+    cover_color: string | null;
     updated_at: string;
     authors: { name: string } | { name: string }[];
   }>;
@@ -128,6 +129,7 @@ export async function listAdminBooks(query: string, page = 0): Promise<AdminBook
     is_premium: row.is_premium,
     pdf_path: row.pdf_path,
     cover_path: row.cover_path,
+    cover_color: row.cover_color,
     updated_at: row.updated_at,
     author_name: Array.isArray(row.authors) ? row.authors[0]?.name ?? 'Unknown' : row.authors.name,
   }));
@@ -486,10 +488,4 @@ export async function uploadAdminPdf(localUri: string, slug: string, sizeBytes?:
   const objectPath = `${slug}-${Date.now()}.pdf`;
   const path = await uploadBytes('pdfs', objectPath, localUri, 'application/pdf');
   return { path, sizeBytes: sizeBytes ?? null };
-}
-
-export function adminCoverUrl(path: string | null): string | undefined {
-  if (!path) return undefined;
-  return supabase.storage.from('covers').getPublicUrl(stripStoragePrefix(path, 'covers')).data
-    .publicUrl;
 }

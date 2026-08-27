@@ -31,6 +31,7 @@ export const FinishedBookCard = memo(function FinishedBookCard({
         title={book.title}
         coverColor={book.coverColor}
         coverColorDark={book.coverColorDark}
+        coverUrl={book.coverUrl}
         width={width}
       />
       <View className="mt-2 gap-0.5">

@@ -29,6 +29,7 @@ export type AdminBookListRow = {
   is_premium: boolean;
   pdf_path: string | null;
   cover_path: string | null;
+  cover_color: string | null;
   updated_at: string;
   author_name: string;
 };

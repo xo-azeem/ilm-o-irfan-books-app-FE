@@ -24,10 +24,21 @@ export const theme = {
     warm: palette.sunflower,
     onPrimary: '#FFFFFF',
     onHighlight: '#142818',
-    tabBar: 'rgba(255, 255, 255, 0.97)',
-    tabBarBorder: 'rgba(45, 138, 71, 0.10)',
     tabActive: palette.green,
-    tabInactive: '#7A917F',
+    tabInactive: '#5F7565',
+    /** Opaque overlay bars, e.g. the reader header and footer. */
+    chrome: 'rgba(255, 255, 255, 0.97)',
+    chromeBorder: 'rgba(45, 138, 71, 0.10)',
+    /** Tint painted over the native blur so the glass keeps the brand cast. */
+    glassTint: 'rgba(248, 252, 245, 0.42)',
+    /** Bright inner hairline that reads as a light-catching bevel. */
+    glassRim: 'rgba(255, 255, 255, 0.90)',
+    /** Outer edge of the glass, slightly darker than the surface behind it. */
+    glassEdge: 'rgba(20, 40, 24, 0.10)',
+    glassShadow: '#0B1F10',
+    /** Capsule sitting behind the focused tab icon. */
+    glassSelection: 'rgba(45, 138, 71, 0.16)',
+    glassSelectionRim: 'rgba(255, 255, 255, 0.55)',
   },
   dark: {
     background: '#0E1410',
@@ -45,10 +56,16 @@ export const theme = {
     warm: palette.sunflower,
     onPrimary: '#0E1410',
     onHighlight: '#F0F6EC',
-    tabBar: 'rgba(24, 32, 24, 0.97)',
-    tabBarBorder: 'rgba(154, 205, 50, 0.12)',
     tabActive: palette.yellowGreen,
-    tabInactive: '#6B806F',
+    tabInactive: '#8A9E8E',
+    chrome: 'rgba(24, 32, 24, 0.97)',
+    chromeBorder: 'rgba(154, 205, 50, 0.12)',
+    glassTint: 'rgba(16, 24, 18, 0.38)',
+    glassRim: 'rgba(255, 255, 255, 0.16)',
+    glassEdge: 'rgba(0, 0, 0, 0.45)',
+    glassShadow: '#000000',
+    glassSelection: 'rgba(154, 205, 50, 0.20)',
+    glassSelectionRim: 'rgba(255, 255, 255, 0.14)',
   },
 } as const;
 
@@ -70,7 +87,19 @@ export const layout = {
   screenPadding: 20,
   sectionGap: 24,
   rowHeight: 52,
-  tabBarHeight: 70,
+} as const;
+
+/**
+ * The tab bar is a floating glass capsule, so it overlays the scene instead of
+ * consuming layout height. Screens reserve room for it through `useAppInsets`.
+ */
+export const tabBar = {
+  height: 62,
+  /** Distance from the screen edges to the capsule. */
+  inset: 16,
+  /** Breathing room between the capsule and the bottom safe area. */
+  gap: 10,
+  radius: 31,
 } as const;
 
 export const coverColors = {

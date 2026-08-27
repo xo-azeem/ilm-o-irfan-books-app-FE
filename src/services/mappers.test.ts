@@ -46,8 +46,8 @@ describe('catalog mappers', () => {
   it('maps backend book rows onto the existing UI model', () => {
     const book = mapCatalogBook({
       id: '33333333-3333-3333-3333-333333333333',
-      title: 'Revival of the Sciences',
-      author_name: 'Al-Ghazali',
+      title: 'Mapped catalog title',
+      author_name: 'Mapped Author',
       cover_path: 'covers/ihya.webp',
       cover_color: '#1F4D3A',
       cover_color_dark: '#163628',
@@ -63,7 +63,7 @@ describe('catalog mappers', () => {
     }, 'https://example.test/ihya.webp');
 
     assert.equal(book.id, '33333333-3333-3333-3333-333333333333');
-    assert.equal(book.author, 'Al-Ghazali');
+    assert.equal(book.author, 'Mapped Author');
     assert.equal(book.readTime, '6 hr read');
     assert.equal(book.price, 0);
     assert.equal(book.coverUrl, 'https://example.test/ihya.webp');
@@ -91,5 +91,6 @@ describe('catalog mappers', () => {
 
     assert.equal(book.rating, 4.8);
     assert.equal(book.rating?.toFixed(1), '4.8');
+    assert.equal(book.coverUrl, undefined);
   });
 });

@@ -1,10 +1,13 @@
-import { ActivityIndicator, Alert, Pressable, View } from 'react-native';
+import { Alert, Pressable, Switch, View } from 'react-native';
 
 import { Screen, ScreenHeader } from '@/components/layout';
+import { AdminStatsSkeleton } from '@/components/skeletons/CatalogSkeletons';
 import { DisplayText, Text } from '@/components/ui';
+import { usePdfAccessPolicy, useUpdatePdfAccessPolicy } from '@/hooks/useAccount';
 import { useAdminStats } from '@/hooks/useAdmin';
 import type { AdminDashboardStats } from '@/services/admin';
 import { useAuthStore } from '@/stores/authStore';
+import { palette } from '@/theme/palette';
 
 const CARDS: Array<{ key: keyof AdminDashboardStats; label: string }> = [
   { key: 'user_count', label: 'Users' },
@@ -21,6 +24,9 @@ export function AdminOverviewScreen() {
   const email = useAuthStore(state => state.email);
   const signOut = useAuthStore(state => state.signOut);
   const { data, isLoading, error, refetch } = useAdminStats();
+  const policy = usePdfAccessPolicy();
+  const updatePolicy = useUpdatePdfAccessPolicy();
+  const freePdfAccess = Boolean(policy.data?.allowPdfWithoutEntitlement);
 
   return (
     <Screen>
@@ -54,8 +60,33 @@ export function AdminOverviewScreen() {
         Signed in as {email || 'admin'}
       </Text>
 
+      <View className="mb-5 flex-row items-center gap-3 rounded-[16px] bg-app-surface p-4 dark:bg-app-surface-dark">
+        <View className="min-w-0 flex-1 gap-1">
+          <Text className="text-[16px] font-semibold text-app-ink dark:text-app-ink-dark">
+            Free PDF access
+          </Text>
+          <Text className="text-[13px] leading-[18px] text-app-muted dark:text-app-muted-dark">
+            When on, signed-in users can open books without a subscription. Admins
+            always can. Turn this off before a public release.
+          </Text>
+        </View>
+        <Switch
+          value={freePdfAccess}
+          disabled={policy.isLoading || updatePolicy.isPending}
+          onValueChange={value => {
+            updatePolicy.mutate(value, {
+              onError: () => {
+                Alert.alert('Could not update', 'Free PDF access was not saved.');
+              },
+            });
+          }}
+          trackColor={{ false: '#D8E0D9', true: palette.green }}
+          thumbColor="#FFFFFF"
+        />
+      </View>
+
       {isLoading ? (
-        <ActivityIndicator className="py-10" />
+        <AdminStatsSkeleton />
       ) : error ? (
         <Pressable onPress={() => refetch()} className="rounded-[16px] bg-app-surface p-5 dark:bg-app-surface-dark">
           <Text className="text-[15px] text-app-muted dark:text-app-muted-dark">

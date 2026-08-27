@@ -1,5 +1,15 @@
-import { useMemo, useCallback } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { useMemo, useCallback, useState } from 'react';
+import {
+  Alert,
+  Image,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+  useWindowDimensions,
+} from 'react-native';
+import { BlurView } from '@react-native-community/blur';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
@@ -7,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, Heart } from 'lucide-react-native';
 
 import type { RootStackParamList } from '@/app/navigation/types';
+import { BookDetailSkeleton } from '@/components/skeletons/CatalogSkeletons';
 import { DisplayText, Text } from '@/components/ui';
 import { BookCoverPlaceholder } from '@/components/books';
 import { ROUTES } from '@/constants/routes';
@@ -154,11 +165,10 @@ export function BookDetailScreen() {
   }
 
   if (!book) {
-    return <View className="flex-1 items-center justify-center bg-app-bg dark:bg-app-bg-dark"><Text>Loading book…</Text></View>;
+    return <BookDetailSkeleton />;
   }
 
   const coverColor = isDark ? book.coverColorDark : book.coverColor;
-  const heroTint = `${coverColor}${isDark ? '30' : '18'}`;
 
   return (
     <View className="flex-1 bg-app-bg dark:bg-app-bg-dark">
@@ -166,32 +176,39 @@ export function BookDetailScreen() {
         className="flex-1"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: layout.scrollBottomPadding }}>
-        <View
-          style={[
-            styles.hero,
-            {
-              backgroundColor: heroTint,
-              paddingTop: layout.headerTop,
-              paddingHorizontal: layout.horizontalPadding,
-              paddingBottom: layout.heroBottomPadding,
-            },
-          ]}>
-          <BackLink onPress={() => navigation.goBack()} />
+        <View style={styles.hero}>
+          <View style={styles.heroBackdrop} pointerEvents="none">
+            <BookDetailHeroBackdrop
+              coverUrl={book.coverUrl}
+              coverColor={coverColor}
+              isDark={isDark}
+            />
+          </View>
 
           <View
             style={{
-              marginTop: layout.backToCoverGap,
-              alignItems: 'center',
+              paddingTop: layout.headerTop,
+              paddingHorizontal: layout.horizontalPadding,
+              paddingBottom: layout.heroBottomPadding,
             }}>
-            <BookCoverPlaceholder
-              width={layout.coverWidth}
-              height={layout.coverHeight}
-              coverColor={coverColor}
-              borderRadius={20}
-              tag={book.tag}
-              tagPlacement="bottom-left"
-              style={styles.coverShadow}
-            />
+            <BackLink onPress={() => navigation.goBack()} />
+
+            <View
+              style={{
+                marginTop: layout.backToCoverGap,
+                alignItems: 'center',
+              }}>
+              <BookCoverPlaceholder
+                width={layout.coverWidth}
+                height={layout.coverHeight}
+                coverColor={coverColor}
+                coverUrl={book.coverUrl}
+                borderRadius={20}
+                tag={book.tag}
+                tagPlacement="bottom-left"
+                style={styles.coverShadow}
+              />
+            </View>
           </View>
         </View>
 
@@ -333,6 +350,69 @@ export function BookDetailScreen() {
   );
 }
 
+type BookDetailHeroBackdropProps = {
+  coverUrl?: string;
+  coverColor: string;
+  isDark: boolean;
+};
+
+function BookDetailHeroBackdrop({
+  coverUrl,
+  coverColor,
+  isDark,
+}: BookDetailHeroBackdropProps) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const showImage = Boolean(coverUrl) && !imageFailed;
+
+  if (!showImage) {
+    return (
+      <View style={[StyleSheet.absoluteFillObject, { backgroundColor: coverColor }]}>
+        <View
+          style={[
+            StyleSheet.absoluteFillObject,
+            { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.22)' : 'rgba(255, 255, 255, 0.18)' },
+          ]}
+        />
+      </View>
+    );
+  }
+
+  return (
+    <>
+      <Image
+        source={{ uri: coverUrl }}
+        style={styles.heroImage}
+        resizeMode="cover"
+        accessibilityIgnoresInvertColors
+        onError={() => setImageFailed(true)}
+      />
+      <BlurView
+        style={StyleSheet.absoluteFillObject}
+        blurType={isDark ? 'dark' : 'light'}
+        blurAmount={isDark ? 20 : 28}
+        reducedTransparencyFallbackColor={coverColor}
+        {...(Platform.OS === 'android'
+          ? { overlayColor: 'transparent', blurRadius: 24, downsampleFactor: 4 }
+          : null)}
+      />
+      <View
+        style={[
+          StyleSheet.absoluteFillObject,
+          {
+            backgroundColor: isDark ? 'rgba(0, 0, 0, 0.24)' : 'rgba(255, 255, 255, 0.34)',
+          },
+        ]}
+      />
+      <View
+        style={[
+          StyleSheet.absoluteFillObject,
+          { backgroundColor: coverColor, opacity: isDark ? 0.16 : 0.1 },
+        ]}
+      />
+    </>
+  );
+}
+
 type BackLinkProps = {
   onPress: () => void;
 };
@@ -400,6 +480,15 @@ function DetailRow({ label, value, isLast = false }: DetailRowProps) {
 const styles = StyleSheet.create({
   hero: {
     width: '100%',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  heroBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  heroImage: {
+    ...StyleSheet.absoluteFillObject,
+    transform: [{ scale: 1.28 }],
   },
   coverShadow: {
     shadowColor: '#0E1410',

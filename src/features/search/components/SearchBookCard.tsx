@@ -40,6 +40,7 @@ export const SearchBookCard = memo(function SearchBookCard({
           width={width}
           height={coverHeight}
           coverColor={coverColor}
+          coverUrl={book.coverUrl}
           borderRadius={0}
           tag={book.tag}
         />

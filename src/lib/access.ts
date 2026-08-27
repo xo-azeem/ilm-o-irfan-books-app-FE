@@ -3,7 +3,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AuthReturnTo, RootStackParamList } from '@/app/navigation/types';
 import { env } from '@/config/env';
 import { ROUTES } from '@/constants/routes';
-import { useSubscription } from '@/hooks/useAccount';
+import { usePdfAccessPolicy, useSubscription } from '@/hooks/useAccount';
 import { useAuthStore } from '@/stores/authStore';
 
 export function useAccess() {
@@ -11,19 +11,28 @@ export function useAccess() {
   const isAdmin = useAuthStore(state => state.isAdmin);
   const userId = useAuthStore(state => state.userId);
   const subscription = useSubscription();
+  const policy = usePdfAccessPolicy();
 
-  const bypassEntitlement = env.allowPdfWithoutEntitlement;
+  const freePdfAccess =
+    isAdmin ||
+    env.allowPdfWithoutEntitlement ||
+    policy.data?.allowPdfWithoutEntitlement === true;
+
   const canOpenBooks = Boolean(
-    isAuthenticated && (bypassEntitlement || isAdmin || subscription.data?.active),
+    isAuthenticated && (freePdfAccess || subscription.data?.active),
   );
-  const waitForSubscription = isAuthenticated && !bypassEntitlement && !isAdmin;
+
+  const waitForGate =
+    isAuthenticated &&
+    !freePdfAccess &&
+    (policy.isLoading || subscription.isLoading);
 
   return {
     isAuthenticated,
     userId,
     canOpenBooks,
-    subscriptionReady: !waitForSubscription || !subscription.isLoading,
-    isSubscriptionLoading: Boolean(waitForSubscription && subscription.isLoading),
+    subscriptionReady: !waitForGate,
+    isSubscriptionLoading: Boolean(waitForGate),
   };
 }
 

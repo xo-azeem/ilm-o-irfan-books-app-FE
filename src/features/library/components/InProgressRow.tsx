@@ -37,6 +37,7 @@ export const InProgressRow = memo(function InProgressRow({
         title={book.title}
         coverColor={book.coverColor}
         coverColorDark={book.coverColorDark}
+        coverUrl={book.coverUrl}
         width={64}
       />
 

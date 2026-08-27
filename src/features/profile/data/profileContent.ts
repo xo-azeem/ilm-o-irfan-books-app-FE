@@ -18,7 +18,7 @@ import {
   UserRound,
 } from 'lucide-react-native';
 
-import { coverColors, palette } from '@/theme/palette';
+import { palette } from '@/theme/palette';
 import type { ProfileStackScreen } from '@/features/profile/navigation/types';
 import type { ThemePreference } from '@/stores/themeStore';
 
@@ -274,57 +274,6 @@ export const subscriptionPlan = {
     'Early access to new releases',
   ],
 };
-
-export const downloadedBooks = [
-  {
-    id: 'dl1',
-    title: 'Introduction to Usul al-Fiqh',
-    author: 'Dr. Yasir Qadhi',
-    size: '24 MB',
-    coverColor: coverColors.forest.light,
-    coverColorDark: coverColors.forest.dark,
-  },
-  {
-    id: 'dl2',
-    title: 'Seerah: Early Makkah',
-    author: 'Sh. Yasir',
-    size: '18 MB',
-    coverColor: coverColors.lime.light,
-    coverColorDark: coverColors.lime.dark,
-  },
-  {
-    id: 'dl3',
-    title: 'Purification of the Heart',
-    author: 'Hamza Yusuf',
-    size: '21 MB',
-    coverColor: coverColors.olive.light,
-    coverColorDark: coverColors.olive.dark,
-  },
-  {
-    id: 'dl4',
-    title: 'Inner Dimensions of Prayer',
-    author: 'Ibn Qayyim',
-    size: '16 MB',
-    coverColor: coverColors.emerald.light,
-    coverColorDark: coverColors.emerald.dark,
-  },
-  {
-    id: 'dl5',
-    title: 'Revival of the Sciences',
-    author: 'Al-Ghazali',
-    size: '29 MB',
-    coverColor: coverColors.pine.light,
-    coverColorDark: coverColors.pine.dark,
-  },
-  {
-    id: 'dl6',
-    title: 'Arabic Grammar Made Easy',
-    author: 'Dr. V. Abdur Rahim',
-    size: '14 MB',
-    coverColor: coverColors.sage.light,
-    coverColorDark: coverColors.sage.dark,
-  },
-];
 
 export const helpTopics = [
   {

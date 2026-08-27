@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, TextInput, View } from 'react-native';
+import { TextInput, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { ListRow, Screen, ScreenHeader } from '@/components/layout';
+import { ListRowsSkeleton } from '@/components/skeletons/CatalogSkeletons';
 import { Text } from '@/components/ui';
 import { ADMIN_ROUTES } from '@/constants/routes';
 import type { AdminPeopleStackParamList } from '@/features/admin/navigation/types';
@@ -35,7 +36,7 @@ export function AdminPeopleScreen() {
       </View>
 
       {isLoading ? (
-        <ActivityIndicator className="py-10" />
+        <ListRowsSkeleton rows={8} />
       ) : rows.length === 0 ? (
         <Text className="text-[15px] text-app-muted dark:text-app-muted-dark">No users found.</Text>
       ) : (

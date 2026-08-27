@@ -103,7 +103,7 @@ You are choosing **Supabase, which uses PostgreSQL** — not “Postgres or Supa
 | Continue reading / save progress | App → PostgreSQL `reading_progress` (+ optional MMKV mirror) |
 | Wishlist | App → PostgreSQL `wishlist` |
 | Buy Premium | App → **RevenueCat** → Store billing → RevenueCat webhook → **Edge Function** → PostgreSQL `entitlements` |
-| Download / open PDF | App → **Edge Function** (auth + **active entitlement**, or admin) → **Storage** signed URL → download to **device FS** → `react-native-pdf` |
+| Download / open PDF | App → **Edge Function** (auth + entitlement, or admin / free-PDF flag) → **Storage** signed URL → download to **device FS** → `react-native-pdf` |
 | Show subscription status | App → PostgreSQL `entitlements` (+ RevenueCat SDK for paywall UI) |
 | Theme / offline prefs | **MMKV** only |
 
@@ -240,7 +240,7 @@ Rules:
 
 | Function | Responsibility |
 | --- | --- |
-| `get-signed-pdf` | Verify JWT → load book → **active entitlement for every book** (admins skip this and may preview drafts) → return signed Storage URL |
+| `get-signed-pdf` | Verify JWT → load book → allow if **admin**, **env/DB free-PDF flag**, or **active entitlement** (admins may preview drafts) → return signed Storage URL |
 | `revenuecat-webhook` | Verify webhook → upsert `entitlements` with service role |
 | (in-app admin CMS) | Authenticated admins mutate catalog via RLS (`is_admin()` from JWT `app_metadata.app_role`); cover/PDF uploads go to Storage |
 
@@ -357,7 +357,7 @@ books.pdf_path   → Storage bucket pdfs/
 | Profile screen | `profiles` + aggregated stats |
 | Theme | MMKV / Zustand |
 | Subscription screen | `plans` + `entitlements` + RevenueCat paywall |
-| Premium gating | `entitlements` + Edge Function — **every book** requires an active subscription (admins may preview) |
+| Premium gating | `entitlements` + Edge Function; bypass via admin role, `ALLOW_PDF_WITHOUT_ENTITLEMENT` env, or `app_settings.allow_pdf_without_entitlement` |
 | Push / email marketing | **Out of scope for v1** (add later if needed) |
 | Admin CMS for uploading books | **In-app admin panel** (admins routed there on login); RLS + Storage policies |
 | Analytics | Start with store + RevenueCat; optional product analytics later |

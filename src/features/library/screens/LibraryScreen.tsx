@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { ActivityIndicator, ScrollView, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -8,6 +8,10 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList, RootTabParamList } from '@/app/navigation/types';
 import { GuestAuthPanel } from '@/components/auth/GuestAuthPanel';
 import { Screen, ScreenHeader, Section } from '@/components/layout';
+import {
+  LibraryCatalogSkeleton,
+  LibraryFinishedSkeleton,
+} from '@/components/skeletons/CatalogSkeletons';
 import { DisplayText, Text } from '@/components/ui';
 import { ROUTES } from '@/constants/routes';
 import { libraryShelves } from '@/features/library/data/libraryContent';
@@ -96,7 +100,7 @@ export function LibraryScreen() {
 
       {isAuthenticated ? (
         isLoading ? (
-          <ActivityIndicator className="py-8" />
+          <LibraryCatalogSkeleton />
         ) : (
           <InProgressSection books={inProgressBooks} onResume={openBook} />
         )
@@ -123,18 +127,22 @@ export function LibraryScreen() {
         </Section>
       </View>
 
-      <View className="mb-2">
-        <SectionHeading title="Recently finished" />
-        <ScrollView
-          horizontal
-          nestedScrollEnabled
-          showsHorizontalScrollIndicator={false}
-          contentContainerClassName="gap-4 pr-5">
-          {finished.map(book => (
-            <FinishedBookCard key={book.id} book={book} />
-          ))}
-        </ScrollView>
-      </View>
+      {isAuthenticated && isLoading ? (
+        <LibraryFinishedSkeleton />
+      ) : (
+        <View className="mb-2">
+          <SectionHeading title="Recently finished" />
+          <ScrollView
+            horizontal
+            nestedScrollEnabled
+            showsHorizontalScrollIndicator={false}
+            contentContainerClassName="gap-4 pr-5">
+            {finished.map(book => (
+              <FinishedBookCard key={book.id} book={book} />
+            ))}
+          </ScrollView>
+        </View>
+      )}
     </Screen>
   );
 }

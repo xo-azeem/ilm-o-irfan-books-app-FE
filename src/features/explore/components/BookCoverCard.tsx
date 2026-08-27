@@ -33,6 +33,7 @@ export const BookCoverCard = memo(function BookCoverCard({
         width={width}
         height={coverHeight}
         coverColor={coverColor}
+        coverUrl={book.coverUrl}
         borderRadius={12}
         tag={book.tag}
         style={[
@@ -41,14 +42,16 @@ export const BookCoverCard = memo(function BookCoverCard({
             shadowOpacity: isDark ? 0.2 : 0.1,
           },
         ]}>
-        <View style={styles.coverTitleWrap}>
-          <DisplayText
-            style={styles.coverTitle}
-            className="text-[13px] font-semibold leading-4"
-            numberOfLines={3}>
-            {book.title}
-          </DisplayText>
-        </View>
+        {book.coverUrl ? null : (
+          <View style={styles.coverTitleWrap}>
+            <DisplayText
+              style={styles.coverTitle}
+              className="text-[13px] font-semibold leading-4"
+              numberOfLines={3}>
+              {book.title}
+            </DisplayText>
+          </View>
+        )}
       </BookCoverPlaceholder>
 
       <View className="mt-2.5 gap-0.5">

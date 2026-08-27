@@ -1,16 +1,17 @@
 import { useCallback } from 'react';
-import { ActivityIndicator, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Heart } from 'lucide-react-native';
 
 import type { RootStackParamList } from '@/app/navigation/types';
 import { GuestAuthPanel } from '@/components/auth/GuestAuthPanel';
+import { BookCoverPlaceholder } from '@/components/books';
 import { EmptyState, ListRow, Screen, ScreenHeader, Section } from '@/components/layout';
+import { ListRowsSkeleton } from '@/components/skeletons/CatalogSkeletons';
 import { Text } from '@/components/ui';
 import { ROUTES } from '@/constants/routes';
 import { useWishlist, useWishlistMutation } from '@/hooks/useAccount';
-import { palette } from '@/theme/palette';
+import { useTheme } from '@/theme/ThemeContext';
 import { useAuthStore } from '@/stores/authStore';
 
 export function WishlistScreen() {
@@ -35,7 +36,7 @@ export function WishlistScreen() {
           message="Sign in to keep a wishlist that syncs across your devices."
         />
       ) : isLoading ? (
-        <ActivityIndicator className="py-10" />
+        <ListRowsSkeleton rows={5} />
       ) : items.length > 0 ? (
         <Section>
           {items.map((item, index) => (
@@ -44,6 +45,9 @@ export function WishlistScreen() {
               id={item.id}
               title={item.title}
               subtitle={item.author}
+              coverColor={item.coverColor}
+              coverColorDark={item.coverColorDark}
+              coverUrl={item.coverUrl}
               isLast={index === items.length - 1}
               onPress={() => handlePress(item.id)}
             />
@@ -69,15 +73,22 @@ function WishlistRow({
   id,
   title,
   subtitle,
+  coverColor,
+  coverColorDark,
+  coverUrl,
   isLast,
   onPress,
 }: {
   id: string;
   title: string;
   subtitle: string;
+  coverColor: string;
+  coverColorDark: string;
+  coverUrl?: string;
   isLast: boolean;
   onPress: () => void;
 }) {
+  const { isDark } = useTheme();
   const mutation = useWishlistMutation(id);
 
   return (
@@ -87,14 +98,15 @@ function WishlistRow({
       isLast={isLast}
       onPress={onPress}
       leading={
-        <View className="h-9 w-9 items-center justify-center rounded-[10px] bg-app-fill dark:bg-app-fill-dark">
-          <Heart
-            color={palette.green}
-            size={16}
-            strokeWidth={2.2}
-            fill={palette.yellowGreen}
-          />
-        </View>
+        <BookCoverPlaceholder
+          width={36}
+          height={52}
+          coverColor={isDark ? coverColorDark : coverColor}
+          coverUrl={coverUrl}
+          borderRadius={8}
+          showSheen={false}
+          showSpine={false}
+        />
       }
       trailing={
         <Pressable onPress={() => mutation.mutate(true)} hitSlop={8}>

@@ -6,6 +6,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/app/navigation/types';
 import { AppLogo } from '@/components/brand';
 import { Screen } from '@/components/layout';
+import { SearchCatalogSkeleton } from '@/components/skeletons/CatalogSkeletons';
 import { DisplayText, Text } from '@/components/ui';
 import { ROUTES } from '@/constants/routes';
 import { useHeaderBrandMetrics } from '@/hooks/useHeaderBrandMetrics';
@@ -31,7 +32,7 @@ export function SearchScreen() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [overlayTop, setOverlayTop] = useState(0);
-  const { data: books = [] } = useCatalogSearch(query);
+  const { data: books = [], isPending: booksPending } = useCatalogSearch(query);
   const { data: categories = [] } = useCategories();
 
   const openSearch = useCallback(() => {
@@ -115,7 +116,9 @@ export function SearchScreen() {
         </View>
 
         <View className="mt-4">
-          {books.length === 0 ? (
+          {booksPending && books.length === 0 ? (
+            <SearchCatalogSkeleton viewMode={viewMode} />
+          ) : books.length === 0 ? (
             <Text className="py-10 text-center text-[14px] text-app-muted dark:text-app-muted-dark">
               {query.trim() ? 'No matching books yet.' : 'No published books are available yet.'}
             </Text>

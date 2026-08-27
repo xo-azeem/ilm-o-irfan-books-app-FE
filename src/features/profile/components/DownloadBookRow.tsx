@@ -15,6 +15,7 @@ export type DownloadedBook = {
   size: string;
   coverColor: string;
   coverColorDark: string;
+  coverUrl?: string;
 };
 
 type DownloadBookRowProps = {
@@ -39,6 +40,7 @@ export const DownloadBookRow = memo(function DownloadBookRow({
         title={book.title}
         coverColor={book.coverColor}
         coverColorDark={book.coverColorDark}
+        coverUrl={book.coverUrl}
         width={COVER_WIDTH}
       />
 

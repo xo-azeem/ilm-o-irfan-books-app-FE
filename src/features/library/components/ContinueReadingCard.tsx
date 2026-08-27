@@ -68,6 +68,7 @@ export const ContinueReadingCard = memo(function ContinueReadingCard({
           title={book.title}
           coverColor={book.coverColor}
           coverColorDark={book.coverColorDark}
+          coverUrl={book.coverUrl}
           width={LIBRARY_COVER_WIDTH}
         />
 

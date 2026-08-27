@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { authorName, isEntitlementActive, mapCatalogBook } from '@/services/mappers';
-import type { CatalogBook } from '@/services/catalog';
+import { publicCoverUrl, type CatalogBook } from '@/services/catalog';
 
 export type ProfileDetails = {
   fullName: string;
@@ -44,22 +44,25 @@ async function userId() {
 }
 
 function toBook(book: NestedBook): CatalogBook {
-  return mapCatalogBook({
-    id: book.id,
-    title: book.title,
-    author_name: authorName(book.authors),
-    cover_path: book.cover_path,
-    cover_color: book.cover_color,
-    cover_color_dark: book.cover_color_dark,
-    rating: null,
-    tag: null,
-    genre: null,
-    read_time_minutes: null,
-    price_cents: 0,
-    currency: 'USD',
-    format: 'Digital edition',
-    is_premium: false,
-  });
+  return mapCatalogBook(
+    {
+      id: book.id,
+      title: book.title,
+      author_name: authorName(book.authors),
+      cover_path: book.cover_path,
+      cover_color: book.cover_color,
+      cover_color_dark: book.cover_color_dark,
+      rating: null,
+      tag: null,
+      genre: null,
+      read_time_minutes: null,
+      price_cents: 0,
+      currency: 'USD',
+      format: 'Digital edition',
+      is_premium: false,
+    },
+    publicCoverUrl(book.cover_path),
+  );
 }
 
 export async function getProfile(): Promise<ProfileDetails> {

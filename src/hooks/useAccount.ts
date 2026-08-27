@@ -16,6 +16,7 @@ import {
   updateProfile,
   type ProfileDetails,
 } from '@/services/account';
+import { getPdfAccessPolicy, setPdfAccessPolicy } from '@/services/appSettings';
 import { useAuthStore } from '@/stores/authStore';
 
 function scoped(name: string, userId: string | null, extra?: string) {
@@ -64,6 +65,24 @@ export function useSubscription() {
     queryKey: scoped('subscription', userId),
     queryFn: getSubscription,
     enabled: Boolean(userId),
+  });
+}
+
+export function usePdfAccessPolicy() {
+  return useQuery({
+    queryKey: ['pdf-access-policy'],
+    queryFn: getPdfAccessPolicy,
+    staleTime: 30_000,
+  });
+}
+
+export function useUpdatePdfAccessPolicy() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: setPdfAccessPolicy,
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ['pdf-access-policy'] });
+    },
   });
 }
 

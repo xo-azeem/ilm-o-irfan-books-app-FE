@@ -1,13 +1,17 @@
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, TextInput, View } from 'react-native';
+import { Pressable, TextInput, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { ListRow, Screen, ScreenHeader } from '@/components/layout';
+import { BookCoverPlaceholder } from '@/components/books';
+import { ListRowsSkeleton } from '@/components/skeletons/CatalogSkeletons';
 import { Text } from '@/components/ui';
 import { ADMIN_ROUTES } from '@/constants/routes';
 import type { AdminBooksStackParamList } from '@/features/admin/navigation/types';
 import { useAdminBooks } from '@/hooks/useAdmin';
+import { adminCoverUrl } from '@/services/admin';
+import { palette } from '@/theme/palette';
 import { useTheme } from '@/theme/ThemeContext';
 
 export function AdminBooksScreen() {
@@ -43,7 +47,7 @@ export function AdminBooksScreen() {
       </View>
 
       {isLoading ? (
-        <ActivityIndicator className="py-10" />
+        <ListRowsSkeleton rows={8} />
       ) : (
         <View className="overflow-hidden rounded-[14px] bg-app-surface dark:bg-app-surface-dark">
           {data.map((book, index) => (
@@ -53,6 +57,17 @@ export function AdminBooksScreen() {
               subtitle={`${book.author_name} · ${book.is_published ? 'Published' : 'Draft'}${book.pdf_path ? '' : ' · No PDF'}`}
               isLast={index === data.length - 1}
               onPress={() => navigation.navigate(ADMIN_ROUTES.BOOK_EDITOR, { bookId: book.id })}
+              leading={
+                <BookCoverPlaceholder
+                  width={36}
+                  height={52}
+                  coverColor={book.cover_color ?? palette.green}
+                  coverUrl={adminCoverUrl(book.cover_path)}
+                  borderRadius={8}
+                  showSheen={false}
+                  showSpine={false}
+                />
+              }
             />
           ))}
         </View>

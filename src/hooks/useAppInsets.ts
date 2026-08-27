@@ -1,21 +1,31 @@
+import { useContext } from 'react';
+import { BottomTabBarHeightContext } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { layout } from '@/theme/palette';
+import { tabBar } from '@/theme/palette';
 
 const SCROLL_END_PADDING = 20;
-const FLOATING_TAB_OVERFLOW = 12;
 
 export function useAppInsets() {
   const insets = useSafeAreaInsets();
   const bottomInset = Math.max(insets.bottom, 8);
 
-  const tabBarHeight = layout.tabBarHeight + bottomInset;
+  // The glass capsule floats over the scene, so only screens rendered inside a
+  // tab navigator need to reserve room for it. Stack screens pushed above the
+  // tabs (book detail, reader, auth) have no bar and get a plain end padding.
+  const hasTabBar = useContext(BottomTabBarHeightContext) !== undefined;
+
+  /** Vertical space the floating capsule covers, measured from the screen bottom. */
+  const tabBarHeight = tabBar.height + tabBar.gap + bottomInset;
+  const contentBottomInset = hasTabBar ? tabBarHeight : bottomInset;
 
   return {
     insets,
     tabBarHeight,
     tabBarPaddingBottom: bottomInset,
-    scrollBottomInset: tabBarHeight + FLOATING_TAB_OVERFLOW + SCROLL_END_PADDING,
-    scrollEndPadding: SCROLL_END_PADDING + FLOATING_TAB_OVERFLOW,
+    /** Keeps fixed-height content from sliding under the capsule. */
+    contentBottomInset,
+    /** Same clearance plus breathing room at the end of a scroll. */
+    scrollEndPadding: contentBottomInset + SCROLL_END_PADDING,
   };
 }

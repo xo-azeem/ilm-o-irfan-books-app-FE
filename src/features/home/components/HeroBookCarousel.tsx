@@ -347,14 +347,17 @@ const BookCover = memo(function BookCover({
       width={width}
       height={height}
       coverColor={coverColor}
+      coverUrl={book.coverUrl}
       borderRadius={14}
       tag={book.tag}
       style={styles.cover}>
-      <View style={styles.coverFooter}>
-        <Text style={styles.coverTitle} numberOfLines={3}>
-          {book.title}
-        </Text>
-      </View>
+      {book.coverUrl ? null : (
+        <View style={styles.coverFooter}>
+          <Text style={styles.coverTitle} numberOfLines={3}>
+            {book.title}
+          </Text>
+        </View>
+      )}
     </BookCoverPlaceholder>
   );
 });

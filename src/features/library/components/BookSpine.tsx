@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import { BookCoverPlaceholder } from '@/components/books';
 import { useTheme } from '@/theme/ThemeContext';
@@ -10,12 +10,14 @@ type BookSpineProps = {
   title: string;
   coverColor: string;
   coverColorDark: string;
+  coverUrl?: string;
   width: number;
 };
 
 export const BookSpine = memo(function BookSpine({
   coverColor,
   coverColorDark,
+  coverUrl,
   width,
 }: BookSpineProps) {
   const { isDark } = useTheme();
@@ -27,6 +29,7 @@ export const BookSpine = memo(function BookSpine({
       width={width}
       height={height}
       coverColor={color}
+      coverUrl={coverUrl}
       borderRadius={10}
       style={[styles.cover, getBookSpineShadow(isDark)]}
     />

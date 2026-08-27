@@ -78,6 +78,7 @@ export const InProgressBookItem = memo(function InProgressBookItem({
               title={book.title}
               coverColor={book.coverColor}
               coverColorDark={book.coverColorDark}
+              coverUrl={book.coverUrl}
               width={COVER_WIDTH}
             />
 

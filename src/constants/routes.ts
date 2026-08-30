@@ -27,17 +27,37 @@ export const ROUTE_LABELS: Record<RouteName, string> = {
 };
 
 export const ADMIN_ROUTES = {
+  // Tabs
   OVERVIEW: 'AdminOverview',
   BOOKS: 'AdminBooks',
   CATALOG: 'AdminCatalog',
   PEOPLE: 'AdminPeople',
+  SYSTEM: 'AdminSystem',
+
+  // Books stack
   BOOK_LIST: 'AdminBookList',
   BOOK_EDITOR: 'AdminBookEditor',
   PDF_PREVIEW: 'AdminPdfPreview',
+
+  // Catalog stack
   CATALOG_HOME: 'AdminCatalogHome',
+  AUTHOR_LIST: 'AdminAuthorList',
   AUTHOR_EDITOR: 'AdminAuthorEditor',
+  CATEGORY_LIST: 'AdminCategoryList',
   CATEGORY_EDITOR: 'AdminCategoryEditor',
+  COLLECTION_LIST: 'AdminCollectionList',
   COLLECTION_EDITOR: 'AdminCollectionEditor',
+
+  // People stack
   PEOPLE_LIST: 'AdminPeopleList',
   USER_DETAIL: 'AdminUserDetail',
+
+  // System stack
+  SYSTEM_HOME: 'AdminSystemHome',
+  ANALYTICS: 'AdminAnalytics',
+  PLAN_LIST: 'AdminPlanList',
+  PLAN_EDITOR: 'AdminPlanEditor',
+  MEDIA: 'AdminMedia',
+  AUDIT_LOG: 'AdminAuditLog',
+  SETTINGS: 'AdminSettings',
 } as const;

@@ -246,6 +246,17 @@ Rules:
 
 Normal catalog reads/writes do **not** need Edge Functions — use the Supabase client + RLS.
 
+### Admin CMS surface
+
+The admin panel reads through `admin_*` views and writes through `admin_*` SECURITY DEFINER RPCs.
+See [schema.md](./schema.md#admin-cms-v2) for the full list. Notes that affect the client:
+
+- `books.published_at` is stamped by a trigger. Never send it from the app.
+- Bulk publish silently skips titles with no `pdf_path`; the RPC returns `{ updated, skipped }`.
+- Admin PDF/cover uploads bypass `supabase-js` and stream through `react-native-blob-util`, because
+  the shared client aborts after 12s and buffers the whole body in memory.
+- Every catalog, plan, settings, and role write lands in `admin_audit_log`.
+
 ---
 
 ### 4.7 RevenueCat + App Store + Google Play

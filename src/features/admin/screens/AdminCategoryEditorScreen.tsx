@@ -1,111 +1,204 @@
 import { useEffect, useState } from 'react';
-import { Alert } from 'react-native';
+import { View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 
 import { Screen, ScreenHeader } from '@/components/layout';
+import { Text } from '@/components/ui';
+import {
+  AdminColorField,
+  AdminConfirmSheet,
+} from '@/features/admin/components/AdminControls';
+import { errorMessage, useToast } from '@/features/admin/components/AdminToast';
 import {
   AdminBackLink,
+  AdminButton,
+  AdminChip,
   AdminField,
-  AdminPrimaryButton,
-  AdminScreenBlock,
+  AdminLabel,
 } from '@/features/admin/components/AdminUi';
-import type { AdminCatalogStackParamList } from '@/features/admin/navigation/types';
+import { useDirtyTracker, useUnsavedGuard } from '@/features/admin/hooks/useAdminForm';
 import { useAdminCategories, useDeleteAdminCategory, useSaveAdminCategory } from '@/hooks/useAdmin';
-import { slugify } from '@/services/admin';
+import { CATEGORY_ICON_KEYS, slugify } from '@/services/admin';
 import { palette } from '@/theme/palette';
+
+import type { AdminCatalogStackParamList } from '../navigation/types';
 
 export function AdminCategoryEditorScreen() {
   const navigation = useNavigation();
   const route = useRoute<RouteProp<AdminCatalogStackParamList, 'AdminCategoryEditor'>>();
   const categoryId = route.params?.categoryId;
+  const toast = useToast();
+
   const { data: categories = [] } = useAdminCategories();
   const existing = categories.find(item => item.id === categoryId);
   const save = useSaveAdminCategory();
   const remove = useDeleteAdminCategory();
 
-  const [label, setLabel] = useState('');
-  const [slug, setSlug] = useState('');
-  const [iconKey, setIconKey] = useState('book-marked');
-  const [accent, setAccent] = useState(palette.green as string);
-  const [sortOrder, setSortOrder] = useState('0');
+  const [form, setForm] = useState({
+    label: '',
+    slug: '',
+    iconKey: 'book-marked',
+    accent: palette.green as string,
+    accentDark: palette.yellowGreen as string,
+    sortOrder: '0',
+  });
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const { isDirty, reset } = useDirtyTracker(form);
+  useUnsavedGuard(isDirty);
 
   useEffect(() => {
     if (!existing) return;
-    setLabel(existing.label);
-    setSlug(existing.slug);
-    setIconKey(existing.icon_key);
-    setAccent(existing.accent ?? palette.green);
-    setSortOrder(String(existing.sort_order));
+    setForm({
+      label: existing.label,
+      slug: existing.slug,
+      iconKey: existing.icon_key,
+      accent: existing.accent ?? palette.green,
+      accentDark: existing.accent_dark ?? existing.accent ?? palette.yellowGreen,
+      sortOrder: String(existing.sort_order),
+    });
   }, [existing]);
+
+  useEffect(() => {
+    if (!categoryId || existing) {
+      reset();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoryId, existing]);
+
+  const resolvedSlug = form.slug.trim() || slugify(form.label);
+
+  const handleSave = () => {
+    if (!form.label.trim()) {
+      toast.error('Enter a category label.');
+      return;
+    }
+
+    save.mutate(
+      {
+        id: categoryId,
+        label: form.label,
+        slug: resolvedSlug,
+        icon_key: form.iconKey,
+        accent: form.accent,
+        accent_dark: form.accentDark,
+        sort_order: Number(form.sortOrder) || 0,
+      },
+      {
+        onSuccess: () => {
+          reset();
+          toast.success(categoryId ? 'Category saved.' : 'Category created.');
+          navigation.goBack();
+        },
+        onError: caught => toast.error(errorMessage(caught)),
+      },
+    );
+  };
 
   return (
     <Screen>
-      <AdminBackLink />
-      <ScreenHeader title={categoryId ? 'Edit category' : 'New category'} />
-      <AdminScreenBlock>
-        <AdminField label="Label" value={label} onChangeText={setLabel} />
+      <AdminBackLink label="Categories" />
+      <ScreenHeader
+        title={categoryId ? 'Edit category' : 'New category'}
+        subtitle={existing ? `${existing.book_count} books assigned` : 'A chip on the Explore row.'}
+      />
+
+      <View className="gap-4">
+        <AdminField
+          label="Label"
+          value={form.label}
+          onChangeText={value => setForm(current => ({ ...current, label: value }))}
+          maxLength={40}
+        />
         <AdminField
           label="Slug"
-          value={slug}
-          onChangeText={setSlug}
-          placeholder={slugify(label)}
+          value={form.slug}
+          onChangeText={value => setForm(current => ({ ...current, slug: value }))}
+          placeholder={slugify(form.label) || 'auto-from-label'}
           autoCapitalize="none"
+          helper={`Currently “${resolvedSlug || '—'}”.`}
         />
-        <AdminField label="Icon key" value={iconKey} onChangeText={setIconKey} autoCapitalize="none" />
-        <AdminField label="Accent" value={accent} onChangeText={setAccent} autoCapitalize="none" />
+
+        <View className="gap-2">
+          <AdminLabel>Icon</AdminLabel>
+          <View className="flex-row flex-wrap gap-2">
+            {CATEGORY_ICON_KEYS.map(key => (
+              <AdminChip
+                key={key}
+                label={key}
+                compact
+                selected={form.iconKey === key}
+                onPress={() => setForm(current => ({ ...current, iconKey: key }))}
+              />
+            ))}
+          </View>
+          <Text className="px-1 text-[12px] text-app-faint dark:text-app-faint-dark">
+            Only these keys have a matching icon in the reader app.
+          </Text>
+        </View>
+
+        <AdminColorField
+          label="Accent"
+          value={form.accent}
+          onChange={value => setForm(current => ({ ...current, accent: value }))}
+        />
+        <AdminColorField
+          label="Accent (dark mode)"
+          value={form.accentDark}
+          onChange={value => setForm(current => ({ ...current, accentDark: value }))}
+        />
+
         <AdminField
           label="Sort order"
-          value={sortOrder}
-          onChangeText={setSortOrder}
-          keyboardType="number-pad"
-        />
-        <AdminPrimaryButton
-          label={save.isPending ? 'Saving…' : 'Save'}
-          disabled={save.isPending || !label.trim()}
-          onPress={() =>
-            save.mutate(
-              {
-                id: categoryId,
-                label,
-                slug: slug || slugify(label),
-                icon_key: iconKey,
-                accent,
-                accent_dark: accent,
-                sort_order: Number(sortOrder) || 0,
-              },
-              {
-                onSuccess: () => navigation.goBack(),
-                onError: error =>
-                  Alert.alert('Save failed', error instanceof Error ? error.message : 'Try again.'),
-              },
-            )
+          value={form.sortOrder}
+          onChangeText={value =>
+            setForm(current => ({ ...current, sortOrder: value.replace(/[^0-9]/g, '') }))
           }
+          keyboardType="number-pad"
+          helper="Lower numbers appear first. Drag-free reordering lives on the list screen."
         />
+
+        <AdminButton
+          label={save.isPending ? 'Saving…' : categoryId ? 'Save changes' : 'Create category'}
+          loading={save.isPending}
+          disabled={!form.label.trim()}
+          onPress={handleSave}
+        />
+
         {categoryId ? (
-          <AdminPrimaryButton
+          <AdminButton
             label="Delete category"
-            destructive
-            onPress={() =>
-              Alert.alert('Delete category?', 'Books stay; only the category link is removed.', [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Delete',
-                  style: 'destructive',
-                  onPress: () =>
-                    remove.mutate(categoryId, {
-                      onSuccess: () => navigation.goBack(),
-                      onError: error =>
-                        Alert.alert(
-                          'Delete failed',
-                          error instanceof Error ? error.message : 'Try again.',
-                        ),
-                    }),
-                },
-              ])
-            }
+            variant="destructive"
+            disabled={remove.isPending}
+            onPress={() => setConfirmDelete(true)}
           />
         ) : null}
-      </AdminScreenBlock>
+      </View>
+
+      <AdminConfirmSheet
+        visible={confirmDelete}
+        title="Delete this category?"
+        message="Books keep their data — only the category and its links are removed."
+        confirmLabel="Delete"
+        destructive
+        loading={remove.isPending}
+        onCancel={() => setConfirmDelete(false)}
+        onConfirm={() =>
+          categoryId &&
+          remove.mutate(categoryId, {
+            onSuccess: () => {
+              setConfirmDelete(false);
+              reset();
+              toast.success('Category deleted.');
+              navigation.goBack();
+            },
+            onError: caught => {
+              setConfirmDelete(false);
+              toast.error(errorMessage(caught));
+            },
+          })
+        }
+      />
     </Screen>
   );
 }

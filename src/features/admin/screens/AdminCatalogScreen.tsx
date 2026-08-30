@@ -1,12 +1,15 @@
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { LayoutGrid, Layers, PenLine } from 'lucide-react-native';
 
-import { ListRow, Screen, ScreenHeader, Section } from '@/components/layout';
+import { Screen, ScreenHeader } from '@/components/layout';
 import { Text } from '@/components/ui';
 import { ADMIN_ROUTES } from '@/constants/routes';
-import type { AdminCatalogStackParamList } from '@/features/admin/navigation/types';
+import { AdminCard, AdminNavRow } from '@/features/admin/components/AdminUi';
 import { useAdminAuthors, useAdminCategories, useAdminCollections } from '@/hooks/useAdmin';
+
+import type { AdminCatalogStackParamList } from '../navigation/types';
 
 export function AdminCatalogScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<AdminCatalogStackParamList>>();
@@ -14,79 +17,61 @@ export function AdminCatalogScreen() {
   const { data: categories = [] } = useAdminCategories();
   const { data: collections = [] } = useAdminCollections();
 
+  const publishedCollections = collections.filter(item => item.is_published).length;
+  const unassigned = categories.filter(item => item.book_count === 0).length;
+
   return (
     <Screen>
-      <ScreenHeader title="Catalog" subtitle="Authors, categories, and shelves." />
+      <ScreenHeader
+        title="Catalog"
+        subtitle="Authors, categories, and the shelves readers browse."
+      />
 
-      <View className="gap-7">
-        <Section
-          title="Authors"
-          className="">
-          <HeaderAction
-            label="Add author"
-            onPress={() => navigation.navigate(ADMIN_ROUTES.AUTHOR_EDITOR, {})}
+      <View className="gap-6">
+        <AdminCard padded={false}>
+          <AdminNavRow
+            label="Authors"
+            value={`${authors.length}`}
+            Icon={PenLine}
+            onPress={() => navigation.navigate(ADMIN_ROUTES.AUTHOR_LIST)}
           />
-          {authors.map((author, index) => (
-            <ListRow
-              key={author.id}
-              title={author.name}
-              subtitle={author.slug}
-              isLast={index === authors.length - 1}
-              onPress={() => navigation.navigate(ADMIN_ROUTES.AUTHOR_EDITOR, { authorId: author.id })}
-            />
-          ))}
-        </Section>
+          <AdminNavRow
+            label="Categories"
+            value={`${categories.length}`}
+            Icon={LayoutGrid}
+            onPress={() => navigation.navigate(ADMIN_ROUTES.CATEGORY_LIST)}
+          />
+          <AdminNavRow
+            label="Collections"
+            value={`${publishedCollections}/${collections.length} live`}
+            Icon={Layers}
+            isLast
+            onPress={() => navigation.navigate(ADMIN_ROUTES.COLLECTION_LIST)}
+          />
+        </AdminCard>
 
-        <Section title="Categories">
-          <HeaderAction
-            label="Add category"
-            onPress={() => navigation.navigate(ADMIN_ROUTES.CATEGORY_EDITOR, {})}
-          />
-          {categories.map((category, index) => (
-            <ListRow
-              key={category.id}
-              title={category.label}
-              subtitle={category.slug}
-              isLast={index === categories.length - 1}
-              onPress={() =>
-                navigation.navigate(ADMIN_ROUTES.CATEGORY_EDITOR, { categoryId: category.id })
-              }
+        <AdminCard title="Merchandising notes">
+          <View className="gap-2">
+            <Note
+              text={`${collections.filter(item => item.kind === 'hero').length} hero shelf/shelves drive the Home carousel.`}
             />
-          ))}
-        </Section>
-
-        <Section title="Collections">
-          <HeaderAction
-            label="Add collection"
-            onPress={() => navigation.navigate(ADMIN_ROUTES.COLLECTION_EDITOR, {})}
-          />
-          {collections.map((collection, index) => (
-            <ListRow
-              key={collection.id}
-              title={collection.title}
-              subtitle={`${collection.kind} · ${collection.book_ids.length} books`}
-              isLast={index === collections.length - 1}
-              onPress={() =>
-                navigation.navigate(ADMIN_ROUTES.COLLECTION_EDITOR, {
-                  collectionId: collection.id,
-                })
-              }
+            <Note text={`${unassigned} categories have no books assigned.`} />
+            <Note
+              text={`${
+                collections.filter(item => item.book_count === 0).length
+              } collections are empty and will not render.`}
             />
-          ))}
-        </Section>
+          </View>
+        </AdminCard>
       </View>
     </Screen>
   );
 }
 
-function HeaderAction({ label, onPress }: { label: string; onPress: () => void }) {
+function Note({ text }: { text: string }) {
   return (
-    <Pressable
-      onPress={onPress}
-      className="border-b border-app-border px-4 py-3 dark:border-app-border-dark">
-      <Text className="text-[15px] font-semibold text-app-primary dark:text-app-primary-dark">
-        {label}
-      </Text>
-    </Pressable>
+    <Text className="text-[13px] leading-[19px] text-app-muted dark:text-app-muted-dark">
+      • {text}
+    </Text>
   );
 }

@@ -36,7 +36,7 @@ export const LinearGradient = memo(function LinearGradient({
 
   return (
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, style]}>
-      <Svg width="100%" height="100%">
+      <Svg pointerEvents="none" width="100%" height="100%">
         <Defs>
           <SvgLinearGradient
             id={id}
@@ -90,7 +90,7 @@ export const RadialGlow = memo(function RadialGlow({
     <View
       pointerEvents="none"
       style={[{ position: 'absolute', width: size, height: size, left, right, top, bottom }, style]}>
-      <Svg width="100%" height="100%">
+      <Svg pointerEvents="none" width="100%" height="100%">
         <Defs>
           <SvgRadialGradient id={id} cx="50%" cy="50%" r="50%">
             <Stop offset="0%" stopColor={color} stopOpacity={opacity} />
@@ -128,7 +128,7 @@ export const DiagonalTexture = memo(function DiagonalTexture({
 
   return (
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, style]}>
-      <Svg width="100%" height="100%">
+      <Svg pointerEvents="none" width="100%" height="100%">
         <Defs>
           <Pattern
             id={id}
@@ -155,28 +155,51 @@ export const DiagonalTexture = memo(function DiagonalTexture({
 
 /**
  * The green wash that falls from the top of Home and fades into the page
- * background. One static gradient, positioned absolutely behind the content.
+ * background. Two static layers — the gradient, then the fine diagonal weave
+ * the design lays over it — so the header has grain without a blur pass.
  */
 export const HeaderWash = memo(function HeaderWash({
   height = 520,
   tone = 'primary',
   intensity = 0.3,
+  textured = true,
 }: {
   height?: number;
   tone?: 'primary' | 'gold';
   intensity?: number;
+  /** The weave over the gradient. Off for washes behind dense content. */
+  textured?: boolean;
 }) {
   const { colors } = useTheme();
   const tint = tone === 'gold' ? colors.gold : colors.primary;
 
   return (
-    <LinearGradient
-      style={{ height, bottom: undefined }}
-      stops={[
-        { offset: 0, color: tint, opacity: intensity },
-        { offset: 0.55, color: colors.background, opacity: 0.8 },
-        { offset: 1, color: colors.background, opacity: 1 },
-      ]}
-    />
+    <View pointerEvents="none" style={[styles.wash, { height }]}>
+      <LinearGradient
+        stops={[
+          { offset: 0, color: tint, opacity: intensity },
+          { offset: 0.55, color: colors.background, opacity: 0.8 },
+          { offset: 1, color: colors.background, opacity: 1 },
+        ]}
+      />
+      {textured ? (
+        <DiagonalTexture
+          color={colors.ink}
+          opacity={0.035}
+          angle={135}
+          spacing={9}
+          thickness={3}
+        />
+      ) : null}
+    </View>
   );
+});
+
+const styles = StyleSheet.create({
+  wash: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+  },
 });

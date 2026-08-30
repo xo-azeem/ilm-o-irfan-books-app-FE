@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12+ draws a single icon drawable, so the glow has to travel inside it
+  rather than as its own layer. The platform masks this into a circle; the glow
+  reaches zero alpha well within its own bounds, so nothing visible is clipped,
+  and the mark is inset to sit comfortably inside the mask.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <bitmap
+            android:src="@drawable/splash_glow"
+            android:gravity="fill" />
+    </item>
+    <item>
+        <inset
+            android:drawable="@drawable/splash_logo"
+            android:insetTop="22%"
+            android:insetBottom="22%"
+            android:insetLeft="22%"
+            android:insetRight="22%" />
+    </item>
+</layer-list>

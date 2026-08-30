@@ -19,11 +19,13 @@ import Animated, {
 } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 
-import { fonts } from '@/theme/typography';
+import { fonts, scaleFont } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
 
 const DEFAULT_MAX = 100;
 const DEFAULT_SIZE = 48;
+/** The percentage inside the ring. Scaled by the reader's app-wide text size. */
+const VALUE_SIZE = 13;
 const DEFAULT_THICKNESS = 4;
 const SPIN_MS = 800;
 const FILL_MS = 160;
@@ -70,6 +72,13 @@ export type CircularProgressProps = {
   max?: number;
   size?: number;
   thickness?: number;
+  /**
+   * Overrides for a surface that is not the app's own — the reader paints on
+   * the page tone the reader chose, where app ink can be the wrong colour.
+   */
+  trackColor?: string;
+  rangeColor?: string;
+  labelColor?: string;
   children?: ReactNode;
 };
 
@@ -79,6 +88,9 @@ export function CircularProgress({
   max = DEFAULT_MAX,
   size = DEFAULT_SIZE,
   thickness = DEFAULT_THICKNESS,
+  trackColor,
+  rangeColor,
+  labelColor,
   children,
 }: CircularProgressProps) {
   const { colors } = useTheme();
@@ -108,9 +120,9 @@ export function CircularProgress({
       center,
       circumference,
       percentage,
-      trackColor: colors.faint,
-      rangeColor: colors.primary,
-      labelColor: colors.ink,
+      trackColor: trackColor ?? colors.faint,
+      rangeColor: rangeColor ?? colors.primary,
+      labelColor: labelColor ?? colors.ink,
     }),
     [
       center,
@@ -119,6 +131,9 @@ export function CircularProgress({
       colors.faint,
       colors.ink,
       colors.primary,
+      labelColor,
+      rangeColor,
+      trackColor,
       min,
       percentage,
       radius,
@@ -248,6 +263,9 @@ export function CircularProgressValueText() {
   const { valueText, labelColor, state } = useCircularProgressContext(
     'CircularProgressValueText',
   );
+  // A bare RN Text — it sits inside the ring rather than in the flow — so the
+  // reader's app-wide size has to be applied here rather than inherited.
+  const { fontScale } = useTheme();
 
   if (state === 'indeterminate' || !valueText) {
     return null;
@@ -255,7 +273,13 @@ export function CircularProgressValueText() {
 
   return (
     <View pointerEvents="none" style={styles.valueWrap}>
-      <Text style={[styles.value, { color: labelColor }]}>{valueText}</Text>
+      <Text
+        style={[
+          styles.value,
+          { color: labelColor, fontSize: scaleFont(VALUE_SIZE, fontScale) },
+        ]}>
+        {valueText}
+      </Text>
     </View>
   );
 }
@@ -287,7 +311,6 @@ const styles = StyleSheet.create({
   },
   value: {
     fontFamily: fonts.sansMedium,
-    fontSize: 13,
     fontVariant: ['tabular-nums'],
   },
 });

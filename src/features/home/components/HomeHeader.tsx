@@ -91,15 +91,25 @@ const styles = StyleSheet.create({
   },
   greeting: {
     flex: 1,
+    // Lets the greeting wrap instead of widening the row past the safe area.
+    minWidth: 0,
     gap: 4,
   },
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    // The bell and the avatar keep their size whatever the greeting does.
+    flexShrink: 0,
   },
   pressed: {
     opacity: 0.75,
+  },
+  sticky: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: 12,
   },
   dot: {
     position: 'absolute',
@@ -110,4 +120,26 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     borderWidth: 1.5,
   },
+});
+
+/**
+ * The rule that slides over the top of Home once the reader is past the hero.
+ * Names the half of the page they have reached rather than repeating the
+ * greeting, which is already scrolled away.
+ */
+export const HomeStickyHeader = memo(function HomeStickyHeader({
+  title = 'Discovery',
+  note = 'Personalised',
+}: {
+  title?: string;
+  note?: string;
+}) {
+  return (
+    <View style={styles.sticky}>
+      <Display size="section">{title}</Display>
+      <Text size={fontSize.captionSmall} leading={1} weight="500" tone="primary">
+        {note}
+      </Text>
+    </View>
+  );
 });

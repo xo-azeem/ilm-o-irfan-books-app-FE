@@ -1,0 +1,8 @@
+<resources>
+    <!--
+      Must stay identical to `theme.dark.background` in src/theme/palette.ts.
+      The native launch window and the JS splash paint the same colour, so the
+      handover between them is invisible.
+    -->
+    <color name="splash_background">#080B09</color>
+</resources>

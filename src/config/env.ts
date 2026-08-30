@@ -56,15 +56,11 @@ const supabase = resolveSupabase();
  * Public client configuration. The anon key is safe to ship only because the
  * backend enforces RLS; service-role credentials must never be added here.
  *
- * `ALLOW_PDF_WITHOUT_ENTITLEMENT` is a client fallback only. The real gate is
- * server-side (`app_settings` + Edge Function env). This native flag is used
- * while the server policy is still loading, or if the settings row is missing.
+ * There is deliberately no PDF access flag here. Reading a book requires an
+ * admin role or an active entitlement, in this app and in `get-signed-pdf`,
+ * with no build-time or runtime override on either side.
  */
 export const env = {
   supabaseUrl: supabase.url,
   supabaseAnonKey: supabase.anonKey,
-  // Native builds bake this flag; Metro reload cannot change it. In __DEV__,
-  // always treat PDFs as unlocked so a stale binary cannot block reading.
-  allowPdfWithoutEntitlement:
-    Config.ALLOW_PDF_WITHOUT_ENTITLEMENT?.trim() === 'true' || Boolean(__DEV__),
 } as const;

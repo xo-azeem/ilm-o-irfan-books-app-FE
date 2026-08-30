@@ -7,7 +7,7 @@ import {
   type TextStyle,
 } from 'react-native';
 
-import { fonts, fontSize, resolveFamily, typography } from '@/theme/typography';
+import { fonts, fontSize, resolveFamily, scaleFont, typography } from '@/theme/typography';
 import { useTheme, type AppColors } from '@/theme/ThemeContext';
 
 /**
@@ -18,6 +18,13 @@ import { useTheme, type AppColors } from '@/theme/ThemeContext';
  *   Text     — DM Sans. Body, controls, metadata.
  *   Label    — Monospace eyebrow, uppercase and widely tracked.
  *   UrduText — Nastaliq, right-to-left.
+ *
+ * That is also why the reader's app-wide text size is applied here and nowhere
+ * else: every size below is multiplied by `fontScale` from theme context, so
+ * one choice in Appearance moves the whole app at once. Tracking is scaled with
+ * it — the values in `typography` are absolute points tuned against these
+ * sizes, so leaving them fixed would make large text read loose and small text
+ * read cramped. Line height follows from the scaled size, never the raw one.
  */
 
 export type TextTone =
@@ -75,7 +82,6 @@ type BaseTextProps = Omit<RNTextProps, 'style'> & {
   align?: TextStyle['textAlign'];
   tracking?: number;
   style?: StyleProp<TextStyle>;
-  className?: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -118,22 +124,23 @@ export const Display = memo(function Display({
   style,
   ...rest
 }: DisplayProps) {
-  const { colors } = useTheme();
+  const { colors, fontScale } = useTheme();
 
   const resolved = useMemo(() => {
     const scale =
       typeof size === 'number'
         ? { size, leading: 1.15, tracking: typography.snug }
         : displayScale[size];
+    const resolvedSize = scaleFont(scale.size, fontScale);
     return {
       ...resolveFamily('display', weight),
-      fontSize: scale.size,
-      lineHeight: Math.round(scale.size * (leading ?? scale.leading)),
-      letterSpacing: tracking ?? scale.tracking,
+      fontSize: resolvedSize,
+      lineHeight: Math.round(resolvedSize * (leading ?? scale.leading)),
+      letterSpacing: (tracking ?? scale.tracking) * fontScale,
       color: toneColor(tone, colors),
       textAlign: align,
     } satisfies TextStyle;
-  }, [align, colors, leading, size, tone, tracking, weight]);
+  }, [align, colors, fontScale, leading, size, tone, tracking, weight]);
 
   return <RNText {...rest} style={[resolved, style]} />;
 });
@@ -152,20 +159,19 @@ export const Text = memo(function Text({
   style,
   ...rest
 }: BaseTextProps) {
-  const { colors } = useTheme();
+  const { colors, fontScale } = useTheme();
 
-  const resolved = useMemo(
-    () =>
-      ({
-        ...resolveFamily('sans', weight),
-        fontSize: size,
-        lineHeight: Math.round(size * leading),
-        letterSpacing: tracking,
-        color: toneColor(tone, colors),
-        textAlign: align,
-      } satisfies TextStyle),
-    [align, colors, leading, size, tone, tracking, weight],
-  );
+  const resolved = useMemo(() => {
+    const resolvedSize = scaleFont(size, fontScale);
+    return {
+      ...resolveFamily('sans', weight),
+      fontSize: resolvedSize,
+      lineHeight: Math.round(resolvedSize * leading),
+      letterSpacing: tracking * fontScale,
+      color: toneColor(tone, colors),
+      textAlign: align,
+    } satisfies TextStyle;
+  }, [align, colors, fontScale, leading, size, tone, tracking, weight]);
 
   return <RNText {...rest} style={[resolved, style]} />;
 });
@@ -194,22 +200,21 @@ export const Label = memo(function Label({
   style,
   ...rest
 }: LabelProps) {
-  const { colors } = useTheme();
+  const { colors, fontScale } = useTheme();
 
-  const resolved = useMemo(
-    () =>
-      ({
-        fontFamily: fonts.mono,
-        fontSize: size,
-        lineHeight: Math.round(size * leading),
-        letterSpacing: tracking,
-        fontWeight: weight,
-        color: toneColor(tone, colors),
-        textAlign: align,
-        textTransform: uppercase ? 'uppercase' : undefined,
-      } satisfies TextStyle),
-    [align, colors, leading, size, tone, tracking, uppercase, weight],
-  );
+  const resolved = useMemo(() => {
+    const resolvedSize = scaleFont(size, fontScale);
+    return {
+      fontFamily: fonts.mono,
+      fontSize: resolvedSize,
+      lineHeight: Math.round(resolvedSize * leading),
+      letterSpacing: tracking * fontScale,
+      fontWeight: weight,
+      color: toneColor(tone, colors),
+      textAlign: align,
+      textTransform: uppercase ? 'uppercase' : undefined,
+    } satisfies TextStyle;
+  }, [align, colors, fontScale, leading, size, tone, tracking, uppercase, weight]);
 
   return <RNText {...rest} style={[resolved, style]} />;
 });
@@ -232,21 +237,20 @@ export const UrduText = memo(function UrduText({
   style,
   ...rest
 }: BaseTextProps) {
-  const { colors } = useTheme();
+  const { colors, fontScale } = useTheme();
 
-  const resolved = useMemo(
-    () =>
-      ({
-        ...resolveFamily('urdu', weight),
-        fontSize: size,
-        lineHeight: Math.round(size * leading),
-        letterSpacing: tracking,
-        color: toneColor(tone, colors),
-        textAlign: align,
-        writingDirection: 'rtl',
-      } satisfies TextStyle),
-    [align, colors, leading, size, tone, tracking, weight],
-  );
+  const resolved = useMemo(() => {
+    const resolvedSize = scaleFont(size, fontScale);
+    return {
+      ...resolveFamily('urdu', weight),
+      fontSize: resolvedSize,
+      lineHeight: Math.round(resolvedSize * leading),
+      letterSpacing: tracking * fontScale,
+      color: toneColor(tone, colors),
+      textAlign: align,
+      writingDirection: 'rtl',
+    } satisfies TextStyle;
+  }, [align, colors, fontScale, leading, size, tone, tracking, weight]);
 
   return <RNText {...rest} style={[styles.urdu, resolved, style]} />;
 });

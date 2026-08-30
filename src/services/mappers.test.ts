@@ -43,6 +43,44 @@ describe('catalog mappers', () => {
     assert.equal(authorName(null), 'Unknown');
   });
 
+  // `book_list_items` joins authors with a `left join`, and `book-detail`
+  // returns the relation nested, so every empty shape has to land on one name.
+  it('falls back to one name for every empty author shape', () => {
+    assert.equal(authorName('Ibn Khaldun'), 'Ibn Khaldun');
+    assert.equal(authorName(''), 'Unknown');
+    assert.equal(authorName('   '), 'Unknown');
+    assert.equal(authorName([]), 'Unknown');
+    assert.equal(authorName({ name: null }), 'Unknown');
+    assert.equal(authorName(undefined), 'Unknown');
+  });
+
+  it('does not write "by Unknown" into an unattributed book blurb', () => {
+    const book = mapCatalogBook({
+      id: '2',
+      title: 'Unattributed',
+      author_name: null,
+      cover_path: null,
+      cover_color: null,
+      cover_color_dark: null,
+      rating: null,
+      tag: null,
+      genre: null,
+      read_time_minutes: null,
+      price_cents: null,
+      currency: null,
+      format: null,
+      is_premium: null,
+    });
+
+    assert.equal(book.author, 'Unknown');
+    assert.equal(book.description, 'A thoughtful read from the Ilm o Irfan library.');
+    // A nulled endpoint column must not reach the UI as null.
+    assert.equal(book.price, 0);
+    assert.equal(book.currency, 'USD');
+    assert.equal(book.format, 'Digital edition');
+    assert.equal(book.isPremium, false);
+  });
+
   it('maps backend book rows onto the existing UI model', () => {
     const book = mapCatalogBook({
       id: '33333333-3333-3333-3333-333333333333',

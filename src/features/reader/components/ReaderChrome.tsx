@@ -1,5 +1,5 @@
 import { memo, type ReactNode } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   Easing,
@@ -12,7 +12,8 @@ import { Bookmark, ChevronLeft, Settings2 } from 'lucide-react-native';
 
 import { IconButton } from '@/components/ui';
 import { Label, Text } from '@/components/ui/Text';
-import { readerStage } from '@/theme/palette';
+import { READER_RULE_INSET } from '@/features/reader/constants';
+import { useReaderSurface } from '@/features/reader/useReaderSurface';
 import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
 
@@ -26,9 +27,8 @@ export type ReaderChromeProps = {
   title: string;
   page: number;
   totalPages: number;
-  /** Chrome is hidden by default; tapping the centre of the page restores it. */
+  /** Chrome is hidden by default; a tap on the page restores it. */
   visible: boolean;
-  onToggle: () => void;
   onBack: () => void;
   onOpenSettings: () => void;
   onBookmark: () => void;
@@ -42,15 +42,14 @@ export type ReaderChromeProps = {
  * The reader's frame.
  *
  * Immersed, only two things survive: a hairline progress rule and one line of
- * typographic status. Everything else appears on a centre tap and leaves again,
- * so the page is what the reader is looking at.
+ * typographic status. Everything else appears on a tap and leaves again, so the
+ * page is what the reader is looking at.
  */
 export const ReaderChrome = memo(function ReaderChrome({
   title,
   page,
   totalPages,
   visible,
-  onToggle,
   onBack,
   onOpenSettings,
   onBookmark,
@@ -59,6 +58,7 @@ export const ReaderChrome = memo(function ReaderChrome({
   children,
 }: ReaderChromeProps) {
   const { colors } = useTheme();
+  const surface = useReaderSurface();
   const insets = useSafeAreaInsets();
 
   const progress = totalPages > 0 ? Math.min(1, page / totalPages) : 0;
@@ -74,14 +74,13 @@ export const ReaderChrome = memo(function ReaderChrome({
   const statusStyle = useAnimatedStyle(() => ({ opacity: 1 - shown.value }));
 
   return (
-    <View style={[styles.root, { backgroundColor: readerStage }]}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={visible ? 'Hide reading controls' : 'Show reading controls'}
-        style={styles.stage}
-        onPress={onToggle}>
-        {children}
-      </Pressable>
+    <View style={[styles.root, { backgroundColor: surface.stage }]}>
+      {/*
+        The stage owns no touches at all. The document view underneath is the
+        only thing that sees them, so every gesture — tap, swipe, pinch, drag —
+        reaches the page whole, and a tap is reported exactly once.
+      */}
+      <View style={styles.stage}>{children}</View>
 
       {/* Top bar — only reachable while the chrome is showing. */}
       <Animated.View
@@ -137,7 +136,13 @@ export const ReaderChrome = memo(function ReaderChrome({
         pointerEvents="none"
         style={[styles.status, { paddingBottom: Math.max(insets.bottom, 8) }, statusStyle]}>
         {totalPages > 0 ? (
-          <Label size={fontSize.label} tracking={1.1} tone="dim">
+          // This line sits on the stage rather than in the chrome, so it takes
+          // the stage's own ink rather than the chrome's.
+          <Label
+            size={fontSize.label}
+            tracking={1.1}
+            tone="inherit"
+            style={{ color: surface.muted }}>
             {chapterLabel
               ? `${chapterLabel} · ${percent}%`
               : `PAGE ${page} OF ${totalPages} · ${percent}%`}
@@ -148,7 +153,7 @@ export const ReaderChrome = memo(function ReaderChrome({
       {/* The hairline rule that never leaves. */}
       <View
         pointerEvents="none"
-        style={[styles.rule, { bottom: Math.max(insets.bottom, 8) + 44 }]}>
+        style={[styles.rule, { bottom: Math.max(insets.bottom, 8) + READER_RULE_INSET }]}>
         <View
           style={{
             width: `${progress * 100}%`,

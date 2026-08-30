@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Platform, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
@@ -9,6 +9,7 @@ import { useSheet } from '@/components/ui';
 import type { BookPdfSource } from '@/constants/books';
 import { ROUTES } from '@/constants/routes';
 import { BookPageFlip, type BookPageFlipHandle } from '@/features/reader/components/BookPageFlip';
+import { ReaderBoundary } from '@/features/reader/components/ReaderBoundary';
 import { ReaderChrome } from '@/features/reader/components/ReaderChrome';
 import { ReaderError } from '@/features/reader/components/ReaderError';
 import { ReaderSettingsSheet } from '@/features/reader/components/ReaderSettingsSheet';
@@ -19,12 +20,30 @@ import { useBook } from '@/hooks/useCatalog';
 import { downloadPdf, resolvePdfSource } from '@/services/pdf';
 import { useAccess } from '@/lib/access';
 import { useThemeStore } from '@/stores/themeStore';
-import { readerStage } from '@/theme/palette';
+import { useReaderSurface } from '@/features/reader/useReaderSurface';
+
+/** How close two reported taps have to be before the second is a duplicate. */
+const TOGGLE_GUARD_MS = 220;
 
 type BookReaderRouteProp = RouteProp<RootStackParamList, 'BookReader'>;
 type BookReaderNavigationProp = NativeStackNavigationProp<RootStackParamList, 'BookReader'>;
 
+/**
+ * The reading screen, behind a boundary.
+ *
+ * Nothing that happens to one book should be able to close the app, so a throw
+ * anywhere in here lands on the reader's own failure screen and "Try again"
+ * rebuilds the screen from scratch.
+ */
 export function BookReaderScreen() {
+  return (
+    <ReaderBoundary>
+      <BookReader />
+    </ReaderBoundary>
+  );
+}
+
+function BookReader() {
   const navigation = useNavigation<BookReaderNavigationProp>();
   const route = useRoute<BookReaderRouteProp>();
   const bookId = route.params.bookId;
@@ -34,10 +53,10 @@ export function BookReaderScreen() {
   const [sourceError, setSourceError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
-  const scaleRef = useRef(1);
-  const scaleDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The zoom the reader asked for. The document view follows it, never the
+  // other way round, so the controls can never end up describing a zoom that
+  // is not the one on screen.
   const [controlScale, setControlScale] = useState(MIN_SCALE);
-  const [scaleSnapshot, setScaleSnapshot] = useState(MIN_SCALE);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -50,15 +69,20 @@ export function BookReaderScreen() {
   // Bumping this token re-runs the source effect; that is the retry path.
   const [retryToken, setRetryToken] = useState(0);
   const settingsSheet = useSheet();
+  // The stage follows the app's theme; only the page itself follows the tone.
+  const surface = useReaderSurface();
   // Page tone is a reading default, shared with the Appearance screen.
   const pageTone = useThemeStore(state => state.pageTone);
   const setPageTone = useThemeStore(state => state.setPageTone);
+  const readingMode = useThemeStore(state => state.readingMode);
+  const setReadingMode = useThemeStore(state => state.setReadingMode);
   /** Set once a download completes, so the error state can offer it. */
   const downloadedUri = useRef<string | null>(null);
   const { canOpenBooks, isAuthenticated, isSubscriptionLoading } = useAccess();
   const progressMutation = useProgressMutation();
   const highlightMutation = useHighlightMutation(bookId);
   useHighlights(bookId);
+  const lastToggle = useRef(0);
   const pendingProgress = useRef<{ page: number; totalPages: number } | null>(null);
   const progressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flipRef = useRef<BookPageFlipHandle>(null);
@@ -87,9 +111,7 @@ export function BookReaderScreen() {
     setLoadProgress(0);
     setLoaderVisible(true);
     setHasError(false);
-    scaleRef.current = MIN_SCALE;
     setControlScale(MIN_SCALE);
-    setScaleSnapshot(MIN_SCALE);
     void resolvePdfSource(bookId, {
       signal: abort.signal,
       onProgress: ({ percent }) => {
@@ -135,25 +157,6 @@ export function BookReaderScreen() {
       flushProgress();
     },
     [flushProgress],
-  );
-
-  const handleScaleChanged = useCallback((scale: number) => {
-    scaleRef.current = scale;
-    if (scaleDebounceRef.current) {
-      clearTimeout(scaleDebounceRef.current);
-    }
-    scaleDebounceRef.current = setTimeout(() => {
-      setScaleSnapshot(scale);
-    }, 120);
-  }, []);
-
-  useEffect(
-    () => () => {
-      if (scaleDebounceRef.current) {
-        clearTimeout(scaleDebounceRef.current);
-      }
-    },
-    [],
   );
 
   const handleLoadComplete = useCallback((numberOfPages: number) => {
@@ -213,26 +216,26 @@ export function BookReaderScreen() {
   }, [highlightMutation, page]);
 
   const applyScale = useCallback((next: number) => {
-    const clamped = Number(Math.min(Math.max(next, MIN_SCALE), MAX_SCALE).toFixed(2));
-    scaleRef.current = clamped;
-    setScaleSnapshot(clamped);
-    setControlScale(clamped);
+    setControlScale(Number(Math.min(Math.max(next, MIN_SCALE), MAX_SCALE).toFixed(2)));
   }, []);
 
   const handleZoomIn = useCallback(() => {
-    applyScale(scaleRef.current + SCALE_STEP);
-  }, [applyScale]);
+    applyScale(controlScale + SCALE_STEP);
+  }, [applyScale, controlScale]);
 
   const handleZoomOut = useCallback(() => {
-    applyScale(scaleRef.current - SCALE_STEP);
-  }, [applyScale]);
+    applyScale(controlScale - SCALE_STEP);
+  }, [applyScale, controlScale]);
 
-  const handleResetZoom = useCallback(() => {
-    if (scaleRef.current === MIN_SCALE) return;
-    applyScale(MIN_SCALE);
-  }, [applyScale]);
-
+  /**
+   * One tap, one toggle. The native document view can report a tap more than
+   * once for a single touch, and a chrome that opens and shuts again reads as a
+   * broken tap, so a repeat inside the animation's own window is ignored.
+   */
   const toggleChrome = useCallback(() => {
+    const now = Date.now();
+    if (now - lastToggle.current < TOGGLE_GUARD_MS) return;
+    lastToggle.current = now;
     setChromeVisible(current => !current);
   }, []);
 
@@ -246,31 +249,13 @@ export function BookReaderScreen() {
     void handleDownload();
   }, [handleDownload]);
 
-  const handleGoToPage = useCallback(() => {
-    settingsSheet.close();
-    Alert.prompt?.(
-      'Go to page',
-      totalPages > 0 ? `1 – ${totalPages}` : undefined,
-      value => {
-        const target = Number(value);
-        if (Number.isFinite(target) && target >= 1) {
-          flipRef.current?.goTo(target);
-        }
-      },
-      'plain-text',
-      String(page),
-      'number-pad',
-    );
-
-    // `Alert.prompt` is iOS-only; Android gets a page-turn nudge instead of a
-    // silent no-op until a proper picker sheet is added.
-    if (Platform.OS !== 'ios') {
-      Alert.alert(
-        'Go to page',
-        `You are on page ${page}${totalPages ? ` of ${totalPages}` : ''}. Swipe or tap the page edges to move through the book.`,
-      );
-    }
-  }, [page, settingsSheet, totalPages]);
+  const handleGoToPage = useCallback(
+    (target: number) => {
+      settingsSheet.close();
+      flipRef.current?.goTo(target);
+    },
+    [settingsSheet],
+  );
 
   const handleRetry = useCallback(() => {
     setRetryToken(token => token + 1);
@@ -288,9 +273,9 @@ export function BookReaderScreen() {
     }
   }, []);
 
-  const canZoomOut = scaleSnapshot > MIN_SCALE;
-  const canZoomIn = scaleSnapshot < MAX_SCALE;
-  const zoomPercent = Math.round(scaleSnapshot * 100);
+  const canZoomOut = controlScale > MIN_SCALE;
+  const canZoomIn = controlScale < MAX_SCALE;
+  const zoomPercent = Math.round(controlScale * 100);
   const bookTitle = book?.title?.trim() || 'Book';
   const blocked = hasError || sourceError;
 
@@ -306,31 +291,30 @@ export function BookReaderScreen() {
   }
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: surface.stage }]}>
       <ReaderChrome
         title={bookTitle}
         page={page}
         totalPages={totalPages}
         visible={chromeVisible}
         saved={false}
-        onToggle={toggleChrome}
         onBack={() => navigation.goBack()}
         onOpenSettings={settingsSheet.open}
         onBookmark={handleHighlight}>
         {pdfSource ? (
-          <BookPageFlip
-            ref={flipRef}
-            key={bookId}
-            source={pdfSource}
-            scale={controlScale}
-            onLoadComplete={handleLoadComplete}
-            onLoadProgress={handleLoadProgress}
-            onError={handleError}
-            onPageChanged={handlePageChanged}
-            onScaleChanged={handleScaleChanged}
-            onApplyScale={applyScale}
-            onResetZoom={handleResetZoom}
-          />
+          <ReaderBoundary>
+            <BookPageFlip
+              ref={flipRef}
+              key={bookId}
+              source={pdfSource}
+              scale={controlScale}
+              onLoadComplete={handleLoadComplete}
+              onLoadProgress={handleLoadProgress}
+              onError={handleError}
+              onPageChanged={handlePageChanged}
+              onSingleTap={toggleChrome}
+            />
+          </ReaderBoundary>
         ) : null}
       </ReaderChrome>
 
@@ -355,6 +339,8 @@ export function BookReaderScreen() {
         onClose={settingsSheet.close}
         tone={pageTone}
         onToneChange={setPageTone}
+        readingMode={readingMode}
+        onReadingModeChange={setReadingMode}
         brightness={brightness}
         onBrightnessChange={setBrightness}
         zoomPercent={zoomPercent}
@@ -364,6 +350,8 @@ export function BookReaderScreen() {
         onZoomOut={handleZoomOut}
         onBookmark={handleBookmarkFromSheet}
         onGoToPage={handleGoToPage}
+        page={page}
+        totalPages={totalPages}
         onDownload={handleDownloadFromSheet}
         isDownloading={isDownloading}
       />
@@ -374,7 +362,6 @@ export function BookReaderScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: readerStage,
   },
   dimmer: {
     ...StyleSheet.absoluteFill,

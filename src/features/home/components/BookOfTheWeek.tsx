@@ -74,7 +74,7 @@ export const BookOfTheWeek = memo(function BookOfTheWeek({
         />
 
         <View style={styles.headline}>
-          <Label size={10} tracking={1.5} tone="gold">
+          <Label size={10} weight="600" tracking={1.5} tone="gold">
             {eyebrow}
           </Label>
 

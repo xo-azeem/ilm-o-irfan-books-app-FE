@@ -2,7 +2,7 @@ import { assertOk, supabase, unwrap } from './client';
 import type { AdminAnalytics, AdminDashboardStats, AdminSettings, AuditEntry, StorageAudit } from './types';
 
 const SETTINGS_COLUMNS =
-  'allow_pdf_without_entitlement,maintenance_mode,maintenance_message,signup_enabled,' +
+  'maintenance_mode,maintenance_message,signup_enabled,' +
   'min_supported_version,support_email,featured_collection_id,updated_at';
 
 export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
@@ -35,8 +35,33 @@ export async function getAdminSettings(): Promise<AdminSettings> {
   ) as AdminSettings;
 }
 
+/**
+ * Writes the product flags.
+ *
+ * The updated row is selected back deliberately. `app_settings` is guarded by
+ * the `app_settings_update_admin` RLS policy, and an update that the policy
+ * filters out matches zero rows and returns **no error** — so without reading
+ * something back, a non-admin session toggling "Free PDF access" would get a
+ * success toast for a write that never happened, and only find out when the
+ * value reverted on the next refetch.
+ */
 export async function updateAdminSettings(patch: Partial<AdminSettings>) {
-  assertOk(await supabase.from('app_settings').update(patch).eq('id', 1));
+  const result = await supabase
+    .from('app_settings')
+    .update(patch)
+    .eq('id', 1)
+    .select(SETTINGS_COLUMNS)
+    .maybeSingle();
+
+  assertOk(result);
+
+  if (!result.data) {
+    throw new Error(
+      'That change was not saved — your session is not an admin session. Sign out and back in, then try again.',
+    );
+  }
+
+  return result.data as unknown as AdminSettings;
 }
 
 export async function getAdminAnalytics(days = 30): Promise<AdminAnalytics> {

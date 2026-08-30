@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { BookCover, EmptyState } from '@/components/ui';
-import { readerStage } from '@/theme/palette';
+import { useTheme } from '@/theme/ThemeContext';
 
 /**
  * The reader's failure state.
@@ -23,8 +23,12 @@ export const ReaderError = memo(function ReaderError({
   onRetry: () => void;
   onReadDownloaded?: () => void;
 }) {
+  // The failure state keeps the app's own palette: its copy is app-themed, and
+  // page-tone paper under app-dark ink would be a message nobody can read.
+  const { colors } = useTheme();
+
   return (
-    <View style={[styles.root, { backgroundColor: readerStage }]}>
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
       <EmptyState
         art={<BookCover width={88} height={130} placeholder rounded={9} />}
         title="This page didn’t arrive."

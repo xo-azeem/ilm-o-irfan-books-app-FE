@@ -1,12 +1,11 @@
 const path = require('path');
 const { getDefaultConfig } = require('@react-native/metro-config');
-const { withNativeWind } = require('nativewind/metro');
 
 /**
  * Windows can expose the same folder as `d:\...` (Node cwd) and `D:\...`
  * (Win32 / some resolvers). Metro's path map is case-sensitive for the drive
- * letter, so a mismatch breaks SHA-1 for polyfills and NativeWind's CSS input
- * equality check — especially after a folder rename / --reset-cache.
+ * letter, so a mismatch breaks SHA-1 for polyfills — especially after a folder
+ * rename or a `--reset-cache`.
  *
  * Canonicalize to the uppercase drive letter and align process.cwd() so every
  * Metro path uses one casing for the life of the bundler process.
@@ -33,6 +32,4 @@ try {
 const config = getDefaultConfig(projectRoot);
 config.projectRoot = projectRoot;
 
-module.exports = withNativeWind(config, {
-  input: canonicalizeWindowsPath(path.join(projectRoot, 'global.css')),
-});
+module.exports = config;

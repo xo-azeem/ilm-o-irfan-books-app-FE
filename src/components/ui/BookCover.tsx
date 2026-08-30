@@ -1,7 +1,9 @@
 import { memo, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Image, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { UserRound } from 'lucide-react-native';
 import Svg, { Defs, Line, Pattern, Rect } from 'react-native-svg';
 
+import { Icon } from '@/components/ui/Icon';
 import { CoverProgress } from '@/components/ui/Progress';
 import { Display, Text } from '@/components/ui/Text';
 import { useTheme } from '@/theme/ThemeContext';
@@ -215,11 +217,11 @@ export type AvatarProps = {
 
 export function initialsFrom(name?: string | null): string {
   if (!name) {
-    return '?';
+    return '';
   }
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) {
-    return '?';
+    return '';
   }
   if (parts.length === 1) {
     return parts[0].slice(0, 1).toUpperCase();
@@ -242,6 +244,8 @@ export const Avatar = memo(function Avatar({
     setFailed(false);
   }, [imageUrl]);
 
+  const initials = initialsFrom(name);
+
   const palette = useMemo(() => {
     switch (tone) {
       case 'primary':
@@ -256,7 +260,7 @@ export const Avatar = memo(function Avatar({
   return (
     <View
       style={[
-        styles.centered,
+        styles.avatar,
         {
           width: size,
           height: size,
@@ -274,15 +278,22 @@ export const Avatar = memo(function Avatar({
           accessibilityIgnoresInvertColors
           onError={() => setFailed(true)}
         />
-      ) : (
+      ) : initials ? (
         <Text
           size={Math.round(size * 0.36)}
           leading={1}
           weight="600"
           tone="inherit"
           style={{ color: palette.ink }}>
-          {initialsFrom(name)}
+          {initials}
         </Text>
+      ) : (
+        <Icon
+          icon={UserRound}
+          size={Math.round(size * 0.5)}
+          color={palette.ink}
+          strokeWidth={1.7}
+        />
       )}
     </View>
   );
@@ -302,6 +313,13 @@ const styles = StyleSheet.create({
   },
   centered: {
     ...StyleSheet.absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // The avatar centres its own contents but has to stay in the flow. Reusing
+  // `centered` made it absolute, which collapsed its parent to nothing and let
+  // it paint past the right edge of the screen.
+  avatar: {
     alignItems: 'center',
     justifyContent: 'center',
   },

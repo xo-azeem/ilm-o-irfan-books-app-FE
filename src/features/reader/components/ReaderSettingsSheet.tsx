@@ -1,21 +1,25 @@
-import { memo, useCallback, useRef } from 'react';
+import { memo, useCallback, useEffect, useState, useRef } from 'react';
 import {
   Pressable,
   StyleSheet,
   View,
   type LayoutChangeEvent,
 } from 'react-native';
-import { Bookmark, Download, Hash, ZoomIn, ZoomOut } from 'lucide-react-native';
+import { Bookmark, CornerDownLeft, Download, ZoomIn, ZoomOut } from 'lucide-react-native';
 
 import {
   Divider,
   Icon,
+  IconButton,
   Label,
+  SegmentedControl,
   Sheet,
   SliderTrack,
   Text,
+  TextField,
   type LucideIcon,
 } from '@/components/ui';
+import { READING_MODES, type ReadingMode } from '@/stores/themeStore';
 import { readerTones, type ReaderTone } from '@/theme/palette';
 import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
@@ -31,6 +35,9 @@ export type ReaderSettingsSheetProps = {
   onClose: () => void;
   tone: ReaderTone;
   onToneChange: (tone: ReaderTone) => void;
+  /** Whether the book turns a page at a time or runs as one column. */
+  readingMode: ReadingMode;
+  onReadingModeChange: (mode: ReadingMode) => void;
   /** 0–1. Drives the page's own dimming overlay, not the OS brightness. */
   brightness: number;
   onBrightnessChange: (value: number) => void;
@@ -40,7 +47,10 @@ export type ReaderSettingsSheetProps = {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onBookmark: () => void;
-  onGoToPage: () => void;
+  /** Jumps the book to a page the reader typed. */
+  onGoToPage: (page: number) => void;
+  page: number;
+  totalPages: number;
   onDownload: () => void;
   isDownloading?: boolean;
 };
@@ -57,6 +67,8 @@ export const ReaderSettingsSheet = memo(function ReaderSettingsSheet({
   onClose,
   tone,
   onToneChange,
+  readingMode,
+  onReadingModeChange,
   brightness,
   onBrightnessChange,
   zoomPercent,
@@ -66,11 +78,28 @@ export const ReaderSettingsSheet = memo(function ReaderSettingsSheet({
   onZoomOut,
   onBookmark,
   onGoToPage,
+  page,
+  totalPages,
   onDownload,
   isDownloading = false,
 }: ReaderSettingsSheetProps) {
   return (
-    <Sheet visible={visible} onClose={onClose} title="Reading" scrollable={false}>
+    <Sheet visible={visible} onClose={onClose} title="Reading">
+      <View style={styles.group}>
+        <View style={styles.groupHeader}>
+          <Label>Reading mode</Label>
+          <Label tone="primary" tracking={0.8}>
+            {readingMode === 'scroll' ? 'ONE COLUMN' : 'PAGE BY PAGE'}
+          </Label>
+        </View>
+        <SegmentedControl
+          options={READING_MODES}
+          value={readingMode}
+          onChange={onReadingModeChange}
+          variant="soft"
+        />
+      </View>
+
       <View style={styles.group}>
         <Label>Page tone</Label>
         <View style={styles.row}>
@@ -105,11 +134,20 @@ export const ReaderSettingsSheet = memo(function ReaderSettingsSheet({
         </View>
       </View>
 
+      <View style={styles.group}>
+        <View style={styles.groupHeader}>
+          <Label>Go to page</Label>
+          {totalPages > 0 ? (
+            <Label tone="primary" tracking={0.8}>{`1 – ${totalPages}`}</Label>
+          ) : null}
+        </View>
+        <PageJump page={page} totalPages={totalPages} onGoToPage={onGoToPage} visible={visible} />
+      </View>
+
       <Divider />
 
       <View style={styles.actions}>
         <SheetAction icon={Bookmark} label="Bookmark" onPress={onBookmark} />
-        <SheetAction icon={Hash} label="Go to page" onPress={onGoToPage} />
         <SheetAction
           icon={Download}
           label={isDownloading ? 'Saving…' : 'Download'}
@@ -164,6 +202,68 @@ const ToneSwatch = memo(function ToneSwatch({
         {label}
       </Text>
     </Pressable>
+  );
+});
+
+/**
+ * The page jump.
+ *
+ * A typed page number, confirmed either from the keyboard or from the button
+ * beside it. The field starts on the page the reader is already on, and a
+ * number outside the book is simply clamped rather than refused.
+ */
+const PageJump = memo(function PageJump({
+  page,
+  totalPages,
+  onGoToPage,
+  visible,
+}: {
+  page: number;
+  totalPages: number;
+  onGoToPage: (page: number) => void;
+  visible: boolean;
+}) {
+  const [draft, setDraft] = useState(() => String(page));
+
+  // Reopening the sheet offers the page the reader is on, not the last one
+  // they typed.
+  useEffect(() => {
+    if (visible) setDraft(String(page));
+  }, [page, visible]);
+
+  const target = Number(draft.replace(/[^0-9]/g, ''));
+  const valid = Number.isFinite(target) && target >= 1;
+
+  const submit = useCallback(() => {
+    if (!valid) return;
+    const clamped = totalPages > 0 ? Math.min(target, totalPages) : target;
+    onGoToPage(clamped);
+  }, [onGoToPage, target, totalPages, valid]);
+
+  return (
+    <View style={styles.jump}>
+      <View style={styles.jumpField}>
+        <TextField
+          value={draft}
+          onChangeText={setDraft}
+          keyboardType="number-pad"
+          returnKeyType="go"
+          maxLength={6}
+          selectTextOnFocus
+          accessibilityLabel="Page number"
+          placeholder={totalPages > 0 ? `1 – ${totalPages}` : 'Page number'}
+          onSubmitEditing={submit}
+        />
+      </View>
+      <IconButton
+        icon={CornerDownLeft}
+        onPress={submit}
+        disabled={!valid}
+        buttonSize={50}
+        style={!valid ? styles.disabled : undefined}
+        accessibilityLabel="Go to page"
+      />
+    </View>
   );
 });
 
@@ -298,6 +398,14 @@ const styles = StyleSheet.create({
   brightness: {
     // A taller hit area than the 6pt track, so the drag is comfortable.
     paddingVertical: 8,
+  },
+  jump: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  jumpField: {
+    flex: 1,
   },
   swatch: {
     flex: 1,

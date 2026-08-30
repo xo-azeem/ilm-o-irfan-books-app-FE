@@ -40,13 +40,28 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
     let seq = 0;
+    // Who the cache currently belongs to. `undefined` means no session event has
+    // been seen yet, which is not the same as "signed out": at launch the cache
+    // is empty, so there is nothing to throw away.
+    let cachedUserId: string | null | undefined;
 
     async function applySession(session: Session | null) {
       const my = ++seq;
       setSession(session);
 
-      if (!session) {
+      // A cold start delivers the same session twice — once from getSession(),
+      // once as the INITIAL_SESSION event — and resuming from background
+      // delivers it again. Clearing on each of those wipes queries the screens
+      // underneath have already started, and an observer left holding a
+      // destroyed query never settles: the skeleton stays up for good. So the
+      // cache is only dropped when the identity behind it actually changes.
+      const nextUserId = session?.user.id ?? null;
+      if (cachedUserId !== undefined && cachedUserId !== nextUserId) {
         queryClient.clear();
+      }
+      cachedUserId = nextUserId;
+
+      if (!session) {
         if (mounted && my === seq) {
           setAccessRole({ isAdmin: false, roleResolved: true, accessCheckedFor: null });
         }

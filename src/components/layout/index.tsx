@@ -1,12 +1,20 @@
 import { memo, type PropsWithChildren, type ReactNode } from 'react';
 import {
-  ScrollView,
+  Platform,
+  StatusBar,
   StyleSheet,
   View,
   type ScrollViewProps,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import Animated, {
+  Extrapolation,
+  interpolate,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft } from 'lucide-react-native';
 
@@ -16,6 +24,9 @@ import { useAppInsets } from '@/hooks/useAppInsets';
 import { layout } from '@/theme/palette';
 import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
+
+/** The board's top padding, measured from the top of the device frame. */
+const DESIGN_TOP_INSET = 52;
 
 export type ScreenProps = PropsWithChildren<{
   scrollable?: boolean;
@@ -29,6 +40,14 @@ export type ScreenProps = PropsWithChildren<{
   overlay?: ReactNode;
   /** Suppresses the top safe-area inset for screens that bleed to the notch. */
   edgeToEdge?: boolean;
+  /**
+   * A compact bar that fades in once the page has scrolled past its opening
+   * section — Home's `Discovery · Personalised` rule. Ignored when the screen
+   * is not scrollable.
+   */
+  stickyHeader?: ReactNode;
+  /** Scroll distance over which the sticky bar reaches full opacity. */
+  stickyHeaderOffset?: number;
   contentStyle?: StyleProp<ViewStyle>;
   scrollViewProps?: Omit<ScrollViewProps, 'children' | 'contentContainerStyle'>;
 }>;
@@ -46,6 +65,8 @@ export const Screen = memo(function Screen({
   backdrop,
   overlay,
   edgeToEdge = false,
+  stickyHeader,
+  stickyHeaderOffset = 180,
   contentStyle,
   scrollViewProps,
 }: ScreenProps) {
@@ -53,34 +74,114 @@ export const Screen = memo(function Screen({
   const insets = useSafeAreaInsets();
   const { scrollEndPadding, contentBottomInset } = useAppInsets();
 
-  // The design places content 52px from the top of a 390×844 frame, which is
-  // the status bar plus a consistent 8pt of breathing room.
-  const paddingTop = edgeToEdge ? 0 : insets.top + 8;
+  // The board places content 52px down a 390×844 frame. Two things can put a
+  // control under the clock instead: Android's status bar is far shorter than
+  // an iPhone's, so `inset + 8` lands at ~32px there; and an inset of 0 is a
+  // real state on Android before the window reports its decorations. Take the
+  // larger of the measured inset and the platform's own status-bar height, then
+  // hold the design's 52px as a floor.
+  const measuredTop = Math.max(
+    insets.top,
+    Platform.OS === 'android' ? StatusBar.currentHeight ?? 0 : 0,
+  );
+  const paddingTop = edgeToEdge ? 0 : Math.max(measuredTop + 8, DESIGN_TOP_INSET);
+
+  const scrollY = useSharedValue(0);
+
+  // The handler only runs on the UI thread, and only when a screen has asked
+  // for a sticky bar — an ordinary page never pays for it.
+  const onScroll = useAnimatedScrollHandler(event => {
+    scrollY.value = event.contentOffset.y;
+  });
 
   const inner = (
-    <View style={[{ paddingHorizontal: padding, gap }, contentStyle]}>{children}</View>
+    <View
+      style={[
+        { paddingHorizontal: padding, gap },
+        // A static page's children can only fill the screen if the wrapper does.
+        !scrollable && styles.grow,
+        contentStyle,
+      ]}>
+      {children}
+    </View>
   );
+
+  const showSticky = scrollable && stickyHeader != null;
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {backdrop}
 
       {scrollable ? (
-        <ScrollView
+        <Animated.ScrollView
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          contentInsetAdjustmentBehavior="never"
           contentContainerStyle={{ paddingTop, paddingBottom: scrollEndPadding }}
-          {...scrollViewProps}>
+          {...scrollViewProps}
+          onScroll={showSticky ? onScroll : undefined}
+          scrollEventThrottle={16}>
           {inner}
-        </ScrollView>
+        </Animated.ScrollView>
       ) : (
         <View style={[styles.static, { paddingTop, paddingBottom: contentBottomInset }]}>
           {inner}
         </View>
       )}
 
+      {showSticky ? (
+        <StickyBar scrollY={scrollY} offset={stickyHeaderOffset} padding={padding}>
+          {stickyHeader}
+        </StickyBar>
+      ) : null}
+
       {overlay}
     </View>
+  );
+});
+
+/**
+ * The overlay rule that appears once the reader has scrolled past the opening
+ * section. Bottom-aligned inside the safe area, so the label sits just under
+ * the status bar exactly as the board draws it.
+ */
+const StickyBar = memo(function StickyBar({
+  scrollY,
+  offset,
+  padding,
+  children,
+}: PropsWithChildren<{
+  scrollY: { value: number };
+  offset: number;
+  padding: number;
+}>) {
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+
+  const style = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      scrollY.value,
+      [offset - 60, offset],
+      [0, 1],
+      Extrapolation.CLAMP,
+    ),
+  }));
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        styles.sticky,
+        {
+          paddingTop: insets.top,
+          paddingHorizontal: padding,
+          backgroundColor: colors.chrome,
+          borderBottomColor: colors.chromeBorder,
+        },
+        style,
+      ]}>
+      {children}
+    </Animated.View>
   );
 });
 
@@ -144,6 +245,17 @@ const styles = StyleSheet.create({
   },
   static: {
     flex: 1,
+  },
+  grow: {
+    flex: 1,
+  },
+  sticky: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth * 2,
   },
   header: {
     gap: 14,

@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   BackHandler,
+  KeyboardAvoidingView,
   Modal,
   Pressable,
   ScrollView,
@@ -85,7 +86,13 @@ export const Sheet = memo(function Sheet({
 
   const Body = scrollable ? ScrollView : View;
   const bodyProps = scrollable
-    ? { showsVerticalScrollIndicator: false, contentContainerStyle: styles.body }
+    ? {
+        showsVerticalScrollIndicator: false,
+        // A tap on a control while the keyboard is up should reach the control,
+        // not be spent dismissing the keyboard.
+        keyboardShouldPersistTaps: 'handled' as const,
+        contentContainerStyle: styles.body,
+      }
     : { style: styles.body };
 
   return (
@@ -95,7 +102,9 @@ export const Sheet = memo(function Sheet({
       animationType="none"
       statusBarTranslucent
       onRequestClose={onClose}>
-      <View style={styles.root}>
+      {/* Padding, not a window resize: a translucent modal is not resized for
+          the keyboard on Android, so a sheet with a field would sit under it. */}
+      <KeyboardAvoidingView behavior="padding" style={styles.root}>
         <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: colors.scrim }, scrimStyle]}>
           <Pressable
             accessibilityRole="button"
@@ -129,7 +138,7 @@ export const Sheet = memo(function Sheet({
 
           {footer ? <View style={styles.footer}>{footer}</View> : null}
         </Animated.View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 });

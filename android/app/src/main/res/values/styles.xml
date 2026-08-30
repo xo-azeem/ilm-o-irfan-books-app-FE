@@ -6,4 +6,14 @@
         <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
     </style>
 
+    <!--
+      The theme the activity launches with. Its window background carries the
+      logo, so the OS paints branding immediately and React swaps in AuthSplash
+      over the top of an identical colour. MainActivity switches back to
+      AppTheme in onCreate, so this never applies to the running app.
+    -->
+    <style name="SplashTheme" parent="AppTheme">
+        <item name="android:windowBackground">@drawable/splash_screen</item>
+    </style>
+
 </resources>

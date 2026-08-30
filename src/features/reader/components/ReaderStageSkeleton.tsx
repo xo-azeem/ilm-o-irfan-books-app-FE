@@ -18,7 +18,7 @@ import {
   CircularProgressTrack,
   CircularProgressValueText,
 } from '@/components/ui/CircularProgress';
-import { useTheme } from '@/theme/ThemeContext';
+import { useReaderSurface } from '@/features/reader/useReaderSurface';
 
 const EXIT_MS = 220;
 const COMPLETE_HOLD_MS = 280;
@@ -36,7 +36,7 @@ export const ReaderStageSkeleton = memo(function ReaderStageSkeleton({
   progress = null,
   onFinished,
 }: ReaderStageSkeletonProps) {
-  const { isDark } = useTheme();
+  const surface = useReaderSurface();
   const reduceMotion = useReducedMotion();
   const overlayOpacity = useSharedValue(1);
   const onFinishedRef = useRef(onFinished);
@@ -97,16 +97,19 @@ export const ReaderStageSkeleton = memo(function ReaderStageSkeleton({
   return (
     <Animated.View
       pointerEvents={ready ? 'none' : 'auto'}
-      style={[
-        styles.wrap,
-        { backgroundColor: isDark ? '#101410' : '#ECECEB' },
-        overlayStyle,
-      ]}
+      // The book opens onto the same stage it will be read on, so there is no
+      // flash of another colour between tapping a book and reading it.
+      style={[styles.wrap, { backgroundColor: surface.stage }, overlayStyle]}
       accessibilityRole="progressbar"
       accessibilityLabel="Loading book"
       accessibilityState={{ busy: !ready }}>
       <View style={styles.center} pointerEvents="none">
-        <CircularProgress value={ready ? 100 : progress ?? 0} size={60} thickness={4}>
+        <CircularProgress
+          value={ready ? 100 : progress ?? 0}
+          size={60}
+          thickness={4}
+          trackColor={surface.muted}
+          labelColor={surface.ink}>
           <CircularProgressIndicator>
             <CircularProgressTrack />
             <CircularProgressRange />

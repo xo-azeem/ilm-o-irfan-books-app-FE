@@ -164,7 +164,14 @@ export const theme = {
     focusRing: 'rgba(45, 138, 71, 0.12)',
 
     gold: '#A4801A',
-    goldBright: palette.gold,
+    /**
+     * `goldBright` is the gold that carries *text* — eyebrows, streak counts,
+     * membership badges. In dark mode "brighter" means more legible; on a
+     * near-white page it means the opposite, and the dark ramp's #C9A227 lands
+     * at roughly 2.3:1, far under the 4.5:1 that small type needs. Light mode
+     * therefore reads "bright" as "deeper": ~5.2:1 on the page, and still gold.
+     */
+    goldBright: '#856512',
     onGold: '#FFFFFF',
     goldFill: 'rgba(201, 162, 39, 0.16)',
     goldBorder: 'rgba(164, 128, 26, 0.34)',
@@ -223,8 +230,36 @@ export const readerTones = {
 
 export type ReaderTone = keyof typeof readerTones;
 
-/** The stage behind a reader page, regardless of tone. */
-export const readerStage = '#050706';
+/**
+ * The wash laid over a rendered page so a tone reaches the page itself.
+ *
+ * A PDF carries its own white paper, so a tone can only be honoured by tinting
+ * what the renderer draws. Paper leaves the page as its author set it.
+ */
+export const readerToneWash: Record<ReaderTone, string | null> = {
+  paper: null,
+  sepia: 'rgba(122, 78, 26, 0.22)',
+  midnight: 'rgba(6, 10, 8, 0.55)',
+};
+
+/**
+ * The stage a page sits on: the surround, the loading screen, the strip either
+ * side of a page that does not fill the frame.
+ *
+ * This follows the app's theme rather than the page tone. A tone is a property
+ * of the paper; the room it is read in is the app's, and a light room in dark
+ * mode is a torch in the face.
+ *
+ * Both are a step deeper than the app's own background, so the reader reads as
+ * a place of its own without ever leaving the chosen theme.
+ */
+export const readerStages = {
+  dark: '#050706',
+  light: '#E7EAE3',
+} as const;
+
+/** The stage before a theme is known. */
+export const readerStage = readerStages.dark;
 
 export const layout = {
   screenPadding: 20,

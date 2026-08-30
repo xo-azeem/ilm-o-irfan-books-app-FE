@@ -18,13 +18,15 @@ import { Screen } from '@/components/layout';
 import { HomeCatalogSkeleton } from '@/components/skeletons/CatalogSkeletons';
 import { EmptyState, HeaderWash } from '@/components/ui';
 import { ROUTES } from '@/constants/routes';
-import { BookOfTheWeek } from '@/features/home/components/BookOfTheWeek';
-import { HomeHeader } from '@/features/home/components/HomeHeader';
+import type { FeaturedBook } from '@/features/home/components/BookOfTheWeek';
+import { HeroCarousel } from '@/features/home/components/HeroCarousel';
+import { HomeHeader, HomeStickyHeader } from '@/features/home/components/HomeHeader';
 import { MembershipBand } from '@/features/home/components/MembershipBand';
-import { MoodPicker, type ReadingMood } from '@/features/home/components/MoodPicker';
+import { matchesMood, MoodPicker, type ReadingMood } from '@/features/home/components/MoodPicker';
 import { useLibrary, useProfile, useSubscription } from '@/hooks/useAccount';
 import { useHomeCatalog } from '@/hooks/useCatalog';
 import type { CatalogBook } from '@/services/catalog';
+import { isUrduTitle } from '@/services/script';
 
 type HomeNavigation = CompositeNavigationProp<
   BottomTabNavigationProp<RootTabParamList, 'Home'>,
@@ -43,6 +45,9 @@ function toSummary(book: CatalogBook): BookSummary {
     isPremium: book.isPremium,
     price: book.price,
     currency: book.currency,
+    // Home draws the same covers as Discover and Library, so it has to make the
+    // same script call — without this every Urdu title falls back to DM Sans.
+    isUrdu: isUrduTitle(book.title),
   };
 }
 
@@ -65,6 +70,14 @@ export function HomeScreen() {
   );
 
   const openProfile = useCallback(() => navigation.navigate(ROUTES.PROFILE), [navigation]);
+
+  // The bell was landing on the reading record, same as the avatar. There is no
+  // notification inbox behind it yet, so it opens the notification settings —
+  // the one screen in the app that is actually about notifications.
+  const openNotifications = useCallback(
+    () => navigation.navigate(ROUTES.PROFILE, { screen: 'Notifications' }),
+    [navigation],
+  );
   const openLibrary = useCallback(() => navigation.navigate(ROUTES.MY_LIBRARY), [navigation]);
 
   const openMembership = useCallback(
@@ -72,18 +85,17 @@ export function HomeScreen() {
     [navigation],
   );
 
-  const hero = data?.hero?.[0];
-  const featured = useMemo(
+  // Every editorial pick becomes a page of the hero carousel; the shelf falls
+  // back to a single static card when there is only one.
+  const featured = useMemo<FeaturedBook[]>(
     () =>
-      hero
-        ? {
-            ...toSummary(hero),
-            description: hero.description,
-            rating: hero.rating,
-            genre: hero.genre,
-          }
-        : null,
-    [hero],
+      (data?.hero ?? []).slice(0, 5).map(book => ({
+        ...toSummary(book),
+        description: book.description,
+        rating: book.rating,
+        genre: book.genre,
+      })),
+    [data?.hero],
   );
 
   // Books the reader has started but not finished. `getLibrary` already orders
@@ -92,6 +104,24 @@ export function HomeScreen() {
     () => (library?.progress ?? []).filter(entry => entry.progress < 1).slice(0, 6),
     [library?.progress],
   );
+
+  // The design's second rail is a personal one — companion reading for the book
+  // most recently opened. Without a reading history there is nothing to be
+  // "because" of, so it falls back to the new-arrivals shelf.
+  // Only a Latin title can be set into the serif rail heading — Newsreader has
+  // no Nastaliq, and a mixed-script heading is worse than a plain one.
+  const lastRead = inProgress[0] && !isUrduTitle(inProgress[0].title) ? inProgress[0] : null;
+
+  const recommended = useMemo(() => {
+    const pool = data?.arrivals ?? [];
+    if (!mood) {
+      return pool;
+    }
+    // A mood narrows the rail but is never allowed to empty it — an unmatched
+    // mood leaves the shelf exactly as it was rather than showing a gap.
+    const matching = pool.filter(book => matchesMood(book.genre, mood));
+    return matching.length > 0 ? matching : pool;
+  }, [data?.arrivals, mood]);
 
   const hasMembership = subscription?.active ?? false;
 
@@ -118,21 +148,20 @@ export function HomeScreen() {
     <Screen
       gap={26}
       backdrop={<HeaderWash height={520} />}
-      scrollViewProps={{ scrollEventThrottle: 16 }}>
+      stickyHeader={<HomeStickyHeader />}
+      stickyHeaderOffset={420}>
       <HomeHeader
         name={profile?.fullName}
         hasNotifications
         onProfilePress={openProfile}
-        onNotificationsPress={openProfile}
+        onNotificationsPress={openNotifications}
       />
 
       {isLoading ? (
         <HomeCatalogSkeleton />
       ) : (
         <>
-          {featured ? (
-            <BookOfTheWeek book={featured} onRead={readBook} onPress={openBook} />
-          ) : null}
+          <HeroCarousel books={featured} onRead={readBook} onPress={openBook} />
 
           {inProgress.length > 0 ? (
             <BookRail
@@ -151,7 +180,7 @@ export function HomeScreen() {
             </BookRail>
           ) : null}
 
-          <MoodPicker value={mood} onChange={setMood} />
+          <MoodPicker value={mood} onChange={setMood} gap={26} />
 
           {data?.trending?.length ? (
             <BookRail title="Trending this week" subtitle="Most opened across the store">
@@ -166,12 +195,14 @@ export function HomeScreen() {
             </BookRail>
           ) : null}
 
-          {data?.arrivals?.length ? (
+          {recommended.length > 0 ? (
             <BookRail
-              title="New arrivals"
-              subtitle="Fresh on the shelf"
+              title={lastRead ? `Because you read ${lastRead.title}` : 'New arrivals'}
+              subtitle={
+                lastRead ? 'Companion volumes and commentary' : 'Fresh on the shelf'
+              }
               gap={14}>
-              {data.arrivals.slice(0, 8).map(book => (
+              {recommended.slice(0, 8).map(book => (
                 <BookCard
                   key={book.id}
                   book={toSummary(book)}

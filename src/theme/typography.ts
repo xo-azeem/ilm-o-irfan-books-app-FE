@@ -142,3 +142,41 @@ export const fontSize = {
   label: 11,
   labelSmall: 10,
 } as const;
+
+// ---------------------------------------------------------------------------
+// App-wide text size
+// ---------------------------------------------------------------------------
+
+/**
+ * The reader's chosen text size, applied to every glyph in the app.
+ *
+ * The multipliers are deliberately narrow. The scale above is drawn against a
+ * 390pt frame, and anything past ~1.25 starts pushing two-line titles out of
+ * cards the design gives a fixed shape. Readers who need more than this are
+ * better served by the platform's own accessibility scaling, which still
+ * applies on top of whatever is chosen here.
+ */
+export type FontScale = 'small' | 'default' | 'large' | 'xlarge';
+
+export const FONT_SCALES: Record<FontScale, { label: string; multiplier: number }> = {
+  small: { label: 'Small', multiplier: 0.9 },
+  default: { label: 'Default', multiplier: 1 },
+  large: { label: 'Large', multiplier: 1.12 },
+  xlarge: { label: 'Largest', multiplier: 1.25 },
+};
+
+/** Smallest to largest — the order the Appearance selector draws them in. */
+export const FONT_SCALE_ORDER: FontScale[] = ['small', 'default', 'large', 'xlarge'];
+
+export function fontScaleMultiplier(scale: FontScale | undefined): number {
+  return (scale && FONT_SCALES[scale]?.multiplier) ?? 1;
+}
+
+/**
+ * Applies the reader's multiplier to one size from the ramp above. Rounded to
+ * a half point: whole points make the ramp collapse (13 and 14 both land on 15
+ * at 1.12), and anything finer only gives the rasteriser sub-pixel work.
+ */
+export function scaleFont(size: number, multiplier: number): number {
+  return multiplier === 1 ? size : Math.round(size * multiplier * 2) / 2;
+}

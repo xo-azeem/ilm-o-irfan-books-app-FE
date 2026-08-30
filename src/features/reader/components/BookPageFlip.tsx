@@ -1,4 +1,5 @@
 import {
+  forwardRef,
   memo,
   useCallback,
   useEffect,
@@ -6,613 +7,391 @@ import {
   useMemo,
   useRef,
   useState,
-  forwardRef,
 } from 'react';
 import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, {
-  Easing,
-  cancelAnimation,
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
-  type SharedValue,
-  withTiming,
-} from 'react-native-reanimated';
+import { GestureDetector } from 'react-native-gesture-handler';
+import Animated from 'react-native-reanimated';
+import Pdf, { type PdfRef } from 'react-native-pdf';
 
 import type { BookPdfSource } from '@/constants/books';
-import {
-  PdfPageCountProbe,
-  ReaderPdfPage,
-} from '@/features/reader/components/ReaderPdfPage';
+import { MAX_SCALE, MIN_SCALE, PAGE_FILL_LIMIT } from '@/features/reader/constants';
 import { useThemeStore } from '@/stores/themeStore';
-import { readerTones } from '@/theme/palette';
-import {
-  FLIP_ACTIVE_OFFSET,
-  FLIP_COMMIT_RATIO,
-  FLIP_COMMIT_VELOCITY,
-  FLIP_DURATION_MS,
-  FLIP_EDGE_RATIO,
-  FLIP_FAIL_OFFSET_Y,
-  FLIP_RUBBER_RATIO,
-  MAX_SCALE,
-  MIN_SCALE,
-  PAGE_INSET,
-} from '@/features/reader/constants';
+import { useReaderSurface } from '@/features/reader/useReaderSurface';
+import { usePageTurn, type TurnDirection } from '@/features/reader/usePageTurn';
 
 export type BookPageFlipHandle = {
-  turn: (dir: 1 | -1) => void;
-  /** Cuts straight to a page, without the flip animation. */
+  turn: (dir: TurnDirection) => void;
+  /** Jumps to a page, under the stage's own dip. */
   goTo: (page: number) => void;
 };
 
 type BookPageFlipProps = {
   source: BookPdfSource;
+  /** The reader's chosen zoom. The only zoom the controls know about. */
   scale: number;
   onLoadComplete: (totalPages: number) => void;
   onLoadProgress?: (percent: number) => void;
   onError: (message?: string) => void;
   onPageChanged: (page: number, totalPages: number) => void;
-  onScaleChanged: (scale: number) => void;
-  onApplyScale: (scale: number) => void;
-  onResetZoom: () => void;
+  /** A tap on the page, which the screen uses to show its chrome. */
+  onSingleTap?: () => void;
 };
 
-const SLIDE_EASE = Easing.out(Easing.cubic);
-const SCALE_EPS = 0.01;
-const QUEUE_TURN_MS = 32;
+/** Past this, the reader is looking at part of a page rather than at a page. */
+const ZOOM_EPS = 0.02;
 
-function clampPage(page: number, totalPages: number) {
-  if (totalPages <= 0) return Math.max(1, page);
-  return Math.min(Math.max(page, 1), totalPages);
+/** The gap between pages while scrolling. Enough to see the seam, no more. */
+const PAGE_GAP = 8;
+
+function clampScale(value: number) {
+  if (!Number.isFinite(value)) return MIN_SCALE;
+  return Math.min(MAX_SCALE, Math.max(MIN_SCALE, value));
 }
 
-function neighborPages(current: number, total: number) {
-  const pages: number[] = [];
-  if (current > 1) pages.push(current - 1);
-  pages.push(current);
-  if (total <= 0 || current < total) pages.push(current + 1);
-  return pages;
+type Box = { width: number; height: number };
+
+/**
+ * How large to draw the page, given the shape of the page and of the screen.
+ *
+ * The page is drawn as wide as the frame at least, and wider — up to the fill
+ * limit — while that buys height. Anything past the frame's edge is the page's
+ * margin, and the stage clips it.
+ */
+function pageBox(frame: Box, aspect: number): Box | null {
+  if (frame.width <= 0 || frame.height <= 0 || !Number.isFinite(aspect) || aspect <= 0) {
+    return null;
+  }
+
+  // What it would take to fill the height outright, and what we will allow.
+  const toFill = (frame.height * aspect) / frame.width;
+  const fill = Math.min(Math.max(toFill, 1), PAGE_FILL_LIMIT);
+  const width = frame.width * fill;
+  const height = Math.min(frame.height, width / aspect);
+
+  // A page wider than it is tall fits the frame with room to spare, and is
+  // better left alone than blown past the edges.
+  return height >= frame.height
+    ? { width: frame.height * aspect, height: frame.height }
+    : { width, height };
 }
 
-function rubberband(distance: number, limit: number) {
-  'worklet';
-  if (limit <= 0) return 0;
-  const sign = distance < 0 ? -1 : 1;
-  return sign * (1 - 1 / (Math.abs(distance) / limit + 1)) * limit;
+/** Identity of a document, so a new one remounts rather than mutating in place. */
+function sourceKey(source: BookPdfSource) {
+  return typeof source === 'number' ? `asset:${source}` : source.uri;
 }
 
-type FlipSlotProps = {
-  page: number;
-  source: BookPdfSource;
-  width: number;
-  height: number;
-  fill: string;
-  currentPageSV: SharedValue<number>;
-  pageWidth: SharedValue<number>;
-  dragX: SharedValue<number>;
-  liveScale: SharedValue<number>;
-  onPainted: (page: number) => void;
-  onError: (page: number, message: string) => void;
-};
+function errorMessage(error: unknown) {
+  const raw =
+    error && typeof error === 'object' && 'message' in error
+      ? String((error as { message?: unknown }).message ?? '')
+      : typeof error === 'string'
+      ? error
+      : '';
+  return raw.trim() || 'This PDF could not be displayed.';
+}
 
-const FlipSlot = memo(function FlipSlot({
-  page,
-  source,
-  width,
-  height,
-  fill,
-  currentPageSV,
-  pageWidth,
-  dragX,
-  liveScale,
-  onPainted,
-  onError,
-}: FlipSlotProps) {
-  const style = useAnimatedStyle(() => {
-    const offset = (page - currentPageSV.value) * pageWidth.value + dragX.value;
-    const scale = page === currentPageSV.value ? liveScale.value : 1;
-    return {
-      transform: [{ translateX: offset }, { scale }],
-    };
-  });
-
-  return (
-    <Animated.View collapsable={false} pointerEvents="none" style={[styles.slot, { backgroundColor: fill }, style]}>
-      <ReaderPdfPage
-        source={source}
-        page={page}
-        width={width}
-        height={height}
-        fill={fill}
-        onLoadComplete={() => onPainted(page)}
-        onError={message => onError(page, message)}
-      />
-    </Animated.View>
-  );
-});
-
+/**
+ * The reading stage.
+ *
+ * One native document view, and only one. `react-native-pdf` reloads the whole
+ * file on any prop change and keeps its zoom limits in process-wide statics, so
+ * a second live instance over the same book races the first inside Pdfium and
+ * takes the app down with it. Page jumps therefore go through the imperative
+ * `setPage` command — which moves the native pager without a reload — and every
+ * other prop is memoised so a parent re-render never touches the native view.
+ *
+ * The swipe is the document view's own pager, and nothing here is allowed near
+ * it. It is what carries the page leaving and the page arriving past each other
+ * under the finger with real type on both, and it is what a reader has in their
+ * hand for hours — so it stays as smooth as it ships. `usePageTurn` only
+ * watches the swipe, never takes it, and lends the pages depth as they cross.
+ *
+ * Scroll reading runs the book as a single column and is left to the document
+ * view entirely. Zooming in stops the turn either way, because then a drag is
+ * how the reader moves around the part of the page they zoomed in for.
+ */
 export const BookPageFlip = memo(
   forwardRef<BookPageFlipHandle, BookPageFlipProps>(function BookPageFlip(
-    {
-      source,
-      scale,
-      onLoadComplete,
-      onError,
-      onPageChanged,
-      onApplyScale,
-      onResetZoom,
-    },
+    { source, scale, onLoadComplete, onLoadProgress, onError, onPageChanged, onSingleTap },
     ref,
   ) {
-    // The sheet behind a rendering page matches the reader's chosen tone, so
-    // there is no flash of the wrong colour while a page paints.
-    const pageTone = useThemeStore(state => state.pageTone);
-    const pageFill = readerTones[pageTone].background;
+    // The stage behind a rendering page is the reader's chosen tone, so there
+    // is no flash of the wrong colour while a page paints, and the strips
+    // either side of a page that does not fill the frame belong to the tone
+    // rather than to the app.
+    const { stage, wash } = useReaderSurface();
+    const readingMode = useThemeStore(state => state.readingMode);
 
-    const [totalPages, setTotalPages] = useState(0);
-    const [currentPage, setCurrentPage] = useState(1);
-    const [pinching, setPinching] = useState(false);
-    const [frameSize, setFrameSize] = useState({ width: 0, height: 0 });
-    const [documentReady, setDocumentReady] = useState(false);
-    const [counting, setCounting] = useState(true);
-    const [pagesEnabled, setPagesEnabled] = useState(false);
-
-    const dragX = useSharedValue(0);
-    const pageWidth = useSharedValue(1);
-    const isAnimating = useSharedValue(0);
-    const isDragging = useSharedValue(0);
-    const currentPageSV = useSharedValue(1);
-    const totalPagesSV = useSharedValue(0);
-    const liveScale = useSharedValue(scale);
-    const pinchStart = useSharedValue(MIN_SCALE);
-
+    const pdfRef = useRef<PdfRef>(null);
     const pageRef = useRef(1);
     const totalPagesRef = useRef(0);
-    const busyRef = useRef(false);
-    const flippingRef = useRef(false);
-    const queuedStepsRef = useRef(0);
-    const unlockTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const queueTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const mountTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const didReportReady = useRef(false);
-    const paintedPages = useRef(new Set<number>());
-    const lastLayoutWidth = useRef(0);
+    const readyRef = useRef(false);
+    /** A page asked for by name rather than by direction, e.g. "go to 42". */
+    const targetRef = useRef<number | null>(null);
 
-    const zoomed = scale > MIN_SCALE + SCALE_EPS;
-    const canFlip = !zoomed && !pinching && totalPages > 1 && documentReady;
-    const hasFrame = frameSize.width > 0 && frameSize.height > 0;
-    const pages = useMemo(() => neighborPages(currentPage, totalPages), [currentPage, totalPages]);
+    // Callbacks are read through a ref so the props handed to the native view
+    // keep their identity, which is what stops it reloading the file.
+    const handlers = useRef({
+      onLoadComplete,
+      onLoadProgress,
+      onError,
+      onPageChanged,
+      onSingleTap,
+    });
+    handlers.current = {
+      onLoadComplete,
+      onLoadProgress,
+      onError,
+      onPageChanged,
+      onSingleTap,
+    };
 
-    useEffect(() => {
-      liveScale.value = scale;
-    }, [liveScale, scale]);
+    const zoom = clampScale(scale);
+    const zoomed = zoom > MIN_SCALE + ZOOM_EPS;
+    const paged = readingMode !== 'scroll';
 
-    useEffect(() => {
-      totalPagesSV.value = totalPages;
-    }, [totalPages, totalPagesSV]);
+    // The stage, and the shape of the page the book reported. Together they
+    // decide how large the page is drawn.
+    const [frame, setFrame] = useState<Box>({ width: 0, height: 0 });
+    const [aspect, setAspect] = useState(0);
 
-    useEffect(() => {
-      return () => {
-        if (unlockTimer.current) clearTimeout(unlockTimer.current);
-        if (queueTimer.current) clearTimeout(queueTimer.current);
-        if (mountTimer.current) clearTimeout(mountTimer.current);
-      };
+    const onStageLayout = useCallback((event: LayoutChangeEvent) => {
+      const { width, height } = event.nativeEvent.layout;
+      setFrame(current =>
+        Math.abs(current.width - width) < 1 && Math.abs(current.height - height) < 1
+          ? current
+          : { width, height },
+      );
     }, []);
-
-    const clearUnlockTimer = useCallback(() => {
-      if (unlockTimer.current) {
-        clearTimeout(unlockTimer.current);
-        unlockTimer.current = null;
-      }
-    }, []);
-
-    const animateTurnRef = useRef<(dir: 1 | -1) => void>(() => undefined);
-
-    const finishBusy = useCallback(() => {
-      if (!busyRef.current && !flippingRef.current) {
-        return;
-      }
-
-      const remaining = queuedStepsRef.current;
-      queuedStepsRef.current = 0;
-      clearUnlockTimer();
-      isDragging.value = 0;
-
-      if (remaining !== 0) {
-        const dir: 1 | -1 = remaining > 0 ? 1 : -1;
-        const target = pageRef.current + dir;
-        const total = totalPagesRef.current;
-        if (target < 1 || (total > 0 && target > total)) {
-          flippingRef.current = false;
-          busyRef.current = false;
-          isAnimating.value = 0;
-          dragX.value = 0;
-          return;
-        }
-        queuedStepsRef.current = remaining - dir;
-        if (queueTimer.current) clearTimeout(queueTimer.current);
-        queueTimer.current = setTimeout(() => {
-          queueTimer.current = null;
-          animateTurnRef.current(dir);
-        }, QUEUE_TURN_MS);
-        return;
-      }
-
-      flippingRef.current = false;
-      busyRef.current = false;
-      isAnimating.value = 0;
-      dragX.value = 0;
-    }, [clearUnlockTimer, dragX, isAnimating, isDragging]);
-
-    const settleTurn = useCallback(
-      (dir: 1 | -1) => {
-        const total = totalPagesRef.current;
-        const newPage = clampPage(pageRef.current + dir, total);
-        pageRef.current = newPage;
-        currentPageSV.value = newPage;
-        dragX.value = 0;
-        isDragging.value = 0;
-        liveScale.value = MIN_SCALE;
-        setCurrentPage(newPage);
-        onPageChanged(newPage, total);
-        onResetZoom();
-        finishBusy();
-      },
-      [currentPageSV, dragX, finishBusy, isDragging, liveScale, onPageChanged, onResetZoom],
-    );
-
-    const animateTurn = useCallback(
-      (dir: 1 | -1) => {
-        const page = pageRef.current;
-        const total = totalPagesRef.current;
-        const target = page + dir;
-        if (target < 1 || (total > 0 && target > total)) {
-          dragX.value = withTiming(0, { duration: 180, easing: SLIDE_EASE });
-          finishBusy();
-          return;
-        }
-
-        flippingRef.current = true;
-        busyRef.current = true;
-        isAnimating.value = 1;
-        liveScale.value = MIN_SCALE;
-        dragX.value = withTiming(
-          -dir * pageWidth.value,
-          { duration: FLIP_DURATION_MS, easing: SLIDE_EASE },
-          finished => {
-            if (finished) {
-              runOnJS(settleTurn)(dir);
-            } else {
-              runOnJS(finishBusy)();
-            }
-          },
-        );
-      },
-      [dragX, finishBusy, isAnimating, liveScale, pageWidth, settleTurn],
-    );
-
-    animateTurnRef.current = animateTurn;
-
-    const turnPage = useCallback(
-      (dir: 1 | -1) => {
-        if (!documentReady) return;
-        if (busyRef.current || flippingRef.current || isAnimating.value === 1) {
-          queuedStepsRef.current += dir;
-          return;
-        }
-
-        const target = pageRef.current + dir;
-        const total = totalPagesRef.current;
-        if (target < 1 || (total > 0 && target > total)) {
-          queuedStepsRef.current = 0;
-          return;
-        }
-
-        busyRef.current = true;
-        flippingRef.current = true;
-        animateTurn(dir);
-      },
-      [animateTurn, documentReady, isAnimating],
-    );
 
     /**
-     * Jumps straight to a page. Unlike `turn`, this is a cut rather than a
-     * flip: animating across two hundred pages would be theatre, and the
-     * reader asked to be somewhere specific.
+     * A tap belongs to the chrome, and only to the chrome. Turning pages on a
+     * tap put a page turn one stray thumb away from every reader.
      */
-    const goToPage = useCallback(
-      (target: number) => {
-        if (!documentReady || busyRef.current || flippingRef.current) {
-          return;
-        }
-
-        const total = totalPagesRef.current;
-        const next = clampPage(Math.round(target), total);
-        if (next === pageRef.current) {
-          return;
-        }
-
-        pageRef.current = next;
-        currentPageSV.value = next;
-        dragX.value = 0;
-        isDragging.value = 0;
-        liveScale.value = MIN_SCALE;
-        setCurrentPage(next);
-        onPageChanged(next, total);
-        onResetZoom();
-      },
-      [
-        currentPageSV,
-        documentReady,
-        dragX,
-        isDragging,
-        liveScale,
-        onPageChanged,
-        onResetZoom,
-      ],
-    );
-
-    useImperativeHandle(
-      ref,
-      () => ({ turn: dir => turnPage(dir), goTo: page => goToPage(page) }),
-      [goToPage, turnPage],
-    );
-
-    const handleCount = useCallback((numberOfPages: number) => {
-      if (!Number.isFinite(numberOfPages) || numberOfPages < 1) return;
-      totalPagesRef.current = numberOfPages;
-      totalPagesSV.value = numberOfPages;
-      setTotalPages(numberOfPages);
-      setCounting(false);
-      if (mountTimer.current) clearTimeout(mountTimer.current);
-      mountTimer.current = setTimeout(() => {
-        mountTimer.current = null;
-        setPagesEnabled(true);
-      }, QUEUE_TURN_MS);
-    }, [totalPagesSV]);
-
-    const handlePagePainted = useCallback(
-      (page: number) => {
-        paintedPages.current.add(page);
-        if (didReportReady.current) return;
-        const total = totalPagesRef.current;
-        if (total < 1 || !paintedPages.current.has(1)) return;
-        if (total > 1 && !paintedPages.current.has(2)) return;
-        didReportReady.current = true;
-        setDocumentReady(true);
-        onLoadComplete(total);
-        onPageChanged(1, total);
-      },
-      [onLoadComplete, onPageChanged],
-    );
-
-    const handlePageError = useCallback(
-      (page: number, message: string) => {
-        if (page !== pageRef.current || didReportReady.current) return;
-        onError(message);
-      },
-      [onError],
-    );
-
-    const handleEdgeTap = useCallback(
-      (x: number) => {
-        const width = pageWidth.value;
-        const edge = width * FLIP_EDGE_RATIO;
-        if (x <= edge) turnPage(-1);
-        else if (x >= width - edge) turnPage(1);
-      },
-      [pageWidth, turnPage],
-    );
-
-    const handleDoubleTapZoom = useCallback(() => {
-      const next = scale > MIN_SCALE + SCALE_EPS ? MIN_SCALE : 2;
-      liveScale.value = next;
-      onApplyScale(next);
-    }, [liveScale, onApplyScale, scale]);
-
-    const commitPinchScale = useCallback(
-      (next: number) => {
-        const clamped = Number(Math.min(MAX_SCALE, Math.max(MIN_SCALE, next)).toFixed(2));
-        liveScale.value = clamped;
-        onApplyScale(clamped);
-      },
-      [liveScale, onApplyScale],
-    );
-
-    const lockPan = useCallback(() => {
-      busyRef.current = true;
-      flippingRef.current = true;
+    const handleSingleTap = useCallback(() => {
+      handlers.current.onSingleTap?.();
     }, []);
 
-    const onLayout = useCallback(
-      (event: LayoutChangeEvent) => {
-        const { width, height } = event.nativeEvent.layout;
-        pageWidth.value = Math.max(width, 1);
-        setFrameSize(prev =>
-          Math.abs(prev.width - width) < 1 && Math.abs(prev.height - height) < 1
-            ? prev
-            : { width, height },
-        );
+    /** Moves the document view. Nothing here animates; the stage does that. */
+    const applyPage = useCallback((target: number) => {
+      const page = Math.round(Number(target));
+      if (!Number.isFinite(page)) return;
 
-        if (lastLayoutWidth.current === 0) {
-          lastLayoutWidth.current = width;
-          return;
-        }
-        if (Math.abs(width - lastLayoutWidth.current) > 1) {
-          lastLayoutWidth.current = width;
-          cancelAnimation(dragX);
-          dragX.value = 0;
-          isAnimating.value = 0;
-          isDragging.value = 0;
-          flippingRef.current = false;
-        }
+      const total = totalPagesRef.current;
+      const next = Math.min(Math.max(page, 1), total > 0 ? total : page);
+      if (!readyRef.current || next === pageRef.current) return;
+
+      pageRef.current = next;
+      try {
+        pdfRef.current?.setPage(next);
+      } catch {
+        // A page command can only fail once the view is gone; the next
+        // `onPageChanged` resyncs us either way.
+      }
+    }, []);
+
+    /** Called under the dip, with the stage bare. */
+    const jumpPage = useCallback(
+      (dir: TurnDirection) => {
+        const target = targetRef.current;
+        targetRef.current = null;
+        applyPage(target ?? pageRef.current + dir);
       },
-      [dragX, isAnimating, isDragging, pageWidth],
+      [applyPage],
     );
 
-    const pan = Gesture.Pan()
-      .enabled(canFlip)
-      .maxPointers(1)
-      .activeOffsetX([-FLIP_ACTIVE_OFFSET, FLIP_ACTIVE_OFFSET])
-      .failOffsetY([-FLIP_FAIL_OFFSET_Y, FLIP_FAIL_OFFSET_Y])
-      .onStart(() => {
-        'worklet';
-        if (isAnimating.value === 1 && isDragging.value === 0) return;
-        cancelAnimation(dragX);
-        isDragging.value = 1;
-        isAnimating.value = 1;
-        runOnJS(lockPan)();
-      })
-      .onUpdate(event => {
-        'worklet';
-        if (isDragging.value !== 1) return;
-        const width = pageWidth.value;
-        const translation = event.translationX;
-        const page = currentPageSV.value;
-        const total = totalPagesSV.value;
-        const atFirst = page <= 1 && translation > 0;
-        const atLast = total > 0 && page >= total && translation < 0;
-        if (atFirst || atLast) {
-          dragX.value = rubberband(translation, width * FLIP_RUBBER_RATIO);
-          return;
+    const pageTurn = usePageTurn({
+      enabled: paged && !zoomed,
+      onJump: jumpPage,
+      onTap: handleSingleTap,
+    });
+    const { setBounds, setZoom, settle, start: startTurn } = pageTurn;
+
+    // The turn reads the zoom on the UI thread, so it knows to leave a zoomed
+    // page to the document view without waiting on a render.
+    useEffect(() => {
+      setZoom(zoom);
+    }, [setZoom, zoom]);
+
+    const turnPage = useCallback(
+      (dir: TurnDirection) => {
+        if (!readyRef.current) return;
+        const total = totalPagesRef.current;
+        const next = pageRef.current + dir;
+        if (next < 1 || (total > 0 && next > total)) return;
+        targetRef.current = null;
+        startTurn(dir);
+      },
+      [startTurn],
+    );
+
+    const goToPage = useCallback(
+      (target: number) => {
+        const page = Math.round(Number(target));
+        if (!Number.isFinite(page) || !readyRef.current) return;
+
+        const total = totalPagesRef.current;
+        const next = Math.min(Math.max(page, 1), total > 0 ? total : page);
+        if (next === pageRef.current) return;
+
+        // A jump still travels: forwards if the page is ahead, back if behind,
+        // so the movement agrees with what the reader asked for.
+        targetRef.current = next;
+        startTurn(next > pageRef.current ? 1 : -1);
+      },
+      [startTurn],
+    );
+
+    useImperativeHandle(ref, () => ({ turn: turnPage, goTo: goToPage }), [goToPage, turnPage]);
+
+    const handleLoadComplete = useCallback(
+      (numberOfPages: number, _path: string, size?: Box) => {
+        const total = Number.isFinite(numberOfPages) ? Math.max(0, Math.floor(numberOfPages)) : 0;
+        totalPagesRef.current = total;
+        readyRef.current = true;
+        setBounds(pageRef.current, total);
+
+        // The book's own page shape, which is what the stage is sized from.
+        const width = Number(size?.width);
+        const height = Number(size?.height);
+        if (width > 0 && height > 0) {
+          setAspect(current =>
+            Math.abs(current - width / height) < 0.001 ? current : width / height,
+          );
         }
-        dragX.value = Math.min(Math.max(translation, -width), width);
-      })
-      .onEnd(event => {
-        'worklet';
-        if (isDragging.value !== 1) return;
-        isDragging.value = 0;
-        const width = pageWidth.value;
-        const page = currentPageSV.value;
-        const total = totalPagesSV.value;
-        const translation = event.translationX;
-        const velocity = event.velocityX;
-        const dir = (Math.abs(translation) > 8 ? translation < 0 : velocity < 0) ? 1 : -1;
-        const atBound =
-          (dir === -1 && page <= 1) || (dir === 1 && total > 0 && page >= total);
-        const commit =
-          !atBound &&
-          (Math.abs(translation) > width * FLIP_COMMIT_RATIO ||
-            Math.abs(velocity) > FLIP_COMMIT_VELOCITY);
 
-        if (commit) {
-          runOnJS(animateTurn)(dir);
-          return;
-        }
+        handlers.current.onLoadComplete(total);
+        handlers.current.onPageChanged(pageRef.current, total);
+      },
+      [setBounds],
+    );
 
-        dragX.value = withTiming(0, { duration: FLIP_DURATION_MS, easing: SLIDE_EASE }, finished => {
-          if (finished) runOnJS(finishBusy)();
-        });
-      })
-      .onFinalize(() => {
-        'worklet';
-        if (isDragging.value === 1) {
-          isDragging.value = 0;
-          dragX.value = withTiming(0, { duration: FLIP_DURATION_MS, easing: SLIDE_EASE }, finished => {
-            if (finished) runOnJS(finishBusy)();
-          });
-        }
-      });
+    const handlePageChanged = useCallback(
+      (page: number, numberOfPages: number) => {
+        if (!Number.isFinite(page) || page < 1) return;
+        const total = Number.isFinite(numberOfPages)
+          ? Math.max(0, Math.floor(numberOfPages))
+          : totalPagesRef.current;
+        pageRef.current = Math.floor(page);
+        totalPagesRef.current = total;
+        setBounds(pageRef.current, total);
+        // The new page is here. A turn still drawn back from a flick grows it
+        // in from this, rather than guessing at when the pager would land.
+        settle();
+        handlers.current.onPageChanged(pageRef.current, total);
+      },
+      [setBounds, settle],
+    );
 
-    const pinch = Gesture.Pinch()
-      .enabled(documentReady)
-      .onStart(() => {
-        'worklet';
-        pinchStart.value = liveScale.value;
-        runOnJS(setPinching)(true);
-      })
-      .onUpdate(event => {
-        'worklet';
-        liveScale.value = Math.min(MAX_SCALE, Math.max(MIN_SCALE, pinchStart.value * event.scale));
-      })
-      .onEnd(() => {
-        'worklet';
-        runOnJS(commitPinchScale)(liveScale.value);
-        runOnJS(setPinching)(false);
-      })
-      .onFinalize(() => {
-        'worklet';
-        runOnJS(setPinching)(false);
-      });
+    const handleLoadProgress = useCallback((percent: number) => {
+      if (!Number.isFinite(percent)) return;
+      handlers.current.onLoadProgress?.(percent);
+    }, []);
 
-    const doubleTap = Gesture.Tap()
-      .enabled(documentReady)
-      .numberOfTaps(2)
-      .maxDelay(220)
-      .onEnd(() => {
-        'worklet';
-        runOnJS(handleDoubleTapZoom)();
-      });
+    const handleError = useCallback((error: unknown) => {
+      handlers.current.onError(errorMessage(error));
+    }, []);
 
-    const edgeTap = Gesture.Tap()
-      .enabled(canFlip)
-      .maxDistance(12)
-      .onEnd(event => {
-        'worklet';
-        runOnJS(handleEdgeTap)(event.x);
-      });
+    const pdfStyle = useMemo(() => [styles.pdf, { backgroundColor: stage }], [stage]);
 
-    const composed = Gesture.Simultaneous(pan, pinch, Gesture.Exclusive(doubleTap, edgeTap));
+    const renderActivityIndicator = useCallback(() => <View style={styles.pdf} />, []);
+
+    // Scrolling runs the book as one column, which fills the screen by itself;
+    // a page turned on its own gets drawn to the shape of the page.
+    const box = paged ? pageBox(frame, aspect) : null;
 
     return (
-      <View style={styles.stage}>
-        <GestureDetector gesture={composed}>
-          <Animated.View
-            collapsable={false}
-            onLayout={onLayout}
-            pointerEvents="auto"
-            style={styles.pageFrame}>
-            {hasFrame && counting ? (
-              <PdfPageCountProbe
-                source={source}
-                width={frameSize.width}
-                height={frameSize.height}
-                onCount={handleCount}
-                onError={onError}
-              />
-            ) : null}
-            {hasFrame && !counting && pagesEnabled
-              ? pages.map(page => (
-                  <FlipSlot
-                    key={page}
-                    page={page}
-                    source={source}
-                    width={frameSize.width}
-                    height={frameSize.height}
-                    fill={pageFill}
-                    currentPageSV={currentPageSV}
-                    pageWidth={pageWidth}
-                    dragX={dragX}
-                    liveScale={liveScale}
-                    onPainted={handlePagePainted}
-                    onError={handlePageError}
-                  />
-                ))
-              : null}
-          </Animated.View>
+      <View style={[styles.stage, { backgroundColor: stage }]} onLayout={onStageLayout}>
+        <GestureDetector gesture={pageTurn.gesture}>
+          {/* The margin above and below a fitted page is the reader's to tap
+              as much as the page is, and their swipe to start in as much as
+              the page is. Both are gestures on this one view, so neither can
+              take a touch off the other or off the pager underneath. */}
+          <View
+            style={styles.frame}
+            onLayout={pageTurn.onLayout}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Show reading controls"
+            onAccessibilityTap={handleSingleTap}>
+            {/* The depth, and nothing else: a plain transform on the plane the
+                page sits on, with no shadow or corner to recompute per frame. */}
+            <Animated.View pointerEvents="box-none" style={[styles.layer, pageTurn.style]}>
+              <View
+                style={[
+                  box ? { width: box.width, height: box.height } : styles.fill,
+                  { backgroundColor: stage },
+                ]}>
+                <Pdf
+                  key={sourceKey(source)}
+                  ref={pdfRef}
+                  source={source}
+                  style={pdfStyle}
+                  horizontal={paged}
+                  enablePaging={paged && !zoomed}
+                  scrollEnabled
+                  singlePage={false}
+                  scale={zoom}
+                  minScale={MIN_SCALE}
+                  maxScale={MAX_SCALE}
+                  // Scrolling reads as one column: pages fill the width, with a
+                  // hair of sky between them so a page break is still a break.
+                  spacing={paged ? 0 : PAGE_GAP}
+                  fitPolicy={paged ? 2 : 0}
+                  enableAntialiasing
+                  enableDoubleTapZoom
+                  enableAnnotationRendering={false}
+                  showsVerticalScrollIndicator={false}
+                  showsHorizontalScrollIndicator={false}
+                  trustAllCerts
+                  onLoadComplete={handleLoadComplete}
+                  onLoadProgress={handleLoadProgress}
+                  onPageChanged={handlePageChanged}
+                  onPageSingleTap={handleSingleTap}
+                  onError={handleError}
+                  renderActivityIndicator={renderActivityIndicator}
+                />
+
+                {/* The tone, laid over the rendered page. Never over the
+                    chrome. */}
+                {wash ? (
+                  <View pointerEvents="none" style={[styles.wash, { backgroundColor: wash }]} />
+                ) : null}
+              </View>
+            </Animated.View>
+          </View>
         </GestureDetector>
       </View>
     );
   }),
 );
+BookPageFlip.displayName = 'BookPageFlip';
 
 const styles = StyleSheet.create({
   stage: {
     flex: 1,
-    zIndex: 0,
-    padding: PAGE_INSET,
+    // What the page is drawn past, and clipped by.
+    overflow: 'hidden',
   },
-  pageFrame: {
+  frame: {
     flex: 1,
-    overflow: 'hidden',
   },
-  slot: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    overflow: 'hidden',
+  /** The plane the page sits on. Transformed whole, so it scales about itself. */
+  layer: {
+    ...StyleSheet.absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fill: {
+    alignSelf: 'stretch',
+    flex: 1,
+  },
+  pdf: {
+    flex: 1,
+    width: '100%',
+    backgroundColor: 'transparent',
+  },
+  wash: {
+    ...StyleSheet.absoluteFill,
   },
 });

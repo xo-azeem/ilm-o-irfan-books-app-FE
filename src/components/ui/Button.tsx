@@ -11,7 +11,7 @@ import {
 import { Icon, type LucideIcon } from '@/components/ui/Icon';
 import { Text } from '@/components/ui/Text';
 import { radius } from '@/theme/palette';
-import { fontSize } from '@/theme/typography';
+import { fontSize, scaleFont } from '@/theme/typography';
 import { useTheme, type AppColors } from '@/theme/ThemeContext';
 
 /**
@@ -31,6 +31,12 @@ export type ButtonVariant =
 
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
+/**
+ * Heights are the drawn tap targets, and they grow with the reader's text size
+ * so a larger label never sits tight against the pill. They deliberately do not
+ * *shrink* below the drawn value at the Small step — a 49pt button would be a
+ * worse target for no gain, since only the label was asked to get smaller.
+ */
 const sizing: Record<ButtonSize, { height: number; padding: number; text: number; radius: number }> =
   {
     sm: { height: 40, padding: 14, text: fontSize.caption, radius: radius.chip },
@@ -102,14 +108,15 @@ export const Button = memo(function Button({
   style,
   ...rest
 }: ButtonProps) {
-  const { colors } = useTheme();
+  const { colors, fontScale } = useTheme();
   const metrics = sizing[size];
   const palette = useMemo(() => variantStyle(variant, colors), [colors, variant]);
   const isDisabled = disabled || loading;
+  const growth = Math.max(1, fontScale);
 
   const containerStyle = useMemo<ViewStyle>(
     () => ({
-      height: metrics.height,
+      height: Math.round(metrics.height * growth),
       paddingHorizontal: metrics.padding,
       borderRadius: metrics.radius,
       backgroundColor: palette.background,
@@ -127,10 +134,13 @@ export const Button = memo(function Button({
           }
         : null),
     }),
-    [fullWidth, metrics, palette],
+    [fullWidth, growth, metrics, palette],
   );
 
-  const glyph = icon ? <Icon icon={icon} size={metrics.text} color={palette.label} /> : null;
+  // The glyph is set to the label's size, so it has to follow it up the ramp.
+  const glyph = icon ? (
+    <Icon icon={icon} size={scaleFont(metrics.text, fontScale)} color={palette.label} />
+  ) : null;
 
   return (
     <Pressable
@@ -255,7 +265,7 @@ export const FloatingAction = memo(function FloatingAction({
   icon?: LucideIcon;
   style?: StyleProp<ViewStyle>;
 }) {
-  const { colors } = useTheme();
+  const { colors, fontScale } = useTheme();
 
   return (
     <Pressable
@@ -264,6 +274,7 @@ export const FloatingAction = memo(function FloatingAction({
         styles.base,
         styles.fab,
         {
+          height: Math.round(52 * Math.max(1, fontScale)),
           backgroundColor: colors.primary,
           shadowColor: colors.primary,
         },

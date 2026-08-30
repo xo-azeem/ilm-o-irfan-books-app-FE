@@ -1,15 +1,13 @@
-import { createMMKV, type MMKV } from 'react-native-mmkv';
 import type { SupportedStorage } from '@supabase/supabase-js';
 
-let mmkv: MMKV | null = null;
+import { keyValueStore } from '@/stores/storage';
 
-try {
-  mmkv = createMMKV({ id: 'ilm-supabase-auth' });
-} catch {
-  mmkv = null;
-}
-
-const memory = new Map<string, string>();
+/**
+ * Session tokens keep their own MMKV id, deliberately apart from preferences:
+ * signing out clears this store without touching the reader's theme or text
+ * size, and a preferences reset never invalidates a live session.
+ */
+const store = keyValueStore('ilm-supabase-auth');
 
 /**
  * MMKV-backed storage adapter for Supabase Auth sessions.
@@ -19,36 +17,7 @@ const memory = new Map<string, string>();
  * without these the arguments silently infer as `any`.
  */
 export const supabaseAuthStorage: SupportedStorage = {
-  getItem: (key: string) => {
-    try {
-      if (mmkv) {
-        return mmkv.getString(key) ?? null;
-      }
-      return memory.get(key) ?? null;
-    } catch {
-      return memory.get(key) ?? null;
-    }
-  },
-  setItem: (key: string, value: string) => {
-    try {
-      if (mmkv) {
-        mmkv.set(key, value);
-      } else {
-        memory.set(key, value);
-      }
-    } catch {
-      memory.set(key, value);
-    }
-  },
-  removeItem: (key: string) => {
-    try {
-      if (mmkv) {
-        mmkv.remove(key);
-      } else {
-        memory.delete(key);
-      }
-    } catch {
-      memory.delete(key);
-    }
-  },
+  getItem: (key: string) => store.getString(key) ?? null,
+  setItem: (key: string, value: string) => store.set(key, value),
+  removeItem: (key: string) => store.remove(key),
 };

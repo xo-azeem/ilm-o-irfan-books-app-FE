@@ -19,6 +19,7 @@ import { MembershipPaywall } from '@/features/profile/components/MembershipPaywa
 import { ProfileSubScreenLayout } from '@/features/profile/components/ProfileSubScreenLayout';
 import { subscriptionIncludes } from '@/features/profile/data/profileContent';
 import { useLibrary, useSubscription } from '@/hooks/useAccount';
+import { asNumber } from '@/services/mappers';
 import { radius } from '@/theme/palette';
 import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
@@ -33,12 +34,18 @@ function formatDate(iso: string | null | undefined): string {
     : date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-function formatPrice(cents?: number | null, currency = 'PKR', interval?: string | null): string {
-  if (cents == null) {
+/** `price_cents` is a Postgres `numeric`, which the API serialises as a string. */
+function formatPrice(
+  cents?: number | string | null,
+  currency = 'PKR',
+  interval?: string | null,
+): string {
+  const amount = asNumber(cents);
+  if (amount == null) {
     return '—';
   }
   const symbol = currency === 'PKR' ? 'Rs' : currency;
-  return `${symbol} ${(cents / 100).toLocaleString('en-US')}${interval ? ` / ${interval}` : ''}`;
+  return `${symbol} ${(amount / 100).toLocaleString('en-US')}${interval ? ` / ${interval}` : ''}`;
 }
 
 /**

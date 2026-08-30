@@ -1,0 +1,14 @@
+<resources>
+
+    <!--
+      Android 12 replaced the windowBackground launch screen with the platform
+      SplashScreen API, which ignores `android:windowBackground`. The same two
+      ingredients are declared here in the form that API understands, so the
+      launch looks identical either side of the version boundary.
+    -->
+    <style name="SplashTheme" parent="AppTheme">
+        <item name="android:windowSplashScreenBackground">@color/splash_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
+    </style>
+
+</resources>

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The launch window's background. Drawn by the OS the moment the process
+  starts — before the JS bundle is read, let alone evaluated — so the mark and
+  its glow are on screen in the first frame rather than after React mounts.
+
+  The three layers here are exactly what AuthSplash renders at rest: the same
+  ground, the same 460dp glow, the same 128dp mark. Keep them in step, or the
+  handover to JS will show a seam.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/splash_background" />
+    <item
+        android:width="460dp"
+        android:height="460dp"
+        android:gravity="center">
+        <bitmap
+            android:src="@drawable/splash_glow"
+            android:gravity="fill" />
+    </item>
+    <item>
+        <bitmap
+            android:src="@drawable/splash_logo"
+            android:gravity="center" />
+    </item>
+</layer-list>

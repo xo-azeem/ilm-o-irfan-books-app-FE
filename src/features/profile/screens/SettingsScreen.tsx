@@ -2,7 +2,7 @@ import { useCallback, useMemo } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { LogOut } from 'lucide-react-native';
+import { ChartColumn, LogOut } from 'lucide-react-native';
 
 import { Screen, ScreenHeader } from '@/components/layout';
 import {
@@ -10,10 +10,10 @@ import {
   Badge,
   Card,
   Icon,
+  IconButton,
   SettingsGroup,
   SettingsRow,
   Text,
-  TextButton,
 } from '@/components/ui';
 import { profileGroups } from '@/features/profile/data/profileContent';
 import type {
@@ -83,7 +83,18 @@ export function SettingsScreen() {
       <ScreenHeader
         title="Settings"
         onBack={() => navigation.goBack()}
-        action={<TextButton label="Reading record" onPress={goToRecord} />}
+        // A glyph rather than a label, so the top row is a matched pair of
+        // buttons and the heading below keeps the full width of the page.
+        action={
+          <IconButton
+            icon={ChartColumn}
+            onPress={goToRecord}
+            variant="plain"
+            buttonSize={36}
+            size={17}
+            accessibilityLabel="Reading record"
+          />
+        }
       />
 
       <Card tone="surface" padded={14} style={styles.identity}>

@@ -1,11 +1,24 @@
 package com.ilmoirfanapp
 
+import android.os.Bundle
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
 import com.facebook.react.defaults.DefaultReactActivityDelegate
 
 class MainActivity : ReactActivity() {
+
+  /**
+   * The activity launches under SplashTheme so the OS paints the logo in the
+   * very first frame, before the JS bundle is even read. Swapping back to
+   * AppTheme here — before super.onCreate — means the running app never keeps
+   * the splash drawable as its window background, which would otherwise sit
+   * behind every screen and defeat overdraw removal.
+   */
+  override fun onCreate(savedInstanceState: Bundle?) {
+    setTheme(R.style.AppTheme)
+    super.onCreate(savedInstanceState)
+  }
 
   /**
    * Returns the name of the main component registered from JavaScript. This is used to schedule

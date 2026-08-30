@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useState, type ReactNode } from 'react';
+import { memo, useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Pressable,
   StyleSheet,
@@ -15,7 +15,7 @@ import { ChevronDown, Search, X } from 'lucide-react-native';
 import { Icon } from '@/components/ui/Icon';
 import { Label, Text } from '@/components/ui/Text';
 import { radius } from '@/theme/palette';
-import { fonts, fontSize, sansFamily } from '@/theme/typography';
+import { fonts, fontSize, sansFamily, scaleFont } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
 
 /**
@@ -80,8 +80,9 @@ export const TextField = memo(function TextField({
   containerStyle,
   ...rest
 }: TextFieldProps) {
-  const { colors } = useTheme();
+  const { colors, fontScale } = useTheme();
   const [focused, setFocused] = useState(false);
+  const inputRef = useRef<TextInput>(null);
 
   const handleFocus = useCallback(
     (event: FocusEvent) => {
@@ -98,6 +99,15 @@ export const TextField = memo(function TextField({
     },
     [onBlur],
   );
+
+  // The drawn pill is 50pt tall but the input inside it is only as tall as one
+  // line of text, so a tap anywhere else in the row would land on dead space.
+  // The row itself carries the press and hands focus to the input.
+  const focusInput = useCallback(() => {
+    if (editable) {
+      inputRef.current?.focus();
+    }
+  }, [editable]);
 
   const boxStyle = useMemo<ViewStyle>(() => {
     const isFocused = focused && editable;
@@ -132,8 +142,9 @@ export const TextField = memo(function TextField({
 
   return (
     <Field label={label} hint={hint} error={error} style={containerStyle}>
-      <View style={[styles.box, boxStyle]}>
+      <Pressable accessible={false} onPress={focusInput} style={[styles.box, boxStyle]}>
         <TextInput
+          ref={inputRef}
           editable={editable}
           multiline={multiline}
           onFocus={handleFocus}
@@ -145,14 +156,17 @@ export const TextField = memo(function TextField({
             {
               color: editable ? colors.ink : colors.muted,
               fontFamily: mono ? fonts.mono : sansFamily('400'),
-              fontSize: mono ? fontSize.caption + 0.5 : fontSize.body,
+              // A TextInput is not a `Text`, so the app-wide size is applied
+              // here by hand — otherwise a field's label would grow and the
+              // value the reader types into it would not.
+              fontSize: scaleFont(mono ? fontSize.caption + 0.5 : fontSize.body, fontScale),
               textAlignVertical: multiline ? 'top' : 'center',
             },
           ]}
           {...rest}
         />
         {trailing}
-      </View>
+      </Pressable>
     </Field>
   );
 });
@@ -263,8 +277,11 @@ export const SearchField = memo(function SearchField({
   style,
   ...rest
 }: SearchFieldProps) {
-  const { colors } = useTheme();
+  const { colors, fontScale } = useTheme();
   const [focused, setFocused] = useState(false);
+  const inputRef = useRef<TextInput>(null);
+
+  const focusInput = useCallback(() => inputRef.current?.focus(), []);
 
   const handleFocus = useCallback(
     (event: FocusEvent) => {
@@ -284,7 +301,9 @@ export const SearchField = memo(function SearchField({
 
   const boxStyle = useMemo<ViewStyle>(
     () => ({
-      height: dense ? 44 : 50,
+      // A fixed height, unlike the other fields' `minHeight` — so it has to be
+      // grown deliberately or larger text would be clipped inside it.
+      height: Math.round((dense ? 44 : 50) * Math.max(1, fontScale)),
       borderRadius: dense ? radius.control : radius.button,
       paddingHorizontal: dense ? 13 : 15,
       gap: dense ? 10 : 11,
@@ -301,7 +320,7 @@ export const SearchField = memo(function SearchField({
           }
         : null),
     }),
-    [colors, dense, focused],
+    [colors, dense, focused, fontScale],
   );
 
   const content = (
@@ -313,6 +332,7 @@ export const SearchField = memo(function SearchField({
         </Text>
       ) : (
         <TextInput
+          ref={inputRef}
           value={value}
           placeholder={placeholder}
           placeholderTextColor={colors.faint}
@@ -324,7 +344,10 @@ export const SearchField = memo(function SearchField({
             {
               color: colors.ink,
               fontFamily: sansFamily('500'),
-              fontSize: dense ? fontSize.caption + 0.5 : fontSize.bodySmall + 0.5,
+              fontSize: scaleFont(
+                dense ? fontSize.caption + 0.5 : fontSize.bodySmall + 0.5,
+                fontScale,
+              ),
             },
           ]}
           {...rest}
@@ -349,7 +372,11 @@ export const SearchField = memo(function SearchField({
     );
   }
 
-  return <View style={[styles.box, boxStyle, style]}>{content}</View>;
+  return (
+    <Pressable accessible={false} onPress={focusInput} style={[styles.box, boxStyle, style]}>
+      {content}
+    </Pressable>
+  );
 });
 
 const styles = StyleSheet.create({
@@ -370,6 +397,10 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
+    // Without this the input is only as tall as its own text and the rest of
+    // the 50pt pill is untappable — the row looks like a field but only a thin
+    // band in the middle of it takes a tap.
+    alignSelf: 'stretch',
     padding: 0,
     // A fixed line height keeps single-line fields from growing on Android.
     includeFontPadding: false,

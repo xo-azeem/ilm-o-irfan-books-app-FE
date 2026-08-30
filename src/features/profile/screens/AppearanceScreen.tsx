@@ -1,11 +1,25 @@
 import { memo, useCallback } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { Card, Divider, Label, SettingsGroup, SettingsRow, Text, Toggle } from '@/components/ui';
+import {
+  Card,
+  Divider,
+  Label,
+  SegmentedControl,
+  SettingsGroup,
+  SettingsRow,
+  Text,
+  Toggle,
+} from '@/components/ui';
 import { ProfileSubScreenLayout } from '@/features/profile/components/ProfileSubScreenLayout';
 import { readerTones, theme, type ReaderTone } from '@/theme/palette';
-import { useThemeStore, type ThemePreference } from '@/stores/themeStore';
-import { fontSize } from '@/theme/typography';
+import { READING_MODES, useThemeStore, type ThemePreference } from '@/stores/themeStore';
+import {
+  FONT_SCALES,
+  FONT_SCALE_ORDER,
+  fontSize,
+  type FontScale,
+} from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
 
 const THEME_OPTIONS: { id: ThemePreference; label: string }[] = [
@@ -25,12 +39,20 @@ const TONES: { value: ReaderTone; label: string }[] = [
  *
  * A live preview sits above the three choices, and the reader's page tone is
  * pulled up here so it is not buried in the reader's own sheet.
+ *
+ * The text-size selector needs no preview of its own: the choice applies to
+ * every glyph in the app, so this screen resizes under the reader's finger as
+ * they tap through the steps.
  */
 export function AppearanceScreen() {
   const themePreference = useThemeStore(state => state.themePreference);
   const setThemePreference = useThemeStore(state => state.setThemePreference);
+  const fontScale = useThemeStore(state => state.fontScale);
+  const setFontScale = useThemeStore(state => state.setFontScale);
   const pageTone = useThemeStore(state => state.pageTone);
   const setPageTone = useThemeStore(state => state.setPageTone);
+  const readingMode = useThemeStore(state => state.readingMode);
+  const setReadingMode = useThemeStore(state => state.setReadingMode);
   const keepScreenAwake = useThemeStore(state => state.keepScreenAwake);
   const setKeepScreenAwake = useThemeStore(state => state.setKeepScreenAwake);
 
@@ -73,6 +95,38 @@ export function AppearanceScreen() {
 
       <View style={styles.section}>
         <Label size={fontSize.labelSmall + 0.5} tracking={1.5}>
+          Text size
+        </Label>
+        <Card tone="surface" padded={15} gap={14}>
+          <View style={styles.row}>
+            <View style={styles.rowBody}>
+              <Text size={fontSize.body} leading={1}>
+                App text size
+              </Text>
+              <Text size={12.5} leading={1.2} tone="muted">
+                Applied to every screen
+              </Text>
+            </View>
+            <Text size={fontSize.caption} leading={1} weight="600" tone="primary">
+              {FONT_SCALES[fontScale].label}
+            </Text>
+          </View>
+
+          <View style={styles.scaleRow}>
+            {FONT_SCALE_ORDER.map(step => (
+              <TextSizeStep
+                key={step}
+                step={step}
+                selected={fontScale === step}
+                onSelect={setFontScale}
+              />
+            ))}
+          </View>
+        </Card>
+      </View>
+
+      <View style={styles.section}>
+        <Label size={fontSize.labelSmall + 0.5} tracking={1.5}>
           Reading defaults
         </Label>
         <Card tone="surface" padded={15} gap={16}>
@@ -96,6 +150,27 @@ export function AppearanceScreen() {
                 />
               ))}
             </View>
+          </View>
+
+          <Divider />
+
+          <View style={styles.modeRow}>
+            <View style={styles.rowBody}>
+              <Text size={fontSize.body} leading={1}>
+                Reading mode
+              </Text>
+              <Text size={12.5} leading={1.2} tone="muted">
+                {readingMode === 'scroll'
+                  ? 'The book runs as one column you scroll'
+                  : 'One page at a time, turned sideways'}
+              </Text>
+            </View>
+            <SegmentedControl
+              options={READING_MODES}
+              value={readingMode}
+              onChange={setReadingMode}
+              variant="soft"
+            />
           </View>
 
           <Divider />
@@ -188,6 +263,58 @@ function PreviewContent({ palette }: { palette: typeof theme.light | typeof them
   );
 }
 
+/** The glyph drawn on each step — the ramp made visible, not the resulting size. */
+const STEP_GLYPH_SIZE: Record<FontScale, number> = {
+  small: 12,
+  default: 15,
+  large: 18,
+  xlarge: 21,
+};
+
+/**
+ * One step on the text-size ramp. The "A" is drawn at the step's own place on
+ * that ramp — and, because `Text` is already scaled app-wide, the whole row
+ * grows as the reader moves up it, which is the clearest possible confirmation
+ * that the choice reaches beyond this card.
+ */
+const TextSizeStep = memo(function TextSizeStep({
+  step,
+  selected,
+  onSelect,
+}: {
+  step: FontScale;
+  selected: boolean;
+  onSelect: (step: FontScale) => void;
+}) {
+  const { colors } = useTheme();
+  const handlePress = useCallback(() => onSelect(step), [onSelect, step]);
+
+  return (
+    <Pressable
+      accessibilityRole="radio"
+      accessibilityState={{ selected }}
+      accessibilityLabel={`${FONT_SCALES[step].label} text size`}
+      onPress={handlePress}
+      style={({ pressed }) => [
+        styles.scaleStep,
+        {
+          backgroundColor: selected ? colors.primaryFillSoft : 'transparent',
+          borderColor: selected ? colors.primaryBright : colors.borderStrong,
+          borderWidth: selected ? 2 : 1,
+        },
+        pressed && styles.pressed,
+      ]}>
+      <Text
+        size={STEP_GLYPH_SIZE[step]}
+        leading={1.1}
+        weight={selected ? '600' : '400'}
+        tone={selected ? 'primary' : 'soft'}>
+        A
+      </Text>
+    </Pressable>
+  );
+});
+
 const ToneChip = memo(function ToneChip({
   value,
   label,
@@ -278,6 +405,11 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 4,
   },
+  // The segments need the full width, so this row stacks rather than sits side
+  // by side like the others.
+  modeRow: {
+    gap: 12,
+  },
   toneRow: {
     flexDirection: 'row',
     gap: 7,
@@ -286,6 +418,19 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 9,
+  },
+  scaleRow: {
+    flexDirection: 'row',
+    gap: 9,
+  },
+  scaleStep: {
+    // Equal columns rather than fixed widths, so the row still fits when the
+    // largest step widens the glyph inside it.
+    flex: 1,
+    minHeight: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 13,
   },
   pressed: {
     opacity: 0.75,

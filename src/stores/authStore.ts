@@ -1,13 +1,10 @@
 import type { Session, User } from '@supabase/supabase-js';
-import { createMMKV, type MMKV } from 'react-native-mmkv';
 import { create } from 'zustand';
-import {
-  createJSONStorage,
-  persist,
-  type StateStorage,
-} from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { signOut as supabaseSignOut } from '@/lib/supabase/auth';
+// One shared MMKV handle backs every app preference — see stores/storage.ts.
+import { mmkvStorage } from '@/stores/storage';
 
 export type AppRole = 'user' | 'admin';
 
@@ -29,47 +26,6 @@ type AuthState = {
     accessCheckedFor: string | null;
   }) => void;
   signOut: () => Promise<void>;
-};
-
-let mmkv: MMKV | null = null;
-try {
-  mmkv = createMMKV({ id: 'ilm-app-storage' });
-} catch {
-  mmkv = null;
-}
-
-const memoryStore = new Map<string, string>();
-
-const authStorage: StateStorage = {
-  getItem: name => {
-    try {
-      return mmkv ? (mmkv.getString(name) ?? null) : (memoryStore.get(name) ?? null);
-    } catch {
-      return memoryStore.get(name) ?? null;
-    }
-  },
-  setItem: (name, value) => {
-    try {
-      if (mmkv) {
-        mmkv.set(name, value);
-      } else {
-        memoryStore.set(name, value);
-      }
-    } catch {
-      memoryStore.set(name, value);
-    }
-  },
-  removeItem: name => {
-    try {
-      if (mmkv) {
-        mmkv.remove(name);
-      } else {
-        memoryStore.delete(name);
-      }
-    } catch {
-      memoryStore.delete(name);
-    }
-  },
 };
 
 function userFromSession(session: Session | null): Pick<User, 'id' | 'email'> | null {
@@ -122,7 +78,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'ilm-auth-session',
-      storage: createJSONStorage(() => authStorage),
+      storage: createJSONStorage(() => mmkvStorage),
       partialize: state => ({
         isAuthenticated: state.isAuthenticated,
         userId: state.userId,

@@ -1,9 +1,8 @@
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import type { AuthReturnTo, RootStackParamList } from '@/app/navigation/types';
-import { env } from '@/config/env';
 import { ROUTES } from '@/constants/routes';
-import { usePdfAccessPolicy, useSubscription } from '@/hooks/useAccount';
+import { useSubscription } from '@/hooks/useAccount';
 import { useAuthStore } from '@/stores/authStore';
 
 export function useAccess() {
@@ -11,21 +10,18 @@ export function useAccess() {
   const isAdmin = useAuthStore(state => state.isAdmin);
   const userId = useAuthStore(state => state.userId);
   const subscription = useSubscription();
-  const policy = usePdfAccessPolicy();
 
-  const freePdfAccess =
-    isAdmin ||
-    env.allowPdfWithoutEntitlement ||
-    policy.data?.allowPdfWithoutEntitlement === true;
-
+  // Two ways in, and no third: the admin role, or a live entitlement. This
+  // mirrors `get-signed-pdf` exactly — admins may open anything, including
+  // unpublished drafts, and everyone else needs an active subscription. There
+  // is no build flag, no `__DEV__` bypass and no server-side override, so the
+  // app can never offer a book the backend would then refuse to sign.
   const canOpenBooks = Boolean(
-    isAuthenticated && (freePdfAccess || subscription.data?.active),
+    isAuthenticated && (isAdmin || subscription.data?.active),
   );
 
-  const waitForGate =
-    isAuthenticated &&
-    !freePdfAccess &&
-    (policy.isLoading || subscription.isLoading);
+  // An admin is already through, so only a non-admin waits on the entitlement.
+  const waitForGate = isAuthenticated && !isAdmin && subscription.isLoading;
 
   return {
     isAuthenticated,

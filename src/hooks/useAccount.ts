@@ -2,7 +2,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
   addHighlight,
-  addToWishlist,
   getHighlights,
   getLibrary,
   getProfile,
@@ -10,13 +9,12 @@ import {
   getWishlist,
   isInWishlist,
   removeDownload,
-  removeFromWishlist,
   saveReadingProgress,
   syncDownload,
+  toggleWishlist,
   updateProfile,
   type ProfileDetails,
 } from '@/services/account';
-import { getPdfAccessPolicy, setPdfAccessPolicy } from '@/services/appSettings';
 import { useAuthStore } from '@/stores/authStore';
 
 function scoped(name: string, userId: string | null, extra?: string) {
@@ -68,24 +66,6 @@ export function useSubscription() {
   });
 }
 
-export function usePdfAccessPolicy() {
-  return useQuery({
-    queryKey: ['pdf-access-policy'],
-    queryFn: getPdfAccessPolicy,
-    staleTime: 30_000,
-  });
-}
-
-export function useUpdatePdfAccessPolicy() {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: setPdfAccessPolicy,
-    onSuccess: () => {
-      void client.invalidateQueries({ queryKey: ['pdf-access-policy'] });
-    },
-  });
-}
-
 export function useHighlights(bookId: string) {
   const userId = useAuthStore(state => state.userId);
   return useQuery({
@@ -108,14 +88,10 @@ export function useWishlistMutation(bookId: string) {
   const client = useQueryClient();
   const userId = useAuthStore(state => state.userId);
   return useMutation({
-    mutationFn: async (saved: boolean) => {
-      if (saved) {
-        await removeFromWishlist(bookId);
-        return false;
-      }
-      await addToWishlist(bookId);
-      return true;
-    },
+    // `wishlist-toggle` decides the direction from the row the server finds, so
+    // the caller's `saved` flag is no longer what performs the write — it is
+    // kept in the signature because the button still reads it for its label.
+    mutationFn: (_saved: boolean) => toggleWishlist(bookId),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: scoped('wishlist', userId) });
       void client.invalidateQueries({ queryKey: scoped('wishlist-item', userId, bookId) });

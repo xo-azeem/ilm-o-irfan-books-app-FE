@@ -20,10 +20,8 @@ import {
 } from '@/features/admin/components/AdminUi';
 import { useAdminCollections, useAdminSettings, useUpdateAdminSettings } from '@/hooks/useAdmin';
 import { layout } from '@/theme/palette';
-import { useTheme } from '@/theme/ThemeContext';
 
 export function AdminSettingsScreen() {
-  const { colors } = useTheme();
   const toast = useToast();
   const { data, isLoading, error, refetch } = useAdminSettings();
   const { data: collections = [] } = useAdminCollections();
@@ -79,34 +77,17 @@ export function AdminSettingsScreen() {
       <View style={settingsStyles.stack}>
         <AdminCard title="Access">
           <View style={settingsStyles.group}>
-            <AdminToggleRow
-              label="Free PDF access"
-              description="When on, any signed-in reader can open and download every book without a subscription. Admins always can."
-              value={data.allow_pdf_without_entitlement}
-              disabled={update.isPending}
-              onValueChange={value =>
-                save(
-                  { allow_pdf_without_entitlement: value },
-                  value ? 'Paywall disabled.' : 'Paywall enabled — subscription now required.',
-                )
-              }
-            />
-            {data.allow_pdf_without_entitlement ? (
-              <View style={[settingsStyles.caution, { backgroundColor: colors.warningFill, borderColor: colors.warningBorder }]}>
-                <Text size={12} leading={1.45} tone="warning">
-                  Development setting. Turn this off before a public release so only subscribers can
-                  read PDFs. The Edge Function also honours the ALLOW_PDF_WITHOUT_ENTITLEMENT
-                  environment variable, which overrides this toggle when set.
-                </Text>
-              </View>
-            ) : (
-              <View style={settingsStyles.row}>
-                <AdminBadge label="Subscription required" tone="success" />
-                <Text size={12} leading={1.3} tone="muted">
-                  Readers need an active entitlement.
-                </Text>
-              </View>
-            )}
+            {/*
+              PDF access is not configurable. `get-signed-pdf` grants it to the
+              admin role or an active entitlement and to nothing else, so there
+              is no switch here that could contradict it.
+            */}
+            <View style={settingsStyles.row}>
+              <AdminBadge label="Subscription required" tone="success" />
+              <Text size={12} leading={1.3} tone="muted">
+                Readers need an active entitlement. Admins can open every book.
+              </Text>
+            </View>
 
             <AdminDivider />
 
@@ -234,11 +215,5 @@ const settingsStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 9,
-  },
-  caution: {
-    paddingHorizontal: 13,
-    paddingVertical: 11,
-    borderRadius: 10,
-    borderWidth: StyleSheet.hairlineWidth * 2,
   },
 });

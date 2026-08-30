@@ -1,14 +1,18 @@
 import ReactNativeBlobUtil from 'react-native-blob-util';
-import { createMMKV } from 'react-native-mmkv';
 
 import type { BookPdfSource } from '@/constants/books';
 import { getSignedPdfUrl } from '@/lib/supabase';
 import { syncDownload } from '@/services/account';
+import { keyValueStore } from '@/stores/storage';
 
-const storage = createMMKV({ id: 'ilm-offline-books' });
+// Downloads live in their own MMKV id, away from preferences: clearing one
+// should never disturb the other. Created through the shared factory so a
+// missing native module degrades to memory instead of throwing on import.
+const storage = keyValueStore('ilm-offline-books');
 const directory = `${ReactNativeBlobUtil.fs.dirs.DocumentDir}/books`;
-const WRITE_SLICE = 16 * 1024;
-const BASE64_APPLY = 256;
+const DOWNLOAD_TIMEOUT_MS = 120000;
+/** Anything smaller than this cannot be a PDF, header or not. */
+const MIN_PDF_BYTES = 32;
 
 function key(bookId: string) {
   return `book:${bookId}`;
@@ -18,19 +22,6 @@ function filePath(bookId: string) {
   return `${directory}/${bookId}.pdf`;
 }
 
-/**
- * The slice of the streaming-response API this download path uses. Declared
- * structurally because `ReadableStream` lives in TypeScript's DOM lib, which a
- * React Native project does not include.
- */
-type ByteStreamResponse = {
-  body?: {
-    getReader(): {
-      read(): Promise<{ done: false; value: Uint8Array } | { done: true; value?: undefined }>;
-    };
-  } | null;
-};
-
 /** The local-file member of the union, so callers can read `.uri` directly. */
 type LocalPdfSource = Extract<BookPdfSource, { uri: string }>;
 
@@ -38,17 +29,35 @@ function fileSource(path: string): LocalPdfSource {
   return { uri: path.startsWith('file://') ? path : `file://${path}` };
 }
 
-function isPdfHeader(bytes: Uint8Array): boolean {
-  return bytes.length >= 5 && bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46;
+function isPdfHeader(bytes: ArrayLike<number>): boolean {
+  return (
+    bytes.length >= 5 &&
+    bytes[0] === 0x25 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x44 &&
+    bytes[3] === 0x46
+  );
 }
 
-function bytesToBase64(bytes: Uint8Array): string {
-  let binary = '';
-  for (let i = 0; i < bytes.length; i += BASE64_APPLY) {
-    const slice = bytes.subarray(i, Math.min(i + BASE64_APPLY, bytes.length));
-    binary += String.fromCharCode.apply(null, Array.from(slice) as unknown as number[]);
+/**
+ * Reads only the first five bytes off disk. A truncated or HTML-error body
+ * saved as a PDF is what makes the native renderer fall over, so it is worth
+ * catching here rather than in Pdfium.
+ */
+async function hasPdfHeader(path: string): Promise<boolean> {
+  const probe = `${path}.head`;
+  try {
+    await ReactNativeBlobUtil.fs.unlink(probe).catch(() => undefined);
+    await ReactNativeBlobUtil.fs.slice(path, probe, 0, 5);
+    const bytes = (await ReactNativeBlobUtil.fs.readFile(probe, 'ascii')) as number[];
+    return isPdfHeader(bytes ?? []);
+  } catch {
+    // If the platform cannot slice the file, trust the download and let the
+    // renderer report a real problem rather than blocking a good book.
+    return true;
+  } finally {
+    await ReactNativeBlobUtil.fs.unlink(probe).catch(() => undefined);
   }
-  return btoa(binary);
 }
 
 async function ensureDirectory() {
@@ -101,100 +110,92 @@ function emitTransferProgress(
   onProgress({ loadedBytes, totalBytes, percent });
 }
 
-function parseSizeFromHeaders(headers: { get(name: string): string | null }) {
-  const range = headers.get('Content-Range') ?? headers.get('content-range') ?? '';
-  const rangeMatch = /\/(\d+)\s*$/.exec(range);
-  if (rangeMatch) {
-    const size = Number(rangeMatch[1]);
-    if (Number.isFinite(size) && size > 0) return size;
-  }
-
-  const length = Number(headers.get('Content-Length') ?? headers.get('content-length') ?? '');
-  return Number.isFinite(length) && length > 0 ? length : 0;
-}
-
-async function appendBytes(path: string, bytes: Uint8Array) {
-  for (let i = 0; i < bytes.length; i += WRITE_SLICE) {
-    const slice = bytes.subarray(i, Math.min(i + WRITE_SLICE, bytes.length));
-    await ReactNativeBlobUtil.fs.appendFile(path, bytesToBase64(slice), 'base64');
-  }
-}
-
-function takeHeader(current: Uint8Array, incoming: Uint8Array) {
-  if (current.length >= 5) return current;
-  const next = new Uint8Array(Math.min(5, current.length + incoming.byteLength));
-  next.set(current);
-  next.set(incoming.subarray(0, next.length - current.length), current.length);
-  return next;
-}
-
+/**
+ * Streams the book to disk natively.
+ *
+ * The bytes never enter JavaScript: a book is tens of megabytes, and copying it
+ * through the bridge as base64 is what puts the app within reach of an
+ * out-of-memory kill on the very screen that needs the memory to render.
+ */
 async function downloadToPath(url: string, target: string, options: DownloadOptions = {}) {
   const temporary = `${target}.part`;
-  if (await ReactNativeBlobUtil.fs.exists(temporary)) {
-    await ReactNativeBlobUtil.fs.unlink(temporary);
-  }
+  await ReactNativeBlobUtil.fs.unlink(temporary).catch(() => undefined);
 
-  let response: Response;
-  try {
-    response = await fetch(url, { signal: options.signal });
-  } catch (error) {
-    if (options.signal?.aborted || (error instanceof Error && error.name === 'AbortError')) {
-      throw abortError();
-    }
-    const message = error instanceof Error ? error.message : 'Network request failed';
-    throw new Error(`Could not download the PDF. ${message}`);
-  }
-
-  if (!response.ok) {
-    throw statusError(response.status);
+  if (options.signal?.aborted) {
+    throw abortError();
   }
 
   const expectedBytes =
-    (options.expectedBytes && options.expectedBytes > 0 ? options.expectedBytes : 0) ||
-    parseSizeFromHeaders(response.headers);
+    options.expectedBytes && options.expectedBytes > 0 ? options.expectedBytes : 0;
   const lastPercent = { value: -1 };
   emitTransferProgress(0, expectedBytes, options.onProgress, lastPercent);
 
-  await ReactNativeBlobUtil.fs.writeFile(temporary, '', 'utf8');
+  const task = ReactNativeBlobUtil.config({
+    path: temporary,
+    overwrite: true,
+    trusty: true,
+    timeout: DOWNLOAD_TIMEOUT_MS,
+  }).fetch('GET', url);
+
+  let cancelled = false;
+  const cancel = () => {
+    if (cancelled) return;
+    cancelled = true;
+    try {
+      task.cancel();
+    } catch {
+      // The task had already settled.
+    }
+  };
+
+  const signal = options.signal;
+  signal?.addEventListener?.('abort', cancel);
 
   try {
-    const streamed = (response as unknown as ByteStreamResponse).body;
-    const reader = streamed?.getReader();
-    let loaded = 0;
-    let header: Uint8Array = new Uint8Array(0);
+    task.progress({ count: 50 }, (received, total) => {
+      const totalBytes = Number(total) > 0 ? Number(total) : expectedBytes;
+      emitTransferProgress(Number(received) || 0, totalBytes, options.onProgress, lastPercent);
+    });
 
-    const consume = async (chunk: Uint8Array) => {
-      header = takeHeader(header, chunk);
-      if (header.length >= 5 && !isPdfHeader(header)) {
-        throw new Error('This book file is missing or is not a valid PDF.');
-      }
-      await appendBytes(temporary, chunk);
-      loaded += chunk.byteLength;
-      emitTransferProgress(loaded, expectedBytes, options.onProgress, lastPercent);
-    };
+    const response = await task;
 
-    if (reader) {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        await consume(value);
-      }
-    } else {
-      await consume(new Uint8Array(await response.arrayBuffer()));
+    if (cancelled || signal?.aborted) {
+      throw abortError();
     }
 
-    if (!isPdfHeader(header)) {
+    const status = Number(response.info?.()?.status ?? 200);
+    if (status >= 400) {
+      throw statusError(status);
+    }
+
+    const stats = await ReactNativeBlobUtil.fs.stat(temporary);
+    const size = Number(stats?.size) || 0;
+    if (size < MIN_PDF_BYTES || !(await hasPdfHeader(temporary))) {
       throw new Error('This book file is missing or is not a valid PDF.');
     }
 
-    if (await ReactNativeBlobUtil.fs.exists(target)) await ReactNativeBlobUtil.fs.unlink(target);
+    if (await ReactNativeBlobUtil.fs.exists(target)) {
+      await ReactNativeBlobUtil.fs.unlink(target).catch(() => undefined);
+    }
     await ReactNativeBlobUtil.fs.mv(temporary, target);
 
-    const total = expectedBytes > 0 ? expectedBytes : loaded;
-    options.onProgress?.({ loadedBytes: loaded, totalBytes: total, percent: 100 });
+    options.onProgress?.({
+      loadedBytes: size,
+      totalBytes: expectedBytes > 0 ? expectedBytes : size,
+      percent: 100,
+    });
   } catch (error) {
     await ReactNativeBlobUtil.fs.unlink(temporary).catch(() => undefined);
-    throw error;
+
+    if (cancelled || signal?.aborted) {
+      throw abortError();
+    }
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('Could not download the PDF.');
+  } finally {
+    signal?.removeEventListener?.('abort', cancel);
   }
 }
 
@@ -206,7 +207,7 @@ export async function getLocalPdf(bookId: string): Promise<string | null> {
   }
   try {
     const stats = await ReactNativeBlobUtil.fs.stat(path);
-    if (!Number(stats.size) || Number(stats.size) < 5) {
+    if (!Number(stats.size) || Number(stats.size) < MIN_PDF_BYTES) {
       await ReactNativeBlobUtil.fs.unlink(path).catch(() => undefined);
       storage.remove(key(bookId));
       return null;

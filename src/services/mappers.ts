@@ -1,9 +1,16 @@
 import { coverColors } from '@/theme/palette';
 
+/**
+ * The list row every catalog surface maps from.
+ *
+ * Nullability follows `public.book_list_items`, which now joins authors with a
+ * `left join`: a book with no author record returns `author_name: null` instead
+ * of being dropped from the catalog entirely.
+ */
 export type CatalogListRow = {
   id: string;
   title: string;
-  author_name: string;
+  author_name: string | null;
   cover_path: string | null;
   cover_color: string | null;
   cover_color_dark: string | null;
@@ -11,14 +18,18 @@ export type CatalogListRow = {
   tag: string | null;
   genre: string | null;
   read_time_minutes: number | null;
-  price_cents: number;
-  currency: string;
-  format: string;
-  is_premium: boolean;
-  description?: string;
+  price_cents: number | string | null;
+  currency: string | null;
+  format: string | null;
+  is_premium: boolean | null;
+  description?: string | null;
 };
 
 const fallbackCover = coverColors.forest;
+
+export const UNKNOWN_AUTHOR = 'Unknown';
+const DEFAULT_CURRENCY = 'USD';
+const DEFAULT_FORMAT = 'Digital edition';
 
 export function stripStoragePrefix(path: string, prefix: string): string {
   return path.replace(new RegExp(`^${prefix}/`), '');
@@ -58,27 +69,46 @@ export function isEntitlementActive(
   return !expiresAt || new Date(expiresAt).getTime() > now;
 }
 
+/**
+ * Reads a display name out of any shape the backend uses for an author: the
+ * flattened `author_name` column, a nested object, or PostgREST's array form.
+ */
 export function authorName(
-  authors: { name: string } | { name: string }[] | null | undefined,
+  authors:
+    | { name: string | null }
+    | { name: string | null }[]
+    | string
+    | null
+    | undefined,
 ): string {
   if (!authors) {
-    return 'Unknown';
+    return UNKNOWN_AUTHOR;
+  }
+  if (typeof authors === 'string') {
+    return authors.trim() || UNKNOWN_AUTHOR;
   }
   if (Array.isArray(authors)) {
-    return authors[0]?.name ?? 'Unknown';
+    return authors[0]?.name?.trim() || UNKNOWN_AUTHOR;
   }
-  return authors.name;
+  return authors.name?.trim() || UNKNOWN_AUTHOR;
 }
 
 export function mapCatalogBook(
   row: CatalogListRow,
   coverUrl?: string,
 ) {
+  const author = authorName(row.author_name);
+
   return {
     id: row.id,
     title: row.title,
-    author: row.author_name,
-    description: row.description ?? `A thoughtful read by ${row.author_name}.`,
+    author,
+    // An unattributed book must not read "A thoughtful read by Unknown."
+    description:
+      row.description ??
+      (author === UNKNOWN_AUTHOR
+        ? 'A thoughtful read from the Ilm o Irfan library.'
+        : `A thoughtful read by ${author}.`),
     coverColor: row.cover_color ?? fallbackCover.light,
     coverColorDark: row.cover_color_dark ?? fallbackCover.dark,
     coverUrl,
@@ -87,8 +117,8 @@ export function mapCatalogBook(
     genre: row.genre ?? 'Islamic Studies',
     readTime: formatReadTime(row.read_time_minutes),
     price: centsToAmount(asNumber(row.price_cents) ?? 0),
-    currency: row.currency,
-    format: row.format,
-    isPremium: row.is_premium,
+    currency: row.currency ?? DEFAULT_CURRENCY,
+    format: row.format ?? DEFAULT_FORMAT,
+    isPremium: Boolean(row.is_premium),
   };
 }

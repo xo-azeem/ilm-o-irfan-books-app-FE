@@ -228,8 +228,14 @@ export type AdminPlanInput = {
   sort_order: number;
 };
 
+/**
+ * Product flags the admin CMS can edit.
+ *
+ * `allow_pdf_without_entitlement` is deliberately absent: PDF access is decided
+ * by `get-signed-pdf` from the admin role and the entitlement alone, so there
+ * is no flag for an operator to get wrong.
+ */
 export type AdminSettings = {
-  allow_pdf_without_entitlement: boolean;
   maintenance_mode: boolean;
   maintenance_message: string | null;
   signup_enabled: boolean;

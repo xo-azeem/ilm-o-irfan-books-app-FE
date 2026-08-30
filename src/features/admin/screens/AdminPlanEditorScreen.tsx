@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 
 import { Screen, ScreenHeader } from '@/components/layout';
@@ -125,7 +125,7 @@ export function AdminPlanEditorScreen() {
         subtitle="Shown on the subscription screen and matched to RevenueCat."
       />
 
-      <View className="gap-4">
+      <View style={s.stack}>
         <AdminField
           label="Name"
           value={form.name}
@@ -142,8 +142,8 @@ export function AdminPlanEditorScreen() {
           helper={`Stable identifier — currently “${resolvedCode || '—'}”.`}
         />
 
-        <View className="flex-row gap-3">
-          <View className="flex-1">
+        <View style={s.row}>
+          <View style={s.grow}>
             <AdminField
               label="Price"
               value={form.price}
@@ -153,9 +153,9 @@ export function AdminPlanEditorScreen() {
               keyboardType="decimal-pad"
             />
           </View>
-          <View className="w-[130px] gap-1.5">
+          <View style={s.currency}>
             <AdminLabel>Currency</AdminLabel>
-            <View className="flex-row flex-wrap gap-1.5">
+            <View style={s.wrap}>
               {CURRENCIES.map(code => (
                 <AdminChip
                   key={code}
@@ -169,7 +169,7 @@ export function AdminPlanEditorScreen() {
           </View>
         </View>
 
-        <View className="gap-2">
+        <View style={s.group}>
           <AdminLabel>Billing interval</AdminLabel>
           <AdminSegmented
             options={INTERVAL_OPTIONS}
@@ -262,3 +262,12 @@ export function AdminPlanEditorScreen() {
     </Screen>
   );
 }
+
+const s = StyleSheet.create({
+  stack: { gap: 16 },
+  row: { flexDirection: 'row', gap: 11 },
+  grow: { flex: 1 },
+  currency: { width: 130, gap: 8 },
+  wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  group: { gap: 8 },
+});

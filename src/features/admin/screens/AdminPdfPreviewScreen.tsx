@@ -4,7 +4,7 @@ import { useRoute, type RouteProp } from '@react-navigation/native';
 import Pdf from 'react-native-pdf';
 
 import { Screen } from '@/components/layout';
-import { Text } from '@/components/ui';
+import { Display, Text } from '@/components/ui';
 import { AdminBackLink } from '@/features/admin/components/AdminUi';
 import type { AdminBooksStackParamList } from '@/features/admin/navigation/types';
 import { getSignedPdfUrl } from '@/lib/supabase';
@@ -31,19 +31,19 @@ export function AdminPdfPreviewScreen() {
   }, [route.params.bookId]);
 
   return (
-    <Screen scrollable={false} contentContainerClassName="px-0">
-      <View className="px-5 pt-1">
+    <Screen scrollable={false} padding={0}>
+      <View style={s.header}>
         <AdminBackLink />
-        <Text className="mb-3 px-1 text-[17px] font-semibold text-app-ink dark:text-app-ink-dark">
+        <Display size={19} style={s.title}>
           {route.params.title}
-        </Text>
+        </Display>
       </View>
       {error ? (
-        <Text className="px-5 text-[15px] text-app-muted dark:text-app-muted-dark">{error}</Text>
+        <Text size={15} leading={1.5} tone="muted" style={s.error}>{error}</Text>
       ) : uri ? (
         <Pdf source={{ uri, cache: true }} style={styles.pdf} />
       ) : (
-        <ActivityIndicator className="flex-1" />
+        <ActivityIndicator style={s.loader} />
       )}
     </Screen>
   );
@@ -54,4 +54,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'transparent',
   },
+});
+
+const s = StyleSheet.create({
+  header: { paddingHorizontal: 18, paddingTop: 4 },
+  title: { marginBottom: 12 },
+  error: { paddingHorizontal: 18 },
+  loader: { flex: 1 },
 });

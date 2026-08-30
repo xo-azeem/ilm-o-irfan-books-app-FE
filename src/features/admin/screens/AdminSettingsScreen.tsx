@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { Screen, ScreenHeader } from '@/components/layout';
 import { ListRowsSkeleton } from '@/components/skeletons/CatalogSkeletons';
@@ -11,16 +11,19 @@ import {
   AdminBadge,
   AdminButton,
   AdminCard,
+  AdminDivider,
   AdminErrorState,
   AdminField,
   AdminHelper,
   AdminNavRow,
   AdminToggleRow,
-  WARNING,
 } from '@/features/admin/components/AdminUi';
 import { useAdminCollections, useAdminSettings, useUpdateAdminSettings } from '@/hooks/useAdmin';
+import { layout } from '@/theme/palette';
+import { useTheme } from '@/theme/ThemeContext';
 
 export function AdminSettingsScreen() {
+  const { colors } = useTheme();
   const toast = useToast();
   const { data, isLoading, error, refetch } = useAdminSettings();
   const { data: collections = [] } = useAdminCollections();
@@ -49,7 +52,7 @@ export function AdminSettingsScreen() {
     return (
       <Screen>
         <AdminBackLink label="System" />
-        <ListRowsSkeleton rows={5} />
+        <ListRowsSkeleton count={5} />
       </Screen>
     );
   }
@@ -69,13 +72,13 @@ export function AdminSettingsScreen() {
   const featured = collections.find(item => item.id === data.featured_collection_id);
 
   return (
-    <Screen>
+    <Screen padding={layout.adminPadding} gap={15}>
       <AdminBackLink label="System" />
-      <ScreenHeader title="Settings" subtitle="Product flags that apply to every reader." />
+      <ScreenHeader dense title="Settings" subtitle="Product flags that apply to every reader." />
 
-      <View className="gap-6">
+      <View style={settingsStyles.stack}>
         <AdminCard title="Access">
-          <View className="gap-3">
+          <View style={settingsStyles.group}>
             <AdminToggleRow
               label="Free PDF access"
               description="When on, any signed-in reader can open and download every book without a subscription. Admins always can."
@@ -89,23 +92,23 @@ export function AdminSettingsScreen() {
               }
             />
             {data.allow_pdf_without_entitlement ? (
-              <View className="rounded-[10px] px-3 py-2.5" style={{ backgroundColor: `${WARNING}1A` }}>
-                <Text className="text-[12px] leading-[17px]" style={{ color: WARNING }}>
+              <View style={[settingsStyles.caution, { backgroundColor: colors.warningFill, borderColor: colors.warningBorder }]}>
+                <Text size={12} leading={1.45} tone="warning">
                   Development setting. Turn this off before a public release so only subscribers can
                   read PDFs. The Edge Function also honours the ALLOW_PDF_WITHOUT_ENTITLEMENT
                   environment variable, which overrides this toggle when set.
                 </Text>
               </View>
             ) : (
-              <View className="flex-row items-center gap-2">
+              <View style={settingsStyles.row}>
                 <AdminBadge label="Subscription required" tone="success" />
-                <Text className="text-[12px] text-app-muted dark:text-app-muted-dark">
+                <Text size={12} leading={1.3} tone="muted">
                   Readers need an active entitlement.
                 </Text>
               </View>
             )}
 
-            <View className="h-px bg-app-border dark:bg-app-border-dark" />
+            <AdminDivider />
 
             <AdminToggleRow
               label="Sign-ups open"
@@ -120,7 +123,7 @@ export function AdminSettingsScreen() {
         </AdminCard>
 
         <AdminCard title="Maintenance">
-          <View className="gap-3">
+          <View style={settingsStyles.group}>
             <AdminToggleRow
               label="Maintenance mode"
               description="Show a notice instead of the catalog."
@@ -162,7 +165,7 @@ export function AdminSettingsScreen() {
         </AdminCard>
 
         <AdminCard title="App">
-          <View className="gap-3">
+          <View style={settingsStyles.group}>
             <AdminField
               label="Minimum supported version"
               value={minVersion}
@@ -219,3 +222,23 @@ export function AdminSettingsScreen() {
     </Screen>
   );
 }
+
+const settingsStyles = StyleSheet.create({
+  stack: {
+    gap: 22,
+  },
+  group: {
+    gap: 12,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+  },
+  caution: {
+    paddingHorizontal: 13,
+    paddingVertical: 11,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+  },
+});

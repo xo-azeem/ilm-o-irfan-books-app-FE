@@ -1,160 +1,169 @@
-import { useCallback } from 'react';
-import { Alert, View } from 'react-native';
-import { CommonActions, useNavigation } from '@react-navigation/native';
+import { useCallback, useMemo } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Bookmark, Flame } from 'lucide-react-native';
+import { Settings2 } from 'lucide-react-native';
 
-import type { RootStackParamList } from '@/app/navigation/types';
 import { GuestAuthPanel } from '@/components/auth/GuestAuthPanel';
-import { Screen, Section } from '@/components/layout';
-import { Text } from '@/components/ui';
-import { ROUTES } from '@/constants/routes';
+import { Screen } from '@/components/layout';
+import { Avatar, Display, IconButton } from '@/components/ui';
 import {
-  profileGroups,
-} from '@/features/profile/data/profileContent';
+  AchievementRail,
+  GoalCard,
+  RecordHeader,
+  StatRow,
+  StreakCard,
+  type Achievement,
+} from '@/features/profile/components/ReadingRecord';
+import type { ProfileStackParamList } from '@/features/profile/navigation/types';
 import { useLibrary, useProfile, useSubscription } from '@/hooks/useAccount';
-import type { ProfileStackParamList, ProfileStackScreen } from '@/features/profile/navigation/types';
 import { useAuthStore } from '@/stores/authStore';
-import { THEME_PREFERENCE_LABELS, useThemeStore } from '@/stores/themeStore';
-import { palette } from '@/theme/palette';
 
-import { ProfileAchievements } from '../components/ProfileAchievements';
-import { ProfileHeader } from '../components/ProfileHeader';
-import { ProfileSettingRow } from '../components/ProfileSettingRow';
+type ProfileNavigation = NativeStackNavigationProp<ProfileStackParamList, 'ProfileMain'>;
 
+/** This month's target. A real goal-setting screen would replace the constant. */
+const MONTHLY_GOAL = 4;
+
+/**
+ * The reading record.
+ *
+ * Statistics come first and settings live behind the gear, because what a
+ * reader wants from this tab most often is a sense of how their reading is
+ * going — not a list of preferences.
+ */
 export function ProfileScreen() {
-  const navigation =
-    useNavigation<NativeStackNavigationProp<ProfileStackParamList>>();
-  const rootNavigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const signOut = useAuthStore(state => state.signOut);
+  const navigation = useNavigation<ProfileNavigation>();
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
-  const themePreference = useThemeStore(state => state.themePreference);
   const { data: profile } = useProfile();
   const { data: library } = useLibrary();
   const { data: subscription } = useSubscription();
-  const profileUser = {
-    name: profile?.fullName || 'Your profile',
-    email: profile?.email || '',
-    initials: (profile?.fullName || 'Y').split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase(),
-    memberSince: profile?.memberSince || '',
-    plan: subscription?.active ? subscription.plan?.name ?? 'Premium' : 'Free',
-  };
-  const profileAchievements = [
-    { id: 'achievement-streak', label: 'Day streak', value: String(library?.streak ?? 0), caption: 'Keep the momentum', icon: Flame, accent: palette.sunflower, accentDark: palette.sunflower },
-    { id: 'achievement-saved', label: 'Saved', value: String(library?.wishlistCount ?? 0), caption: 'In your library', icon: Bookmark, accent: palette.green, accentDark: palette.yellowGreen },
-  ];
-  const profileLessonsSummary = { label: 'Lessons', value: String(library?.progress.length ?? 0) };
-  const dynamicGroups = profileGroups
-    .map(group => ({
-      ...group,
-      rows: group.rows
-        .filter(row => isAuthenticated || row.id !== 'row-signout')
-        .map(row =>
-          row.id === 'row-downloads'
-            ? { ...row, value: String(library?.downloads.length ?? 0) }
-            : row.id === 'row-subscription'
-              ? { ...row, value: profileUser.plan }
-              : row,
-        ),
-    }))
-    .filter(group => group.rows.length > 0);
 
-  const handleEditProfile = useCallback(() => {
-    if (!isAuthenticated) {
-      rootNavigation.navigate(ROUTES.LOGIN);
-      return;
-    }
-    navigation.navigate('PersonalDetails');
-  }, [isAuthenticated, navigation, rootNavigation]);
+  const openSettings = useCallback(() => navigation.navigate('Settings'), [navigation]);
 
-  const handleRowPress = useCallback(
-    (rowId: string, screen?: ProfileStackScreen) => {
-      if (rowId === 'row-signout') {
-        Alert.alert('Sign out', 'Are you sure you want to sign out?', [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Sign out',
-            style: 'destructive',
-            onPress: () => {
-              void (async () => {
-                try {
-                  await signOut();
-                } catch {
-                  // Local state still clears in the store finally block.
-                }
-                rootNavigation.dispatch(
-                  CommonActions.reset({
-                    index: 0,
-                    routes: [{ name: ROUTES.MAIN_TABS }],
-                  }),
-                );
-              })();
-            },
-          },
-        ]);
-        return;
-      }
-
-      const needsAuth =
-        screen === 'PersonalDetails' ||
-        screen === 'Subscription' ||
-        screen === 'Downloads';
-
-      if (needsAuth && !isAuthenticated) {
-        rootNavigation.navigate(ROUTES.LOGIN);
-        return;
-      }
-
-      if (screen) {
-        navigation.navigate(screen);
-      }
-    },
-    [isAuthenticated, navigation, rootNavigation, signOut],
+  const finished = useMemo(
+    () => (library?.progress ?? []).filter(book => book.progress >= 1),
+    [library?.progress],
   );
 
-  return (
-    <Screen contentContainerClassName="px-5 pt-0">
-      {isAuthenticated ? (
-        <ProfileHeader user={profileUser} onEdit={handleEditProfile} />
-      ) : (
-        <View className="mb-7 mt-2">
-          <GuestAuthPanel
-            title="Sign in to your library"
-            message="Browse freely. Sign in to manage your profile, subscription, and downloads."
+  const stats = useMemo(
+    () => [
+      { value: String(finished.length), label: 'BOOKS\nFINISHED' },
+      {
+        value: String(library?.highlightsCount ?? 0),
+        label: 'PAGES\nBOOKMARKED',
+      },
+      { value: String(library?.downloads.length ?? 0), label: 'BOOKS\nOFFLINE' },
+    ],
+    [finished.length, library?.downloads.length, library?.highlightsCount],
+  );
+
+  const streak = library?.streak ?? 0;
+
+  // A seven-day sparkline. Without per-day history the streak is shown as a
+  // ramp toward today, which is honest about the shape rather than the detail.
+  const week = useMemo(() => {
+    const days = Array.from({ length: 7 }, (_, index) => {
+      const daysAgo = 6 - index;
+      return streak > daysAgo ? 0.45 + (index / 6) * 0.55 : 0.25;
+    });
+    return days;
+  }, [streak]);
+
+  const achievements = useMemo<Achievement[]>(
+    () => [
+      { id: 'streak-7', mark: '7', label: 'Week streak', earned: streak >= 7, tone: 'gold' },
+      {
+        id: 'books-25',
+        mark: '25',
+        label: '25 books',
+        earned: finished.length >= 25,
+        tone: 'primary',
+      },
+      { id: 'night', mark: '☾', label: 'Night reader', earned: false },
+      { id: 'locked', mark: '?', label: 'Locked', earned: false },
+    ],
+    [finished.length, streak],
+  );
+
+  const earned = achievements.filter(achievement => achievement.earned).length;
+
+  if (!isAuthenticated) {
+    return (
+      <Screen gap={22}>
+        <View style={styles.identity}>
+          <Avatar name={profile?.fullName} size={62} shape="squircle" />
+          <View style={styles.identityBody}>
+            <Display size={24}>Your reading record</Display>
+          </View>
+          <IconButton
+            icon={Settings2}
+            onPress={openSettings}
+            variant="plain"
+            buttonSize={36}
+            accessibilityLabel="Settings"
           />
         </View>
-      )}
+        <GuestAuthPanel
+          title="Your record starts here."
+          message="Sign in to keep your streak, your finished books and your reading time across devices."
+        />
+      </Screen>
+    );
+  }
 
-      <View className="gap-7">
-        {isAuthenticated ? (
-          <ProfileAchievements
-            achievements={profileAchievements}
-            lessonsLabel={profileLessonsSummary.label}
-            lessonsValue={profileLessonsSummary.value}
+  return (
+    <Screen gap={20}>
+      <View style={styles.identity}>
+        <Avatar name={profile?.fullName} size={62} shape="squircle" />
+        <View style={styles.identityBody}>
+          <Display size={24} numberOfLines={1}>
+            {profile?.fullName || 'Reader'}
+          </Display>
+          <RecordHeader
+            memberSince={profile?.memberSince}
+            isMember={subscription?.active ?? false}
           />
-        ) : null}
-
-        {dynamicGroups.map(group => (
-          <Section key={group.id} title={group.title || undefined}>
-            {group.rows.map((row, index) => (
-              <ProfileSettingRow
-                key={row.id}
-                row={
-                  row.id === 'row-appearance'
-                    ? { ...row, value: THEME_PREFERENCE_LABELS[themePreference] }
-                    : row
-                }
-                isLast={index === group.rows.length - 1}
-                onPress={() => handleRowPress(row.id, row.screen)}
-              />
-            ))}
-          </Section>
-        ))}
+        </View>
+        <IconButton
+          icon={Settings2}
+          onPress={openSettings}
+          variant="plain"
+          buttonSize={36}
+          accessibilityLabel="Settings"
+        />
       </View>
 
-      <Text className="mt-8 pb-2 text-center text-[12px] text-app-faint dark:text-app-faint-dark">
-        Ilm o Irfan · v1.0.0
-      </Text>
+      <StreakCard current={streak} longest={Math.max(streak, 0) || undefined} week={week} />
+
+      <StatRow stats={stats} />
+
+      <GoalCard
+        completed={Math.min(finished.length, MONTHLY_GOAL)}
+        target={MONTHLY_GOAL}
+        note={
+          finished.length >= MONTHLY_GOAL
+            ? 'Goal reached. Anything else this month is a bonus.'
+            : `${MONTHLY_GOAL - finished.length} more to reach this month’s goal.`
+        }
+      />
+
+      <AchievementRail
+        achievements={achievements}
+        earnedCount={earned}
+        totalCount={achievements.length}
+      />
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  identity: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 15,
+  },
+  identityBody: {
+    flex: 1,
+    gap: 6,
+  },
+});

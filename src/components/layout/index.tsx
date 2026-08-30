@@ -1,215 +1,169 @@
-import type { PropsWithChildren, ReactNode } from 'react';
-import { Pressable, ScrollView, View, type ScrollViewProps } from 'react-native';
-import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
+import { memo, type PropsWithChildren, type ReactNode } from 'react';
+import {
+  ScrollView,
+  StyleSheet,
+  View,
+  type ScrollViewProps,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ChevronLeft } from 'lucide-react-native';
 
+import { IconButton } from '@/components/ui/Button';
+import { Display, Text } from '@/components/ui/Text';
 import { useAppInsets } from '@/hooks/useAppInsets';
-import { DisplayText, Text } from '@/components/ui';
+import { layout } from '@/theme/palette';
+import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
 
-type ScreenProps = PropsWithChildren<{
+export type ScreenProps = PropsWithChildren<{
   scrollable?: boolean;
-  contentContainerClassName?: string;
-  safeAreaEdges?: Edge[];
-  scrollViewProps?: Omit<ScrollViewProps, 'children' | 'className' | 'contentContainerClassName'>;
+  /** Horizontal page padding. Admin screens run denser than the reader app. */
+  padding?: number;
+  /** Vertical rhythm between direct children. */
+  gap?: number;
+  /** Painted behind the content — a header wash or a blurred cover. */
+  backdrop?: ReactNode;
+  /** Pinned above the tab bar, e.g. an admin FAB or a sticky save bar. */
+  overlay?: ReactNode;
+  /** Suppresses the top safe-area inset for screens that bleed to the notch. */
+  edgeToEdge?: boolean;
+  contentStyle?: StyleProp<ViewStyle>;
+  scrollViewProps?: Omit<ScrollViewProps, 'children' | 'contentContainerStyle'>;
 }>;
 
-export function Screen({
+/**
+ * The page shell. Owns the background, the safe-area top inset and the bottom
+ * clearance for the floating tab bar, so no screen has to work any of that out
+ * for itself.
+ */
+export const Screen = memo(function Screen({
   children,
   scrollable = true,
-  contentContainerClassName,
-  safeAreaEdges = ['top', 'left', 'right'],
+  padding = layout.screenPadding,
+  gap,
+  backdrop,
+  overlay,
+  edgeToEdge = false,
+  contentStyle,
   scrollViewProps,
 }: ScreenProps) {
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const { scrollEndPadding, contentBottomInset } = useAppInsets();
 
-  if (!scrollable) {
-    return (
-      <SafeAreaView
-        className="flex-1 bg-app-bg dark:bg-app-bg-dark"
-        edges={safeAreaEdges}>
-        <View
-          className={`flex-1 ${contentContainerClassName ?? 'px-5'}`}
-          style={{ paddingBottom: contentBottomInset }}>
-          {children}
+  // The design places content 52px from the top of a 390×844 frame, which is
+  // the status bar plus a consistent 8pt of breathing room.
+  const paddingTop = edgeToEdge ? 0 : insets.top + 8;
+
+  const inner = (
+    <View style={[{ paddingHorizontal: padding, gap }, contentStyle]}>{children}</View>
+  );
+
+  return (
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
+      {backdrop}
+
+      {scrollable ? (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingTop, paddingBottom: scrollEndPadding }}
+          {...scrollViewProps}>
+          {inner}
+        </ScrollView>
+      ) : (
+        <View style={[styles.static, { paddingTop, paddingBottom: contentBottomInset }]}>
+          {inner}
         </View>
-      </SafeAreaView>
-    );
-  }
+      )}
 
-  const { contentContainerStyle, ...restScrollProps } = scrollViewProps ?? {};
-
-  return (
-    <SafeAreaView
-      className="flex-1 bg-app-bg dark:bg-app-bg-dark"
-      edges={safeAreaEdges}>
-      <ScrollView
-        className="flex-1"
-        showsVerticalScrollIndicator={false}
-        contentContainerClassName={`pt-1 ${contentContainerClassName ?? 'px-5'}`}
-        contentContainerStyle={[
-          { paddingBottom: scrollEndPadding },
-          contentContainerStyle,
-        ]}
-        {...restScrollProps}>
-        {children}
-      </ScrollView>
-    </SafeAreaView>
+      {overlay}
+    </View>
   );
-}
+});
 
-type ScreenHeaderProps = {
+export type ScreenHeaderProps = {
   title: string;
   subtitle?: string;
+  /** Right-aligned controls — view toggles, a settings gear, a Save action. */
   action?: ReactNode;
+  /** Renders the back chevron above the title, as on every profile sub-screen. */
+  onBack?: () => void;
+  /** Admin headings run one step smaller than the reader app's. */
+  dense?: boolean;
+  style?: StyleProp<ViewStyle>;
 };
 
-export function ScreenHeader({ title, subtitle, action }: ScreenHeaderProps) {
+/**
+ * The standard page heading. When `onBack` is given the chevron sits on its own
+ * line above the title, matching the profile and admin stacks.
+ */
+export const ScreenHeader = memo(function ScreenHeader({
+  title,
+  subtitle,
+  action,
+  onBack,
+  dense = false,
+  style,
+}: ScreenHeaderProps) {
   return (
-    <View className="mb-6 flex-row items-end justify-between gap-4">
-      <View className="flex-1 gap-1">
-        <DisplayText className="text-[34px] font-bold leading-[41px] tracking-tight text-app-ink dark:text-app-ink-dark">
-          {title}
-        </DisplayText>
-        {subtitle ? (
-          <Text className="text-[15px] leading-5 text-app-muted dark:text-app-muted-dark">
-            {subtitle}
-          </Text>
-        ) : null}
-      </View>
-      {action}
-    </View>
-  );
-}
-
-type SectionProps = PropsWithChildren<{
-  title?: string;
-  className?: string;
-}>;
-
-export function Section({ title, children, className }: SectionProps) {
-  return (
-    <View className={`gap-2 ${className ?? ''}`}>
-      {title ? (
-        <Text className="px-1 text-[13px] font-medium uppercase tracking-widest text-app-muted dark:text-app-muted-dark">
-          {title}
-        </Text>
+    <View style={[styles.header, style]}>
+      {onBack ? (
+        <View style={styles.backRow}>
+          <IconButton
+            icon={ChevronLeft}
+            onPress={onBack}
+            variant="plain"
+            buttonSize={36}
+            accessibilityLabel="Go back"
+          />
+          {action}
+        </View>
       ) : null}
-      <View className="overflow-hidden rounded-[14px] bg-app-surface dark:bg-app-surface-dark">
-        {children}
+
+      <View style={styles.titleRow}>
+        <View style={styles.titles}>
+          <Display size={dense ? 'screenDense' : 'screen'}>{title}</Display>
+          {subtitle ? (
+            <Text size={fontSize.bodySmall} leading={1.6} tone="muted">
+              {subtitle}
+            </Text>
+          ) : null}
+        </View>
+        {!onBack ? action : null}
       </View>
     </View>
   );
-}
+});
 
-type ListRowProps = {
-  title: string;
-  subtitle?: string;
-  leading?: ReactNode;
-  trailing?: ReactNode;
-  isLast?: boolean;
-  onPress?: () => void;
-};
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+  static: {
+    flex: 1,
+  },
+  header: {
+    gap: 14,
+  },
+  backRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  titles: {
+    flex: 1,
+    gap: 8,
+  },
+});
 
-export function ListRow({
-  title,
-  subtitle,
-  leading,
-  trailing,
-  isLast = false,
-  onPress,
-}: ListRowProps) {
-  const { colors } = useTheme();
-  const rowClassName = `min-h-[52px] flex-row items-center gap-3 px-4 py-3 ${
-    !isLast ? 'border-b border-app-border dark:border-app-border-dark' : ''
-  }`;
-
-  const content = (
-    <>
-      {leading}
-      <View className="min-w-0 flex-1 gap-0.5">
-        <Text
-          className="text-[17px] leading-[22px] text-app-ink dark:text-app-ink-dark"
-          numberOfLines={1}>
-          {title}
-        </Text>
-        {subtitle ? (
-          <Text
-            className="text-[13px] leading-[18px] text-app-muted dark:text-app-muted-dark"
-            numberOfLines={2}>
-            {subtitle}
-          </Text>
-        ) : null}
-      </View>
-      {trailing}
-    </>
-  );
-
-  if (onPress) {
-    const pressHighlight = colors.fill;
-
-    return (
-      <Pressable
-        onPress={onPress}
-        style={({ pressed }) =>
-          pressed ? { backgroundColor: pressHighlight } : undefined
-        }
-        className={rowClassName}
-        accessibilityRole="button">
-        {content}
-      </Pressable>
-    );
-  }
-
-  return <View className={rowClassName}>{content}</View>;
-}
-
-type MediaCardProps = {
-  title: string;
-  subtitle: string;
-  meta?: string;
-  accentClassName?: string;
-};
-
-export function MediaCard({
-  title,
-  subtitle,
-  meta,
-  accentClassName = 'bg-app-fill dark:bg-app-fill-dark',
-}: MediaCardProps) {
-  return (
-    <View className="overflow-hidden rounded-[16px] bg-app-surface dark:bg-app-surface-dark">
-      <View className={`h-28 w-full ${accentClassName}`} />
-      <View className="gap-1 p-4">
-        <DisplayText className="text-[17px] font-semibold leading-[22px] text-app-ink dark:text-app-ink-dark">
-          {title}
-        </DisplayText>
-        <Text className="text-[15px] leading-5 text-app-muted dark:text-app-muted-dark">
-          {subtitle}
-        </Text>
-        {meta ? (
-          <Text className="pt-1 text-[13px] text-app-muted dark:text-app-muted-dark">
-            {meta}
-          </Text>
-        ) : null}
-      </View>
-    </View>
-  );
-}
-
-type EmptyStateProps = {
-  title: string;
-  message: string;
-};
-
-export function EmptyState({ title, message }: EmptyStateProps) {
-  return (
-    <View className="items-center justify-center rounded-[16px] bg-app-surface px-6 py-12 dark:bg-app-surface-dark">
-      <DisplayText className="mb-2 text-center text-[17px] font-semibold text-app-ink dark:text-app-ink-dark">
-        {title}
-      </DisplayText>
-      <Text className="max-w-[260px] text-center text-[15px] leading-5 text-app-muted dark:text-app-muted-dark">
-        {message}
-      </Text>
-    </View>
-  );
-}
+export { Card, PressableCard, Divider, SectionHeader, Callout } from '@/components/ui/Surface';
+export { EmptyState } from '@/components/ui/EmptyState';

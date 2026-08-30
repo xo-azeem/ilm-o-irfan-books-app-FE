@@ -1,125 +1,152 @@
-import { memo, useCallback } from 'react';
-import { View } from 'react-native';
-import { Download } from 'lucide-react-native';
+import { useCallback, useMemo } from 'react';
+import { Alert, StyleSheet, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-import { DisplayText, Text } from '@/components/ui';
+import { Button, Card, EmptyState, Label, ProgressBar, Text } from '@/components/ui';
 import { DownloadsCatalogSkeleton } from '@/components/skeletons/CatalogSkeletons';
 import {
   DownloadBookRow,
-  getDownloadsTotalSize,
-  type DownloadedBook,
+  type DownloadEntry,
 } from '@/features/profile/components/DownloadBookRow';
 import { ProfileSubScreenLayout } from '@/features/profile/components/ProfileSubScreenLayout';
+import type { ProfileStackParamList } from '@/features/profile/navigation/types';
 import { useLibrary, useRemoveDownload } from '@/hooks/useAccount';
-import { removeLocalPdf } from '@/services/pdf';
-import { useTheme } from '@/theme/ThemeContext';
+import { isUrduTitle } from '@/services/script';
+import { fontSize } from '@/theme/typography';
 
-function DownloadsSummary({
-  bookCount,
-  totalSize,
-}: {
-  bookCount: number;
-  totalSize: number;
-}) {
-  const { colors } = useTheme();
+type DownloadsNavigation = NativeStackNavigationProp<ProfileStackParamList, 'Downloads'>;
 
-  return (
-    <View className="gap-2">
-      <Text className="px-1 text-[13px] font-medium uppercase tracking-widest text-app-muted dark:text-app-muted-dark">
-        Storage
-      </Text>
+/** The device allowance the storage bar is drawn against. */
+const STORAGE_LIMIT_BYTES = 4 * 1_000_000_000;
 
-      <View className="flex-row overflow-hidden rounded-[14px] bg-app-surface dark:bg-app-surface-dark">
-        <View className="min-w-0 flex-1 flex-row items-center gap-3 px-4 py-3.5">
-          <View className="h-9 w-9 items-center justify-center rounded-[10px] bg-app-fill dark:bg-app-fill-dark">
-            <Download size={17} color={colors.primary} strokeWidth={1.75} />
-          </View>
-          <View className="min-w-0 flex-1 gap-0.5">
-            <DisplayText className="text-[18px] font-bold leading-6 tabular-nums text-app-ink dark:text-app-ink-dark">
-              {totalSize} MB
-            </DisplayText>
-            <Text className="text-[12px] text-app-muted dark:text-app-muted-dark">
-              Used offline
-            </Text>
-          </View>
-        </View>
-
-        <View className="w-px bg-app-border dark:bg-app-border-dark" />
-
-        <View className="min-w-0 flex-1 items-center justify-center px-4 py-3.5">
-          <DisplayText className="text-[18px] font-bold leading-6 tabular-nums text-app-ink dark:text-app-ink-dark">
-            {bookCount}
-          </DisplayText>
-          <Text className="mt-0.5 text-[12px] text-app-muted dark:text-app-muted-dark">
-            {bookCount === 1 ? 'Book' : 'Books'}
-          </Text>
-        </View>
-      </View>
-    </View>
-  );
+function formatSize(bytes: number): string {
+  if (bytes >= 1_000_000_000) {
+    return `${(bytes / 1_000_000_000).toFixed(1)} GB`;
+  }
+  return `${Math.round(bytes / 1_000_000)} MB`;
 }
 
-export const DownloadsScreen = memo(function DownloadsScreen() {
-  const { colors } = useTheme();
-  const { data, isLoading } = useLibrary();
+/**
+ * Downloads.
+ *
+ * Storage first, then the books — because the question a reader opens this
+ * screen with is almost always "what is taking up space?".
+ */
+export function DownloadsScreen() {
+  const navigation = useNavigation<DownloadsNavigation>();
+  const { data: library, isLoading } = useLibrary();
   const removeDownload = useRemoveDownload();
-  const items: DownloadedBook[] = (data?.downloads ?? []).map(book => ({
-    id: book.id, title: book.title, author: book.author,
-    size: `${Math.max(1, Math.round(book.sizeBytes / 1024 / 1024))} MB`,
-    coverColor: book.coverColor, coverColorDark: book.coverColorDark,
-    coverUrl: book.coverUrl,
-  }));
 
-  const removeItem = useCallback((id: string) => {
-    void (async () => {
-      await removeLocalPdf(id);
-      await removeDownload.mutateAsync(id);
-    })();
-  }, [removeDownload]);
+  const downloads = useMemo<DownloadEntry[]>(
+    () =>
+      (library?.downloads ?? []).map(book => ({
+        id: book.id,
+        title: book.title,
+        author: book.author,
+        coverUrl: book.coverUrl,
+        coverColor: book.coverColor,
+        coverColorDark: book.coverColorDark,
+        isUrdu: isUrduTitle(book.title),
+        detail: `${formatSize(book.sizeBytes)} · available offline`,
+      })),
+    [library?.downloads],
+  );
 
-  const totalSize = getDownloadsTotalSize(items);
+  const usedBytes = useMemo(
+    () => (library?.downloads ?? []).reduce((total, book) => total + book.sizeBytes, 0),
+    [library?.downloads],
+  );
+
+  const handleRemove = useCallback(
+    (entry: DownloadEntry) => {
+      Alert.alert('Remove download?', `${entry.title} will stay in your library but need a connection to open.`, [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => removeDownload.mutate(entry.id),
+        },
+      ]);
+    },
+    [removeDownload],
+  );
+
+  const handleRemoveAll = useCallback(() => {
+    Alert.alert(
+      'Remove all downloads?',
+      'Every book stays in your library, but you will need a connection to open them.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove all',
+          style: 'destructive',
+          onPress: () => downloads.forEach(entry => removeDownload.mutate(entry.id)),
+        },
+      ],
+    );
+  }, [downloads, removeDownload]);
+
+  const goBack = useCallback(() => navigation.goBack(), [navigation]);
 
   return (
     <ProfileSubScreenLayout
       title="Downloads"
-      subtitle="Books saved for offline reading.">
+      subtitle={
+        downloads.length === 1
+          ? 'One book available offline.'
+          : `${downloads.length} books available offline.`
+      }
+      gap={20}>
       {isLoading ? (
         <DownloadsCatalogSkeleton />
-      ) : items.length === 0 ? (
-        <View className="items-center rounded-[16px] border border-app-border bg-app-surface px-6 py-14 dark:border-app-border-dark dark:bg-app-surface-dark">
-          <View className="mb-4 h-12 w-12 items-center justify-center rounded-full bg-app-fill dark:bg-app-fill-dark">
-            <Download size={22} color={colors.primary} strokeWidth={1.75} />
-          </View>
-          <DisplayText className="mb-2 text-center text-[17px] font-semibold text-app-ink dark:text-app-ink-dark">
-            No downloads yet
-          </DisplayText>
-          <Text className="max-w-[260px] text-center text-[14px] leading-5 text-app-muted dark:text-app-muted-dark">
-            Download books from the reader to access them without an internet
-            connection.
-          </Text>
+      ) : downloads.length === 0 ? (
+        <View style={styles.empty}>
+          <EmptyState
+            title="Nothing saved yet."
+            message="Download a book from the reader and it will be here, ready without a connection."
+            action={{ label: 'Back to settings', onPress: goBack }}
+          />
         </View>
       ) : (
-        <View className="gap-7">
-          <DownloadsSummary bookCount={items.length} totalSize={totalSize} />
-
-          <View className="gap-2">
-            <Text className="px-1 text-[13px] font-medium uppercase tracking-widest text-app-muted dark:text-app-muted-dark">
-              Downloaded books
-            </Text>
-
-            <View className="overflow-hidden rounded-[14px] bg-app-surface dark:bg-app-surface-dark">
-              {items.map((book, index) => (
-                <DownloadBookRow
-                  key={book.id}
-                  book={book}
-                  isLast={index === items.length - 1}
-                  onRemove={removeItem}
-                />
-              ))}
+        <>
+          <Card tone="surface" padded={16} gap={12}>
+            <View style={styles.storageHeader}>
+              <Text size={fontSize.body} leading={1}>
+                {formatSize(usedBytes)} used
+              </Text>
+              <Label tracking={0.9}>{`OF ${formatSize(STORAGE_LIMIT_BYTES)} LIMIT`}</Label>
             </View>
+            <ProgressBar value={usedBytes / STORAGE_LIMIT_BYTES} height={7} />
+            <Text size={12.5} leading={1.3} tone="muted">
+              Finished books are removed automatically after 30 days.
+            </Text>
+          </Card>
+
+          <View style={styles.list}>
+            {downloads.map(entry => (
+              <DownloadBookRow key={entry.id} entry={entry} onRemove={handleRemove} />
+            ))}
           </View>
-        </View>
+
+          <Button label="Remove all downloads" variant="danger" size="md" onPress={handleRemoveAll} />
+        </>
       )}
     </ProfileSubScreenLayout>
   );
+}
+
+const styles = StyleSheet.create({
+  storageHeader: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  list: {
+    gap: 12,
+  },
+  empty: {
+    paddingTop: 48,
+  },
 });

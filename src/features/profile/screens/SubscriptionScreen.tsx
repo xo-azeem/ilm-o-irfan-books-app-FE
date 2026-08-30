@@ -1,72 +1,239 @@
-import { memo } from 'react';
-import { Pressable, View } from 'react-native';
+import { useCallback, useMemo } from 'react';
+import { Alert, StyleSheet, View } from 'react-native';
+
+import {
+  Badge,
+  Button,
+  Card,
+  Display,
+  Divider,
+  Icon,
+  Label,
+  LinearGradient,
+  StatTile,
+  Text,
+  TextButton,
+} from '@/components/ui';
 import { Check } from 'lucide-react-native';
-
-import { Section } from '@/components/layout';
-import { DisplayText, Text } from '@/components/ui';
-import { palette } from '@/theme/palette';
+import { MembershipPaywall } from '@/features/profile/components/MembershipPaywall';
 import { ProfileSubScreenLayout } from '@/features/profile/components/ProfileSubScreenLayout';
-import { useSubscription } from '@/hooks/useAccount';
+import { subscriptionIncludes } from '@/features/profile/data/profileContent';
+import { useLibrary, useSubscription } from '@/hooks/useAccount';
+import { radius } from '@/theme/palette';
+import { fontSize } from '@/theme/typography';
+import { useTheme } from '@/theme/ThemeContext';
 
-export const SubscriptionScreen = memo(function SubscriptionScreen() {
-  const { data } = useSubscription();
-  const plan = data?.plan;
-  const price = plan
-    ? new Intl.NumberFormat(undefined, { style: 'currency', currency: plan.currency }).format(plan.price_cents / 100)
-    : 'No active plan';
-  const features = Array.isArray(plan?.features) ? plan.features.filter((item): item is string => typeof item === 'string') : [];
+function formatDate(iso: string | null | undefined): string {
+  if (!iso) {
+    return '—';
+  }
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime())
+    ? '—'
+    : date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function formatPrice(cents?: number | null, currency = 'PKR', interval?: string | null): string {
+  if (cents == null) {
+    return '—';
+  }
+  const symbol = currency === 'PKR' ? 'Rs' : currency;
+  return `${symbol} ${(cents / 100).toLocaleString('en-US')}${interval ? ` / ${interval}` : ''}`;
+}
+
+/**
+ * Subscription.
+ *
+ * A member sees what they have and what it costs; everyone else sees the offer.
+ * Usage sits above the exit so cancelling is a considered act rather than a
+ * hidden one.
+ */
+export function SubscriptionScreen() {
+  const { colors } = useTheme();
+  const { data: subscription, isLoading } = useSubscription();
+  const { data: library } = useLibrary();
+
+  const isMember = subscription?.active ?? false;
+
+  const handleSubscribe = useCallback((planId: string) => {
+    Alert.alert(
+      'Almost there',
+      `Checkout for the ${planId} plan opens once billing is connected to the store.`,
+    );
+  }, []);
+
+  const handleCancel = useCallback(() => {
+    Alert.alert(
+      'Cancel membership?',
+      'You will keep full access until the end of the current period.',
+      [
+        { text: 'Keep membership', style: 'cancel' },
+        {
+          text: 'Cancel',
+          style: 'destructive',
+          onPress: () =>
+            Alert.alert('Manage in store', 'Cancel from your App Store or Play Store subscriptions.'),
+        },
+      ],
+    );
+  }, []);
+
+  const usage = useMemo(
+    () => [
+      { value: String(library?.progress.length ?? 0), label: 'BOOKS\nOPENED' },
+      { value: String(library?.downloads.length ?? 0), label: 'FILES\nOFFLINE' },
+      { value: String(library?.highlightsCount ?? 0), label: 'PAGES\nBOOKMARKED' },
+    ],
+    [library?.downloads.length, library?.highlightsCount, library?.progress.length],
+  );
+
+  if (!isLoading && !isMember) {
+    return (
+      <ProfileSubScreenLayout title="Membership" gap={0}>
+        <MembershipPaywall onSubscribe={handleSubscribe} />
+      </ProfileSubScreenLayout>
+    );
+  }
+
+  const plan = subscription?.plan;
+
   return (
-    <ProfileSubScreenLayout
-      title="Subscription"
-      subtitle="Your current plan and benefits.">
-      <View className="mb-7 overflow-hidden rounded-[20px] bg-app-surface p-5 dark:bg-app-surface-dark">
-        <View className="mb-1 flex-row items-center justify-between">
-          <DisplayText className="text-[22px] font-bold text-app-ink dark:text-app-ink-dark">
-            {data?.active ? plan?.name ?? 'Premium' : 'Free'}
-          </DisplayText>
-          <View className="rounded-full bg-app-fill px-3 py-1 dark:bg-app-fill-dark">
-            <Text className="text-[11px] font-semibold uppercase tracking-wide text-app-primary dark:text-app-primary-dark">
-              {data?.active ? 'Active' : 'Inactive'}
+    <ProfileSubScreenLayout title="Subscription" gap={20}>
+      <View style={[styles.planCard, { borderColor: colors.goldBorder }]}>
+        <LinearGradient
+          angle={140}
+          stops={[
+            { offset: 0, color: colors.gold, opacity: 0.16 },
+            { offset: 1, color: colors.background, opacity: 0.95 },
+          ]}
+        />
+
+        <View style={styles.planHeader}>
+          <View style={styles.planText}>
+            <Label tone="gold" tracking={1.4}>
+              Current plan
+            </Label>
+            <Display size={30}>{plan?.name ?? 'Premium'}</Display>
+            <Text size={13.5} leading={1.2} tone="muted">
+              {formatPrice(plan?.price_cents, plan?.currency ?? 'PKR', plan?.interval)}
             </Text>
           </View>
+          <Badge label="ACTIVE" tone="primary" bordered />
         </View>
-        <Text className="text-[15px] font-medium text-app-primary dark:text-app-primary-dark">
-          {plan ? `${price} / ${plan.interval}` : 'Purchases coming soon'}
-        </Text>
-        <Text className="mt-1 text-[13px] text-app-muted dark:text-app-muted-dark">
-          {data?.expiresAt ? `Renews on ${new Date(data.expiresAt).toLocaleDateString()}` : 'RevenueCat purchases are not yet available.'}
-        </Text>
+
+        <Divider />
+
+        <DetailRow label="Renews on" value={formatDate(subscription?.expiresAt)} />
+        <DetailRow label="Billing" value={plan?.interval ? `${plan.interval}ly` : '—'} />
       </View>
 
-      <Section title="Included">
-        {features.map((feature, index) => (
-          <View
-            key={feature}
-            className={`flex-row items-center gap-3 px-4 py-3.5 ${
-              index < features.length - 1
-                ? 'border-b border-app-border dark:border-app-border-dark'
-                : ''
-            }`}>
-            <Check size={16} color={palette.green} strokeWidth={2.5} />
-            <Text className="flex-1 text-[15px] text-app-ink dark:text-app-ink-dark">
-              {feature}
-            </Text>
-          </View>
-        ))}
-      </Section>
+      <View style={styles.section}>
+        <Label size={fontSize.labelSmall + 0.5} tracking={1.5}>
+          What’s included
+        </Label>
+        <Card tone="surface" padded={16} gap={10}>
+          {subscriptionIncludes.map(feature => (
+            <View key={feature} style={styles.feature}>
+              <Icon icon={Check} size={13} tone="primary" strokeWidth={2.6} />
+              <Text size={fontSize.bodySmall} leading={1.3} tone="soft" style={styles.grow}>
+                {feature}
+              </Text>
+            </View>
+          ))}
+        </Card>
+      </View>
 
-      <View className="mt-7 gap-3">
-        <Pressable className="items-center rounded-[14px] bg-app-primary py-3.5 active:opacity-90 dark:bg-app-primary-dark">
-          <Text className="text-[16px] font-semibold text-app-on-primary dark:text-app-on-primary-dark">
-            Manage billing
-          </Text>
-        </Pressable>
-        <Pressable className="items-center rounded-[14px] border border-app-border py-3.5 active:opacity-80 dark:border-app-border-dark">
-          <Text className="text-[16px] font-semibold text-app-ink dark:text-app-ink-dark">
-            View plans
-          </Text>
-        </Pressable>
+      <View style={styles.section}>
+        <Label size={fontSize.labelSmall + 0.5} tracking={1.5}>
+          This month
+        </Label>
+        <View style={styles.usage}>
+          {usage.map(stat => (
+            <StatTile key={stat.label} value={stat.value} label={stat.label} />
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.footer}>
+        <Button
+          label="Switch to yearly · save 34%"
+          variant="secondary"
+          size="md"
+          onPress={() => handleSubscribe('yearly')}
+        />
+        <View style={styles.footerLinks}>
+          <TextButton
+            label="Payment method"
+            tone="muted"
+            onPress={() =>
+              Alert.alert('Payment method', 'Managed by your App Store or Play Store account.')
+            }
+          />
+          <TextButton label="Cancel subscription" tone="danger" onPress={handleCancel} />
+        </View>
       </View>
     </ProfileSubScreenLayout>
   );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.detailRow}>
+      <Text size={13.5} leading={1} tone="muted">
+        {label}
+      </Text>
+      <Text size={13.5} leading={1} weight="500">
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  planCard: {
+    borderRadius: radius.cardLarge,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    overflow: 'hidden',
+    padding: 20,
+    gap: 16,
+  },
+  planHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  planText: {
+    gap: 7,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  section: {
+    gap: 11,
+  },
+  feature: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+  },
+  grow: {
+    flex: 1,
+  },
+  usage: {
+    flexDirection: 'row',
+    gap: 11,
+  },
+  footer: {
+    gap: 11,
+    marginTop: 2,
+  },
+  footerLinks: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 4,
+  },
 });

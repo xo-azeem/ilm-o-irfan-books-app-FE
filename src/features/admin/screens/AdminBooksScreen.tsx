@@ -1,28 +1,33 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ArrowUpDown, Plus, SlidersHorizontal, X } from 'lucide-react-native';
+import { ArrowUpDown, Plus, SlidersHorizontal } from 'lucide-react-native';
 
 import { ListRowsSkeleton } from '@/components/skeletons/CatalogSkeletons';
-import { DisplayText, Text } from '@/components/ui';
+import {
+  Card,
+  Chip,
+  Display,
+  FloatingAction,
+  Label,
+  SearchField,
+  SegmentedControl,
+  Text,
+} from '@/components/ui';
 import { ADMIN_ROUTES } from '@/constants/routes';
 import { AdminBookListRow } from '@/features/admin/components/AdminBookRow';
 import {
   AdminChipRow,
   AdminConfirmSheet,
   AdminPickerSheet,
-  AdminSearchBar,
-  AdminSegmented,
 } from '@/features/admin/components/AdminControls';
 import { errorMessage, useToast } from '@/features/admin/components/AdminToast';
 import {
-  AdminBadge,
   AdminEmpty,
   AdminErrorState,
   AdminTextAction,
-  DANGER,
 } from '@/features/admin/components/AdminUi';
 import { useDebouncedValue } from '@/features/admin/hooks/useAdminForm';
 import { useAppInsets } from '@/hooks/useAppInsets';
@@ -40,6 +45,7 @@ import type {
   BookSort,
   BookStatusFilter,
 } from '@/services/admin';
+import { layout } from '@/theme/palette';
 import { useTheme } from '@/theme/ThemeContext';
 
 import type { AdminBooksStackParamList } from '../navigation/types';
@@ -69,7 +75,8 @@ export function AdminBooksScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<AdminBooksStackParamList>>();
   const route = useRoute<RouteProp<AdminBooksStackParamList, 'AdminBookList'>>();
   const { colors } = useTheme();
-  const { scrollEndPadding } = useAppInsets();
+  const { scrollEndPadding, tabBarHeight } = useAppInsets();
+  const insets = useSafeAreaInsets();
   const toast = useToast();
 
   const [query, setQuery] = useState('');
@@ -166,115 +173,119 @@ export function AdminBooksScreen() {
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-app-bg dark:bg-app-bg-dark" edges={['top', 'left', 'right']}>
-      <View className="px-5 pt-1">
-        <View className="mb-4 flex-row items-end justify-between gap-4">
-          <View className="flex-1 gap-1">
-            <DisplayText className="text-[34px] font-bold leading-[41px] tracking-tight text-app-ink dark:text-app-ink-dark">
-              Books
-            </DisplayText>
-            <Text className="text-[14px] text-app-muted dark:text-app-muted-dark">
-              {total} {total === 1 ? 'title' : 'titles'} in the catalog
-            </Text>
-          </View>
-          <Pressable
-            onPress={() => navigation.navigate(ADMIN_ROUTES.BOOK_EDITOR, {})}
-            className="h-10 w-10 items-center justify-center rounded-full active:opacity-70"
-            style={{ backgroundColor: colors.primary }}>
-            <Plus size={21} color={colors.onPrimary} strokeWidth={2.4} />
-          </Pressable>
-        </View>
-
-        <AdminSearchBar
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search title, author, or slug"
-        />
-
-        <View className="mb-3">
-          <AdminSegmented options={STATUS_OPTIONS} value={status} onChange={setStatus} />
-        </View>
-
-        <View className="mb-3 flex-row items-center gap-3">
-          <Pressable
-            onPress={() => setShowFilters(current => !current)}
-            className="flex-row items-center gap-1.5 rounded-full px-3 py-1.5 active:opacity-70"
-            style={{ backgroundColor: activeFilterCount ? colors.primary : colors.fill }}>
-            <SlidersHorizontal
-              size={14}
-              color={activeFilterCount ? colors.onPrimary : colors.ink}
-              strokeWidth={2.2}
-            />
-            <Text
-              className="text-[12px] font-medium"
-              style={{ color: activeFilterCount ? colors.onPrimary : colors.ink }}>
-              Filters{activeFilterCount ? ` · ${activeFilterCount}` : ''}
-            </Text>
-          </Pressable>
-
-          <Pressable
-            onPress={() => setSortOpen(true)}
-            className="flex-row items-center gap-1.5 rounded-full px-3 py-1.5 active:opacity-70"
-            style={{ backgroundColor: colors.fill }}>
-            <ArrowUpDown size={14} color={colors.ink} strokeWidth={2.2} />
-            <Text className="text-[12px] font-medium text-app-ink dark:text-app-ink-dark">
-              {SORT_LABELS[sort]}
-            </Text>
-          </Pressable>
-
-          {activeFilterCount > 0 ? (
-            <AdminTextAction
-              label="Clear"
-              onPress={() => {
-                setAccess('all');
-                setAuthorId(null);
-                setCategoryId(null);
-              }}
-            />
-          ) : null}
-        </View>
-
-        {showFilters ? (
-          <View className="mb-3 gap-3 rounded-[14px] bg-app-surface p-3 dark:bg-app-surface-dark">
-            <AdminSegmented options={ACCESS_OPTIONS} value={access} onChange={setAccess} />
-
-            <View className="gap-1.5">
-              <Text className="px-1 text-[11px] font-semibold uppercase tracking-widest text-app-faint dark:text-app-faint-dark">
-                Category
+    <SafeAreaView style={[styles.root, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
+      <View style={styles.header}>
+        <View style={styles.titleRow}>
+          {selectionMode ? (
+            <>
+              <Text size={15} leading={1} weight="500">
+                {`${selected.length} selected`}
               </Text>
-              <AdminChipRow
-                value={categoryId}
-                onChange={setCategoryId}
-                options={[
-                  { value: null, label: 'All' },
-                  ...categories.map(category => ({
-                    value: category.id as string | null,
-                    label: `${category.label} (${category.book_count})`,
-                    accent: category.accent,
-                  })),
-                ]}
+              <AdminTextAction label="Done" onPress={() => setSelected([])} />
+            </>
+          ) : (
+            <>
+              <Display size="screenDense">Books</Display>
+              <Label uppercase tracking={0.8}>
+                {`${total} ${total === 1 ? 'title' : 'titles'}`}
+              </Label>
+            </>
+          )}
+        </View>
+
+        {!selectionMode ? (
+          <>
+            <SearchField
+              value={query}
+              onChangeText={setQuery}
+              onClear={() => setQuery('')}
+              dense
+              placeholder="Search title, author, or slug"
+            />
+
+            <SegmentedControl options={STATUS_OPTIONS} value={status} onChange={setStatus} />
+
+            <View style={styles.filterRow}>
+              <Chip
+                label="Filters"
+                icon={SlidersHorizontal}
+                selected={activeFilterCount > 0}
+                count={activeFilterCount > 0 ? activeFilterCount : undefined}
+                size="sm"
+                onPress={() => setShowFilters(current => !current)}
               />
+              <Chip
+                label={SORT_LABELS[sort]}
+                icon={ArrowUpDown}
+                size="sm"
+                onPress={() => setSortOpen(true)}
+              />
+              {activeFilterCount > 0 ? (
+                <AdminTextAction
+                  label="Clear"
+                  onPress={() => {
+                    setAccess('all');
+                    setAuthorId(null);
+                    setCategoryId(null);
+                  }}
+                />
+              ) : null}
             </View>
 
-            <Pressable
-              onPress={() => setAuthorPickerOpen(true)}
-              className="flex-row items-center justify-between rounded-[10px] px-3 py-2.5 active:opacity-70"
-              style={{ backgroundColor: colors.fill }}>
-              <Text className="text-[13px] text-app-muted dark:text-app-muted-dark">Author</Text>
-              <Text className="text-[13px] font-medium text-app-ink dark:text-app-ink-dark">
-                {authors.find(author => author.id === authorId)?.name ?? 'Any author'}
-              </Text>
-            </Pressable>
-          </View>
+            {showFilters ? (
+              <Card tone="surface" rounded={14} padded={13} gap={12}>
+                <SegmentedControl
+                  options={ACCESS_OPTIONS}
+                  value={access}
+                  onChange={setAccess}
+                  variant="soft"
+                />
+
+                <View style={styles.filterGroup}>
+                  <Label size={10} tracking={1.4}>
+                    Category
+                  </Label>
+                  <AdminChipRow
+                    value={categoryId}
+                    onChange={setCategoryId}
+                    options={[
+                      { value: null, label: 'All' },
+                      ...categories.map(category => ({
+                        value: category.id as string | null,
+                        label: `${category.label} (${category.book_count})`,
+                        accent: category.accent,
+                      })),
+                    ]}
+                  />
+                </View>
+
+                <Pressable
+                  onPress={() => setAuthorPickerOpen(true)}
+                  accessibilityRole="button"
+                  style={({ pressed }) => [
+                    styles.authorRow,
+                    { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
+                    pressed && styles.pressed,
+                  ]}>
+                  <Text size={13} leading={1} tone="muted">
+                    Author
+                  </Text>
+                  <Text size={13} leading={1} weight="500">
+                    {authors.find(author => author.id === authorId)?.name ?? 'Any author'}
+                  </Text>
+                </Pressable>
+              </Card>
+            ) : null}
+          </>
         ) : null}
       </View>
 
       {isLoading ? (
-        <View className="px-5">
-          <ListRowsSkeleton rows={8} />
+        <View style={styles.listPad}>
+          <ListRowsSkeleton count={8} />
         </View>
       ) : error ? (
-        <View className="px-5">
+        <View style={styles.listPad}>
           <AdminErrorState message={errorMessage(error)} onRetry={() => void refetch()} />
         </View>
       ) : (
@@ -282,6 +293,8 @@ export function AdminBooksScreen() {
           data={rows}
           keyExtractor={item => item.id}
           renderItem={renderItem}
+          // Rows are standalone cards now, so they need air between them.
+          ItemSeparatorComponent={ListGap}
           refreshing={isRefetching}
           onRefresh={() => void refetch()}
           onEndReachedThreshold={0.4}
@@ -291,8 +304,9 @@ export function AdminBooksScreen() {
             }
           }}
           contentContainerStyle={{
-            paddingHorizontal: 20,
-            paddingBottom: scrollEndPadding + (selectionMode ? 76 : 0),
+            paddingHorizontal: layout.adminPadding,
+            paddingTop: 2,
+            paddingBottom: scrollEndPadding + (selectionMode ? 150 : 68),
           }}
           ListEmptyComponent={
             <AdminEmpty
@@ -308,31 +322,46 @@ export function AdminBooksScreen() {
           }
           ListFooterComponent={
             isFetchingNextPage ? (
-              <ActivityIndicator className="py-5" color={colors.primary} />
+              <ActivityIndicator style={styles.footer} color={colors.primary} />
             ) : null
           }
           style={{ flex: 1 }}
         />
       )}
 
+      {/* New book sits above the tab bar, out of the list's way. */}
+      {!selectionMode ? (
+        <FloatingAction
+          label="New book"
+          icon={Plus}
+          onPress={() => navigation.navigate(ADMIN_ROUTES.BOOK_EDITOR, {})}
+          style={[styles.fab, { bottom: tabBarHeight + 14 }]}
+        />
+      ) : null}
+
+      {/* The bulk bar rises as a sheet and states the count in words before
+          any destructive action is within reach. */}
       {selectionMode ? (
         <View
-          className="absolute inset-x-0 bottom-0 gap-2 border-t px-5 pb-6 pt-3"
-          style={{ backgroundColor: colors.chrome, borderColor: colors.border }}>
-          <View className="flex-row items-center justify-between">
-            <View className="flex-row items-center gap-2">
-              <AdminBadge label={`${selected.length} selected`} tone="accent" />
-              {bulkUpdate.isPending || deleteBooks.isPending ? (
-                <ActivityIndicator size="small" color={colors.primary} />
-              ) : null}
-            </View>
-            <Pressable onPress={() => setSelected([])} hitSlop={8} className="active:opacity-60">
-              <X size={19} color={colors.muted} strokeWidth={2.2} />
-            </Pressable>
+          style={[
+            styles.bulkBar,
+            {
+              backgroundColor: colors.surface,
+              borderTopColor: colors.borderStrong,
+              paddingBottom: Math.max(insets.bottom, 20) + 14,
+            },
+          ]}>
+          <View style={styles.bulkHeader}>
+            <Label size={10.5} tracking={1.4}>
+              {`Apply to ${selected.length} ${selected.length === 1 ? 'title' : 'titles'}`}
+            </Label>
+            {bulkUpdate.isPending || deleteBooks.isPending ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : null}
           </View>
 
-          <View className="flex-row flex-wrap gap-2">
-            <BulkButton label="Publish" onPress={() => runBulk({ is_published: true }, 'published')} />
+          <View style={styles.bulkActions}>
+            <BulkButton label="Publish" primary onPress={() => runBulk({ is_published: true }, 'published')} />
             <BulkButton
               label="Unpublish"
               onPress={() => runBulk({ is_published: false }, 'unpublished')}
@@ -405,26 +434,138 @@ export function AdminBooksScreen() {
   );
 }
 
+/** A gap between the list's card rows. Hoisted so FlatList keeps one instance. */
+function ListGap() {
+  return <View style={styles.listGap} />;
+}
+
 function BulkButton({
   label,
   onPress,
   tone,
+  primary,
 }: {
   label: string;
   onPress: () => void;
   tone?: 'danger';
+  /** The affirmative action carries a green fill; the rest stay neutral. */
+  primary?: boolean;
 }) {
   const { colors } = useTheme();
+  const danger = tone === 'danger';
+
   return (
     <Pressable
+      accessibilityRole="button"
       onPress={onPress}
-      className="rounded-full px-3.5 py-2 active:opacity-70"
-      style={{ backgroundColor: tone === 'danger' ? `${DANGER}22` : colors.fill }}>
+      style={({ pressed }) => [
+        styles.bulkButton,
+        {
+          backgroundColor: danger
+            ? colors.dangerFill
+            : primary
+            ? colors.primaryFill
+            : colors.controlAlt,
+          borderColor: danger
+            ? colors.dangerBorder
+            : primary
+            ? colors.selectedBorder
+            : colors.border,
+        },
+        pressed && styles.pressed,
+      ]}>
       <Text
-        className="text-[13px] font-medium"
-        style={{ color: tone === 'danger' ? DANGER : colors.ink }}>
+        size={13}
+        leading={1}
+        weight="500"
+        tone={danger ? 'danger' : primary ? 'ink' : 'soft'}>
         {label}
       </Text>
     </Pressable>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+  header: {
+    paddingHorizontal: layout.adminPadding,
+    paddingTop: 4,
+    paddingBottom: 13,
+    gap: 13,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+  },
+  filterGroup: {
+    gap: 8,
+  },
+  authorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 13,
+    paddingVertical: 11,
+    borderRadius: 11,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+  },
+  listPad: {
+    paddingHorizontal: layout.adminPadding,
+  },
+  listGap: {
+    height: 9,
+  },
+  fab: {
+    position: 'absolute',
+    right: layout.adminPadding,
+  },
+  bulkBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: layout.adminPadding,
+    paddingTop: 18,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderTopWidth: StyleSheet.hairlineWidth * 2,
+    gap: 14,
+    shadowColor: '#000',
+    shadowOpacity: 0.6,
+    shadowRadius: 40,
+    shadowOffset: { width: 0, height: -20 },
+    elevation: 24,
+  },
+  bulkHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  bulkActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 9,
+  },
+  bulkButton: {
+    paddingHorizontal: 15,
+    paddingVertical: 11,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+  },
+  pressed: {
+    opacity: 0.75,
+  },
+  footer: {
+    paddingVertical: 20,
+  },
+});

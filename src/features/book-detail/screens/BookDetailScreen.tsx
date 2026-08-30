@@ -1,97 +1,70 @@
-import { useMemo, useCallback, useState } from 'react';
-import {
-  Alert,
-  Image,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-  useWindowDimensions,
-} from 'react-native';
-import { BlurView } from '@react-native-community/blur';
+import { useCallback, useMemo, useState } from 'react';
+import { Alert, StyleSheet, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, Heart } from 'lucide-react-native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Bookmark, ChevronLeft, MoreVertical, Play } from 'lucide-react-native';
 
 import type { RootStackParamList } from '@/app/navigation/types';
+import { AccessLabel, accessFor, BookCard, BookRail, type BookSummary } from '@/components/books';
+import { Screen } from '@/components/layout';
 import { BookDetailSkeleton } from '@/components/skeletons/CatalogSkeletons';
-import { DisplayText, Text } from '@/components/ui';
-import { BookCoverPlaceholder } from '@/components/books';
+import {
+  BookCover,
+  Button,
+  Display,
+  EmptyState,
+  IconButton,
+  Text,
+  TextButton,
+  UrduText,
+} from '@/components/ui';
 import { ROUTES } from '@/constants/routes';
-import { useBook } from '@/hooks/useCatalog';
+import { CoverBackdrop } from '@/features/book-detail/components/CoverBackdrop';
+import { StatStrip, type Stat } from '@/features/book-detail/components/StatStrip';
 import { useWishlistMutation, useWishlistStatus } from '@/hooks/useAccount';
+import { useBook, useHomeCatalog } from '@/hooks/useCatalog';
 import { useAccess } from '@/lib/access';
-import { palette } from '@/theme/palette';
+import { isUrduTitle } from '@/services/script';
+import type { CatalogBook } from '@/services/catalog';
+import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
 
 type BookDetailRouteProp = RouteProp<RootStackParamList, 'BookDetail'>;
 type BookDetailNavigationProp = NativeStackNavigationProp<RootStackParamList, 'BookDetail'>;
 
-const COVER_ASPECT = 1.42;
+const DESCRIPTION_LINES = 3;
 
-function formatPrice(price: number, currency: string): string {
-  return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(price);
-}
-
-function useBookDetailLayout() {
-  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
-
-  return useMemo(() => {
-    const horizontalPadding = Math.max(20, Math.round(screenWidth * 0.05));
-    const sectionGap = 16;
-    const blockGap = 22;
-    const contentGap = 8;
-    const contentTopPadding = 20;
-
-    const footerPaddingTop = 12;
-    const footerPaddingBottom = Math.max(insets.bottom, 10);
-    const footerButtonHeight = 50;
-
-    const headerTop = insets.top + 8;
-    const backToCoverGap = 16;
-    const heroBottomPadding = 20;
-
-    const maxCoverHeight = screenHeight * 0.25;
-    const coverWidth = Math.min(
-      screenWidth - horizontalPadding * 2,
-      maxCoverHeight / COVER_ASPECT,
-      screenWidth * 0.44,
-    );
-    const coverHeight = coverWidth * COVER_ASPECT;
-
-    return {
-      horizontalPadding,
-      sectionGap,
-      blockGap,
-      contentGap,
-      contentTopPadding,
-      footerPaddingTop,
-      footerPaddingBottom,
-      footerButtonHeight,
-      headerTop,
-      backToCoverGap,
-      heroBottomPadding,
-      coverWidth,
-      coverHeight,
-      scrollBottomPadding: 16,
-    };
-  }, [screenWidth, screenHeight, insets.top, insets.bottom]);
+function toSummary(book: CatalogBook): BookSummary {
+  return {
+    id: book.id,
+    title: book.title,
+    author: book.author,
+    coverUrl: book.coverUrl,
+    coverColor: book.coverColor,
+    coverColorDark: book.coverColorDark,
+    isPremium: book.isPremium,
+    price: book.price,
+    currency: book.currency,
+    isUrdu: isUrduTitle(book.title),
+  };
 }
 
 export function BookDetailScreen() {
   const navigation = useNavigation<BookDetailNavigationProp>();
   const route = useRoute<BookDetailRouteProp>();
-  const { isDark, colors } = useTheme();
-  const layout = useBookDetailLayout();
+  const { isDark } = useTheme();
 
-  const { data: book, isLoading } = useBook(route.params.bookId);
-  const { data: saved } = useWishlistStatus(route.params.bookId);
-  const wishlistMutation = useWishlistMutation(route.params.bookId);
+  const { bookId } = route.params;
+  const { data: book, isLoading } = useBook(bookId);
+  const { data: home } = useHomeCatalog();
+  const { data: saved } = useWishlistStatus(bookId);
+  const wishlistMutation = useWishlistMutation(bookId);
   const { isAuthenticated, canOpenBooks, isSubscriptionLoading } = useAccess();
+
+  const [expanded, setExpanded] = useState(false);
+
+  const goBack = useCallback(() => navigation.goBack(), [navigation]);
 
   const openPaywall = useCallback(() => {
     navigation.navigate(ROUTES.MAIN_TABS, {
@@ -100,24 +73,21 @@ export function BookDetailScreen() {
     });
   }, [navigation]);
 
-  const handleReadBook = useCallback(() => {
+  const handleRead = useCallback(() => {
     if (!book) {
       return;
     }
-
     if (!isAuthenticated) {
       navigation.navigate(ROUTES.LOGIN, { returnTo: { bookId: book.id } });
       return;
     }
-
     if (isSubscriptionLoading) {
       return;
     }
-
     if (!canOpenBooks) {
       Alert.alert(
-        'Subscription required',
-        'An active subscription is required to open books.',
+        'Membership required',
+        'An active membership is required to open books.',
         [
           { text: 'Not now', style: 'cancel' },
           { text: 'View plans', onPress: openPaywall },
@@ -125,7 +95,6 @@ export function BookDetailScreen() {
       );
       return;
     }
-
     navigation.navigate(ROUTES.BOOK_READER, { bookId: book.id });
   }, [book, canOpenBooks, isAuthenticated, isSubscriptionLoading, navigation, openPaywall]);
 
@@ -140,361 +109,205 @@ export function BookDetailScreen() {
     wishlistMutation.mutate(Boolean(saved));
   }, [book, isAuthenticated, navigation, saved, wishlistMutation]);
 
-  if (!book && !isLoading) {
+  const handleMore = useCallback(() => {
+    Alert.alert(book?.title ?? 'Book', undefined, [
+      { text: saved ? 'Remove from library' : 'Save to library', onPress: handleWishlist },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }, [book?.title, handleWishlist, saved]);
+
+  const stats = useMemo<Stat[]>(() => {
+    if (!book) {
+      return [];
+    }
+    const entries: Stat[] = [];
+    if (book.rating != null) {
+      entries.push({ value: book.rating.toFixed(1), label: 'RATING' });
+    }
+    entries.push({ value: book.readTime, label: 'READ TIME' });
+    if (book.genre) {
+      entries.push({ value: book.genre, label: 'SUBJECT' });
+    }
+    entries.push({
+      value: isUrduTitle(book.title) ? 'UR' : 'EN',
+      label: 'LANGUAGE',
+    });
+    return entries;
+  }, [book]);
+
+  // "Readers also loved" — trending titles other than this one.
+  const alsoLoved = useMemo(
+    () => (home?.trending ?? []).filter(other => other.id !== bookId).slice(0, 6),
+    [bookId, home?.trending],
+  );
+
+  if (isLoading) {
     return (
-      <View className="flex-1 bg-app-bg dark:bg-app-bg-dark">
-        <View
-          className="flex-1"
-          style={{
-            paddingTop: layout.headerTop,
-            paddingHorizontal: layout.horizontalPadding,
-            paddingBottom: layout.footerPaddingBottom,
-          }}>
-          <BackLink onPress={() => navigation.goBack()} />
-          <View className="flex-1 items-center justify-center gap-3">
-            <DisplayText className="text-center text-[22px] font-semibold text-app-ink dark:text-app-ink-dark">
-              Book not found
-            </DisplayText>
-            <Text className="text-center text-[15px] text-app-muted dark:text-app-muted-dark">
-              This title is no longer in the catalog.
-            </Text>
-          </View>
-        </View>
-      </View>
+      <Screen gap={20} edgeToEdge={false}>
+        <BookDetailSkeleton />
+      </Screen>
     );
   }
 
   if (!book) {
-    return <BookDetailSkeleton />;
-  }
-
-  const coverColor = isDark ? book.coverColorDark : book.coverColor;
-
-  return (
-    <View className="flex-1 bg-app-bg dark:bg-app-bg-dark">
-      <ScrollView
-        className="flex-1"
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: layout.scrollBottomPadding }}>
-        <View style={styles.hero}>
-          <View style={styles.heroBackdrop} pointerEvents="none">
-            <BookDetailHeroBackdrop
-              coverUrl={book.coverUrl}
-              coverColor={coverColor}
-              isDark={isDark}
-            />
-          </View>
-
-          <View
-            style={{
-              paddingTop: layout.headerTop,
-              paddingHorizontal: layout.horizontalPadding,
-              paddingBottom: layout.heroBottomPadding,
-            }}>
-            <BackLink onPress={() => navigation.goBack()} />
-
-            <View
-              style={{
-                marginTop: layout.backToCoverGap,
-                alignItems: 'center',
-              }}>
-              <BookCoverPlaceholder
-                width={layout.coverWidth}
-                height={layout.coverHeight}
-                coverColor={coverColor}
-                coverUrl={book.coverUrl}
-                borderRadius={20}
-                tag={book.tag}
-                tagPlacement="bottom-left"
-                style={styles.coverShadow}
-              />
-            </View>
-          </View>
-        </View>
-
-        <View
-          style={{
-            paddingHorizontal: layout.horizontalPadding,
-            paddingTop: layout.contentTopPadding,
-          }}>
-          <View
-            className="flex-row flex-wrap items-center"
-            style={{ gap: layout.contentGap }}>
-            {book.genre ? (
-              <Text className="rounded-full bg-app-fill px-3 py-1.5 text-[12px] font-medium text-app-primary dark:bg-app-fill-dark dark:text-app-primary-dark">
-                {book.genre}
-              </Text>
-            ) : null}
-            <Text className="text-[12px] font-medium uppercase tracking-[1.4px] text-app-faint dark:text-app-faint-dark">
-              {book.format}
-            </Text>
-          </View>
-
-          <DisplayText
-            className="text-[28px] font-bold leading-[34px] tracking-tight text-app-ink dark:text-app-ink-dark"
-            style={{ marginTop: 14 }}>
-            {book.title}
-          </DisplayText>
-
-          <Text
-            className="text-[17px] leading-6 text-app-muted dark:text-app-muted-dark"
-            style={{ marginTop: 6 }}>
-            {book.author}
-          </Text>
-
-          <View
-            className="flex-row items-end justify-between border-b border-app-border dark:border-app-border-dark"
-            style={{
-              marginTop: layout.sectionGap,
-              paddingBottom: layout.sectionGap,
-            }}>
-            <View style={{ gap: 6 }}>
-              <Text className="text-[12px] font-medium uppercase tracking-[1.4px] text-app-faint dark:text-app-faint-dark">
-                Price
-              </Text>
-              <Text className="text-[32px] font-bold tabular-nums tracking-tight text-app-ink dark:text-app-ink-dark">
-                {formatPrice(book.price, book.currency)}
-              </Text>
-            </View>
-            {book.rating != null ? (
-              <View className="items-end" style={{ gap: 6 }}>
-                <Text className="text-[12px] font-medium uppercase tracking-[1.4px] text-app-faint dark:text-app-faint-dark">
-                  Rating
-                </Text>
-                <Text className="text-[20px] font-semibold tabular-nums text-app-ink dark:text-app-ink-dark">
-                  {book.rating.toFixed(1)}
-                  <Text className="text-[14px] font-normal text-app-muted dark:text-app-muted-dark">
-                    {' '}
-                    / 5
-                  </Text>
-                </Text>
-              </View>
-            ) : null}
-          </View>
-
-          <View
-            className="flex-row"
-            style={{ marginTop: layout.sectionGap, gap: 10 }}>
-            <DetailCell label="Read time" value={book.readTime} />
-            <DetailCell label="Availability" value="In library" />
-          </View>
-
-          <View style={{ marginTop: layout.blockGap, gap: 10 }}>
-            <Text className="text-[12px] font-medium uppercase tracking-[1.4px] text-app-faint dark:text-app-faint-dark">
-              Synopsis
-            </Text>
-            <Text className="text-[16px] leading-[26px] text-app-ink dark:text-app-ink-dark">
-              {book.description}
-            </Text>
-          </View>
-
-          <View style={{ marginTop: layout.blockGap, gap: 10 }}>
-            <Text className="text-[12px] font-medium uppercase tracking-[1.4px] text-app-faint dark:text-app-faint-dark">
-              Details
-            </Text>
-            <View className="overflow-hidden rounded-[16px] border border-app-border bg-app-surface dark:border-app-border-dark dark:bg-app-surface-dark">
-              <DetailRow label="Author" value={book.author} />
-              <DetailRow label="Category" value={book.genre ?? 'General'} />
-              <DetailRow label="Format" value={book.format} isLast />
-            </View>
-          </View>
-        </View>
-      </ScrollView>
-
-      <View
-        className="border-t border-app-border bg-app-bg dark:border-app-border-dark dark:bg-app-bg-dark"
-        style={{
-          paddingTop: layout.footerPaddingTop,
-          paddingBottom: layout.footerPaddingBottom,
-          paddingHorizontal: layout.horizontalPadding,
-        }}>
-        <View className="flex-row" style={{ gap: 10 }}>
-          <Pressable
-            onPress={handleWishlist}
-            accessibilityRole="button"
-            accessibilityLabel={saved ? 'Remove from wishlist' : 'Save to wishlist'}
-            style={{ height: layout.footerButtonHeight }}
-            className="flex-1 items-center justify-center rounded-[14px] border border-app-border bg-app-surface active:opacity-80 dark:border-app-border-dark dark:bg-app-surface-dark">
-            <View className="flex-row items-center gap-2">
-              <Heart
-                size={16}
-                color={colors.primary}
-                fill={saved ? colors.primary : 'transparent'}
-                strokeWidth={2}
-              />
-              <Text className="text-[16px] font-semibold text-app-ink dark:text-app-ink-dark">
-                {saved ? 'Saved' : 'Save'}
-              </Text>
-            </View>
-          </Pressable>
-          <Pressable
-            onPress={handleReadBook}
-            accessibilityRole="button"
-            accessibilityLabel={`Read ${book.title}`}
-            style={{
-              height: layout.footerButtonHeight,
-              backgroundColor: colors.primary,
-            }}
-            className="flex-1 items-center justify-center rounded-[14px] active:opacity-90">
-            <Text className="text-[16px] font-semibold text-white">
-              {!isAuthenticated
-                ? 'Sign in to read'
-                : canOpenBooks
-                  ? 'Read book'
-                  : 'Subscribe to read'}
-            </Text>
-          </Pressable>
-        </View>
-      </View>
-    </View>
-  );
-}
-
-type BookDetailHeroBackdropProps = {
-  coverUrl?: string;
-  coverColor: string;
-  isDark: boolean;
-};
-
-function BookDetailHeroBackdrop({
-  coverUrl,
-  coverColor,
-  isDark,
-}: BookDetailHeroBackdropProps) {
-  const [imageFailed, setImageFailed] = useState(false);
-  const showImage = Boolean(coverUrl) && !imageFailed;
-
-  if (!showImage) {
     return (
-      <View style={[StyleSheet.absoluteFillObject, { backgroundColor: coverColor }]}>
-        <View
-          style={[
-            StyleSheet.absoluteFillObject,
-            { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.22)' : 'rgba(255, 255, 255, 0.18)' },
-          ]}
-        />
-      </View>
+      <Screen scrollable={false}>
+        <View style={styles.notFound}>
+          <EmptyState
+            art={null}
+            title="This title has moved on."
+            message="It is no longer in the catalogue. Nothing on your shelf was affected."
+            action={{ label: 'Go back', onPress: goBack }}
+          />
+        </View>
+      </Screen>
     );
   }
 
+  const coverColor = (isDark ? book.coverColorDark : book.coverColor) ?? undefined;
+  const access = accessFor(book);
+  const isUrdu = isUrduTitle(book.title);
+
   return (
-    <>
-      <Image
-        source={{ uri: coverUrl }}
-        style={styles.heroImage}
-        resizeMode="cover"
-        accessibilityIgnoresInvertColors
-        onError={() => setImageFailed(true)}
-      />
-      <BlurView
-        style={StyleSheet.absoluteFillObject}
-        blurType={isDark ? 'dark' : 'light'}
-        blurAmount={isDark ? 20 : 28}
-        reducedTransparencyFallbackColor={coverColor}
-        {...(Platform.OS === 'android'
-          ? { overlayColor: 'transparent', blurRadius: 24, downsampleFactor: 4 }
-          : null)}
-      />
-      <View
-        style={[
-          StyleSheet.absoluteFillObject,
-          {
-            backgroundColor: isDark ? 'rgba(0, 0, 0, 0.24)' : 'rgba(255, 255, 255, 0.34)',
-          },
-        ]}
-      />
-      <View
-        style={[
-          StyleSheet.absoluteFillObject,
-          { backgroundColor: coverColor, opacity: isDark ? 0.16 : 0.1 },
-        ]}
-      />
-    </>
-  );
-}
+    <Screen
+      gap={18}
+      backdrop={<CoverBackdrop coverUrl={book.coverUrl} coverColor={coverColor} />}>
+      <View style={styles.chrome}>
+        <IconButton
+          icon={ChevronLeft}
+          onPress={goBack}
+          variant="plain"
+          accessibilityLabel="Go back"
+        />
+        <View style={styles.chromeActions}>
+          <IconButton
+            icon={Bookmark}
+            onPress={handleWishlist}
+            variant={saved ? 'ghost' : 'plain'}
+            accessibilityLabel={saved ? 'Remove from library' : 'Save to library'}
+          />
+          <IconButton
+            icon={MoreVertical}
+            onPress={handleMore}
+            variant="plain"
+            accessibilityLabel="More options"
+          />
+        </View>
+      </View>
 
-type BackLinkProps = {
-  onPress: () => void;
-};
+      <View style={styles.hero}>
+        <BookCover
+          width={158}
+          coverUrl={book.coverUrl}
+          coverColor={coverColor}
+          rounded={12}
+          elevated
+          caption={`COVER · ${book.title.toUpperCase()}`}
+        />
 
-function BackLink({ onPress }: BackLinkProps) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel="Go back"
-      className="-ml-1 flex-row items-center gap-0.5 self-start py-1 active:opacity-60"
-      style={{ height: 40 }}>
-      <ChevronLeft size={22} color={palette.green} strokeWidth={2.25} />
-      <Text className="text-[15px] font-medium text-app-primary dark:text-app-primary-dark">
-        Back
-      </Text>
-    </Pressable>
-  );
-}
+        <View style={styles.title}>
+          {isUrdu ? (
+            <UrduText size={26} align="center">
+              {book.title}
+            </UrduText>
+          ) : (
+            <Display size="heading" align="center">
+              {book.title}
+            </Display>
+          )}
 
-type DetailCellProps = {
-  label: string;
-  value: string;
-};
+          <Text size={fontSize.bodySmall} leading={1.2} tone="muted">
+            {book.author}
+          </Text>
 
-function DetailCell({ label, value }: DetailCellProps) {
-  return (
-    <View className="min-w-0 flex-1 rounded-[14px] border border-app-border bg-app-surface px-4 py-3.5 dark:border-app-border-dark dark:bg-app-surface-dark">
-      <Text className="text-[11px] font-medium uppercase tracking-[1.2px] text-app-faint dark:text-app-faint-dark">
-        {label}
-      </Text>
-      <Text
-        className="mt-1.5 text-[15px] font-medium text-app-ink dark:text-app-ink-dark"
-        numberOfLines={2}>
-        {value}
-      </Text>
-    </View>
-  );
-}
+          <AccessLabel access={access} variant="badge" />
+        </View>
+      </View>
 
-type DetailRowProps = {
-  label: string;
-  value: string;
-  isLast?: boolean;
-};
+      <StatStrip stats={stats} />
 
-function DetailRow({ label, value, isLast = false }: DetailRowProps) {
-  return (
-    <View
-      className={`flex-row items-center justify-between px-4 py-3.5 ${
-        !isLast ? 'border-b border-app-border dark:border-app-border-dark' : ''
-      }`}>
-      <Text className="shrink-0 text-[14px] text-app-muted dark:text-app-muted-dark">
-        {label}
-      </Text>
-      <Text
-        className="ml-4 max-w-[58%] text-right text-[14px] font-medium text-app-ink dark:text-app-ink-dark"
-        numberOfLines={2}>
-        {value}
-      </Text>
-    </View>
+      <View>
+        <Text
+          size={fontSize.bodySmall}
+          leading={1.7}
+          tone="soft"
+          numberOfLines={expanded ? undefined : DESCRIPTION_LINES}>
+          {book.description}
+        </Text>
+        {!expanded ? (
+          <TextButton label="Read more" onPress={() => setExpanded(true)} style={styles.readMore} />
+        ) : null}
+      </View>
+
+      <View style={styles.actions}>
+        <Button
+          label={canOpenBooks ? 'Read now' : 'Start reading'}
+          icon={Play}
+          onPress={handleRead}
+          size="md"
+          style={styles.grow}
+        />
+        <Button
+          label={saved ? 'Saved' : 'Save'}
+          variant={saved ? 'ghost' : 'secondary'}
+          onPress={handleWishlist}
+          size="md"
+          style={styles.grow}
+        />
+      </View>
+
+      {alsoLoved.length > 0 ? (
+        <BookRail title="Readers also loved" gap={12}>
+          {alsoLoved.map(other => (
+            <BookCard
+              key={other.id}
+              book={toSummary(other)}
+              width={92}
+              showAuthor={false}
+              onPress={() =>
+                navigation.push(ROUTES.BOOK_DETAIL, { bookId: other.id })
+              }
+            />
+          ))}
+        </BookRail>
+      ) : null}
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  chrome: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  chromeActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
   hero: {
-    width: '100%',
-    overflow: 'hidden',
-    position: 'relative',
+    alignItems: 'center',
+    gap: 16,
+    paddingTop: 6,
   },
-  heroBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+  title: {
+    alignItems: 'center',
+    gap: 8,
+    maxWidth: 300,
   },
-  heroImage: {
-    ...StyleSheet.absoluteFillObject,
-    transform: [{ scale: 1.28 }],
+  readMore: {
+    marginTop: 4,
+    alignSelf: 'flex-start',
   },
-  coverShadow: {
-    shadowColor: '#0E1410',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.18,
-    shadowRadius: 20,
-    elevation: 8,
+  actions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  grow: {
+    flex: 1,
+  },
+  notFound: {
+    flex: 1,
+    justifyContent: 'center',
   },
 });

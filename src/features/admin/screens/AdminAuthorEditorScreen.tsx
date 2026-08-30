@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Image, View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { ImageUp, User } from 'lucide-react-native';
@@ -131,19 +131,17 @@ export function AdminAuthorEditorScreen() {
         subtitle={existing ? `${existing.book_count} books credited` : 'Add a name to the catalog.'}
       />
 
-      <View className="gap-4">
+      <View style={s.stack}>
         <AdminCard title="Portrait">
-          <View className="flex-row items-center gap-4">
-            <View
-              className="h-16 w-16 items-center justify-center overflow-hidden rounded-full"
-              style={{ backgroundColor: colors.fill }}>
+          <View style={s.row}>
+            <View style={[s.avatar, { backgroundColor: colors.primaryFillSoft }]}>
               {avatarUrl ? (
-                <Image source={{ uri: avatarUrl }} className="h-full w-full" />
+                <Image source={{ uri: avatarUrl }} style={s.avatarImage} />
               ) : (
                 <User size={26} color={colors.muted} strokeWidth={1.8} />
               )}
             </View>
-            <View className="flex-1 gap-2">
+            <View style={s.grow}>
               <AdminButton
                 label={uploading ? 'Uploading…' : avatarUrl ? 'Replace' : 'Upload'}
                 Icon={ImageUp}
@@ -196,7 +194,7 @@ export function AdminAuthorEditorScreen() {
               onPress={() => setConfirmDelete(true)}
             />
             {existing && existing.book_count > 0 ? (
-              <Text className="px-1 text-center text-[12px] text-app-muted dark:text-app-muted-dark">
+              <Text size={12} leading={1.4} align="center" tone="muted">
                 {existing.book_count} books are still credited to this author and must be reassigned
                 first.
               </Text>
@@ -232,3 +230,11 @@ export function AdminAuthorEditorScreen() {
     </Screen>
   );
 }
+
+const s = StyleSheet.create({
+  stack: { gap: 16 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  avatar: { width: 64, height: 64, borderRadius: 32, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  avatarImage: { width: '100%', height: '100%' },
+  grow: { flex: 1, gap: 8 },
+});

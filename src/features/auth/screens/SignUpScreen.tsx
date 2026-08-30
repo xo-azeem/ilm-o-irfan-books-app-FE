@@ -1,11 +1,11 @@
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '@/app/navigation/types';
-import { Text } from '@/components/ui';
+import { Button, Text, TextButton } from '@/components/ui';
 import { ROUTES } from '@/constants/routes';
 import { AuthDivider } from '@/features/auth/components/AuthDivider';
 import { AuthField } from '@/features/auth/components/AuthField';
@@ -13,6 +13,7 @@ import { AuthLayout } from '@/features/auth/components/AuthLayout';
 import { GoogleSignInButton } from '@/features/auth/components/GoogleSignInButton';
 import { resumeAfterAuth, waitForAccessCheck } from '@/lib/access';
 import { signUpWithEmail } from '@/lib/supabase';
+import { fontSize } from '@/theme/typography';
 
 type SignUpForm = {
   fullName: string;
@@ -51,27 +52,22 @@ export function SignUpScreen() {
       Alert.alert('Missing details', 'Please enter your full name.');
       return false;
     }
-
     if (!isValidEmail(form.email)) {
       Alert.alert('Invalid email', 'Please enter a valid email address.');
       return false;
     }
-
     if (form.phone.trim().length < 7) {
       Alert.alert('Invalid phone', 'Please enter a valid phone number.');
       return false;
     }
-
     if (form.password.length < 8) {
       Alert.alert('Weak password', 'Password must be at least 8 characters.');
       return false;
     }
-
     if (form.password !== form.confirmPassword) {
       Alert.alert('Password mismatch', 'Passwords do not match.');
       return false;
     }
-
     return true;
   }, [form]);
 
@@ -93,7 +89,13 @@ export function SignUpScreen() {
         Alert.alert(
           'Check your email',
           'Account created. Confirm your email if required, then sign in.',
-          [{ text: 'OK', onPress: () => navigation.navigate(ROUTES.LOGIN, returnTo ? { returnTo } : undefined) }],
+          [
+            {
+              text: 'OK',
+              onPress: () =>
+                navigation.navigate(ROUTES.LOGIN, returnTo ? { returnTo } : undefined),
+            },
+          ],
         );
         return;
       }
@@ -105,9 +107,7 @@ export function SignUpScreen() {
       resumeAfterAuth(navigation, returnTo);
     } catch (error) {
       const message =
-        error instanceof Error
-          ? error.message
-          : 'Unable to create account. Try again.';
+        error instanceof Error ? error.message : 'Unable to create account. Try again.';
       Alert.alert('Sign up failed', message);
     } finally {
       setIsSubmitting(false);
@@ -121,25 +121,25 @@ export function SignUpScreen() {
     );
   }, []);
 
+  const goToSignIn = useCallback(
+    () => navigation.navigate(ROUTES.LOGIN, returnTo ? { returnTo } : undefined),
+    [navigation, returnTo],
+  );
+
   return (
     <AuthLayout
-      title="Create account"
-      subtitle="Build your personal Islamic library in a few steps."
+      title="Start your shelf."
+      subtitle="A few details, then seven decades of Ilm-o-Irfan are yours to browse."
       onBack={() => navigation.goBack()}
       footer={
-        <Pressable
-          onPress={() => navigation.navigate(ROUTES.LOGIN, returnTo ? { returnTo } : undefined)}
-          hitSlop={8}
-          className="active:opacity-65">
-          <Text className="text-center text-[15px] leading-[22px] text-app-muted dark:text-app-muted-dark">
-            Already have an account?{' '}
-            <Text className="font-semibold text-app-primary dark:text-app-primary-dark">
-              Sign in
-            </Text>
+        <View style={styles.footer}>
+          <Text size={fontSize.bodySmall} leading={1} tone="muted">
+            Already have an account?
           </Text>
-        </Pressable>
+          <TextButton label="Sign in" onPress={goToSignIn} size={fontSize.bodySmall} />
+        </View>
       }>
-      <View className="gap-3">
+      <View style={styles.fields}>
         <AuthField
           label="Full name"
           value={form.fullName}
@@ -158,7 +158,6 @@ export function SignUpScreen() {
           onChangeText={value => updateField('email', value)}
           placeholder="name@example.com"
           keyboardType="email-address"
-          autoCapitalize="none"
           textContentType="emailAddress"
           autoComplete="email"
           returnKeyType="next"
@@ -169,7 +168,7 @@ export function SignUpScreen() {
           label="Phone"
           value={form.phone}
           onChangeText={value => updateField('phone', value)}
-          placeholder="+1 555 000 0000"
+          placeholder="+92 300 123 4567"
           keyboardType="phone-pad"
           textContentType="telephoneNumber"
           autoComplete="tel"
@@ -182,7 +181,7 @@ export function SignUpScreen() {
           value={form.password}
           onChangeText={value => updateField('password', value)}
           placeholder="At least 8 characters"
-          secureTextEntry
+          secure
           textContentType="newPassword"
           autoComplete="password-new"
           returnKeyType="next"
@@ -193,8 +192,8 @@ export function SignUpScreen() {
           label="Confirm password"
           value={form.confirmPassword}
           onChangeText={value => updateField('confirmPassword', value)}
-          placeholder="Re-enter your password"
-          secureTextEntry
+          placeholder="Repeat your password"
+          secure
           textContentType="newPassword"
           autoComplete="password-new"
           returnKeyType="go"
@@ -203,28 +202,27 @@ export function SignUpScreen() {
         />
       </View>
 
-      <View className="gap-4">
-        <Pressable
-          onPress={handleCreateAccount}
-          disabled={isSubmitting}
-          accessibilityRole="button"
-          accessibilityLabel="Create account"
-          className="h-[52px] items-center justify-center rounded-[14px] bg-app-primary dark:bg-app-primary-dark"
-          style={({ pressed }) => ({
-            opacity: pressed || isSubmitting ? 0.75 : 1,
-          })}>
-          <Text className="text-[17px] font-semibold text-app-on-primary dark:text-app-on-primary-dark">
-            {isSubmitting ? 'Creating…' : 'Create account'}
-          </Text>
-        </Pressable>
+      <Button
+        label={isSubmitting ? 'Creating account…' : 'Create account'}
+        onPress={handleCreateAccount}
+        loading={isSubmitting}
+      />
 
-        <AuthDivider />
+      <AuthDivider />
 
-        <GoogleSignInButton
-          onPress={handleGoogleSignUp}
-          label="Sign up with Google"
-        />
-      </View>
+      <GoogleSignInButton label="Sign up with Google" onPress={handleGoogleSignUp} />
     </AuthLayout>
   );
 }
+
+const styles = StyleSheet.create({
+  fields: {
+    gap: 14,
+  },
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+  },
+});

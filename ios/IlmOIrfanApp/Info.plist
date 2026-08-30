@@ -60,7 +60,13 @@
 	<false/>
 	<key>UIAppFonts</key>
 	<array>
-		<string>DMSans.ttf</string>
+		<string>DMSans-Bold.ttf</string>
+		<string>DMSans-Medium.ttf</string>
+		<string>DMSans-Regular.ttf</string>
+		<string>Newsreader16pt-Regular.ttf</string>
+		<string>Newsreader16pt-SemiBold.ttf</string>
+		<string>NotoNastaliqUrdu-Bold.ttf</string>
+		<string>NotoNastaliqUrdu-Regular.ttf</string>
 	</array>
 </dict>
 </plist>

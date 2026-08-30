@@ -1,12 +1,12 @@
-import { useState } from 'react';
-import { Image, Pressable, View } from 'react-native';
+import { memo, useCallback, useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Plus, User } from 'lucide-react-native';
+import { Plus } from 'lucide-react-native';
 
 import { Screen, ScreenHeader } from '@/components/layout';
 import { ListRowsSkeleton } from '@/components/skeletons/CatalogSkeletons';
-import { Text } from '@/components/ui';
+import { Avatar, FloatingAction, Text } from '@/components/ui';
 import { ADMIN_ROUTES } from '@/constants/routes';
 import { AdminSearchBar } from '@/features/admin/components/AdminControls';
 import { errorMessage } from '@/features/admin/components/AdminToast';
@@ -15,98 +15,131 @@ import {
   AdminBadge,
   AdminEmpty,
   AdminErrorState,
+  AdminRowGroup,
 } from '@/features/admin/components/AdminUi';
 import { useDebouncedValue } from '@/features/admin/hooks/useAdminForm';
+import { useAppInsets } from '@/hooks/useAppInsets';
 import { useAdminAuthors } from '@/hooks/useAdmin';
-import { adminCoverUrl } from '@/services/admin';
+import { adminCoverUrl, type AdminAuthor } from '@/services/admin';
+import { layout } from '@/theme/palette';
 import { useTheme } from '@/theme/ThemeContext';
 
 import type { AdminCatalogStackParamList } from '../navigation/types';
 
 export function AdminAuthorListScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<AdminCatalogStackParamList>>();
-  const { colors } = useTheme();
+  const { tabBarHeight } = useAppInsets();
   const [query, setQuery] = useState('');
   const debounced = useDebouncedValue(query, 300);
   const { data = [], isLoading, error, refetch } = useAdminAuthors(debounced);
 
+  const newAuthor = useCallback(
+    () => navigation.navigate(ADMIN_ROUTES.AUTHOR_EDITOR, {}),
+    [navigation],
+  );
+
+  const openAuthor = useCallback(
+    (authorId: string) => navigation.navigate(ADMIN_ROUTES.AUTHOR_EDITOR, { authorId }),
+    [navigation],
+  );
+
   return (
-    <Screen>
+    <Screen
+      padding={layout.adminPadding}
+      gap={14}
+      overlay={
+        <FloatingAction
+          label="New author"
+          icon={Plus}
+          onPress={newAuthor}
+          style={[styles.fab, { bottom: tabBarHeight + 14 }]}
+        />
+      }>
       <AdminBackLink label="Catalog" />
-      <ScreenHeader
-        title="Authors"
-        subtitle={`${data.length} in the catalog`}
-        action={
-          <Pressable
-            onPress={() => navigation.navigate(ADMIN_ROUTES.AUTHOR_EDITOR, {})}
-            className="h-9 w-9 items-center justify-center rounded-full active:opacity-70"
-            style={{ backgroundColor: colors.primary }}>
-            <Plus size={19} color={colors.onPrimary} strokeWidth={2.4} />
-          </Pressable>
-        }
-      />
+      <ScreenHeader title="Authors" dense subtitle={`${data.length} in the catalog`} />
 
       <AdminSearchBar value={query} onChangeText={setQuery} placeholder="Search authors" />
 
       {isLoading ? (
-        <ListRowsSkeleton rows={6} />
+        <ListRowsSkeleton count={6} height={60} />
       ) : error ? (
         <AdminErrorState message={errorMessage(error)} onRetry={() => void refetch()} />
       ) : data.length === 0 ? (
         <AdminEmpty
-          title="No authors"
+          title="No authors yet"
           message="Every book needs an author. Add the first one to get started."
           actionLabel="Add author"
-          onAction={() => navigation.navigate(ADMIN_ROUTES.AUTHOR_EDITOR, {})}
+          onAction={newAuthor}
         />
       ) : (
-        <View className="overflow-hidden rounded-[14px] bg-app-surface dark:bg-app-surface-dark">
-          {data.map((author, index) => {
-            const avatar = adminCoverUrl(author.avatar_path);
-            return (
-              <Pressable
-                key={author.id}
-                onPress={() =>
-                  navigation.navigate(ADMIN_ROUTES.AUTHOR_EDITOR, { authorId: author.id })
-                }
-                style={({ pressed }) => (pressed ? { backgroundColor: colors.fill } : undefined)}
-                className={`flex-row items-center gap-3 px-4 py-3 ${
-                  index === data.length - 1
-                    ? ''
-                    : 'border-b border-app-border dark:border-app-border-dark'
-                }`}>
-                <View
-                  className="h-10 w-10 items-center justify-center overflow-hidden rounded-full"
-                  style={{ backgroundColor: colors.fill }}>
-                  {avatar ? (
-                    <Image source={{ uri: avatar }} className="h-full w-full" />
-                  ) : (
-                    <User size={18} color={colors.muted} strokeWidth={2} />
-                  )}
-                </View>
-
-                <View className="min-w-0 flex-1 gap-0.5">
-                  <Text
-                    className="text-[16px] text-app-ink dark:text-app-ink-dark"
-                    numberOfLines={1}>
-                    {author.name}
-                  </Text>
-                  <Text
-                    className="text-[12px] text-app-muted dark:text-app-muted-dark"
-                    numberOfLines={1}>
-                    {author.slug}
-                  </Text>
-                </View>
-
-                <AdminBadge
-                  label={`${author.published_count}/${author.book_count} live`}
-                  tone={author.book_count === 0 ? 'neutral' : 'success'}
-                />
-              </Pressable>
-            );
-          })}
-        </View>
+        <AdminRowGroup>
+          {data.map(author => (
+            <AuthorRow key={author.id} author={author} onPress={openAuthor} />
+          ))}
+        </AdminRowGroup>
       )}
     </Screen>
   );
 }
+
+const AuthorRow = memo(function AuthorRow({
+  author,
+  onPress,
+}: {
+  author: AdminAuthor;
+  onPress: (authorId: string) => void;
+}) {
+  const { colors } = useTheme();
+  const handlePress = useCallback(() => onPress(author.id), [author.id, onPress]);
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={author.name}
+      onPress={handlePress}
+      style={({ pressed }) => [
+        styles.row,
+        pressed && { backgroundColor: colors.primaryFillSoft },
+      ]}>
+      <Avatar
+        name={author.name}
+        imageUrl={adminCoverUrl(author.avatar_path)}
+        size={38}
+        tone="neutral"
+      />
+
+      <View style={styles.body}>
+        <Text size={14.5} leading={1.2} numberOfLines={1}>
+          {author.name}
+        </Text>
+        <Text size={11.5} leading={1.2} tone="faint" numberOfLines={1}>
+          {author.slug}
+        </Text>
+      </View>
+
+      <AdminBadge
+        label={`${author.published_count}/${author.book_count} live`}
+        tone={author.book_count === 0 ? 'neutral' : 'success'}
+      />
+    </Pressable>
+  );
+});
+
+const styles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+  },
+  body: {
+    flex: 1,
+    minWidth: 0,
+    gap: 4,
+  },
+  fab: {
+    position: 'absolute',
+    right: layout.adminPadding,
+  },
+});

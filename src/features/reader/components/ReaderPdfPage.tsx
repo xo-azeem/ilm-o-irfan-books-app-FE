@@ -1,10 +1,11 @@
-import { forwardRef, memo, useCallback, useImperativeHandle, useMemo, useRef } from 'react';
+import { memo, useCallback, useMemo, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Pdf from 'react-native-pdf';
 
 import type { BookPdfSource } from '@/constants/books';
 import { MIN_SCALE } from '@/features/reader/constants';
-import { useTheme } from '@/theme/ThemeContext';
+import { useThemeStore } from '@/stores/themeStore';
+import { readerTones } from '@/theme/palette';
 
 type ReaderPdfPageProps = {
   source: BookPdfSource;
@@ -108,7 +109,7 @@ export const PdfPageCountProbe = memo(function PdfPageCountProbe({
   onCount,
   onError,
 }: PdfPageCountProbeProps) {
-  const { isDark } = useTheme();
+  const pageTone = useThemeStore(state => state.pageTone);
   const reported = useRef(false);
   const onCountRef = useRef(onCount);
   const onErrorRef = useRef(onError);
@@ -140,7 +141,7 @@ export const PdfPageCountProbe = memo(function PdfPageCountProbe({
         source={source}
         page={1}
         singlePage={false}
-        style={{ width: size, height: size, backgroundColor: isDark ? '#161C16' : '#FFFEFB' }}
+        style={{ width: size, height: size, backgroundColor: readerTones[pageTone].background }}
         scale={MIN_SCALE}
         minScale={MIN_SCALE}
         maxScale={MIN_SCALE}
@@ -168,7 +169,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   probe: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     opacity: 0,
     zIndex: -1,
   },

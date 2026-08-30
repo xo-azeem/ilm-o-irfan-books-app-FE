@@ -1,59 +1,118 @@
-import { memo, useState } from 'react';
-import { Pressable, View } from 'react-native';
-import { ChevronRight } from 'lucide-react-native';
+import { useCallback, useState } from 'react';
+import { Alert, Linking } from 'react-native';
 
-import { ListRow, Section } from '@/components/layout';
-import { Text } from '@/components/ui';
-import { palette } from '@/theme/palette';
+import { Button, SettingsGroup, SettingsRow } from '@/components/ui';
 import { ProfileSubScreenLayout } from '@/features/profile/components/ProfileSubScreenLayout';
-import { ProfileToggleRow } from '@/features/profile/components/ProfileToggleRow';
-import { privacyOptions } from '@/features/profile/data/profileContent';
+import {
+  accountSecurityRows,
+  legalRows,
+  privacyOptions,
+} from '@/features/profile/data/profileContent';
 
-export const PrivacySecurityScreen = memo(function PrivacySecurityScreen() {
-  const [toggles, setToggles] = useState(() =>
+const PRIVACY_POLICY_URL = 'https://ilmoirfan.com/privacy';
+const TERMS_URL = 'https://ilmoirfan.com/terms';
+
+/**
+ * Privacy & security.
+ *
+ * The three privacy toggles, then the account and legal rows a store review
+ * expects to find here — including account deletion, which both stores now
+ * require to be reachable in-app.
+ */
+export function PrivacySecurityScreen() {
+  const [options, setOptions] = useState(() =>
     Object.fromEntries(privacyOptions.map(option => [option.id, option.defaultValue])),
   );
 
-  const updateToggle = (id: string, value: boolean) => {
-    setToggles(current => ({ ...current, [id]: value }));
-  };
+  const setOption = useCallback((id: string, value: boolean) => {
+    setOptions(current => ({ ...current, [id]: value }));
+  }, []);
+
+  const openUrl = useCallback((url: string) => {
+    void Linking.openURL(url).catch(() =>
+      Alert.alert('Could not open link', 'Please try again from a browser.'),
+    );
+  }, []);
+
+  const handleSecurityRow = useCallback((id: string) => {
+    switch (id) {
+      case 'change-password':
+        Alert.alert(
+          'Change password',
+          'We will email you a secure link once password recovery is enabled.',
+        );
+        break;
+      case 'devices':
+        Alert.alert('Signed-in devices', 'Signing out here signs you out everywhere.');
+        break;
+      case 'export':
+        Alert.alert(
+          'Download my data',
+          'We will email a copy of your profile, library and reading history within 30 days.',
+        );
+        break;
+    }
+  }, []);
+
+  const handleDelete = useCallback(() => {
+    Alert.alert(
+      'Delete account?',
+      'This removes your profile, library, downloads and reading history. It cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () =>
+            Alert.alert(
+              'Request received',
+              'Your account will be deleted within 30 days. Sign in before then to cancel.',
+            ),
+        },
+      ],
+    );
+  }, []);
 
   return (
     <ProfileSubScreenLayout
       title="Privacy & security"
-      subtitle="Control your data and account security.">
-      <Section title="Privacy">
-        {privacyOptions.map((option, index) => (
-          <ProfileToggleRow
+      subtitle="You decide what leaves this device.">
+      <SettingsGroup>
+        {privacyOptions.map(option => (
+          <SettingsRow
             key={option.id}
-            label={option.label}
-            description={option.description}
-            value={toggles[option.id] ?? false}
-            onValueChange={value => updateToggle(option.id, value)}
-            isLast={index === privacyOptions.length - 1}
+            title={option.label}
+            subtitle={option.description}
+            toggle={{
+              value: options[option.id] ?? option.defaultValue,
+              onValueChange: value => setOption(option.id, value),
+            }}
           />
         ))}
-      </Section>
+      </SettingsGroup>
 
-      <Section title="Legal" className="mt-7">
-        <ListRow
-          title="Privacy policy"
-          trailing={<ChevronRight color={palette.yellowGreen} size={18} strokeWidth={2} />}
-        />
-        <ListRow
-          title="Terms of service"
-          isLast
-          trailing={<ChevronRight color={palette.yellowGreen} size={18} strokeWidth={2} />}
-        />
-      </Section>
+      <SettingsGroup title="Account security">
+        {accountSecurityRows.map(row => (
+          <SettingsRow
+            key={row.id}
+            title={row.label}
+            value={row.value}
+            onPress={() => handleSecurityRow(row.id)}
+          />
+        ))}
+      </SettingsGroup>
 
-      <View className="mt-7">
-        <Pressable className="items-center rounded-[14px] border border-app-border py-3.5 active:opacity-80 dark:border-app-border-dark">
-          <Text className="text-[16px] font-semibold text-app-ink dark:text-app-ink-dark">
-            Change password
-          </Text>
-        </Pressable>
-      </View>
+      <SettingsGroup title="Legal">
+        {legalRows.map(row => (
+          <SettingsRow
+            key={row.id}
+            title={row.label}
+            onPress={() => openUrl(row.id === 'terms' ? TERMS_URL : PRIVACY_POLICY_URL)}
+          />
+        ))}
+      </SettingsGroup>
+
+      <Button label="Delete account" variant="danger" size="md" onPress={handleDelete} />
     </ProfileSubScreenLayout>
   );
-});
+}

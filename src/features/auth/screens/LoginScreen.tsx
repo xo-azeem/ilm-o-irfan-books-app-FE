@@ -1,11 +1,11 @@
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '@/app/navigation/types';
-import { Text } from '@/components/ui';
+import { Button, Text, TextButton } from '@/components/ui';
 import { ROUTES } from '@/constants/routes';
 import { AuthDivider } from '@/features/auth/components/AuthDivider';
 import { AuthField } from '@/features/auth/components/AuthField';
@@ -13,6 +13,7 @@ import { AuthLayout } from '@/features/auth/components/AuthLayout';
 import { GoogleSignInButton } from '@/features/auth/components/GoogleSignInButton';
 import { resumeAfterAuth, waitForAccessCheck } from '@/lib/access';
 import { signInWithEmail } from '@/lib/supabase';
+import { fontSize } from '@/theme/typography';
 
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
@@ -47,8 +48,7 @@ export function LoginScreen() {
       }
       resumeAfterAuth(navigation, returnTo);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Unable to sign in. Try again.';
+      const message = error instanceof Error ? error.message : 'Unable to sign in. Try again.';
       Alert.alert('Sign in failed', message);
     } finally {
       setIsSubmitting(false);
@@ -62,32 +62,44 @@ export function LoginScreen() {
     );
   }, []);
 
+  const handleGuest = useCallback(() => {
+    // Guest browsing is preserved from the current build: the catalog is open,
+    // the reader is what asks for an account.
+    navigation.reset({ index: 0, routes: [{ name: ROUTES.MAIN_TABS }] });
+  }, [navigation]);
+
+  const goToSignUp = useCallback(
+    () => navigation.navigate(ROUTES.SIGN_UP, returnTo ? { returnTo } : undefined),
+    [navigation, returnTo],
+  );
+
+  const handleForgotPassword = useCallback(() => {
+    Alert.alert(
+      'Reset your password',
+      'Enter your email and we will send a reset link once password recovery is enabled in Supabase.',
+    );
+  }, []);
+
   return (
     <AuthLayout
-      title="Sign in"
-      subtitle="Continue your library of knowledge and reflection."
-      onBack={() => navigation.goBack()}
+      title="Welcome back."
+      subtitle="Your shelf is where you left it."
+      onBack={navigation.canGoBack() ? () => navigation.goBack() : undefined}
       footer={
-        <Pressable
-          onPress={() => navigation.navigate(ROUTES.SIGN_UP, returnTo ? { returnTo } : undefined)}
-          hitSlop={8}
-          className="active:opacity-65">
-          <Text className="text-center text-[15px] leading-[22px] text-app-muted dark:text-app-muted-dark">
-            New here?{' '}
-            <Text className="font-semibold text-app-primary dark:text-app-primary-dark">
-              Create account
-            </Text>
+        <View style={styles.footer}>
+          <Text size={fontSize.bodySmall} leading={1} tone="muted">
+            New here?
           </Text>
-        </Pressable>
+          <TextButton label="Create an account" onPress={goToSignUp} size={fontSize.bodySmall} />
+        </View>
       }>
-      <View className="gap-3">
+      <View style={styles.fields}>
         <AuthField
           label="Email"
           value={email}
           onChangeText={setEmail}
           placeholder="name@example.com"
           keyboardType="email-address"
-          autoCapitalize="none"
           textContentType="emailAddress"
           autoComplete="email"
           returnKeyType="next"
@@ -99,34 +111,56 @@ export function LoginScreen() {
           value={password}
           onChangeText={setPassword}
           placeholder="Your password"
-          secureTextEntry
+          secure
           textContentType="password"
           autoComplete="password"
           returnKeyType="go"
           onSubmitEditing={handleSignIn}
           editable={!isSubmitting}
         />
+
+        <TextButton
+          label="Forgot password?"
+          tone="muted"
+          onPress={handleForgotPassword}
+          style={styles.forgot}
+        />
       </View>
 
-      <View className="gap-4">
-        <Pressable
-          onPress={handleSignIn}
-          disabled={isSubmitting}
-          accessibilityRole="button"
-          accessibilityLabel="Sign in"
-          className="h-[52px] items-center justify-center rounded-[14px] bg-app-primary dark:bg-app-primary-dark"
-          style={({ pressed }) => ({
-            opacity: pressed || isSubmitting ? 0.75 : 1,
-          })}>
-          <Text className="text-[17px] font-semibold text-app-on-primary dark:text-app-on-primary-dark">
-            {isSubmitting ? 'Signing in…' : 'Sign in'}
-          </Text>
-        </Pressable>
+      <Button
+        label={isSubmitting ? 'Signing in…' : 'Sign in'}
+        onPress={handleSignIn}
+        loading={isSubmitting}
+      />
 
-        <AuthDivider />
+      <AuthDivider />
 
+      <View style={styles.alternatives}>
         <GoogleSignInButton onPress={handleGoogleSignIn} />
+        <GoogleSignInButton
+          label="Continue as guest"
+          showLogo={false}
+          onPress={handleGuest}
+        />
       </View>
     </AuthLayout>
   );
 }
+
+const styles = StyleSheet.create({
+  fields: {
+    gap: 14,
+  },
+  forgot: {
+    alignSelf: 'flex-end',
+  },
+  alternatives: {
+    gap: 11,
+  },
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+  },
+});

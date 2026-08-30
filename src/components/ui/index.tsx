@@ -1,40 +1,110 @@
-import type { PropsWithChildren } from 'react';
-import { Text as RNText, type TextStyle } from 'react-native';
+/**
+ * The design system's public surface.
+ *
+ * Screens import from `@/components/ui` and nothing else in this folder, so a
+ * primitive can be reshaped, split or renamed without touching a single screen.
+ */
 
-type TextProps = PropsWithChildren<{
-  className?: string;
-  numberOfLines?: number;
-  style?: TextStyle;
-}>;
+export {
+  Display,
+  DisplayText,
+  Label,
+  Text,
+  UrduText,
+  BookTitle,
+  type DisplayProps,
+  type DisplaySize,
+  type LabelProps,
+  type TextTone,
+} from './Text';
 
-const bodyBase = 'font-sans tracking-snug text-app-ink dark:text-app-ink-dark';
-const headingBase =
-  'font-sans font-semibold tracking-sleek text-app-ink dark:text-app-ink-dark';
+export { Icon, IconTile, IconFrame, type IconProps, type IconTone, type IconTileTone, type LucideIcon } from './Icon';
 
-export function Text({ children, className, numberOfLines, style }: TextProps) {
-  return (
-    <RNText
-      numberOfLines={numberOfLines}
-      style={style}
-      className={`${bodyBase} ${className ?? ''}`}>
-      {children}
-    </RNText>
-  );
-}
+export {
+  Button,
+  IconButton,
+  TextButton,
+  FloatingAction,
+  type ButtonProps,
+  type ButtonSize,
+  type ButtonVariant,
+} from './Button';
 
-/** Headings — same DM Sans family, tighter tracking and semibold weight. */
-export function DisplayText({
-  children,
-  className,
-  numberOfLines,
-  style,
-}: TextProps) {
-  return (
-    <RNText
-      numberOfLines={numberOfLines}
-      style={style}
-      className={`${headingBase} ${className ?? ''}`}>
-      {children}
-    </RNText>
-  );
-}
+export {
+  Card,
+  PressableCard,
+  Divider,
+  SectionHeader,
+  Callout,
+  type CalloutTone,
+  type CardProps,
+  type CardTone,
+} from './Surface';
+
+export { Chip, ChipRow, ChipWrap, Badge, Tag, type BadgeTone, type ChipProps } from './Chip';
+
+export {
+  Field,
+  TextField,
+  ReadOnlyField,
+  SelectField,
+  SearchField,
+  type SearchFieldProps,
+  type TextFieldProps,
+} from './Field';
+
+export { Toggle, RadioDot, Checkbox, type SelectionProps, type ToggleProps } from './Toggle';
+
+export {
+  ProgressBar,
+  CoverProgress,
+  SliderTrack,
+  StatTile,
+  StreakBars,
+  type ProgressBarProps,
+  type StatTileProps,
+} from './Progress';
+
+export {
+  SegmentedControl,
+  type SegmentOption,
+  type SegmentedControlProps,
+} from './SegmentedControl';
+
+export { SettingsGroup, SettingsRow, type SettingsRowProps } from './SettingsGroup';
+
+export { ViewToggle, type ViewMode } from './ViewToggle';
+
+export { Sheet, SheetSection, useSheet, type SheetProps } from './Sheet';
+
+export { EmptyState, DashedShelf, type EmptyStateProps } from './EmptyState';
+
+export {
+  BookCover,
+  Avatar,
+  coverHeight,
+  initialsFrom,
+  COVER_RATIO,
+  type AvatarProps,
+  type BookCoverProps,
+} from './BookCover';
+
+export {
+  LinearGradient,
+  RadialGlow,
+  HeaderWash,
+  DiagonalTexture,
+  type GradientStop,
+} from './Gradient';
+
+export { SkeletonPulse, SkeletonBone, SkeletonCover, SkeletonRail } from './Skeleton';
+
+export {
+  CircularProgress,
+  CircularProgressCombined,
+  CircularProgressIndicator,
+  CircularProgressRange,
+  CircularProgressTrack,
+  CircularProgressValueText,
+  type CircularProgressProps,
+} from './CircularProgress';

@@ -1,50 +1,95 @@
-import { memo, useState } from 'react';
+import { useCallback, useState } from 'react';
+import { Linking, StyleSheet, View } from 'react-native';
 
-import { Section } from '@/components/layout';
+import { Callout, Card, SettingsGroup, SettingsRow, Text, TextButton } from '@/components/ui';
 import { ProfileSubScreenLayout } from '@/features/profile/components/ProfileSubScreenLayout';
-import { ProfileToggleRow } from '@/features/profile/components/ProfileToggleRow';
+import {
+  notificationGroups,
+  quietHoursDefault,
+} from '@/features/profile/data/profileContent';
 
-export const NotificationsScreen = memo(function NotificationsScreen() {
-  const [dailyReminder, setDailyReminder] = useState(true);
-  const [newBooks, setNewBooks] = useState(true);
-  const [readingGoals, setReadingGoals] = useState(true);
-  const [promotions, setPromotions] = useState(false);
+/** The default state, derived once from the content model. */
+function initialToggles(): Record<string, boolean> {
+  return Object.fromEntries(
+    notificationGroups.flatMap(group =>
+      group.toggles.map(toggle => [toggle.id, toggle.defaultValue]),
+    ),
+  );
+}
+
+/**
+ * Notifications.
+ *
+ * The four toggles the app has always had, plus the two things a reminder
+ * feature genuinely needs: quiet hours, and an honest warning when the OS has
+ * notifications switched off entirely.
+ */
+export function NotificationsScreen() {
+  const [toggles, setToggles] = useState(initialToggles);
+
+  // The OS permission state needs a native module to read; until that lands,
+  // the banner is a standing reminder that app settings are not the whole story.
+  const [systemEnabled] = useState(true);
+
+  const setToggle = useCallback((id: string, value: boolean) => {
+    setToggles(current => ({ ...current, [id]: value }));
+  }, []);
+
+  const openSystemSettings = useCallback(() => {
+    void Linking.openSettings();
+  }, []);
 
   return (
     <ProfileSubScreenLayout
       title="Notifications"
       subtitle="Choose what you want to be notified about.">
-      <Section title="Reading">
-        <ProfileToggleRow
-          label="Daily reminder"
-          description="A gentle nudge to keep your streak going"
-          value={dailyReminder}
-          onValueChange={setDailyReminder}
-        />
-        <ProfileToggleRow
-          label="Reading goals"
-          description="Updates on your weekly progress"
-          value={readingGoals}
-          onValueChange={setReadingGoals}
-          isLast
-        />
-      </Section>
+      {notificationGroups.map(group => (
+        <SettingsGroup key={group.id} title={group.title}>
+          {group.toggles.map(toggle => (
+            <SettingsRow
+              key={toggle.id}
+              title={toggle.label}
+              subtitle={toggle.description}
+              toggle={{
+                value: toggles[toggle.id] ?? toggle.defaultValue,
+                onValueChange: value => setToggle(toggle.id, value),
+              }}
+            />
+          ))}
+        </SettingsGroup>
+      ))}
 
-      <Section title="Library" className="mt-7">
-        <ProfileToggleRow
-          label="New book releases"
-          description="When fresh titles are added"
-          value={newBooks}
-          onValueChange={setNewBooks}
+      <View style={styles.section}>
+        <SettingsGroup title="Quiet hours">
+          <SettingsRow
+            title="No reminders"
+            subtitle={`${quietHoursDefault.from} – ${quietHoursDefault.to}`}
+            trailing={<TextButton label="Change" onPress={openSystemSettings} />}
+            chevron={false}
+          />
+        </SettingsGroup>
+      </View>
+
+      {!systemEnabled ? (
+        <Callout
+          tone="warning"
+          title="System notifications are off for Ilm o Irfan."
+          message="Reminders will not appear until you turn them on for this app."
+          action={<TextButton label="Open" tone="gold" onPress={openSystemSettings} />}
         />
-        <ProfileToggleRow
-          label="Offers & updates"
-          description="Occasional news from Ilm o Irfan"
-          value={promotions}
-          onValueChange={setPromotions}
-          isLast
-        />
-      </Section>
+      ) : (
+        <Card tone="alt" padded={15}>
+          <Text size={12.5} leading={1.55} tone="muted">
+            Reminders respect your quiet hours and your device’s Do Not Disturb.
+          </Text>
+        </Card>
+      )}
     </ProfileSubScreenLayout>
   );
+}
+
+const styles = StyleSheet.create({
+  section: {
+    gap: 11,
+  },
 });

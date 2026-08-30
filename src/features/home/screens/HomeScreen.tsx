@@ -1,138 +1,215 @@
-import { useCallback } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import type { RootStackParamList, RootTabParamList } from '@/app/navigation/types';
+import {
+  BookCard,
+  BookRail,
+  CollectionCard,
+  ContinueCard,
+  RailAction,
+  type BookSummary,
+} from '@/components/books';
 import { Screen } from '@/components/layout';
 import { HomeCatalogSkeleton } from '@/components/skeletons/CatalogSkeletons';
-import { Text } from '@/components/ui';
+import { EmptyState, HeaderWash } from '@/components/ui';
 import { ROUTES } from '@/constants/routes';
-
-import { BookCoverCard } from '@/features/explore/components/BookCoverCard';
-import { CollectionCard } from '@/features/explore/components/CollectionCard';
-import { ExploreSectionHeader } from '@/features/explore/components/ExploreSectionHeader';
+import { BookOfTheWeek } from '@/features/home/components/BookOfTheWeek';
+import { HomeHeader } from '@/features/home/components/HomeHeader';
+import { MembershipBand } from '@/features/home/components/MembershipBand';
+import { MoodPicker, type ReadingMood } from '@/features/home/components/MoodPicker';
+import { useLibrary, useProfile, useSubscription } from '@/hooks/useAccount';
 import { useHomeCatalog } from '@/hooks/useCatalog';
-import { HeroBookCarousel } from '@/features/home/components/HeroBookCarousel';
+import type { CatalogBook } from '@/services/catalog';
 
 type HomeNavigation = CompositeNavigationProp<
   BottomTabNavigationProp<RootTabParamList, 'Home'>,
   NativeStackNavigationProp<RootStackParamList>
 >;
 
+/** Adapts a catalog row to the shape the shared book components expect. */
+function toSummary(book: CatalogBook): BookSummary {
+  return {
+    id: book.id,
+    title: book.title,
+    author: book.author,
+    coverUrl: book.coverUrl,
+    coverColor: book.coverColor,
+    coverColorDark: book.coverColorDark,
+    isPremium: book.isPremium,
+    price: book.price,
+    currency: book.currency,
+  };
+}
+
 export function HomeScreen() {
   const navigation = useNavigation<HomeNavigation>();
-  const { data, isLoading, isError, error, refetch, isRefetching } = useHomeCatalog();
+  const { data, isLoading, isError, error, refetch } = useHomeCatalog();
+  const { data: profile } = useProfile();
+  const { data: library } = useLibrary();
+  const { data: subscription } = useSubscription();
+  const [mood, setMood] = useState<ReadingMood | null>(null);
 
-  const handleBookPress = useCallback(
-    (book: { id: string }) => {
-      navigation.navigate(ROUTES.BOOK_DETAIL, { bookId: book.id });
-    },
+  const openBook = useCallback(
+    (book: { id: string }) => navigation.navigate(ROUTES.BOOK_DETAIL, { bookId: book.id }),
     [navigation],
   );
 
-  const handleProfilePress = useCallback(() => {
-    navigation.navigate(ROUTES.PROFILE);
-  }, [navigation]);
+  const readBook = useCallback(
+    (book: { id: string }) => navigation.navigate(ROUTES.BOOK_READER, { bookId: book.id }),
+    [navigation],
+  );
+
+  const openProfile = useCallback(() => navigation.navigate(ROUTES.PROFILE), [navigation]);
+  const openLibrary = useCallback(() => navigation.navigate(ROUTES.MY_LIBRARY), [navigation]);
+
+  const openMembership = useCallback(
+    () => navigation.navigate(ROUTES.PROFILE, { screen: 'Subscription' }),
+    [navigation],
+  );
+
+  const hero = data?.hero?.[0];
+  const featured = useMemo(
+    () =>
+      hero
+        ? {
+            ...toSummary(hero),
+            description: hero.description,
+            rating: hero.rating,
+            genre: hero.genre,
+          }
+        : null,
+    [hero],
+  );
+
+  // Books the reader has started but not finished. `getLibrary` already orders
+  // them most-recently-read first.
+  const inProgress = useMemo(
+    () => (library?.progress ?? []).filter(entry => entry.progress < 1).slice(0, 6),
+    [library?.progress],
+  );
+
+  const hasMembership = subscription?.active ?? false;
+
+  if (isError) {
+    return (
+      <Screen scrollable={false}>
+        <View style={{ flex: 1, justifyContent: 'center' }}>
+          <EmptyState
+            art={null}
+            title="Could not load the catalog."
+            message={
+              error instanceof Error && error.name === 'AbortError'
+                ? 'The server did not respond. Check your connection, then try again.'
+                : 'Nothing was lost. Check your connection and try again.'
+            }
+            action={{ label: 'Try again', onPress: () => void refetch() }}
+          />
+        </View>
+      </Screen>
+    );
+  }
 
   return (
-    <Screen contentContainerClassName="px-0 pt-0" safeAreaEdges={['left', 'right']}>
-      <HeroBookCarousel
-        books={isLoading ? [] : data?.hero}
-        onProfilePress={handleProfilePress}
-        onBookPress={handleBookPress}
+    <Screen
+      gap={26}
+      backdrop={<HeaderWash height={520} />}
+      scrollViewProps={{ scrollEventThrottle: 16 }}>
+      <HomeHeader
+        name={profile?.fullName}
+        hasNotifications
+        onProfilePress={openProfile}
+        onNotificationsPress={openProfile}
       />
-      {isLoading ? <HomeCatalogSkeleton /> : null}
-      <View className="px-5 pt-0">
-        {isError ? (
-          <View className="items-center py-12">
-            <Text className="text-center text-[15px] text-app-ink dark:text-app-ink-dark">
-              Could not load the catalog.
-            </Text>
-            <Text className="mt-2 px-4 text-center text-[13px] text-app-muted dark:text-app-muted-dark">
-              {error instanceof Error
-                ? error.name === 'AbortError'
-                  ? 'The server did not respond. Check that SUPABASE_URL is reachable, then reload.'
-                  : error.message
-                : 'Please try again.'}
-            </Text>
-            <Pressable
-              onPress={() => {
-                void refetch();
-              }}
-              className="mt-5 rounded-[14px] bg-app-primary px-5 py-3 active:opacity-80 dark:bg-app-primary-dark">
-              <Text className="text-[15px] font-semibold text-white">
-                {isRefetching ? 'Retrying…' : 'Try again'}
-              </Text>
-            </Pressable>
-          </View>
-        ) : null}
 
-        {!isLoading && !isError ? (
-          <>
-            <View className="mb-8">
-              <ExploreSectionHeader
-                title="Trending now"
-                subtitle="Most read this week"
-              />
-              <ScrollView
-                horizontal
-                nestedScrollEnabled
-                showsHorizontalScrollIndicator={false}
-                contentContainerClassName="gap-4 pr-5">
-                {(data?.trending ?? []).map(book => (
-                  <BookCoverCard
-                    key={book.id}
-                    book={book}
-                    onPress={handleBookPress}
-                  />
-                ))}
-              </ScrollView>
-            </View>
+      {isLoading ? (
+        <HomeCatalogSkeleton />
+      ) : (
+        <>
+          {featured ? (
+            <BookOfTheWeek book={featured} onRead={readBook} onPress={openBook} />
+          ) : null}
 
-            <View className="mb-8">
-              <ExploreSectionHeader title="New arrivals" subtitle="Fresh on the shelf" />
-              <ScrollView
-                horizontal
-                nestedScrollEnabled
-                showsHorizontalScrollIndicator={false}
-                contentContainerClassName="gap-4 pr-5">
-                {(data?.arrivals ?? []).map(book => (
-                  <BookCoverCard
-                    key={book.id}
-                    book={book}
-                    onPress={handleBookPress}
-                  />
-                ))}
-              </ScrollView>
-            </View>
+          {inProgress.length > 0 ? (
+            <BookRail
+              title="Continue reading"
+              action={<RailAction label={`All ${inProgress.length}`} onPress={openLibrary} />}
+              gap={12}>
+              {inProgress.map(entry => (
+                <ContinueCard
+                  key={entry.id}
+                  width={258}
+                  book={{ ...toSummary(entry), progress: entry.progress }}
+                  detail={entry.chapter}
+                  onPress={readBook}
+                />
+              ))}
+            </BookRail>
+          ) : null}
 
-            <View className="mb-4">
-              <ExploreSectionHeader
-                title="Curated collections"
-                subtitle="Hand-picked reading lists"
-              />
-              <ScrollView
-                horizontal
-                nestedScrollEnabled
-                showsHorizontalScrollIndicator={false}
-                contentContainerClassName="gap-3 pr-5">
-                {(data?.collections ?? []).map(collection => (
-                  <CollectionCard
-                    key={collection.id}
-                    title={collection.title}
-                    subtitle={collection.subtitle}
-                    bookCount={collection.bookCount}
-                    accent={collection.accent}
-                  />
-                ))}
-              </ScrollView>
-            </View>
-          </>
-        ) : null}
-      </View>
+          <MoodPicker value={mood} onChange={setMood} />
+
+          {data?.trending?.length ? (
+            <BookRail title="Trending this week" subtitle="Most opened across the store">
+              {data.trending.slice(0, 8).map((book, index) => (
+                <BookCard
+                  key={book.id}
+                  book={toSummary(book)}
+                  rank={index + 1}
+                  onPress={openBook}
+                />
+              ))}
+            </BookRail>
+          ) : null}
+
+          {data?.arrivals?.length ? (
+            <BookRail
+              title="New arrivals"
+              subtitle="Fresh on the shelf"
+              gap={14}>
+              {data.arrivals.slice(0, 8).map(book => (
+                <BookCard
+                  key={book.id}
+                  book={toSummary(book)}
+                  width={106}
+                  showAuthor={false}
+                  onPress={openBook}
+                />
+              ))}
+            </BookRail>
+          ) : null}
+
+          {data?.collections?.length ? (
+            <BookRail
+              title="Curated collections"
+              subtitle="Reading paths built by our editors"
+              gap={12}>
+              {data.collections.map(collection => (
+                <CollectionCard
+                  key={collection.id}
+                  id={collection.id}
+                  title={collection.title}
+                  subtitle={
+                    collection.subtitle || `${collection.bookCount} books`
+                  }
+                  accent={collection.accent}
+                />
+              ))}
+            </BookRail>
+          ) : null}
+
+          {!hasMembership ? (
+            <MembershipBand
+              subtitle="See plans from Rs 490 / month"
+              onPress={openMembership}
+            />
+          ) : null}
+        </>
+      )}
     </Screen>
   );
 }

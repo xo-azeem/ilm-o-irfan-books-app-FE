@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -13,8 +13,7 @@ import {
 } from '@react-native-documents/picker';
 import { Copy, Eye, FileText, ImageUp, Trash2 } from 'lucide-react-native';
 
-import { BookCoverPlaceholder } from '@/components/books';
-import { DisplayText, Text } from '@/components/ui';
+import { BookCover, Display, Icon, Text } from '@/components/ui';
 import { ADMIN_ROUTES } from '@/constants/routes';
 import {
   AdminColorField,
@@ -30,12 +29,12 @@ import {
   AdminButton,
   AdminCard,
   AdminChip,
+  AdminDivider,
   AdminField,
   AdminHelper,
   AdminLabel,
   AdminToggleRow,
-  DANGER,
-  WARNING,
+  AdminUploadProgress,
 } from '@/features/admin/components/AdminUi';
 import {
   useDebouncedValue,
@@ -43,6 +42,8 @@ import {
   useUnsavedGuard,
 } from '@/features/admin/hooks/useAdminForm';
 import { formatBytes } from '@/features/admin/utils/format';
+import { layout } from '@/theme/palette';
+import { fontSize } from '@/theme/typography';
 import { useAppInsets } from '@/hooks/useAppInsets';
 import {
   useAdminAuthors,
@@ -346,27 +347,30 @@ export function AdminBookEditorScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-app-bg dark:bg-app-bg-dark" edges={['top', 'left', 'right']}>
-      <View className="px-5 pt-1">
-        <AdminBackLink />
-        <View className="mb-3 flex-row items-end justify-between gap-3">
-          <View className="min-w-0 flex-1">
-            <DisplayText
-              className="text-[27px] font-bold leading-[33px] tracking-tight text-app-ink dark:text-app-ink-dark"
-              numberOfLines={1}>
-              {bookId ? form.title || 'Edit book' : 'New book'}
-            </DisplayText>
-            <View className="mt-1.5 flex-row items-center gap-2">
-              <AdminBadge
-                label={form.isPublished ? 'Published' : 'Draft'}
-                tone={form.isPublished ? 'success' : 'neutral'}
-              />
-              {isDirty ? <AdminBadge label="Unsaved" tone="warning" /> : null}
-            </View>
+    <SafeAreaView
+      style={[styles.root, { backgroundColor: colors.background }]}
+      edges={['top', 'left', 'right']}>
+      <View style={styles.header}>
+        {/* Back on the left, save state on the right — the two things an editor
+            glances at while working. */}
+        <View style={styles.headerTop}>
+          <AdminBackLink label="Books" />
+          <View style={styles.stateBadges}>
+            {isDirty ? <AdminBadge label="Unsaved" tone="warning" /> : null}
+            <AdminBadge
+              label={form.isPublished ? 'Live' : 'Draft'}
+              tone={form.isPublished ? 'success' : 'neutral'}
+            />
           </View>
+        </View>
+
+        <View style={styles.titleRow}>
+          <Display size={24} numberOfLines={2} style={styles.title}>
+            {bookId ? form.title || 'Edit book' : 'New book'}
+          </Display>
 
           {bookId ? (
-            <View className="flex-row gap-1">
+            <View style={styles.titleActions}>
               <IconAction
                 Icon={Copy}
                 label="Duplicate"
@@ -380,27 +384,33 @@ export function AdminBookEditorScreen() {
                   })
                 }
               />
-              <IconAction Icon={Trash2} label="Delete" tone="danger" onPress={() => setConfirmDelete(true)} />
+              <IconAction
+                Icon={Trash2}
+                label="Delete"
+                tone="danger"
+                onPress={() => setConfirmDelete(true)}
+              />
             </View>
           ) : null}
         </View>
 
-        <View className="mb-3">
-          <AdminSegmented options={TABS} value={tab} onChange={setTab} />
-        </View>
+        <AdminSegmented options={TABS} value={tab} onChange={setTab} />
       </View>
 
       <ScrollView
-        className="flex-1"
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: scrollEndPadding + 70 }}
+        style={styles.scroll}
+        contentContainerStyle={{
+          paddingHorizontal: layout.adminPadding,
+          paddingBottom: scrollEndPadding + 70,
+        }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}>
         {isLoading && bookId ? (
-          <Text className="py-10 text-center text-[14px] text-app-muted dark:text-app-muted-dark">
+          <Text size={fontSize.bodySmall} leading={1.5} align="center" tone="muted" style={styles.loading}>
             Loading…
           </Text>
         ) : tab === 'details' ? (
-          <View className="gap-4">
+          <View style={styles.stack}>
             <AdminField
               label="Title"
               value={form.title}
@@ -420,26 +430,25 @@ export function AdminBookEditorScreen() {
 
             <Pressable
               onPress={() => setShowAuthorPicker(true)}
-              className="gap-1.5 active:opacity-70">
+              style={({ pressed }) => [styles.field, pressed && styles.pressed]}>
               <AdminLabel>Author</AdminLabel>
               <View
-                className="flex-row items-center justify-between rounded-[12px] border bg-app-surface px-4 dark:bg-app-surface-dark"
-                style={{
-                  height: 50,
-                  borderColor: touched && errors.author ? DANGER : colors.border,
-                }}>
-                <Text
-                  className="text-[16px]"
-                  style={{ color: author ? colors.ink : colors.faint }}
-                  numberOfLines={1}>
+                style={[
+                  styles.pickerRow,
+                  {
+                    backgroundColor: colors.surfaceAlt,
+                    borderColor: touched && errors.author ? colors.dangerBorder : colors.border,
+                  },
+                ]}>
+                <Text size={14} leading={1.2} tone={author ? 'ink' : 'faint'} numberOfLines={1}>
                   {author?.name ?? 'Choose an author'}
                 </Text>
-                <Text className="text-[13px] text-app-primary dark:text-app-primary-dark">
+                <Text size={13} leading={1} weight="500" tone="primary">
                   Change
                 </Text>
               </View>
               {touched && errors.author ? (
-                <Text className="px-1 text-[12px]" style={{ color: DANGER }}>
+                <Text size={12} leading={1.4} tone="danger">
                   {errors.author}
                 </Text>
               ) : null}
@@ -453,8 +462,8 @@ export function AdminBookEditorScreen() {
               helper="Shown on the book detail screen."
             />
 
-            <View className="flex-row gap-3">
-              <View className="flex-1">
+            <View style={styles.row}>
+              <View style={styles.grow}>
                 <AdminField
                   label="Genre"
                   value={form.genre}
@@ -462,7 +471,7 @@ export function AdminBookEditorScreen() {
                   placeholder="Islamic Studies"
                 />
               </View>
-              <View className="flex-1">
+              <View style={styles.grow}>
                 <AdminField
                   label="Badge"
                   value={form.tag}
@@ -480,8 +489,8 @@ export function AdminBookEditorScreen() {
               helper="Feed the catalog search index. Not shown to readers."
             />
 
-            <View className="flex-row gap-3">
-              <View className="flex-1">
+            <View style={styles.row}>
+              <View style={styles.grow}>
                 <AdminField
                   label="Read time"
                   value={form.readTime}
@@ -491,7 +500,7 @@ export function AdminBookEditorScreen() {
                   error={errors.readTime}
                 />
               </View>
-              <View className="flex-1">
+              <View style={styles.grow}>
                 <AdminField
                   label="Format"
                   value={form.format}
@@ -501,8 +510,8 @@ export function AdminBookEditorScreen() {
               </View>
             </View>
 
-            <View className="flex-row gap-3">
-              <View className="flex-1">
+            <View style={styles.row}>
+              <View style={styles.grow}>
                 <AdminField
                   label="Price"
                   value={form.price}
@@ -512,9 +521,9 @@ export function AdminBookEditorScreen() {
                   helper="0 for titles included in a subscription."
                 />
               </View>
-              <View className="w-[110px] gap-1.5">
+              <View style={styles.currency}>
                 <AdminLabel>Currency</AdminLabel>
-                <View className="flex-row flex-wrap gap-1.5">
+                <View style={styles.wrap}>
                   {CURRENCIES.slice(0, 3).map(code => (
                     <AdminChip
                       key={code}
@@ -541,22 +550,21 @@ export function AdminBookEditorScreen() {
             />
           </View>
         ) : tab === 'files' ? (
-          <View className="gap-5">
-            <View className="items-center py-2">
-              <BookCoverPlaceholder
+          <View style={styles.stackWide}>
+            <View style={styles.coverPreview}>
+              <BookCover
                 width={128}
-                height={185}
                 coverColor={form.coverColor}
                 coverUrl={adminCoverUrl(form.coverPath)}
-                borderRadius={14}
-                tag={form.tag || undefined}
+                rounded={14}
+                elevated
               />
             </View>
 
             <AdminCard title="Cover image">
-              <View className="gap-3">
-                <View className="flex-row items-center justify-between">
-                  <Text className="text-[14px] text-app-muted dark:text-app-muted-dark">
+              <View style={styles.group}>
+                <View style={styles.between}>
+                  <Text size={14} leading={1.2} tone="muted">
                     {form.coverPath ? 'Uploaded' : 'Not uploaded'}
                   </Text>
                   {form.coverPath ? <AdminBadge label="Ready" tone="success" /> : null}
@@ -578,9 +586,9 @@ export function AdminBookEditorScreen() {
             </AdminCard>
 
             <AdminCard title="Book PDF">
-              <View className="gap-3">
-                <View className="flex-row items-center justify-between">
-                  <Text className="text-[14px] text-app-muted dark:text-app-muted-dark">
+              <View style={styles.group}>
+                <View style={styles.between}>
+                  <Text size={14} leading={1.2} tone="muted">
                     {form.pdfPath ? formatBytes(form.fileSizeBytes) : 'Not uploaded'}
                   </Text>
                   {form.pdfPath ? (
@@ -621,9 +629,9 @@ export function AdminBookEditorScreen() {
             </AdminCard>
           </View>
         ) : (
-          <View className="gap-5">
+          <View style={styles.stackWide}>
             <AdminCard title="Visibility">
-              <View className="gap-3">
+              <View style={styles.group}>
                 <AdminToggleRow
                   label="Published"
                   description="Live in Home, Search, and Explore."
@@ -632,14 +640,13 @@ export function AdminBookEditorScreen() {
                 />
                 {errors.publish ? (
                   <View
-                    className="rounded-[10px] px-3 py-2"
-                    style={{ backgroundColor: `${WARNING}1A` }}>
-                    <Text className="text-[12px]" style={{ color: WARNING }}>
+                    style={[styles.blocker, { backgroundColor: colors.warningFill, borderColor: colors.warningBorder }]}>
+                    <Text size={12} leading={1.4} tone="warning">
                       {errors.publish}
                     </Text>
                   </View>
                 ) : null}
-                <View className="h-px bg-app-border dark:bg-app-border-dark" />
+                <AdminDivider />
                 <AdminToggleRow
                   label="Premium"
                   description="Shows the premium badge. The paywall itself is controlled in System → Settings."
@@ -653,17 +660,17 @@ export function AdminBookEditorScreen() {
               title="Categories"
               action={
                 <Pressable onPress={() => setShowCategoryPicker(true)} hitSlop={8}>
-                  <Text className="text-[13px] font-semibold text-app-primary dark:text-app-primary-dark">
+                  <Text size={13} leading={1} weight="600" tone="primary">
                     Edit
                   </Text>
                 </Pressable>
               }>
               {form.categoryIds.length === 0 ? (
-                <Text className="text-[13px] text-app-muted dark:text-app-muted-dark">
+                <Text size={13} leading={1.4} tone="muted">
                   Not in any category yet.
                 </Text>
               ) : (
-                <View className="flex-row flex-wrap gap-2">
+                <View style={styles.wrapWide}>
                   {form.categoryIds.map(id => {
                     const category = categories.find(item => item.id === id);
                     return (
@@ -687,17 +694,17 @@ export function AdminBookEditorScreen() {
               title="Collections"
               action={
                 <Pressable onPress={() => setShowCollectionPicker(true)} hitSlop={8}>
-                  <Text className="text-[13px] font-semibold text-app-primary dark:text-app-primary-dark">
+                  <Text size={13} leading={1} weight="600" tone="primary">
                     Edit
                   </Text>
                 </Pressable>
               }>
               {form.collectionIds.length === 0 ? (
-                <Text className="text-[13px] text-app-muted dark:text-app-muted-dark">
+                <Text size={13} leading={1.4} tone="muted">
                   Not featured in any shelf.
                 </Text>
               ) : (
-                <View className="flex-row flex-wrap gap-2">
+                <View style={styles.wrapWide}>
                   {form.collectionIds.map(id => {
                     const collection = collections.find(item => item.id === id);
                     return (
@@ -718,7 +725,7 @@ export function AdminBookEditorScreen() {
 
             {existing ? (
               <AdminCard title="Engagement">
-                <View className="flex-row justify-between">
+                <View style={styles.between}>
                   <Metric label="Readers" value={existing.reader_count} />
                   <Metric label="Downloads" value={existing.download_count} />
                   <Metric label="Wishlisted" value={existing.wishlist_count} />
@@ -731,8 +738,7 @@ export function AdminBookEditorScreen() {
       </ScrollView>
 
       <View
-        className="border-t px-5 pb-6 pt-3"
-        style={{ backgroundColor: colors.chrome, borderColor: colors.border }}>
+        style={[styles.saveBar, { backgroundColor: colors.chrome, borderTopColor: colors.chromeBorder }]}>
         <AdminButton
           label={saveBook.isPending ? 'Saving…' : bookId ? 'Save changes' : 'Create book'}
           loading={saveBook.isPending}
@@ -814,39 +820,28 @@ export function AdminBookEditorScreen() {
   );
 }
 
+/** An upload's progress, shown on the card that owns the file. */
 function ProgressBar({ value, label }: { value: number; label: string }) {
-  const { colors } = useTheme();
   return (
-    <View className="gap-1.5">
-      <View className="flex-row justify-between">
-        <Text className="text-[12px] text-app-muted dark:text-app-muted-dark">{label}</Text>
-        <Text className="text-[12px] font-medium text-app-ink dark:text-app-ink-dark">
-          {Math.round(value * 100)}%
-        </Text>
-      </View>
-      <View className="h-[6px] overflow-hidden rounded-full" style={{ backgroundColor: colors.fill }}>
-        <View
-          className="h-full rounded-full"
-          style={{ width: `${Math.max(value * 100, 3)}%`, backgroundColor: colors.primary }}
-        />
-      </View>
-    </View>
+    <AdminUploadProgress fileName={label} percent={Math.round(value * 100)} />
   );
 }
 
 function Metric({ label, value }: { label: string; value: number | string }) {
   return (
-    <View className="items-center gap-0.5">
-      <DisplayText className="text-[19px] font-bold text-app-ink dark:text-app-ink-dark">
-        {value}
-      </DisplayText>
-      <Text className="text-[11px] text-app-muted dark:text-app-muted-dark">{label}</Text>
+    <View style={styles.metric}>
+      <Text size={19} leading={1} weight="700">
+        {String(value)}
+      </Text>
+      <Text size={11} leading={1.2} tone="muted">
+        {label}
+      </Text>
     </View>
   );
 }
 
 function IconAction({
-  Icon,
+  Icon: Glyph,
   label,
   onPress,
   tone,
@@ -857,15 +852,142 @@ function IconAction({
   tone?: 'danger';
 }) {
   const { colors } = useTheme();
+  const danger = tone === 'danger';
+
   return (
     <Pressable
       onPress={onPress}
       accessibilityLabel={label}
       accessibilityRole="button"
       hitSlop={6}
-      className="h-9 w-9 items-center justify-center rounded-full active:opacity-70"
-      style={{ backgroundColor: colors.fill }}>
-      <Icon size={17} color={tone === 'danger' ? DANGER : colors.ink} strokeWidth={2.1} />
+      style={({ pressed }) => [
+        styles.iconAction,
+        { backgroundColor: danger ? colors.dangerFill : colors.primaryFillSoft },
+        pressed && styles.pressed,
+      ]}>
+      <Icon icon={Glyph} size={14} tone={danger ? 'danger' : 'soft'} />
     </Pressable>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+  header: {
+    paddingHorizontal: layout.adminPadding,
+    paddingTop: 4,
+    paddingBottom: 13,
+    gap: 13,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  stateBadges: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  title: {
+    flex: 1,
+    minWidth: 0,
+  },
+  titleActions: {
+    flexDirection: 'row',
+    gap: 9,
+  },
+  scroll: {
+    flex: 1,
+  },
+  loading: {
+    paddingVertical: 40,
+  },
+  stack: {
+    gap: 16,
+  },
+  stackWide: {
+    gap: 20,
+  },
+  group: {
+    gap: 12,
+  },
+  row: {
+    flexDirection: 'row',
+    gap: 11,
+  },
+  grow: {
+    flex: 1,
+  },
+  currency: {
+    width: 110,
+    gap: 8,
+  },
+  wrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 7,
+  },
+  wrapWide: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  between: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  coverPreview: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  field: {
+    gap: 8,
+  },
+  pickerRow: {
+    height: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingHorizontal: 15,
+    borderRadius: 15,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+  },
+  blocker: {
+    paddingHorizontal: 13,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+  },
+  saveBar: {
+    paddingHorizontal: 18,
+    paddingTop: 14,
+    paddingBottom: 26,
+    borderTopWidth: StyleSheet.hairlineWidth * 2,
+  },
+  metric: {
+    alignItems: 'center',
+    gap: 3,
+  },
+  iconAction: {
+    width: 32,
+    height: 32,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pressed: {
+    opacity: 0.72,
+  },
+});

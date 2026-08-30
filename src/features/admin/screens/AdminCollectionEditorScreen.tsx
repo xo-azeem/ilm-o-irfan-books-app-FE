@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import { Plus } from 'lucide-react-native';
 
@@ -149,7 +149,7 @@ export function AdminCollectionEditorScreen() {
         subtitle={`${form.bookIds.length} ${form.bookIds.length === 1 ? 'book' : 'books'} in this shelf`}
       />
 
-      <View className="gap-4">
+      <View style={s.stack}>
         <AdminField
           label="Title"
           value={form.title}
@@ -171,7 +171,7 @@ export function AdminCollectionEditorScreen() {
           helper={`Currently “${resolvedSlug || '—'}”.`}
         />
 
-        <View className="gap-2">
+        <View style={s.group}>
           <AdminSegmented
             options={KIND_OPTIONS}
             value={form.kind}
@@ -216,7 +216,7 @@ export function AdminCollectionEditorScreen() {
               onPress={() => setShowPicker(true)}
             />
           }>
-          <View className="p-3">
+          <View style={s.inset}>
             <AdminOrderableList
               items={orderedItems}
               emptyLabel="No books yet — an empty collection is not rendered."
@@ -285,3 +285,9 @@ export function AdminCollectionEditorScreen() {
     </Screen>
   );
 }
+
+const s = StyleSheet.create({
+  stack: { gap: 16 },
+  group: { gap: 8 },
+  inset: { padding: 13 },
+});

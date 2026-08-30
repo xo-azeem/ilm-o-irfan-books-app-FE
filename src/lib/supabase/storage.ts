@@ -11,9 +11,15 @@ try {
 
 const memory = new Map<string, string>();
 
-/** MMKV-backed storage adapter for Supabase Auth sessions. */
+/**
+ * MMKV-backed storage adapter for Supabase Auth sessions.
+ *
+ * Parameters are annotated explicitly because `SupportedStorage` is derived from
+ * the DOM `Storage` interface, which a React Native project does not include —
+ * without these the arguments silently infer as `any`.
+ */
 export const supabaseAuthStorage: SupportedStorage = {
-  getItem: key => {
+  getItem: (key: string) => {
     try {
       if (mmkv) {
         return mmkv.getString(key) ?? null;
@@ -23,7 +29,7 @@ export const supabaseAuthStorage: SupportedStorage = {
       return memory.get(key) ?? null;
     }
   },
-  setItem: (key, value) => {
+  setItem: (key: string, value: string) => {
     try {
       if (mmkv) {
         mmkv.set(key, value);
@@ -34,7 +40,7 @@ export const supabaseAuthStorage: SupportedStorage = {
       memory.set(key, value);
     }
   },
-  removeItem: key => {
+  removeItem: (key: string) => {
     try {
       if (mmkv) {
         mmkv.remove(key);

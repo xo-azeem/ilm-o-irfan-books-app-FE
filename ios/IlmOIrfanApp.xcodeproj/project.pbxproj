@@ -11,7 +11,14 @@
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
-		7EA71EF07A9F4356A68B3CCC /* DMSans.ttf in Resources */ = {isa = PBXBuildFile; fileRef = DC0B5D574DCB4B01AB33B84C /* DMSans.ttf */; };
+		F25E8197121C44FB87ABD1E7 /* DMSans-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = E45B63EF29044A6E8CB1A895 /* DMSans-Bold.ttf */; };
+		31E5C61B02924C568B3866C5 /* DMSans-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 8EBF108BE15B4E78AA541F34 /* DMSans-Medium.ttf */; };
+		1F04528916944CC9A06A7F76 /* DMSans-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 9F20293CAC91401D88AFD657 /* DMSans-Regular.ttf */; };
+		DE074DBEE33E4FB0B9DBD160 /* Newsreader16pt-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A47BBFC5C7824CDABBD710B5 /* Newsreader16pt-Regular.ttf */; };
+		B357FCB8D4F44495A47178F2 /* Newsreader16pt-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = E75CE49F0EC14DFD90B31598 /* Newsreader16pt-SemiBold.ttf */; };
+		45AA17E490D54FF18CA70C00 /* NotoNastaliqUrdu-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 0BE2DE2DB10A4A25BBEFD736 /* NotoNastaliqUrdu-Bold.ttf */; };
+		A3F8FD6A163B4B6AB86D338A /* NotoNastaliqUrdu-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 8794717F42E94B0AA62785B3 /* NotoNastaliqUrdu-Regular.ttf */; };
+		7A215C8224B2476B92E51C1C /* default-book.pdf in Resources */ = {isa = PBXBuildFile; fileRef = 60B54FF245FC4A6E8589F7D1 /* default-book.pdf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -25,7 +32,14 @@
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = IlmOIrfanApp/AppDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = IlmOIrfanApp/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
-		DC0B5D574DCB4B01AB33B84C /* DMSans.ttf */ = {isa = PBXFileReference; name = "DMSans.ttf"; path = "../assets/fonts/DMSans.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		E45B63EF29044A6E8CB1A895 /* DMSans-Bold.ttf */ = {isa = PBXFileReference; name = "DMSans-Bold.ttf"; path = "../assets/fonts/DMSans-Bold.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		8EBF108BE15B4E78AA541F34 /* DMSans-Medium.ttf */ = {isa = PBXFileReference; name = "DMSans-Medium.ttf"; path = "../assets/fonts/DMSans-Medium.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		9F20293CAC91401D88AFD657 /* DMSans-Regular.ttf */ = {isa = PBXFileReference; name = "DMSans-Regular.ttf"; path = "../assets/fonts/DMSans-Regular.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		A47BBFC5C7824CDABBD710B5 /* Newsreader16pt-Regular.ttf */ = {isa = PBXFileReference; name = "Newsreader16pt-Regular.ttf"; path = "../assets/fonts/Newsreader16pt-Regular.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		E75CE49F0EC14DFD90B31598 /* Newsreader16pt-SemiBold.ttf */ = {isa = PBXFileReference; name = "Newsreader16pt-SemiBold.ttf"; path = "../assets/fonts/Newsreader16pt-SemiBold.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		0BE2DE2DB10A4A25BBEFD736 /* NotoNastaliqUrdu-Bold.ttf */ = {isa = PBXFileReference; name = "NotoNastaliqUrdu-Bold.ttf"; path = "../assets/fonts/NotoNastaliqUrdu-Bold.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		8794717F42E94B0AA62785B3 /* NotoNastaliqUrdu-Regular.ttf */ = {isa = PBXFileReference; name = "NotoNastaliqUrdu-Regular.ttf"; path = "../assets/fonts/NotoNastaliqUrdu-Regular.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		60B54FF245FC4A6E8589F7D1 /* default-book.pdf */ = {isa = PBXFileReference; name = "default-book.pdf"; path = "../src/assets/books/default-book.pdf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -103,7 +117,14 @@
 		37062D607D6B4C1F96C93263 /* Resources */ = {
 			isa = "PBXGroup";
 			children = (
-				DC0B5D574DCB4B01AB33B84C /* DMSans.ttf */,
+				E45B63EF29044A6E8CB1A895 /* DMSans-Bold.ttf */,
+				8EBF108BE15B4E78AA541F34 /* DMSans-Medium.ttf */,
+				9F20293CAC91401D88AFD657 /* DMSans-Regular.ttf */,
+				A47BBFC5C7824CDABBD710B5 /* Newsreader16pt-Regular.ttf */,
+				E75CE49F0EC14DFD90B31598 /* Newsreader16pt-SemiBold.ttf */,
+				0BE2DE2DB10A4A25BBEFD736 /* NotoNastaliqUrdu-Bold.ttf */,
+				8794717F42E94B0AA62785B3 /* NotoNastaliqUrdu-Regular.ttf */,
+				60B54FF245FC4A6E8589F7D1 /* default-book.pdf */,
 			);
 			name = Resources;
 			sourceTree = "<group>";
@@ -171,7 +192,14 @@
 			files = (
 				81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
-				7EA71EF07A9F4356A68B3CCC /* DMSans.ttf in Resources */,
+				F25E8197121C44FB87ABD1E7 /* DMSans-Bold.ttf in Resources */,
+				31E5C61B02924C568B3866C5 /* DMSans-Medium.ttf in Resources */,
+				1F04528916944CC9A06A7F76 /* DMSans-Regular.ttf in Resources */,
+				DE074DBEE33E4FB0B9DBD160 /* Newsreader16pt-Regular.ttf in Resources */,
+				B357FCB8D4F44495A47178F2 /* Newsreader16pt-SemiBold.ttf in Resources */,
+				45AA17E490D54FF18CA70C00 /* NotoNastaliqUrdu-Bold.ttf in Resources */,
+				A3F8FD6A163B4B6AB86D338A /* NotoNastaliqUrdu-Regular.ttf in Resources */,
+				7A215C8224B2476B92E51C1C /* default-book.pdf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

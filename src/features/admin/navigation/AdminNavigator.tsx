@@ -1,4 +1,4 @@
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import {
   createBottomTabNavigator,
   type BottomTabBarProps,
@@ -6,6 +6,7 @@ import {
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { ADMIN_ROUTES } from '@/constants/routes';
+import { useTheme } from '@/theme/ThemeContext';
 import { AdminToastProvider } from '@/features/admin/components/AdminToast';
 import { AdminTabBar } from '@/features/admin/navigation/AdminTabBar';
 import { AdminAnalyticsScreen } from '@/features/admin/screens/AdminAnalyticsScreen';
@@ -110,9 +111,11 @@ function AdminSystemNavigator() {
 }
 
 export function AdminNavigator() {
+  const { colors } = useTheme();
+
   return (
     <AdminToastProvider>
-      <View className="flex-1 bg-app-bg dark:bg-app-bg-dark">
+      <View style={[adminStyles.root, { backgroundColor: colors.background }]}>
         <Tab.Navigator
           tabBar={renderTabBar}
           screenOptions={{
@@ -131,3 +134,9 @@ export function AdminNavigator() {
     </AdminToastProvider>
   );
 }
+
+const adminStyles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+});

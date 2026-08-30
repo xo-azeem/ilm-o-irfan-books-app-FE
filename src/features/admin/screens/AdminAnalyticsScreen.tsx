@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { Screen, ScreenHeader } from '@/components/layout';
 import { AdminStatsSkeleton } from '@/components/skeletons/CatalogSkeletons';
@@ -38,7 +38,7 @@ export function AdminAnalyticsScreen() {
       <AdminBackLink label="System" />
       <ScreenHeader title="Analytics" subtitle="Reader activity and catalog performance." />
 
-      <View className="mb-5">
+      <View style={s.headerBlock}>
         <AdminSegmented options={RANGE_OPTIONS} value={range} onChange={setRange} />
       </View>
 
@@ -50,8 +50,8 @@ export function AdminAnalyticsScreen() {
           onRetry={() => void refetch()}
         />
       ) : (
-        <View className="gap-6">
-          <View className="flex-row flex-wrap gap-3">
+        <View style={s.stack}>
+          <View style={s.tileRow}>
             <AdminStat
               label="New readers"
               value={data.audience.new_in_period}
@@ -86,7 +86,7 @@ export function AdminAnalyticsScreen() {
 
           <AdminCard title="Most read titles">
             {data.top_books.length === 0 ? (
-              <Text className="text-[13px] text-app-muted dark:text-app-muted-dark">
+              <Text size={13} leading={1.4} tone="muted">
                 No reading activity recorded yet.
               </Text>
             ) : (
@@ -107,7 +107,7 @@ export function AdminAnalyticsScreen() {
 
           <AdminCard title="Categories by readership">
             {data.top_categories.length === 0 ? (
-              <Text className="text-[13px] text-app-muted dark:text-app-muted-dark">
+              <Text size={13} leading={1.4} tone="muted">
                 No categories yet.
               </Text>
             ) : (
@@ -126,7 +126,7 @@ export function AdminAnalyticsScreen() {
             )}
           </AdminCard>
 
-          <View className="flex-row flex-wrap gap-3">
+          <View style={s.tileRow}>
             <AdminStat label="Published" value={data.catalog.published} tone="success" />
             <AdminStat label="Drafts" value={data.catalog.draft} />
             <AdminStat label="Premium titles" value={data.catalog.premium} tone="accent" />
@@ -141,3 +141,9 @@ export function AdminAnalyticsScreen() {
     </Screen>
   );
 }
+
+const s = StyleSheet.create({
+  headerBlock: { marginBottom: 20 },
+  stack: { gap: 22 },
+  tileRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
+});

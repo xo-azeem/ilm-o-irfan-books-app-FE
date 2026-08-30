@@ -1,5 +1,5 @@
 import type { PropsWithChildren } from 'react';
-import { Platform, StatusBar } from 'react-native';
+import { Platform, StatusBar, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClientProvider } from '@tanstack/react-query';
 import {
@@ -13,10 +13,10 @@ import { queryClient } from '@/lib/queryClient';
 import { ThemeStateProvider, useTheme } from '@/theme/ThemeContext';
 
 function AppShell({ children }: PropsWithChildren) {
-  const { isDark } = useTheme();
+  const { colors, isDark } = useTheme();
 
   return (
-    <GestureHandlerRootView className="flex-1 bg-app-bg dark:bg-app-bg-dark">
+    <GestureHandlerRootView style={[styles.root, { backgroundColor: colors.background }]}>
       <SafeAreaProvider initialMetrics={initialWindowMetrics}>
         <StatusBar
           barStyle={isDark ? 'light-content' : 'dark-content'}
@@ -42,3 +42,9 @@ export function AppProviders({ children }: PropsWithChildren) {
     </QueryClientProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+});

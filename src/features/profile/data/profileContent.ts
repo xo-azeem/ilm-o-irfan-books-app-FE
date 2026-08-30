@@ -1,59 +1,25 @@
 import type { LucideIcon } from 'lucide-react-native';
 import {
   Bell,
-  BookOpen,
-  Bookmark,
   CircleHelp,
   CreditCard,
   Download,
-  Flame,
   Globe,
-  Info,
-  LogOut,
   Moon,
   Shield,
-  Star,
-  Sun,
-  Smartphone,
   UserRound,
 } from 'lucide-react-native';
 
-import { palette } from '@/theme/palette';
+import type { IconTileTone } from '@/components/ui';
 import type { ProfileStackScreen } from '@/features/profile/navigation/types';
-import type { ThemePreference } from '@/stores/themeStore';
-
-export type ProfileUser = {
-  name: string;
-  email: string;
-  initials: string;
-  memberSince: string;
-  plan: string;
-};
-
-export type ProfileStat = {
-  id: string;
-  label: string;
-  value: string;
-};
-
-export type ProfileAchievement = {
-  id: string;
-  label: string;
-  value: string;
-  caption: string;
-  icon: LucideIcon;
-  accent: string;
-  accentDark: string;
-};
 
 export type ProfileRow = {
   id: string;
   label: string;
+  /** A live value shown on the right — "Premium", "English", "6". */
   value?: string;
-  icon: LucideIcon;
-  accent: string;
-  accentDark: string;
-  destructive?: boolean;
+  icon?: LucideIcon;
+  iconTone?: IconTileTone;
   screen?: ProfileStackScreen;
 };
 
@@ -63,46 +29,11 @@ export type ProfileGroup = {
   rows: ProfileRow[];
 };
 
-export const profileUser: ProfileUser = {
-  name: 'Ahmad Raza',
-  email: 'ahmad.raza@email.com',
-  initials: 'AR',
-  memberSince: 'Member since 2024',
-  plan: 'Premium',
-};
-
-export const profileStats: ProfileStat[] = [
-  { id: 'stat-lessons', label: 'Lessons', value: '12' },
-  { id: 'stat-streak', label: 'Day streak', value: '5' },
-  { id: 'stat-saved', label: 'Saved', value: '9' },
-];
-
-export const profileAchievements: ProfileAchievement[] = [
-  {
-    id: 'achievement-streak',
-    label: 'Day streak',
-    value: '5',
-    caption: 'Keep the momentum',
-    icon: Flame,
-    accent: palette.sunflower,
-    accentDark: palette.sunflower,
-  },
-  {
-    id: 'achievement-saved',
-    label: 'Saved',
-    value: '9',
-    caption: 'In your library',
-    icon: Bookmark,
-    accent: palette.green,
-    accentDark: palette.yellowGreen,
-  },
-];
-
-export const profileLessonsSummary = {
-  label: 'Lessons',
-  value: profileStats.find(stat => stat.id === 'stat-lessons')?.value ?? '0',
-};
-
+/**
+ * The settings menu — exactly the four groups the app has always had, with the
+ * coloured icon tiles kept. Statistics moved to their own screen, so this page
+ * is only navigation.
+ */
 export const profileGroups: ProfileGroup[] = [
   {
     id: 'group-account',
@@ -112,26 +43,21 @@ export const profileGroups: ProfileGroup[] = [
         id: 'row-personal',
         label: 'Personal details',
         icon: UserRound,
-        accent: palette.green,
-        accentDark: palette.yellowGreen,
+        iconTone: 'primary',
         screen: 'PersonalDetails',
       },
       {
         id: 'row-subscription',
         label: 'Subscription',
-        value: 'Premium',
         icon: CreditCard,
-        accent: '#C9940A',
-        accentDark: palette.sunflower,
+        iconTone: 'gold',
         screen: 'Subscription',
       },
       {
         id: 'row-downloads',
         label: 'Downloads',
-        value: '6',
         icon: Download,
-        accent: '#2A9B72',
-        accentDark: '#4EC4A0',
+        iconTone: 'primary',
         screen: 'Downloads',
       },
     ],
@@ -143,27 +69,22 @@ export const profileGroups: ProfileGroup[] = [
       {
         id: 'row-notifications',
         label: 'Notifications',
-        value: 'On',
         icon: Bell,
-        accent: '#7CB518',
-        accentDark: palette.chartreuse,
+        iconTone: 'lime',
         screen: 'Notifications',
       },
       {
         id: 'row-appearance',
         label: 'Appearance',
         icon: Moon,
-        accent: '#4A9E5C',
-        accentDark: '#72B878',
+        iconTone: 'primary',
         screen: 'Appearance',
       },
       {
         id: 'row-language',
         label: 'Language',
-        value: 'English',
         icon: Globe,
-        accent: palette.yellowGreen,
-        accentDark: palette.limelight,
+        iconTone: 'lime',
         screen: 'Language',
       },
     ],
@@ -172,108 +93,144 @@ export const profileGroups: ProfileGroup[] = [
     id: 'group-support',
     title: 'Support',
     rows: [
-      {
-        id: 'row-help',
-        label: 'Help center',
-        icon: CircleHelp,
-        accent: palette.green,
-        accentDark: palette.yellowGreen,
-        screen: 'HelpCenter',
-      },
-      {
-        id: 'row-rate',
-        label: 'Rate the app',
-        icon: Star,
-        accent: '#C9940A',
-        accentDark: palette.sunflower,
-        screen: 'RateApp',
-      },
+      { id: 'row-help', label: 'Help center', icon: CircleHelp, iconTone: 'neutral', screen: 'HelpCenter' },
       {
         id: 'row-privacy',
         label: 'Privacy & security',
         icon: Shield,
-        accent: '#2A9B72',
-        accentDark: '#4EC4A0',
+        iconTone: 'neutral',
         screen: 'PrivacySecurity',
       },
+    ],
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Notifications
+// ---------------------------------------------------------------------------
+
+export type NotificationToggle = {
+  id: string;
+  label: string;
+  description: string;
+  defaultValue: boolean;
+};
+
+export type NotificationGroup = {
+  id: string;
+  title: string;
+  toggles: NotificationToggle[];
+};
+
+export const notificationGroups: NotificationGroup[] = [
+  {
+    id: 'notif-reading',
+    title: 'Reading',
+    toggles: [
       {
-        id: 'row-about',
-        label: 'About',
-        value: 'v1.0.0',
-        icon: Info,
-        accent: '#4A9E5C',
-        accentDark: '#72B878',
-        screen: 'About',
+        id: 'daily-reminder',
+        label: 'Daily reminder',
+        description: 'A gentle nudge to keep your streak going',
+        defaultValue: true,
+      },
+      {
+        id: 'reading-goals',
+        label: 'Reading goals',
+        description: 'Updates on your weekly progress',
+        defaultValue: true,
       },
     ],
   },
   {
-    id: 'group-session',
-    title: '',
-    rows: [
+    id: 'notif-library',
+    title: 'Library',
+    toggles: [
       {
-        id: 'row-signout',
-        label: 'Sign out',
-        icon: LogOut,
-        accent: '#D14343',
-        accentDark: '#E86A6A',
-        destructive: true,
+        id: 'new-releases',
+        label: 'New book releases',
+        description: 'When fresh titles are added',
+        defaultValue: true,
+      },
+      {
+        id: 'offers',
+        label: 'Offers & updates',
+        description: 'Occasional news from Ilm o Irfan',
+        defaultValue: false,
       },
     ],
   },
 ];
 
-export const readingHighlight = {
-  icon: BookOpen,
-  title: 'Ramadan reading goal',
-  subtitle: '8 of 12 books completed',
-  progress: 8 / 12,
-};
+export const quietHoursDefault = { from: '11:00 pm', to: '6:00 am' };
 
-export type PersonalDetails = {
-  fullName: string;
-  email: string;
-  phone: string;
-  dateOfBirth: string;
-  addressLine1: string;
-  addressLine2: string;
-  city: string;
-  state: string;
-  postalCode: string;
-  country: string;
-};
+// ---------------------------------------------------------------------------
+// Language
+// ---------------------------------------------------------------------------
 
-export const personalDetailsDefaults: PersonalDetails = {
-  fullName: profileUser.name,
-  email: profileUser.email,
-  phone: '+92 300 123 4567',
-  dateOfBirth: '14 March 1996',
-  addressLine1: '42 Garden Town',
-  addressLine2: 'Block C, Street 7',
-  city: 'Lahore',
-  state: 'Punjab',
-  postalCode: '54000',
-  country: 'Pakistan',
-};
-
-export const personalDetailsFields = [
-  { id: 'name', label: 'Full name', value: profileUser.name },
-  { id: 'email', label: 'Email', value: profileUser.email },
-  { id: 'phone', label: 'Phone', value: personalDetailsDefaults.phone },
-  { id: 'location', label: 'Location', value: `${personalDetailsDefaults.city}, ${personalDetailsDefaults.country}` },
+export const languageOptions = [
+  { id: 'en', label: 'English', description: 'Default' },
+  { id: 'ur', label: 'Urdu', description: 'اردو', script: 'urdu' as const },
+  { id: 'ar', label: 'Arabic', description: 'العربية', script: 'arabic' as const },
 ];
 
-export const subscriptionPlan = {
-  name: 'Premium',
-  price: 'Rs 1,499 / month',
-  renewsOn: 'Renews on 15 Aug 2026',
-  features: [
-    'Unlimited access to all books',
-    'Offline downloads',
-    'Audio lessons & highlights',
-    'Early access to new releases',
-  ],
-};
+/**
+ * Catalogue preferences, kept separate from interface language — the
+ * distinction a mixed-script catalogue actually needs.
+ */
+export const catalogueToggles = [
+  {
+    id: 'urdu-first',
+    label: 'Show Urdu titles first',
+    description: 'Where a book has both scripts',
+    defaultValue: true,
+  },
+  {
+    id: 'hide-unreadable',
+    label: "Hide books I can't read",
+    description: 'Filters other languages out of Discover',
+    defaultValue: false,
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Privacy
+// ---------------------------------------------------------------------------
+
+export const privacyOptions = [
+  {
+    id: 'privacy-profile',
+    label: 'Profile visibility',
+    description: 'Show reading activity to friends',
+    defaultValue: false,
+  },
+  {
+    id: 'privacy-analytics',
+    label: 'Usage analytics',
+    description: 'Help improve the app with anonymous data',
+    defaultValue: true,
+  },
+  {
+    id: 'privacy-biometric',
+    label: 'Biometric lock',
+    description: 'Require Face ID or fingerprint to open',
+    defaultValue: false,
+  },
+];
+
+export const accountSecurityRows = [
+  { id: 'change-password', label: 'Change password' },
+  { id: 'devices', label: 'Signed-in devices', value: '3' },
+  { id: 'export', label: 'Download my data' },
+];
+
+export const legalRows = [
+  { id: 'privacy-policy', label: 'Privacy policy' },
+  { id: 'terms', label: 'Terms of use' },
+];
+
+// ---------------------------------------------------------------------------
+// Help & about
+// ---------------------------------------------------------------------------
 
 export const helpTopics = [
   {
@@ -302,64 +259,49 @@ export const helpTopics = [
   },
 ];
 
-export const languageOptions = [
-  { id: 'en', label: 'English', description: 'Default' },
-  { id: 'ur', label: 'Urdu', description: 'اردو' },
-  { id: 'ar', label: 'Arabic', description: 'العربية' },
-];
-
-export type AppearanceOption = {
-  id: ThemePreference;
-  label: string;
-  description: string;
-  icon: LucideIcon;
+export const supportContact = {
+  email: 'support@ilmoirfan.com',
+  replyTime: 'replies in 24h',
 };
-
-export const appearanceOptions: AppearanceOption[] = [
-  {
-    id: 'system',
-    label: 'System',
-    description: 'Match device settings',
-    icon: Smartphone,
-  },
-  {
-    id: 'light',
-    label: 'Light',
-    description: 'Always use light mode',
-    icon: Sun,
-  },
-  {
-    id: 'dark',
-    label: 'Dark',
-    description: 'Always use dark mode',
-    icon: Moon,
-  },
-];
-
-export const privacyOptions = [
-  {
-    id: 'privacy-profile',
-    label: 'Profile visibility',
-    description: 'Show reading activity to friends',
-    defaultValue: false,
-  },
-  {
-    id: 'privacy-analytics',
-    label: 'Usage analytics',
-    description: 'Help improve the app with anonymous data',
-    defaultValue: true,
-  },
-  {
-    id: 'privacy-biometric',
-    label: 'Biometric lock',
-    description: 'Require Face ID or fingerprint to open',
-    defaultValue: false,
-  },
-];
 
 export const aboutDetails = [
   { id: 'about-version', label: 'Version', value: '1.0.0' },
   { id: 'about-build', label: 'Build', value: '2026.07.08' },
   { id: 'about-platform', label: 'Platform', value: 'React Native' },
-  { id: 'about-support', label: 'Support', value: 'support@ilmoirfan.com' },
+];
+
+// ---------------------------------------------------------------------------
+// Membership
+// ---------------------------------------------------------------------------
+
+export const membershipBenefits = [
+  'Every book in the catalogue, unlimited',
+  'Offline reading and downloads',
+  'Early access to new releases',
+  'Reading statistics and goals',
+];
+
+export const membershipPlans = [
+  {
+    id: 'yearly',
+    name: 'Yearly',
+    price: 'Rs 3,900',
+    detail: 'Rs 325 / month, billed once',
+    badge: 'BEST VALUE · SAVE 34%',
+    recommended: true,
+  },
+  {
+    id: 'monthly',
+    name: 'Monthly',
+    price: 'Rs 490',
+    detail: 'Cancel any time',
+    recommended: false,
+  },
+];
+
+export const subscriptionIncludes = [
+  'Unlimited access to all books',
+  'Offline downloads',
+  'Audio lessons & highlights',
+  'Early access to new releases',
 ];

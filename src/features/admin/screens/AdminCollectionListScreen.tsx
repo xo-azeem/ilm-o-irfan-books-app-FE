@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { memo, useCallback, useEffect, useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronDown, ChevronUp, Plus } from 'lucide-react-native';
 
 import { Screen, ScreenHeader } from '@/components/layout';
 import { ListRowsSkeleton } from '@/components/skeletons/CatalogSkeletons';
-import { Text } from '@/components/ui';
+import { FloatingAction, Icon, Text } from '@/components/ui';
 import { ADMIN_ROUTES } from '@/constants/routes';
 import { errorMessage, useToast } from '@/features/admin/components/AdminToast';
 import {
@@ -14,17 +14,25 @@ import {
   AdminBadge,
   AdminEmpty,
   AdminErrorState,
+  AdminHelper,
+  AdminRowGroup,
   AdminTextAction,
 } from '@/features/admin/components/AdminUi';
+import { useAppInsets } from '@/hooks/useAppInsets';
 import { useAdminCollections, useReorderCatalog } from '@/hooks/useAdmin';
 import type { AdminCollection } from '@/services/admin';
+import { layout } from '@/theme/palette';
 import { useTheme } from '@/theme/ThemeContext';
 
 import type { AdminCatalogStackParamList } from '../navigation/types';
 
+/**
+ * Collections are the curated rows on Home, so this order is literally the
+ * order readers scroll through.
+ */
 export function AdminCollectionListScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<AdminCatalogStackParamList>>();
-  const { colors } = useTheme();
+  const { tabBarHeight } = useAppInsets();
   const toast = useToast();
 
   const { data = [], isLoading, error, refetch } = useAdminCollections();
@@ -37,132 +45,228 @@ export function AdminCollectionListScreen() {
     setOrder(data);
   }, [data]);
 
-  const move = (index: number, delta: number) => {
-    const target = index + delta;
-    if (target < 0 || target >= order.length) return;
-    const next = [...order];
-    const [moved] = next.splice(index, 1);
-    next.splice(target, 0, moved);
-    setOrder(next);
-  };
+  const move = useCallback((index: number, delta: number) => {
+    setOrder(current => {
+      const target = index + delta;
+      if (target < 0 || target >= current.length) {
+        return current;
+      }
+      const next = [...current];
+      const [moved] = next.splice(index, 1);
+      next.splice(target, 0, moved);
+      return next;
+    });
+  }, []);
+
+  const saveOrder = useCallback(() => {
+    reorder.mutate(
+      { table: 'collections', ids: order.map(item => item.id) },
+      {
+        onSuccess: () => {
+          setReordering(false);
+          toast.success('Order saved.');
+        },
+        onError: caught => toast.error(errorMessage(caught)),
+      },
+    );
+  }, [order, reorder, toast]);
+
+  const newCollection = useCallback(
+    () => navigation.navigate(ADMIN_ROUTES.COLLECTION_EDITOR, {}),
+    [navigation],
+  );
+
+  const openCollection = useCallback(
+    (collectionId: string) =>
+      navigation.navigate(ADMIN_ROUTES.COLLECTION_EDITOR, { collectionId }),
+    [navigation],
+  );
 
   return (
-    <Screen>
+    <Screen
+      padding={layout.adminPadding}
+      gap={14}
+      overlay={
+        !reordering ? (
+          <FloatingAction
+            label="New collection"
+            icon={Plus}
+            onPress={newCollection}
+            style={[styles.fab, { bottom: tabBarHeight + 14 }]}
+          />
+        ) : null
+      }>
       <AdminBackLink label="Catalog" />
       <ScreenHeader
         title="Collections"
-        subtitle="Hero, shelf, and carousel rows on Home."
+        dense
+        subtitle="Hero, shelf and carousel rows on Home."
         action={
           reordering ? (
             <AdminTextAction
               label={reorder.isPending ? 'Saving…' : 'Done'}
               disabled={reorder.isPending}
-              onPress={() =>
-                reorder.mutate(
-                  { table: 'collections', ids: order.map(item => item.id) },
-                  {
-                    onSuccess: () => {
-                      setReordering(false);
-                      toast.success('Order saved.');
-                    },
-                    onError: caught => toast.error(errorMessage(caught)),
-                  },
-                )
-              }
+              onPress={saveOrder}
             />
-          ) : (
-            <View className="flex-row items-center gap-4">
-              {order.length > 1 ? (
-                <AdminTextAction label="Reorder" onPress={() => setReordering(true)} />
-              ) : null}
-              <Pressable
-                onPress={() => navigation.navigate(ADMIN_ROUTES.COLLECTION_EDITOR, {})}
-                className="h-9 w-9 items-center justify-center rounded-full active:opacity-70"
-                style={{ backgroundColor: colors.primary }}>
-                <Plus size={19} color={colors.onPrimary} strokeWidth={2.4} />
-              </Pressable>
-            </View>
-          )
+          ) : order.length > 1 ? (
+            <AdminTextAction label="Reorder" onPress={() => setReordering(true)} />
+          ) : null
         }
       />
 
       {isLoading ? (
-        <ListRowsSkeleton rows={5} />
+        <ListRowsSkeleton count={5} height={66} />
       ) : error ? (
         <AdminErrorState message={errorMessage(error)} onRetry={() => void refetch()} />
       ) : order.length === 0 ? (
         <AdminEmpty
-          title="No collections"
+          title="No collections yet"
           message="Collections are the curated rows on the Home screen."
           actionLabel="Add collection"
-          onAction={() => navigation.navigate(ADMIN_ROUTES.COLLECTION_EDITOR, {})}
+          onAction={newCollection}
         />
       ) : (
-        <View className="overflow-hidden rounded-[14px] bg-app-surface dark:bg-app-surface-dark">
-          {order.map((collection, index) => (
-            <View
-              key={collection.id}
-              className={`flex-row items-center gap-3 px-4 py-3 ${
-                index === order.length - 1
-                  ? ''
-                  : 'border-b border-app-border dark:border-app-border-dark'
-              }`}>
-              <View
-                className="h-9 w-1.5 rounded-full"
-                style={{ backgroundColor: collection.accent ?? colors.primary }}
+        <>
+          <AdminRowGroup>
+            {order.map((collection, index) => (
+              <CollectionRow
+                key={collection.id}
+                collection={collection}
+                index={index}
+                isFirst={index === 0}
+                isLast={index === order.length - 1}
+                reordering={reordering}
+                onMove={move}
+                onPress={openCollection}
               />
+            ))}
+          </AdminRowGroup>
 
-              <Pressable
-                disabled={reordering}
-                onPress={() =>
-                  navigation.navigate(ADMIN_ROUTES.COLLECTION_EDITOR, {
-                    collectionId: collection.id,
-                  })
-                }
-                className="min-w-0 flex-1 gap-1 active:opacity-60">
-                <Text className="text-[16px] text-app-ink dark:text-app-ink-dark" numberOfLines={1}>
-                  {collection.title}
-                </Text>
-                <View className="flex-row items-center gap-1.5">
-                  <AdminBadge label={collection.kind} tone="neutral" />
-                  <AdminBadge
-                    label={collection.is_published ? 'Live' : 'Hidden'}
-                    tone={collection.is_published ? 'success' : 'neutral'}
-                  />
-                  {collection.book_count === 0 ? (
-                    <AdminBadge label="Empty" tone="warning" />
-                  ) : (
-                    <Text className="text-[12px] text-app-muted dark:text-app-muted-dark">
-                      {collection.book_count} books
-                    </Text>
-                  )}
-                </View>
-              </Pressable>
-
-              {reordering ? (
-                <View className="flex-row">
-                  <Pressable
-                    onPress={() => move(index, -1)}
-                    disabled={index === 0}
-                    hitSlop={6}
-                    className="p-1.5 active:opacity-60"
-                    style={{ opacity: index === 0 ? 0.25 : 1 }}>
-                    <ChevronUp size={18} color={colors.muted} strokeWidth={2.2} />
-                  </Pressable>
-                  <Pressable
-                    onPress={() => move(index, 1)}
-                    disabled={index === order.length - 1}
-                    hitSlop={6}
-                    className="p-1.5 active:opacity-60"
-                    style={{ opacity: index === order.length - 1 ? 0.25 : 1 }}>
-                    <ChevronDown size={18} color={colors.muted} strokeWidth={2.2} />
-                  </Pressable>
-                </View>
-              ) : null}
-            </View>
-          ))}
-        </View>
+          {reordering ? (
+            <AdminHelper>Move collections, then tap Done to save the new order.</AdminHelper>
+          ) : null}
+        </>
       )}
     </Screen>
   );
 }
+
+const CollectionRow = memo(function CollectionRow({
+  collection,
+  index,
+  isFirst,
+  isLast,
+  reordering,
+  onMove,
+  onPress,
+}: {
+  collection: AdminCollection;
+  index: number;
+  isFirst: boolean;
+  isLast: boolean;
+  reordering: boolean;
+  onMove: (index: number, delta: number) => void;
+  onPress: (collectionId: string) => void;
+}) {
+  const { colors } = useTheme();
+  const handlePress = useCallback(() => onPress(collection.id), [collection.id, onPress]);
+
+  return (
+    <View style={[styles.row, !collection.is_published && styles.hidden]}>
+      <View style={[styles.spine, { backgroundColor: collection.accent ?? colors.primary }]} />
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={collection.title}
+        disabled={reordering}
+        onPress={handlePress}
+        style={({ pressed }) => [styles.body, pressed && styles.pressed]}>
+        <Text size={14.5} leading={1.2} numberOfLines={1}>
+          {collection.title}
+        </Text>
+        <View style={styles.badges}>
+          <AdminBadge label={collection.kind} tone="neutral" />
+          <AdminBadge
+            label={collection.is_published ? 'Live' : 'Hidden'}
+            tone={collection.is_published ? 'success' : 'neutral'}
+          />
+          {collection.book_count === 0 ? (
+            <AdminBadge label="Empty" tone="warning" />
+          ) : (
+            <Text size={11.5} leading={1} tone="faint">
+              {`${collection.book_count} books`}
+            </Text>
+          )}
+        </View>
+      </Pressable>
+
+      {reordering ? (
+        <View style={styles.arrows}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Move ${collection.title} up`}
+            onPress={() => onMove(index, -1)}
+            disabled={isFirst}
+            hitSlop={6}
+            style={[styles.arrow, isFirst && styles.disabled]}>
+            <Icon icon={ChevronUp} size={17} tone="muted" strokeWidth={2.2} />
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Move ${collection.title} down`}
+            onPress={() => onMove(index, 1)}
+            disabled={isLast}
+            hitSlop={6}
+            style={[styles.arrow, isLast && styles.disabled]}>
+            <Icon icon={ChevronDown} size={17} tone="muted" strokeWidth={2.2} />
+          </Pressable>
+        </View>
+      ) : null}
+    </View>
+  );
+});
+
+const styles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+  },
+  hidden: {
+    opacity: 0.65,
+  },
+  spine: {
+    width: 5,
+    height: 34,
+    borderRadius: 3,
+  },
+  body: {
+    flex: 1,
+    minWidth: 0,
+    gap: 6,
+  },
+  badges: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  arrows: {
+    flexDirection: 'row',
+  },
+  arrow: {
+    padding: 4,
+  },
+  disabled: {
+    opacity: 0.25,
+  },
+  pressed: {
+    opacity: 0.6,
+  },
+  fab: {
+    position: 'absolute',
+    right: layout.adminPadding,
+  },
+});

@@ -32,6 +32,7 @@ import {
   listAuditLog,
   listBookOptions,
   reorderCatalog,
+  setCollectionPublished,
   setAdminEntitlement,
   setAdminUserRole,
   updateAdminBook,
@@ -215,6 +216,25 @@ export function useDeleteAdminCollection() {
   const client = useQueryClient();
   return useMutation({
     mutationFn: deleteAdminCollection,
+    onSuccess: () => invalidateAdmin(client),
+  });
+}
+
+/** Flips one collection's visibility from the Catalog tab's order list. */
+export function useUpdateAdminCollection() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, changes }: { id: string; changes: { is_published: boolean } }) =>
+      setCollectionPublished(id, changes.is_published),
+    onSuccess: () => invalidateAdmin(client),
+  });
+}
+
+/** Persists the Home row order after a move on the Catalog tab. */
+export function useReorderCollections() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: string[]) => reorderCatalog('collections', ids),
     onSuccess: () => invalidateAdmin(client),
   });
 }

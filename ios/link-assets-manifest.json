@@ -2,8 +2,36 @@
   "migIndex": 1,
   "data": [
     {
-      "path": "assets/fonts/DMSans.ttf",
-      "sha1": "7e47b9a429a493edc94b4e12fd1a8f0122e4a196"
+      "path": "assets/fonts/DMSans-Bold.ttf",
+      "sha1": "778bb35f2dbe43bb29ca15cd642649cf2e6bacfd"
+    },
+    {
+      "path": "assets/fonts/DMSans-Medium.ttf",
+      "sha1": "dbe89bcef4c11289572450e6eacb77fda76c1ccb"
+    },
+    {
+      "path": "assets/fonts/DMSans-Regular.ttf",
+      "sha1": "ebeaed9f2b2f237f96c0028e86fa26294ba5da2c"
+    },
+    {
+      "path": "assets/fonts/Newsreader16pt-Regular.ttf",
+      "sha1": "858059950b90b9c88ee5645978d73cb874839c1b"
+    },
+    {
+      "path": "assets/fonts/Newsreader16pt-SemiBold.ttf",
+      "sha1": "77e912f8cf051520bfaf8e2b9b2e0d60db0ee498"
+    },
+    {
+      "path": "assets/fonts/NotoNastaliqUrdu-Bold.ttf",
+      "sha1": "e8d729060ccf2ee9fed92e5b4d63b19f6bb64538"
+    },
+    {
+      "path": "assets/fonts/NotoNastaliqUrdu-Regular.ttf",
+      "sha1": "dfb8f5e2a9f6a6b3b8f00de72fc21ffb1c7965ce"
+    },
+    {
+      "path": "src/assets/books/default-book.pdf",
+      "sha1": "f0ef4ee1c0164c3a620ce329fb9ce66f7c6a7e63"
     }
   ]
 }

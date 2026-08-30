@@ -1,74 +1,119 @@
-import type { PropsWithChildren, ReactNode } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  RefreshControl,
-  Switch,
-  TextInput,
-  View,
-  type KeyboardTypeOptions,
-} from 'react-native';
+import { Children, Fragment, isValidElement, memo, type PropsWithChildren, type ReactNode } from 'react';
+import { Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { ChevronLeft, ChevronRight, type LucideIcon } from 'lucide-react-native';
 
-import { DisplayText, Text } from '@/components/ui';
-import { palette } from '@/theme/palette';
+import {
+  Badge as UiBadge,
+  Button,
+  Card,
+  Chip as UiChip,
+  Display,
+  Divider,
+  Icon,
+  Label,
+  ProgressBar,
+  Text,
+  TextButton,
+  TextField,
+  Toggle,
+} from '@/components/ui';
+import { radius } from '@/theme/palette';
+import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
 
-export const DANGER = '#D14343';
-export const WARNING = '#C98A16';
+/**
+ * The admin design system.
+ *
+ * Admin is a tool, not a showpiece: denser type, monospace labels, amber for
+ * problems, and no gold anywhere — gold belongs to membership. Everything here
+ * delegates to the shared primitives, so admin can never drift from the app.
+ */
+
+/** Amber is the admin panel's "needs attention" colour, replacing red for warnings. */
+export const WARNING = '#D99A2B';
+export const DANGER = '#E86A6A';
 
 // ------------------------------------------------------------------ chrome
 
-export function AdminBackLink({ label = 'Back' }: { label?: string }) {
+export const AdminBackLink = memo(function AdminBackLink({
+  label = 'Back',
+}: {
+  label?: string;
+}) {
   const navigation = useNavigation();
   const { colors } = useTheme();
+
   return (
     <Pressable
       onPress={() => navigation.goBack()}
       accessibilityRole="button"
       hitSlop={8}
-      className="-ml-1 mb-3 flex-row items-center gap-0.5 self-start py-1 active:opacity-60">
-      <ChevronLeft size={22} color={colors.primary} strokeWidth={2.25} />
-      <Text className="text-[15px] font-medium text-app-primary dark:text-app-primary-dark">
+      style={({ pressed }) => [styles.backLink, pressed && styles.pressed]}>
+      <Icon icon={ChevronLeft} size={15} color={colors.primarySoft} strokeWidth={2.2} />
+      <Text size={12.5} leading={1} weight="500" tone="primary">
         {label}
       </Text>
     </Pressable>
   );
-}
+});
 
-/** Grouped card with an optional heading and trailing action. */
-export function AdminCard({
+/** A grouped card with an optional mono heading and a trailing action. */
+export const AdminCard = memo(function AdminCard({
   title,
   action,
   children,
   padded = true,
 }: PropsWithChildren<{ title?: string; action?: ReactNode; padded?: boolean }>) {
   return (
-    <View className="gap-2">
+    <View style={styles.cardGroup}>
       {title || action ? (
-        <View className="flex-row items-center justify-between gap-3 px-1">
-          {title ? (
-            <Text className="text-[12px] font-semibold uppercase tracking-widest text-app-muted dark:text-app-muted-dark">
-              {title}
-            </Text>
-          ) : (
-            <View />
-          )}
+        <View style={styles.cardHeader}>
+          {title ? <Label size={fontSize.labelSmall} tracking={1.6}>{title}</Label> : <View />}
+          {action}
+        </View>
+      ) : null}
+      <Card tone="surface" rounded={radius.button} padded={padded ? 15 : 0} gap={padded ? 12 : 0}>
+        {children}
+      </Card>
+    </View>
+  );
+});
+
+/** A list card that draws its own hairlines between rows. */
+export const AdminRowGroup = memo(function AdminRowGroup({
+  title,
+  action,
+  children,
+}: PropsWithChildren<{ title?: string; action?: ReactNode }>) {
+  const { colors } = useTheme();
+  const rows = Children.toArray(children).filter(isValidElement);
+
+  return (
+    <View style={styles.cardGroup}>
+      {title || action ? (
+        <View style={styles.cardHeader}>
+          {title ? <Label size={fontSize.labelSmall} tracking={1.6}>{title}</Label> : <View />}
           {action}
         </View>
       ) : null}
       <View
-        className={`overflow-hidden rounded-[16px] bg-app-surface dark:bg-app-surface-dark ${
-          padded ? 'p-4' : ''
-        }`}>
-        {children}
+        style={[
+          styles.rowGroup,
+          { backgroundColor: colors.surface, borderColor: colors.border },
+        ]}>
+        {rows.map((row, index) => (
+          <Fragment key={row.key ?? index}>
+            {index > 0 ? <Divider /> : null}
+            {row}
+          </Fragment>
+        ))}
       </View>
     </View>
   );
-}
+});
 
-export function AdminTextAction({
+export const AdminTextAction = memo(function AdminTextAction({
   label,
   onPress,
   destructive,
@@ -80,37 +125,19 @@ export function AdminTextAction({
   disabled?: boolean;
 }) {
   return (
-    <Pressable onPress={onPress} disabled={disabled} hitSlop={8} className="active:opacity-60">
-      <Text
-        className={`text-[14px] font-semibold ${
-          destructive ? '' : 'text-app-primary dark:text-app-primary-dark'
-        }`}
-        style={{ color: destructive ? DANGER : undefined, opacity: disabled ? 0.4 : 1 }}>
-        {label}
-      </Text>
-    </Pressable>
+    <TextButton
+      label={label}
+      onPress={onPress}
+      disabled={disabled}
+      tone={destructive ? 'danger' : disabled ? 'muted' : 'primary'}
+      size={fontSize.captionSmall}
+    />
   );
-}
+});
 
 // ------------------------------------------------------------------- inputs
 
-type FieldProps = {
-  label: string;
-  value: string;
-  onChangeText: (text: string) => void;
-  placeholder?: string;
-  helper?: string;
-  error?: string | null;
-  keyboardType?: KeyboardTypeOptions;
-  multiline?: boolean;
-  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
-  prefix?: string;
-  suffix?: string;
-  editable?: boolean;
-  maxLength?: number;
-};
-
-export function AdminField({
+export const AdminField = memo(function AdminField({
   label,
   value,
   onChangeText,
@@ -120,91 +147,75 @@ export function AdminField({
   keyboardType,
   multiline,
   autoCapitalize = 'sentences',
-  prefix,
   suffix,
   editable = true,
   maxLength,
-}: FieldProps) {
-  const { colors } = useTheme();
+  mono,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (text: string) => void;
+  placeholder?: string;
+  helper?: string;
+  error?: string | null;
+  keyboardType?: React.ComponentProps<typeof TextField>['keyboardType'];
+  multiline?: boolean;
+  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
+  suffix?: string;
+  editable?: boolean;
+  maxLength?: number;
+  /** Slugs and identifiers read better in the mono face. */
+  mono?: boolean;
+}) {
   return (
-    <View className="gap-1.5">
-      <View className="flex-row items-center justify-between px-1">
-        <Text className="text-[13px] font-medium text-app-muted dark:text-app-muted-dark">
-          {label}
-        </Text>
-        {maxLength ? (
-          <Text className="text-[11px] text-app-faint dark:text-app-faint-dark">
-            {value.length}/{maxLength}
+    <TextField
+      label={label}
+      value={value}
+      onChangeText={onChangeText}
+      placeholder={placeholder ?? label}
+      hint={
+        helper ?? (maxLength ? `${value.length} / ${maxLength}` : undefined)
+      }
+      error={error ?? undefined}
+      keyboardType={keyboardType}
+      multiline={multiline}
+      height={multiline ? 88 : 46}
+      autoCapitalize={autoCapitalize}
+      editable={editable}
+      maxLength={maxLength}
+      mono={mono}
+      trailing={
+        suffix ? (
+          <Text size={fontSize.caption} leading={1} tone="faint">
+            {suffix}
           </Text>
-        ) : null}
-      </View>
-      <View
-        className="flex-row items-center rounded-[12px] border bg-app-surface px-4 dark:bg-app-surface-dark"
-        style={{
-          minHeight: multiline ? 112 : 50,
-          borderColor: error ? DANGER : colors.border,
-          opacity: editable ? 1 : 0.6,
-        }}>
-        {prefix ? (
-          <Text className="mr-1 text-[16px] text-app-faint dark:text-app-faint-dark">{prefix}</Text>
-        ) : null}
-        <TextInput
-          value={value}
-          onChangeText={onChangeText}
-          placeholder={placeholder ?? label}
-          placeholderTextColor={colors.faint}
-          keyboardType={keyboardType}
-          autoCapitalize={autoCapitalize}
-          autoCorrect={false}
-          multiline={multiline}
-          editable={editable}
-          maxLength={maxLength}
-          textAlignVertical={multiline ? 'top' : 'center'}
-          className="flex-1 text-[16px] leading-[21px] text-app-ink dark:text-app-ink-dark"
-          style={{ minHeight: multiline ? 88 : 24, paddingVertical: multiline ? 12 : 0 }}
-        />
-        {suffix ? (
-          <Text className="ml-1 text-[14px] text-app-faint dark:text-app-faint-dark">{suffix}</Text>
-        ) : null}
-      </View>
-      {error ? (
-        <Text className="px-1 text-[12px]" style={{ color: DANGER }}>
-          {error}
-        </Text>
-      ) : helper ? (
-        <Text className="px-1 text-[12px] leading-[16px] text-app-faint dark:text-app-faint-dark">
-          {helper}
-        </Text>
-      ) : null}
-    </View>
+        ) : undefined
+      }
+    />
   );
-}
+});
 
-export function AdminLabel({ children }: PropsWithChildren) {
+export const AdminLabel = memo(function AdminLabel({ children }: PropsWithChildren) {
+  return <Label size={fontSize.labelSmall} tracking={1.6}>{children as string}</Label>;
+});
+
+export const AdminHelper = memo(function AdminHelper({ children }: PropsWithChildren) {
   return (
-    <Text className="px-1 text-[13px] font-medium text-app-muted dark:text-app-muted-dark">
+    <Text size={11.5} leading={1.45} tone="faint">
       {children}
     </Text>
   );
-}
-
-export function AdminHelper({ children }: PropsWithChildren) {
-  return (
-    <Text className="px-1 text-[12px] leading-[16px] text-app-faint dark:text-app-faint-dark">
-      {children}
-    </Text>
-  );
-}
+});
 
 // ------------------------------------------------------------------ buttons
 
-export function AdminButton({
+export const AdminButton = memo(function AdminButton({
   label,
   onPress,
   disabled,
   loading,
   variant = 'primary',
-  Icon,
+  Icon: Glyph,
   compact,
 }: {
   label: string;
@@ -215,107 +226,60 @@ export function AdminButton({
   Icon?: LucideIcon;
   compact?: boolean;
 }) {
-  const { colors } = useTheme();
-  const isPrimary = variant === 'primary';
-  const isDestructive = variant === 'destructive';
-
-  const background = isDestructive ? DANGER : isPrimary ? colors.primary : colors.surface;
-  const foreground = isDestructive
-    ? '#FFFFFF'
-    : isPrimary
-    ? colors.onPrimary
-    : colors.ink;
-
   return (
-    <Pressable
+    <Button
+      label={label}
       onPress={onPress}
-      disabled={disabled || loading}
-      accessibilityRole="button"
-      className="flex-row items-center justify-center gap-2 rounded-[14px] active:opacity-80"
-      style={{
-        height: compact ? 42 : 50,
-        paddingHorizontal: 18,
-        backgroundColor: background,
-        borderWidth: variant === 'secondary' ? 1 : 0,
-        borderColor: colors.border,
-        opacity: disabled || loading ? 0.55 : 1,
-      }}>
-      {loading ? <ActivityIndicator size="small" color={foreground} /> : null}
-      {!loading && Icon ? <Icon size={17} color={foreground} strokeWidth={2.1} /> : null}
-      <Text
-        className="font-semibold"
-        style={{ color: foreground, fontSize: compact ? 14 : 16 }}>
-        {label}
-      </Text>
-    </Pressable>
+      disabled={disabled}
+      loading={loading}
+      icon={Glyph}
+      size={compact ? 'sm' : 'md'}
+      variant={
+        variant === 'destructive' ? 'dangerSolid' : variant === 'secondary' ? 'secondary' : 'primary'
+      }
+    />
   );
-}
+});
 
-export function AdminChip({
+export const AdminChip = memo(function AdminChip({
   label,
   selected,
   onPress,
-  accent,
   compact,
 }: {
   label: string;
   selected: boolean;
   onPress: () => void;
+  /** Kept for call-site compatibility; the accent now comes from the palette. */
   accent?: string | null;
   compact?: boolean;
 }) {
-  const { colors } = useTheme();
-  const background = selected ? accent || colors.primary : colors.fill;
-
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      className="flex-row items-center gap-1.5 rounded-full active:opacity-70"
-      style={{
-        backgroundColor: background,
-        paddingHorizontal: compact ? 10 : 13,
-        paddingVertical: compact ? 5 : 7,
-      }}>
-      <Text
-        className="font-medium"
-        numberOfLines={1}
-        style={{
-          fontSize: compact ? 12 : 13,
-          color: selected ? colors.onPrimary : colors.ink,
-        }}>
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
+  return <UiChip label={label} selected={selected} onPress={onPress} size={compact ? 'sm' : 'md'} />;
+});
 
 // ------------------------------------------------------------------- status
 
 export type BadgeTone = 'success' | 'neutral' | 'warning' | 'danger' | 'accent';
 
-const BADGE_COLORS: Record<BadgeTone, string> = {
-  success: palette.green,
-  neutral: '#7A917F',
-  warning: WARNING,
-  danger: DANGER,
-  accent: palette.yellowGreen,
-};
+const BADGE_TONE = {
+  success: 'primary',
+  neutral: 'neutral',
+  warning: 'warning',
+  danger: 'danger',
+  accent: 'lime',
+} as const;
 
-export function AdminBadge({ label, tone = 'neutral' }: { label: string; tone?: BadgeTone }) {
-  const color = BADGE_COLORS[tone];
-  return (
-    <View
-      className="rounded-full px-2 py-[3px]"
-      style={{ backgroundColor: `${color}22`, borderWidth: 1, borderColor: `${color}55` }}>
-      <Text className="text-[11px] font-semibold" style={{ color }}>
-        {label}
-      </Text>
-    </View>
-  );
-}
+export const AdminBadge = memo(function AdminBadge({
+  label,
+  tone = 'neutral',
+}: {
+  label: string;
+  tone?: BadgeTone;
+}) {
+  return <UiBadge label={label.toUpperCase()} tone={BADGE_TONE[tone]} />;
+});
 
-export function AdminToggleRow({
+export const AdminToggleRow = memo(function AdminToggleRow({
   label,
   description,
   value,
@@ -328,72 +292,82 @@ export function AdminToggleRow({
   onValueChange: (next: boolean) => void;
   disabled?: boolean;
 }) {
-  const { colors } = useTheme();
   return (
-    <View className="flex-row items-center gap-3 py-1">
-      <View className="min-w-0 flex-1 gap-0.5">
-        <Text className="text-[16px] text-app-ink dark:text-app-ink-dark">{label}</Text>
+    <View style={styles.toggleRow}>
+      <View style={styles.toggleBody}>
+        <Text size={fontSize.bodySmall} leading={1.2}>
+          {label}
+        </Text>
         {description ? (
-          <Text className="text-[12px] leading-[17px] text-app-muted dark:text-app-muted-dark">
+          <Text size={12} leading={1.4} tone="muted">
             {description}
           </Text>
         ) : null}
       </View>
-      <Switch
+      <Toggle
         value={value}
-        disabled={disabled}
         onValueChange={onValueChange}
-        trackColor={{ false: colors.border, true: colors.primary }}
-        thumbColor="#FFFFFF"
+        disabled={disabled}
+        size="sm"
+        accessibilityLabel={label}
       />
     </View>
   );
-}
+});
 
-/** Tappable row that opens a picker or a sub-screen. */
-export function AdminNavRow({
+/** A tappable row that opens a picker or a sub-screen. */
+export const AdminNavRow = memo(function AdminNavRow({
   label,
   value,
   onPress,
-  Icon,
+  Icon: Glyph,
   tone,
-  isLast,
+  leading,
 }: {
   label: string;
   value?: string;
   onPress: () => void;
   Icon?: LucideIcon;
   tone?: 'default' | 'danger';
+  /** Custom leading element, e.g. a drag handle or a cover thumbnail. */
+  leading?: ReactNode;
+  /** No longer needed — AdminRowGroup draws the dividers. */
   isLast?: boolean;
 }) {
   const { colors } = useTheme();
-  const color = tone === 'danger' ? DANGER : colors.ink;
+  const danger = tone === 'danger';
 
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      style={({ pressed }) => (pressed ? { backgroundColor: colors.fill } : undefined)}
-      className={`min-h-[52px] flex-row items-center gap-3 px-4 py-3 ${
-        isLast ? '' : 'border-b border-app-border dark:border-app-border-dark'
-      }`}>
-      {Icon ? <Icon size={19} color={color} strokeWidth={2} /> : null}
-      <Text className="flex-1 text-[16px]" style={{ color }} numberOfLines={1}>
+      style={({ pressed }) => [
+        styles.navRow,
+        pressed && { backgroundColor: colors.primaryFillSoft },
+      ]}>
+      {leading ??
+        (Glyph ? (
+          <Icon icon={Glyph} size={15} tone={danger ? 'danger' : 'primary'} strokeWidth={1.9} />
+        ) : null)}
+      <Text
+        size={14.5}
+        leading={1.2}
+        tone={danger ? 'danger' : 'ink'}
+        numberOfLines={1}
+        style={styles.grow}>
         {label}
       </Text>
       {value ? (
-        <Text
-          className="max-w-[45%] text-[14px] text-app-muted dark:text-app-muted-dark"
-          numberOfLines={1}>
+        <Text size={fontSize.caption} leading={1} tone="muted" numberOfLines={1}>
           {value}
         </Text>
       ) : null}
-      <ChevronRight size={17} color={colors.faint} strokeWidth={2.2} />
+      <Icon icon={ChevronRight} size={14} color={colors.dim} />
     </Pressable>
   );
-}
+});
 
-export function AdminEmpty({
+export const AdminEmpty = memo(function AdminEmpty({
   title,
   message,
   actionLabel,
@@ -405,36 +379,49 @@ export function AdminEmpty({
   onAction?: () => void;
 }) {
   return (
-    <View className="items-center justify-center rounded-[16px] bg-app-surface px-6 py-12 dark:bg-app-surface-dark">
-      <DisplayText className="mb-2 text-center text-[17px] font-semibold text-app-ink dark:text-app-ink-dark">
+    <Card tone="surface" rounded={radius.button} padded={24} gap={10} style={styles.empty}>
+      <Display size={19} align="center">
         {title}
-      </DisplayText>
-      <Text className="mb-4 max-w-[280px] text-center text-[14px] leading-5 text-app-muted dark:text-app-muted-dark">
+      </Display>
+      <Text size={fontSize.bodySmall} leading={1.5} align="center" tone="muted">
         {message}
       </Text>
       {actionLabel && onAction ? (
-        <AdminButton label={actionLabel} onPress={onAction} compact />
+        <Button label={actionLabel} onPress={onAction} size="sm" fullWidth={false} style={styles.emptyAction} />
       ) : null}
-    </View>
+    </Card>
   );
-}
+});
 
-export function AdminErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
+export const AdminErrorState = memo(function AdminErrorState({
+  message,
+  onRetry,
+}: {
+  message: string;
+  onRetry: () => void;
+}) {
   return (
     <Pressable
       onPress={onRetry}
-      className="rounded-[16px] bg-app-surface p-5 dark:bg-app-surface-dark active:opacity-70">
-      <Text className="mb-1 text-[15px] font-semibold text-app-ink dark:text-app-ink-dark">
-        Could not load
-      </Text>
-      <Text className="text-[13px] leading-[18px] text-app-muted dark:text-app-muted-dark">
-        {message} Tap to retry.
-      </Text>
+      accessibilityRole="button"
+      style={({ pressed }) => (pressed ? styles.pressed : undefined)}>
+      <Card tone="surface" rounded={radius.button} padded={18} gap={5}>
+        <Text size={fontSize.body} leading={1.2} weight="600">
+          Could not load
+        </Text>
+        <Text size={fontSize.caption} leading={1.45} tone="muted">
+          {message} Tap to retry.
+        </Text>
+      </Card>
     </Pressable>
   );
-}
+});
 
-export function AdminStat({
+/**
+ * A metric tile. Admin numerals are bold sans rather than the reader app's
+ * serif — this is a dashboard, and the numbers are meant to be scanned.
+ */
+export const AdminStat = memo(function AdminStat({
   label,
   value,
   hint,
@@ -447,19 +434,31 @@ export function AdminStat({
   tone?: BadgeTone;
   onPress?: () => void;
 }) {
-  const color = tone ? BADGE_COLORS[tone] : undefined;
+  const { colors } = useTheme();
+
+  const valueColor =
+    tone === 'success'
+      ? colors.primarySoft
+      : tone === 'accent'
+      ? colors.lime
+      : tone === 'warning'
+      ? colors.warning
+      : tone === 'danger'
+      ? colors.danger
+      : colors.ink;
+
   const body = (
     <>
-      <Text className="text-[11px] font-semibold uppercase tracking-widest text-app-faint dark:text-app-faint-dark">
+      <Text size={21} leading={1} weight="700" tone="inherit" style={{ color: valueColor }}>
+        {String(value)}
+      </Text>
+      <Text size={10.5} leading={1.2} tone="muted" numberOfLines={2}>
         {label}
       </Text>
-      <DisplayText
-        className="mt-1.5 text-[26px] font-bold text-app-ink dark:text-app-ink-dark"
-        style={color ? { color } : undefined}>
-        {value}
-      </DisplayText>
       {hint ? (
-        <Text className="mt-0.5 text-[11px] text-app-muted dark:text-app-muted-dark">{hint}</Text>
+        <Text size={10} leading={1.2} tone="faint" numberOfLines={1}>
+          {hint}
+        </Text>
       ) : null}
     </>
   );
@@ -468,34 +467,71 @@ export function AdminStat({
     return (
       <Pressable
         onPress={onPress}
-        className="min-w-[46%] flex-1 rounded-[16px] bg-app-surface p-4 dark:bg-app-surface-dark active:opacity-70">
-        {body}
+        accessibilityRole="button"
+        style={({ pressed }) => [styles.stat, pressed && styles.pressed]}>
+        <Card tone="surface" rounded={14} padded={13} gap={5}>
+          {body}
+        </Card>
       </Pressable>
     );
   }
 
   return (
-    <View className="min-w-[46%] flex-1 rounded-[16px] bg-app-surface p-4 dark:bg-app-surface-dark">
+    <Card tone="surface" rounded={14} padded={13} gap={5} style={styles.stat}>
       {body}
-    </View>
+    </Card>
   );
-}
+});
+
+/** A row of stat tiles that share the available width evenly. */
+export const AdminStatRow = memo(function AdminStatRow({ children }: PropsWithChildren) {
+  return <View style={styles.statRow}>{children}</View>;
+});
 
 /** Sticky action bar pinned above the tab capsule on editor screens. */
-export function AdminActionBar({ children }: PropsWithChildren) {
+export const AdminActionBar = memo(function AdminActionBar({ children }: PropsWithChildren) {
   const { colors } = useTheme();
+
   return (
     <View
-      className="flex-row gap-3 border-t px-5 pb-3 pt-3"
-      style={{ borderColor: colors.border, backgroundColor: colors.chrome }}>
+      style={[
+        styles.actionBar,
+        { borderTopColor: colors.chromeBorder, backgroundColor: colors.chrome },
+      ]}>
       {children}
     </View>
   );
-}
+});
 
-export function AdminDivider() {
-  return <View className="h-px bg-app-border dark:bg-app-border-dark" />;
-}
+/** An upload's progress, shown inline on the card that owns the file. */
+export const AdminUploadProgress = memo(function AdminUploadProgress({
+  fileName,
+  percent,
+  detail,
+}: {
+  fileName: string;
+  percent: number;
+  detail?: string;
+}) {
+  return (
+    <View style={styles.upload}>
+      <View style={styles.uploadHeader}>
+        <Label uppercase={false} tone="muted" tracking={0}>
+          {fileName}
+        </Label>
+        <Label tone="warning" tracking={0.6}>{`${Math.round(percent)}%`}</Label>
+      </View>
+      <ProgressBar value={percent / 100} height={6} tone="warning" />
+      {detail ? (
+        <Text size={11.5} leading={1.2} tone="faint">
+          {detail}
+        </Text>
+      ) : null}
+    </View>
+  );
+});
+
+export const AdminDivider = Divider;
 
 /** Pull-to-refresh props for `Screen`, which forwards them to its ScrollView. */
 export function useAdminRefresh(refreshing: boolean, onRefresh: () => void) {
@@ -507,7 +543,83 @@ export function useAdminRefresh(refreshing: boolean, onRefresh: () => void) {
         onRefresh={onRefresh}
         tintColor={colors.primary}
         colors={[colors.primary]}
+        progressBackgroundColor={colors.surface}
       />
     ),
   };
 }
+
+const styles = StyleSheet.create({
+  backLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    alignSelf: 'flex-start',
+  },
+  cardGroup: {
+    gap: 9,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  rowGroup: {
+    borderRadius: radius.button,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    overflow: 'hidden',
+  },
+  navRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 15,
+    paddingVertical: 15,
+    minHeight: 50,
+  },
+  grow: {
+    flex: 1,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  toggleBody: {
+    flex: 1,
+    gap: 4,
+  },
+  empty: {
+    alignItems: 'center',
+  },
+  emptyAction: {
+    marginTop: 6,
+  },
+  stat: {
+    flex: 1,
+  },
+  statRow: {
+    flexDirection: 'row',
+    gap: 9,
+  },
+  actionBar: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 18,
+    paddingTop: 14,
+    borderTopWidth: StyleSheet.hairlineWidth * 2,
+  },
+  upload: {
+    gap: 9,
+  },
+  uploadHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  pressed: {
+    opacity: 0.75,
+  },
+});

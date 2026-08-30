@@ -1,148 +1,327 @@
-import { useCallback, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { SlidersHorizontal } from 'lucide-react-native';
 
 import type { RootStackParamList } from '@/app/navigation/types';
-import { AppLogo } from '@/components/brand';
-import { Screen } from '@/components/layout';
-import { SearchCatalogSkeleton } from '@/components/skeletons/CatalogSkeletons';
-import { DisplayText, Text } from '@/components/ui';
-import { ROUTES } from '@/constants/routes';
-import { useHeaderBrandMetrics } from '@/hooks/useHeaderBrandMetrics';
-import { useCatalogSearch, useCategories } from '@/hooks/useCatalog';
-
-import { SearchDismissOverlay } from '../components/CollapsibleSearchBar';
-import { SearchBookGrid } from '../components/SearchBookGrid';
-import { SearchBookList } from '../components/SearchBookList';
-import { SearchCategorySection } from '../components/SearchCategoryRow';
+import { BookListRow, CategoryTile, type BookSummary } from '@/components/books';
+import { Screen, ScreenHeader } from '@/components/layout';
+import { ListSkeleton } from '@/components/skeletons/CatalogSkeletons';
 import {
-  SearchViewToggle,
-  type SearchBookViewMode,
-} from '../components/SearchViewToggle';
-import { useSearchGridMetrics } from '../hooks/useSearchGridMetrics';
+  Chip,
+  ChipRow,
+  ChipWrap,
+  Label,
+  SearchField,
+  Text,
+  TextButton,
+  useSheet,
+} from '@/components/ui';
+import { ROUTES } from '@/constants/routes';
+import { EditorsShelf } from '@/features/search/components/EditorsShelf';
+import { FilterSheet } from '@/features/search/components/FilterSheet';
+import {
+  SearchSuggestions,
+  type Suggestion,
+} from '@/features/search/components/SearchSuggestions';
+import { useSearchFilters } from '@/features/search/hooks/useSearchFilters';
+import { useRecentSearches } from '@/features/search/hooks/useRecentSearches';
+import { useLibrary } from '@/hooks/useAccount';
+import { useCatalogSearch, useCategories, useHomeCatalog } from '@/hooks/useCatalog';
+import type { CatalogBook } from '@/services/catalog';
+import { isUrduTitle } from '@/services/script';
+import { layout } from '@/theme/palette';
+import { fontSize } from '@/theme/typography';
 
+/** Adapts a catalog row for the shared book components. */
+function toSummary(book: CatalogBook, inLibrary = false): BookSummary {
+  return {
+    id: book.id,
+    title: book.title,
+    author: book.author,
+    coverUrl: book.coverUrl,
+    coverColor: book.coverColor,
+    coverColorDark: book.coverColorDark,
+    isPremium: book.isPremium,
+    price: book.price,
+    currency: book.currency,
+    inLibrary,
+    isUrdu: isUrduTitle(book.title),
+    meta: book.author ? `${book.author} · ${book.readTime}` : book.readTime,
+  };
+}
+
+const MAX_SUGGESTIONS = 3;
+
+/**
+ * Discover.
+ *
+ * The tab is a browsing surface first: subjects, an editorial pick and the
+ * filters that matter. Typing switches the whole page into a results view, and
+ * cancelling returns it — one screen, two modes, no navigation.
+ */
 export function SearchScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const brand = useHeaderBrandMetrics();
-  const { horizontalPadding } = useSearchGridMetrics();
-  const rootRef = useRef<View>(null);
+  const { width: screenWidth } = useWindowDimensions();
 
-  const [viewMode, setViewMode] = useState<SearchBookViewMode>('grid');
-  const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const [overlayTop, setOverlayTop] = useState(0);
-  const { data: books = [], isPending: booksPending } = useCatalogSearch(query);
+  const [focused, setFocused] = useState(false);
+  const filterSheet = useSheet();
+
   const { data: categories = [] } = useCategories();
+  const { data: home } = useHomeCatalog();
+  const { data: library } = useLibrary();
+  const { data: results = [], isPending } = useCatalogSearch(query);
+  const { recents, remember, clear } = useRecentSearches();
 
-  const openSearch = useCallback(() => {
-    setSearchOpen(true);
-  }, []);
+  const downloadedIds = useMemo(
+    () => new Set((library?.downloads ?? []).map(book => book.id)),
+    [library?.downloads],
+  );
+  const libraryIds = useMemo(
+    () => new Set((library?.progress ?? []).map(book => book.id)),
+    [library?.progress],
+  );
 
-  const closeSearch = useCallback(() => {
-    setSearchOpen(false);
-  }, []);
+  const {
+    filters,
+    activeCount,
+    apply,
+    reset,
+    toggleLanguage,
+    toggleLength,
+    setMembershipOnly,
+    setDownloadedOnly,
+    setHighlyRatedOnly,
+  } = useSearchFilters(downloadedIds);
 
-  const handleSearchRowLayout = useCallback((bottomWindowY: number) => {
-    rootRef.current?.measureInWindow((_x, rootY) => {
-      setOverlayTop(Math.max(0, bottomWindowY - rootY));
-    });
-  }, []);
+  const filtered = useMemo(() => apply(results), [apply, results]);
 
-  const handleBookPress = useCallback(
+  const searching = focused || query.trim().length > 0;
+
+  const suggestions = useMemo<Suggestion[]>(() => {
+    const term = query.trim().toLowerCase();
+    if (term.length < 2) {
+      return [];
+    }
+
+    const titles = results
+      .filter(book => book.title.toLowerCase().includes(term))
+      .slice(0, MAX_SUGGESTIONS)
+      .map<Suggestion>(book => ({ kind: 'query', value: book.title }));
+
+    // One author match, so the reader can jump to a body of work rather than a
+    // single title. De-duplicated against the title suggestions above.
+    const author = results.find(book => book.author?.toLowerCase().includes(term));
+
+    return author
+      ? [...titles.slice(0, MAX_SUGGESTIONS - 1), { kind: 'author', value: author.author }]
+      : titles;
+  }, [query, results]);
+
+  const openBook = useCallback(
     (book: { id: string }) => {
-      if (searchOpen) {
-        closeSearch();
+      if (query.trim()) {
+        remember(query.trim());
       }
       navigation.navigate(ROUTES.BOOK_DETAIL, { bookId: book.id });
     },
-    [closeSearch, navigation, searchOpen],
+    [navigation, query, remember],
   );
 
+  const cancelSearch = useCallback(() => {
+    setQuery('');
+    setFocused(false);
+  }, []);
+
+  const handleSuggestion = useCallback((suggestion: Suggestion) => {
+    setQuery(suggestion.value);
+  }, []);
+
+  const handleCategory = useCallback((id?: string) => {
+    const category = categories.find(item => item.id === id);
+    if (category) {
+      setQuery(category.label);
+      setFocused(true);
+    }
+  }, [categories]);
+
+  // Two subject tiles per row, inside the screen's 20pt gutters with an 11pt gap.
+  const subjectWidth = Math.floor((screenWidth - layout.screenPadding * 2 - 11) / 2);
+
+  const editorsPick = home?.hero?.[1] ?? home?.hero?.[0];
+
   return (
-    <View ref={rootRef} className="flex-1">
-      <Screen
-        contentContainerClassName=""
-        scrollViewProps={{
-          keyboardShouldPersistTaps: 'handled',
-          contentContainerStyle: { paddingHorizontal: horizontalPadding },
-          scrollEnabled: !searchOpen,
-        }}>
-        <View
-          style={{
-            marginTop: brand.paddingTop,
-            marginBottom: 20,
-            gap: brand.brandGap,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}>
-          <AppLogo size={brand.logoSize} />
-          <View style={styles.brandText}>
-            <DisplayText
-              className="font-bold tracking-tight text-app-ink dark:text-app-ink-dark"
-              style={{
-                fontSize: brand.titleSize,
-                lineHeight: brand.titleLineHeight,
-                textAlign: 'right',
-              }}
-              numberOfLines={1}>
-              Ilm o Irfan
-            </DisplayText>
-            <Text
-              className="font-medium tracking-wide text-app-primary dark:text-app-primary-dark"
-              style={{ fontSize: brand.subtitleSize, textAlign: 'right' }}
-              numberOfLines={1}>
-              E-BookStore
-            </Text>
-          </View>
+    <>
+      <Screen gap={20} scrollViewProps={{ keyboardShouldPersistTaps: 'handled' }}>
+        {!searching ? <ScreenHeader title="Discover" /> : null}
+
+        <View style={styles.searchRow}>
+          <SearchField
+            value={query}
+            onChangeText={setQuery}
+            onFocus={() => setFocused(true)}
+            onClear={() => setQuery('')}
+            placeholder="Search books, authors, subjects…"
+            returnKeyType="search"
+            onSubmitEditing={() => query.trim() && remember(query.trim())}
+            style={styles.grow}
+          />
+          {searching ? <TextButton label="Cancel" tone="muted" onPress={cancelSearch} /> : null}
         </View>
 
-        <SearchCategorySection
-          categories={categories}
-          searchOpen={searchOpen}
-          searchQuery={query}
-          onSearchQueryChange={setQuery}
-          onOpenSearch={openSearch}
-          onCloseSearch={closeSearch}
-          onSearchRowLayout={handleSearchRowLayout}
-        />
+        {!searching ? (
+          <>
+            <ChipRow>
+              <Chip
+                label="Filters"
+                icon={SlidersHorizontal}
+                selected={activeCount > 0}
+                count={activeCount > 0 ? activeCount : undefined}
+                size="sm"
+                onPress={filterSheet.open}
+              />
+              <Chip
+                label="Urdu"
+                size="sm"
+                selected={filters.languages.includes('urdu')}
+                onPress={() => toggleLanguage('urdu')}
+              />
+              <Chip
+                label="In membership"
+                size="sm"
+                selected={filters.membershipOnly}
+                onPress={() => setMembershipOnly(!filters.membershipOnly)}
+              />
+              <Chip
+                label="4★+"
+                size="sm"
+                selected={filters.highlyRatedOnly}
+                onPress={() => setHighlyRatedOnly(!filters.highlyRatedOnly)}
+              />
+            </ChipRow>
 
-        <View className="mt-8 flex-row items-center justify-between">
-          <DisplayText className="text-[22px] font-bold leading-7 tracking-tight text-app-ink dark:text-app-ink-dark">
-            All books
-          </DisplayText>
-          <SearchViewToggle value={viewMode} onChange={setViewMode} />
-        </View>
+            {categories.length > 0 ? (
+              <View style={styles.section}>
+                <Label>Browse by subject</Label>
+                <View style={styles.subjectGrid}>
+                  {categories.slice(0, 6).map(category => (
+                    <CategoryTile
+                      key={category.id}
+                      id={category.id}
+                      label={category.label}
+                      count={category.count}
+                      accent={category.accent}
+                      width={subjectWidth}
+                      onPress={handleCategory}
+                    />
+                  ))}
+                </View>
+              </View>
+            ) : null}
 
-        <View className="mt-4">
-          {booksPending && books.length === 0 ? (
-            <SearchCatalogSkeleton viewMode={viewMode} />
-          ) : books.length === 0 ? (
-            <Text className="py-10 text-center text-[14px] text-app-muted dark:text-app-muted-dark">
-              {query.trim() ? 'No matching books yet.' : 'No published books are available yet.'}
-            </Text>
-          ) : viewMode === 'grid' ? (
-            <SearchBookGrid books={books} onBookPress={handleBookPress} />
-          ) : (
-            <SearchBookList books={books} onBookPress={handleBookPress} />
-          )}
-        </View>
+            {editorsPick ? (
+              <EditorsShelf
+                book={toSummary(editorsPick, libraryIds.has(editorsPick.id))}
+                onPress={openBook}
+              />
+            ) : null}
+          </>
+        ) : (
+          <>
+            <SearchSuggestions
+              query={query.trim()}
+              suggestions={suggestions}
+              onSelect={handleSuggestion}
+            />
+
+            <View style={styles.section}>
+              <Label>
+                {isPending && filtered.length === 0
+                  ? 'Books'
+                  : `Books · ${filtered.length}`}
+              </Label>
+
+              {isPending && results.length === 0 ? (
+                <ListSkeleton count={4} />
+              ) : filtered.length === 0 ? (
+                <Text size={fontSize.bodySmall} leading={1.6} align="center" tone="muted" style={styles.noResults}>
+                  {query.trim()
+                    ? 'Nothing matched that search. Try a different word, or clear your filters.'
+                    : 'No published books are available yet.'}
+                </Text>
+              ) : (
+                <View style={styles.results}>
+                  {filtered.map(book => (
+                    <BookListRow
+                      key={book.id}
+                      book={toSummary(book, libraryIds.has(book.id))}
+                      onPress={openBook}
+                    />
+                  ))}
+                </View>
+              )}
+            </View>
+
+            {recents.length > 0 ? (
+              <View style={styles.section}>
+                <View style={styles.recentHeader}>
+                  <Label>Recent</Label>
+                  <TextButton label="Clear" tone="muted" onPress={clear} />
+                </View>
+                <ChipWrap gap={9}>
+                  {recents.map(term => (
+                    <Chip key={term} label={term} size="sm" onPress={() => setQuery(term)} />
+                  ))}
+                </ChipWrap>
+              </View>
+            ) : null}
+          </>
+        )}
       </Screen>
 
-      <SearchDismissOverlay
-        visible={searchOpen}
-        top={overlayTop}
-        onDismiss={closeSearch}
+      <FilterSheet
+        visible={filterSheet.visible}
+        onClose={filterSheet.close}
+        filters={filters}
+        resultCount={filtered.length}
+        onReset={reset}
+        onToggleLanguage={toggleLanguage}
+        onToggleLength={toggleLength}
+        onMembershipOnlyChange={setMembershipOnly}
+        onDownloadedOnlyChange={setDownloadedOnly}
       />
-    </View>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  brandText: {
-    flexShrink: 1,
-    alignItems: 'flex-end',
-    gap: 1,
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  grow: {
+    flex: 1,
+  },
+  section: {
+    gap: 12,
+  },
+  subjectGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 11,
+  },
+  results: {
+    gap: 14,
+  },
+  recentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  noResults: {
+    paddingVertical: 28,
   },
 });

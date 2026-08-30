@@ -19,7 +19,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 
-import { fonts } from '@/theme/palette';
+import { fonts } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
 
 const DEFAULT_MAX = 100;
@@ -113,6 +113,8 @@ export function CircularProgress({
       labelColor: colors.ink,
     }),
     [
+      center,
+      circumference,
       clampedMax,
       colors.faint,
       colors.ink,
@@ -279,14 +281,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
   },
   valueWrap: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
   },
   value: {
-    fontFamily: fonts.sans,
+    fontFamily: fonts.sansMedium,
     fontSize: 13,
-    fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
 });

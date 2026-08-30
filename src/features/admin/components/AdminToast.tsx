@@ -8,7 +8,7 @@ import {
   useState,
   type PropsWithChildren,
 } from 'react';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AlertTriangle, CheckCircle2, Info } from 'lucide-react-native';
@@ -90,29 +90,21 @@ export function AdminToastProvider({ children }: PropsWithChildren) {
       {toast ? (
         <View
           pointerEvents="none"
-          className="absolute inset-x-0 items-center px-5"
-          style={{ top: insets.top + 8 }}>
+          style={[styles.host, { top: insets.top + 8 }]}>
           <Animated.View
             key={toast.id}
             entering={FadeInDown.duration(180)}
             exiting={FadeOutDown.duration(140)}
-            className="w-full flex-row items-center gap-2.5 rounded-[14px] px-4 py-3"
-            style={{
-              backgroundColor: colors.surface,
-              borderWidth: 1,
-              borderColor: `${accent}55`,
-              shadowColor: '#000',
-              shadowOpacity: 0.12,
-              shadowRadius: 12,
-              shadowOffset: { width: 0, height: 4 },
-              elevation: 6,
-            }}>
+            style={[
+              styles.toast,
+              { backgroundColor: colors.surface, borderColor: `${accent}55` },
+            ]}>
             <Icon
               size={18}
               color={toast.tone === 'success' ? colors.primary : accent}
               strokeWidth={2.2}
             />
-            <Text className="flex-1 text-[14px] leading-[19px] text-app-ink dark:text-app-ink-dark">
+            <Text size={14} leading={1.35} style={styles.message}>
               {toast.message}
             </Text>
           </Animated.View>
@@ -121,6 +113,34 @@ export function AdminToastProvider({ children }: PropsWithChildren) {
     </ToastContext.Provider>
   );
 }
+
+const styles = StyleSheet.create({
+  host: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    paddingHorizontal: 18,
+  },
+  toast: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
+  },
+  message: {
+    flex: 1,
+  },
+});
 
 /** Pulls a readable message out of whatever a mutation rejected with. */
 export function errorMessage(error: unknown, fallback = 'Something went wrong.'): string {

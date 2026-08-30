@@ -163,6 +163,23 @@ export async function upsertAdminCollection(input: AdminCollectionInput): Promis
   return id;
 }
 
+/**
+ * Flips a collection's visibility without touching its membership.
+ *
+ * `upsertAdminCollection` rewrites the whole row plus its book list, which is
+ * far too much work — and too much risk — for a switch on the Catalog tab.
+ */
+export async function setCollectionPublished(id: string, isPublished: boolean) {
+  unwrap(
+    await supabase
+      .from('collections')
+      .update({ is_published: isPublished })
+      .eq('id', id)
+      .select('id')
+      .single(),
+  );
+}
+
 export async function deleteAdminCollection(id: string) {
   assertOk(await supabase.from('collections').delete().eq('id', id));
 }

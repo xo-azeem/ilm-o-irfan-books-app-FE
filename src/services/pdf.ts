@@ -18,7 +18,23 @@ function filePath(bookId: string) {
   return `${directory}/${bookId}.pdf`;
 }
 
-function fileSource(path: string): BookPdfSource {
+/**
+ * The slice of the streaming-response API this download path uses. Declared
+ * structurally because `ReadableStream` lives in TypeScript's DOM lib, which a
+ * React Native project does not include.
+ */
+type ByteStreamResponse = {
+  body?: {
+    getReader(): {
+      read(): Promise<{ done: false; value: Uint8Array } | { done: true; value?: undefined }>;
+    };
+  } | null;
+};
+
+/** The local-file member of the union, so callers can read `.uri` directly. */
+type LocalPdfSource = Extract<BookPdfSource, { uri: string }>;
+
+function fileSource(path: string): LocalPdfSource {
   return { uri: path.startsWith('file://') ? path : `file://${path}` };
 }
 
@@ -142,9 +158,10 @@ async function downloadToPath(url: string, target: string, options: DownloadOpti
   await ReactNativeBlobUtil.fs.writeFile(temporary, '', 'utf8');
 
   try {
-    const reader = response.body?.getReader();
+    const streamed = (response as unknown as ByteStreamResponse).body;
+    const reader = streamed?.getReader();
     let loaded = 0;
-    let header = new Uint8Array(0);
+    let header: Uint8Array = new Uint8Array(0);
 
     const consume = async (chunk: Uint8Array) => {
       header = takeHeader(header, chunk);

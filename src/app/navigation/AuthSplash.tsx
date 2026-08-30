@@ -14,7 +14,8 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { AppLogo } from '@/components/brand';
-import { fonts, typography } from '@/theme/palette';
+import { RadialGlow } from '@/components/ui';
+import { fonts, typography } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
 
 const ENTER_MS = 560;
@@ -166,6 +167,7 @@ export function AuthSplash({ ready = false, onFinished }: AuthSplashProps) {
       accessibilityRole="progressbar"
       accessibilityLabel="Ilm o Irfan"
       accessibilityState={{ busy: !ready }}>
+      <RadialGlow color={colors.primary} opacity={0.3} size={460} style={styles.glow} />
       <Animated.View
         collapsable={false}
         style={[styles.brand, brandStyle]}>
@@ -189,17 +191,19 @@ export function AuthSplash({ ready = false, onFinished }: AuthSplashProps) {
 
 const styles = StyleSheet.create({
   root: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  glow: {
+    alignSelf: 'center',
   },
   brand: {
     alignItems: 'center',
     justifyContent: 'center',
   },
   name: {
-    fontFamily: fonts.sans,
-    fontWeight: '700',
+    fontFamily: fonts.display,
     letterSpacing: typography.tight,
     textAlign: 'center',
     includeFontPadding: false,

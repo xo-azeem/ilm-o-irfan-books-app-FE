@@ -1,200 +1,171 @@
-import { memo, useCallback, useEffect, useState, type ReactNode } from 'react';
-import { Pressable, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, StyleSheet, View } from 'react-native';
 
-import { Text } from '@/components/ui';
-import { ProfileFormField } from '@/features/profile/components/ProfileFormField';
+import { ReadOnlyField, TextButton, TextField } from '@/components/ui';
 import { ProfileSubScreenLayout } from '@/features/profile/components/ProfileSubScreenLayout';
-import {
-  personalDetailsDefaults,
-  type PersonalDetails,
-} from '@/features/profile/data/profileContent';
 import { useProfile, useUpdateProfile } from '@/hooks/useAccount';
+import type { ProfileDetails } from '@/services/account';
 
-function FormSection({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <View className="gap-2">
-      <Text className="px-1 text-[13px] font-medium uppercase tracking-widest text-app-muted dark:text-app-muted-dark">
-        {title}
-      </Text>
-      <View className="gap-3">{children}</View>
-    </View>
-  );
+type Form = Omit<ProfileDetails, 'memberSince'>;
+
+/** `memberSince` is derived for display, so it never takes part in the form. */
+function toForm({ memberSince: _derived, ...fields }: ProfileDetails): Form {
+  return fields;
 }
 
-export const PersonalDetailsScreen = memo(function PersonalDetailsScreen() {
-  const [isEditing, setIsEditing] = useState(false);
-  const [savedDetails, setSavedDetails] = useState<PersonalDetails>(
-    personalDetailsDefaults,
-  );
-  const [draft, setDraft] = useState<PersonalDetails>(personalDetailsDefaults);
+const EMPTY_FORM: Form = {
+  fullName: '',
+  email: '',
+  phone: '',
+  dateOfBirth: '',
+  addressLine1: '',
+  addressLine2: '',
+  city: '',
+  state: '',
+  postalCode: '',
+  country: '',
+};
+
+/**
+ * Personal details.
+ *
+ * All ten fields the profile carries. Email is read-only and marked verified —
+ * changing it is an account operation, not a form edit — and Save only becomes
+ * active once something has actually changed.
+ */
+export function PersonalDetailsScreen() {
   const { data: profile } = useProfile();
   const updateProfile = useUpdateProfile();
 
+  const [form, setForm] = useState<Form>(EMPTY_FORM);
+  const [loaded, setLoaded] = useState(false);
+
+  // Seed the form once the record arrives, without clobbering live edits.
   useEffect(() => {
-    if (!profile) return;
-    const details: PersonalDetails = {
-      fullName: profile.fullName, email: profile.email, phone: profile.phone,
-      dateOfBirth: profile.dateOfBirth, addressLine1: profile.addressLine1,
-      addressLine2: profile.addressLine2, city: profile.city, state: profile.state,
-      postalCode: profile.postalCode, country: profile.country,
-    };
-    setSavedDetails(details);
-    setDraft(details);
-  }, [profile]);
+    if (profile && !loaded) {
+      setForm(toForm(profile));
+      setLoaded(true);
+    }
+  }, [loaded, profile]);
 
-  const updateDraft = useCallback(
-    (key: keyof PersonalDetails, value: string) => {
-      setDraft(current => ({ ...current, [key]: value }));
-    },
-    [],
-  );
+  const update = useCallback((key: keyof Form, value: string) => {
+    setForm(current => ({ ...current, [key]: value }));
+  }, []);
 
-  const handleEdit = useCallback(() => {
-    setDraft(savedDetails);
-    setIsEditing(true);
-  }, [savedDetails]);
+  const isDirty = useMemo(() => {
+    if (!profile) {
+      return false;
+    }
+    const saved = toForm(profile);
+    return (Object.keys(saved) as (keyof Form)[]).some(key => saved[key] !== form[key]);
+  }, [form, profile]);
 
-  const handleCancel = useCallback(() => {
-    setDraft(savedDetails);
-    setIsEditing(false);
-  }, [savedDetails]);
-
-  const handleSave = useCallback(async () => {
-    await updateProfile.mutateAsync(draft);
-    setSavedDetails(draft);
-    setIsEditing(false);
-  }, [draft, updateProfile]);
-
-  const details = isEditing ? draft : savedDetails;
+  const handleSave = useCallback(() => {
+    updateProfile.mutate(form, {
+      onSuccess: () => Alert.alert('Saved', 'Your details have been updated.'),
+      onError: error =>
+        Alert.alert(
+          'Could not save',
+          error instanceof Error ? error.message : 'Please try again.',
+        ),
+    });
+  }, [form, updateProfile]);
 
   return (
     <ProfileSubScreenLayout
       title="Personal details"
-      subtitle="View and update your account information.">
-      <View className="gap-7">
-        <FormSection title="Basic information">
-          <ProfileFormField
-            label="Full name"
-            value={details.fullName}
-            isEditing={isEditing}
-            onChangeText={value => updateDraft('fullName', value)}
-            autoCapitalize="words"
-          />
-          <ProfileFormField
-            label="Email"
-            value={details.email}
-            isEditing={isEditing}
-            onChangeText={value => updateDraft('email', value)}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-          <ProfileFormField
-            label="Phone"
-            value={details.phone}
-            isEditing={isEditing}
-            onChangeText={value => updateDraft('phone', value)}
-            keyboardType="phone-pad"
-          />
-          <ProfileFormField
-            label="Date of birth"
-            value={details.dateOfBirth}
-            isEditing={isEditing}
-            onChangeText={value => updateDraft('dateOfBirth', value)}
-            placeholder="e.g. 14 March 1996"
-          />
-        </FormSection>
+      gap={20}
+      action={
+        <TextButton
+          label={updateProfile.isPending ? 'Saving…' : 'Save'}
+          onPress={handleSave}
+          // A disabled-looking Save that does nothing is worse than none at all.
+          tone={isDirty && !updateProfile.isPending ? 'primary' : 'muted'}
+          disabled={!isDirty || updateProfile.isPending}
+        />
+      }>
+      <View style={styles.fields}>
+        <TextField
+          label="Full name"
+          value={form.fullName}
+          onChangeText={value => update('fullName', value)}
+          autoCapitalize="words"
+          textContentType="name"
+        />
 
-        <FormSection title="Address">
-          <ProfileFormField
-            label="Address line 1"
-            value={details.addressLine1}
-            isEditing={isEditing}
-            onChangeText={value => updateDraft('addressLine1', value)}
-            placeholder="Street address"
-          />
-          <ProfileFormField
-            label="Address line 2"
-            value={details.addressLine2}
-            isEditing={isEditing}
-            onChangeText={value => updateDraft('addressLine2', value)}
-            placeholder="Apartment, suite, etc."
-            multiline
-          />
-          <View className="flex-row gap-3">
-            <View className="flex-1">
-              <ProfileFormField
-                label="City"
-                value={details.city}
-                isEditing={isEditing}
-                onChangeText={value => updateDraft('city', value)}
-              />
-            </View>
-            <View className="flex-1">
-              <ProfileFormField
-                label="State"
-                value={details.state}
-                isEditing={isEditing}
-                onChangeText={value => updateDraft('state', value)}
-              />
-            </View>
-          </View>
-          <View className="flex-row gap-3">
-            <View className="flex-1">
-              <ProfileFormField
-                label="Postal code"
-                value={details.postalCode}
-                isEditing={isEditing}
-                onChangeText={value => updateDraft('postalCode', value)}
-                keyboardType="number-pad"
-              />
-            </View>
-            <View className="flex-1">
-              <ProfileFormField
-                label="Country"
-                value={details.country}
-                isEditing={isEditing}
-                onChangeText={value => updateDraft('country', value)}
-              />
-            </View>
-          </View>
-        </FormSection>
+        <ReadOnlyField label="Email" value={form.email || '—'} note="Verified" />
 
-        <View className="gap-3 pb-2">
-          {isEditing ? (
-            <>
-              <Pressable
-                onPress={() => void handleSave()}
-                disabled={updateProfile.isPending}
-                className="items-center rounded-[14px] bg-app-primary py-3.5 active:opacity-90 dark:bg-app-primary-dark">
-                <Text className="text-[16px] font-semibold text-app-on-primary dark:text-app-on-primary-dark">
-                  {updateProfile.isPending ? 'Saving…' : 'Save changes'}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={handleCancel}
-                className="items-center rounded-[14px] border border-app-border py-3.5 active:opacity-90 dark:border-app-border-dark">
-                <Text className="text-[16px] font-semibold text-app-ink dark:text-app-ink-dark">
-                  Cancel
-                </Text>
-              </Pressable>
-            </>
-          ) : (
-            <Pressable
-              onPress={handleEdit}
-              className="items-center rounded-[14px] bg-app-primary py-3.5 active:opacity-90 dark:bg-app-primary-dark">
-              <Text className="text-[16px] font-semibold text-app-on-primary dark:text-app-on-primary-dark">
-                Edit details
-              </Text>
-            </Pressable>
-          )}
+        <TextField
+          label="Phone"
+          value={form.phone}
+          onChangeText={value => update('phone', value)}
+          keyboardType="phone-pad"
+          textContentType="telephoneNumber"
+        />
+
+        <TextField
+          label="Date of birth"
+          value={form.dateOfBirth}
+          onChangeText={value => update('dateOfBirth', value)}
+          placeholder="14 March 1996"
+        />
+
+        <TextField
+          label="Address"
+          value={form.addressLine1}
+          onChangeText={value => update('addressLine1', value)}
+          placeholder="Street address"
+        />
+        <TextField
+          value={form.addressLine2}
+          onChangeText={value => update('addressLine2', value)}
+          placeholder="Apartment, block, floor"
+        />
+
+        <View style={styles.row}>
+          <TextField
+            label="City"
+            value={form.city}
+            onChangeText={value => update('city', value)}
+            containerStyle={styles.grow}
+          />
+          <TextField
+            label="Postal code"
+            value={form.postalCode}
+            onChangeText={value => update('postalCode', value)}
+            keyboardType="number-pad"
+            containerStyle={styles.grow}
+          />
+        </View>
+
+        <View style={styles.row}>
+          <TextField
+            label="Province"
+            value={form.state}
+            onChangeText={value => update('state', value)}
+            containerStyle={styles.grow}
+          />
+          <TextField
+            label="Country"
+            value={form.country}
+            onChangeText={value => update('country', value)}
+            containerStyle={styles.grow}
+          />
         </View>
       </View>
     </ProfileSubScreenLayout>
   );
+}
+
+const styles = StyleSheet.create({
+  fields: {
+    gap: 14,
+  },
+  row: {
+    flexDirection: 'row',
+    gap: 11,
+  },
+  grow: {
+    flex: 1,
+  },
 });

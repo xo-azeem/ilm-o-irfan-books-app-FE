@@ -1,30 +1,58 @@
-import { Pressable } from 'react-native';
+import { memo } from 'react';
+import { Pressable, StyleSheet } from 'react-native';
 
 import { Text } from '@/components/ui';
+import { radius } from '@/theme/palette';
+import { fontSize } from '@/theme/typography';
+import { useTheme } from '@/theme/ThemeContext';
 
 import { GoogleLogoIcon } from './GoogleLogoIcon';
 
-type GoogleSignInButtonProps = {
-  onPress?: () => void;
-  label?: string;
-};
-
-const GOOGLE_ICON_SIZE = 18;
-
-export function GoogleSignInButton({
+/**
+ * Google and guest sign-in share one outlined shape so neither reads as the
+ * primary path — the green button above them is the primary path.
+ */
+export const GoogleSignInButton = memo(function GoogleSignInButton({
   onPress,
   label = 'Continue with Google',
-}: GoogleSignInButtonProps) {
+  /** Guest access is preserved from the current build; it uses the same shell. */
+  showLogo = true,
+}: {
+  onPress?: () => void;
+  label?: string;
+  showLogo?: boolean;
+}) {
+  const { colors } = useTheme();
+
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
-      className="h-[52px] flex-row items-center justify-center gap-2.5 rounded-[14px] border border-app-border bg-app-surface active:opacity-80 dark:border-app-border-dark dark:bg-app-surface-dark">
-      <GoogleLogoIcon size={GOOGLE_ICON_SIZE} />
-      <Text className="text-[16px] font-semibold text-app-ink dark:text-app-ink-dark">
+      style={({ pressed }) => [
+        styles.button,
+        { borderColor: colors.borderStrong },
+        pressed && styles.pressed,
+      ]}>
+      {showLogo ? <GoogleLogoIcon size={18} /> : null}
+      <Text size={fontSize.bodySmall} leading={1} weight="500" tone="soft">
         {label}
       </Text>
     </Pressable>
   );
-}
+});
+
+const styles = StyleSheet.create({
+  button: {
+    height: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    borderRadius: radius.field,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+  },
+  pressed: {
+    opacity: 0.75,
+  },
+});

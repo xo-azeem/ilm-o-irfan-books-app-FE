@@ -1,31 +1,34 @@
-import { Alert, Pressable, View } from 'react-native';
+import { memo, useCallback } from 'react';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import {
   BookPlus,
   ChartNoAxesColumn,
-  FileWarning,
-  ImageOff,
   Library,
+  TriangleAlert,
   Users,
+  type LucideIcon,
 } from 'lucide-react-native';
 
 import { Screen, ScreenHeader } from '@/components/layout';
 import { AdminStatsSkeleton } from '@/components/skeletons/CatalogSkeletons';
-import { Text } from '@/components/ui';
+import { Callout, Icon, Label, Text } from '@/components/ui';
 import { ADMIN_ROUTES } from '@/constants/routes';
+import { errorMessage } from '@/features/admin/components/AdminToast';
 import {
   AdminBadge,
-  AdminCard,
   AdminErrorState,
+  AdminRowGroup,
   AdminStat,
+  AdminStatRow,
   AdminTextAction,
   useAdminRefresh,
-  WARNING,
 } from '@/features/admin/components/AdminUi';
 import { formatRelative } from '@/features/admin/utils/format';
 import { useAdminStats, useAuditLog } from '@/hooks/useAdmin';
-import { errorMessage } from '@/features/admin/components/AdminToast';
 import { useAuthStore } from '@/stores/authStore';
+import { layout, radius } from '@/theme/palette';
+import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
 
 import type { AdminTabParamList } from '../navigation/types';
@@ -37,9 +40,15 @@ type Nav = {
   ) => void;
 };
 
+/**
+ * Admin overview.
+ *
+ * The same numbers the panel has always shown, reordered around the question an
+ * admin actually opens it with: what is broken, what should I do, then how are
+ * we doing.
+ */
 export function AdminOverviewScreen() {
   const navigation = useNavigation() as unknown as Nav;
-  const { colors } = useTheme();
   const email = useAuthStore(state => state.email);
   const signOut = useAuthStore(state => state.signOut);
 
@@ -47,72 +56,65 @@ export function AdminOverviewScreen() {
   const refreshProps = useAdminRefresh(isRefetching, () => {
     void refetch();
   });
+
   const audit = useAuditLog(null);
-  const recent = audit.data?.pages[0]?.rows.slice(0, 5) ?? [];
+  const recent = audit.data?.pages[0]?.rows.slice(0, 4) ?? [];
 
-  const needsAttention =
-    (data?.missing_pdf_count ?? 0) + (data?.missing_cover_count ?? 0) > 0;
+  const missingPdf = data?.missing_pdf_count ?? 0;
+  const missingCover = data?.missing_cover_count ?? 0;
+  const needsAttention = missingPdf + missingCover > 0;
 
-  const goToBooks = (status?: 'draft' | 'incomplete') =>
-    navigation.navigate(ADMIN_ROUTES.BOOKS, {
-      screen: ADMIN_ROUTES.BOOK_LIST,
-      params: status ? { status } : undefined,
-    });
+  const goToBooks = useCallback(
+    (status?: 'draft' | 'incomplete') =>
+      navigation.navigate(ADMIN_ROUTES.BOOKS, {
+        screen: ADMIN_ROUTES.BOOK_LIST,
+        params: status ? { status } : undefined,
+      }),
+    [navigation],
+  );
+
+  const handleSignOut = useCallback(() => {
+    Alert.alert('Sign out', 'Leave the admin panel?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign out',
+        style: 'destructive',
+        onPress: () => {
+          void signOut();
+        },
+      },
+    ]);
+  }, [signOut]);
 
   return (
-    <Screen scrollViewProps={refreshProps}>
+    <Screen padding={layout.adminPadding} gap={12} scrollViewProps={refreshProps}>
       <ScreenHeader
         title="Overview"
-        subtitle="Catalog health, readers, and subscriptions."
-        action={
-          <AdminTextAction
-            label="Sign out"
-            onPress={() =>
-              Alert.alert('Sign out', 'Leave the admin panel?', [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Sign out',
-                  style: 'destructive',
-                  onPress: () => {
-                    void signOut();
-                  },
-                },
-              ])
-            }
-          />
-        }
+        dense
+        subtitle={email || 'admin'}
+        action={<AdminTextAction label="Sign out" onPress={handleSignOut} />}
       />
 
-      <Text className="mb-5 text-[13px] text-app-muted dark:text-app-muted-dark">
-        Signed in as {email || 'admin'}
-      </Text>
-
+      {/* What is broken, first. */}
       {needsAttention ? (
-        <Pressable
+        <Callout
+          tone="warning"
+          icon={TriangleAlert}
+          title={`${missingPdf} titles without a PDF, ${missingCover} without a cover`}
+          message="Tap to review incomplete titles."
           onPress={() => goToBooks('incomplete')}
-          className="mb-5 flex-row items-center gap-3 rounded-[16px] p-4 active:opacity-70"
-          style={{ backgroundColor: `${WARNING}1A`, borderWidth: 1, borderColor: `${WARNING}44` }}>
-          <FileWarning size={20} color={WARNING} strokeWidth={2.1} />
-          <View className="min-w-0 flex-1">
-            <Text className="text-[14px] font-semibold" style={{ color: WARNING }}>
-              {data?.missing_pdf_count ?? 0} titles without a PDF,{' '}
-              {data?.missing_cover_count ?? 0} without a cover
-            </Text>
-            <Text className="text-[12px] text-app-muted dark:text-app-muted-dark">
-              Tap to review incomplete titles.
-            </Text>
-          </View>
-        </Pressable>
+        />
       ) : null}
 
-      <View className="mb-6 gap-3">
-        <Text className="px-1 text-[12px] font-semibold uppercase tracking-widest text-app-muted dark:text-app-muted-dark">
+      {/* Then what to do about it. */}
+      <View style={styles.section}>
+        <Label size={fontSize.labelSmall} tracking={1.6}>
           Quick actions
-        </Text>
-        <View className="flex-row flex-wrap gap-3">
+        </Label>
+        <View style={styles.actions}>
           <QuickAction
             label="New book"
-            Icon={BookPlus}
+            icon={BookPlus}
             onPress={() =>
               navigation.navigate(ADMIN_ROUTES.BOOKS, {
                 screen: ADMIN_ROUTES.BOOK_EDITOR,
@@ -122,17 +124,17 @@ export function AdminOverviewScreen() {
           />
           <QuickAction
             label="Catalog"
-            Icon={Library}
+            icon={Library}
             onPress={() => navigation.navigate(ADMIN_ROUTES.CATALOG)}
           />
           <QuickAction
             label="People"
-            Icon={Users}
+            icon={Users}
             onPress={() => navigation.navigate(ADMIN_ROUTES.PEOPLE)}
           />
           <QuickAction
             label="Analytics"
-            Icon={ChartNoAxesColumn}
+            icon={ChartNoAxesColumn}
             onPress={() =>
               navigation.navigate(ADMIN_ROUTES.SYSTEM, { screen: ADMIN_ROUTES.ANALYTICS })
             }
@@ -140,44 +142,45 @@ export function AdminOverviewScreen() {
         </View>
       </View>
 
+      {/* Then the numbers. */}
       {isLoading ? (
         <AdminStatsSkeleton />
       ) : error ? (
         <AdminErrorState message={errorMessage(error)} onRetry={() => void refetch()} />
       ) : (
         <>
-          <View className="mb-6 gap-3">
-            <Text className="px-1 text-[12px] font-semibold uppercase tracking-widest text-app-muted dark:text-app-muted-dark">
+          <View style={styles.section}>
+            <Label size={fontSize.labelSmall} tracking={1.6}>
               Last 7 days
-            </Text>
-            <View className="flex-row flex-wrap gap-3">
+            </Label>
+            <AdminStatRow>
               <AdminStat label="New readers" value={data?.signups_7d ?? 0} tone="success" />
               <AdminStat label="Reading sessions" value={data?.reads_7d ?? 0} />
               <AdminStat label="Downloads" value={data?.downloads_7d ?? 0} />
-            </View>
+            </AdminStatRow>
           </View>
 
-          <View className="mb-6 gap-3">
-            <Text className="px-1 text-[12px] font-semibold uppercase tracking-widest text-app-muted dark:text-app-muted-dark">
+          <View style={styles.section}>
+            <Label size={fontSize.labelSmall} tracking={1.6}>
               Audience
-            </Text>
-            <View className="flex-row flex-wrap gap-3">
+            </Label>
+            <AdminStatRow>
               <AdminStat
                 label="Users"
                 value={data?.user_count ?? 0}
                 onPress={() => navigation.navigate(ADMIN_ROUTES.PEOPLE)}
               />
-              <AdminStat label="Subscribers" value={data?.subscriber_count ?? 0} tone="accent" />
-              <AdminStat label="Free readers" value={data?.guest_signed_in_count ?? 0} />
+              <AdminStat label="Subs" value={data?.subscriber_count ?? 0} tone="accent" />
+              <AdminStat label="Free" value={data?.guest_signed_in_count ?? 0} />
               <AdminStat label="Admins" value={data?.admin_count ?? 0} />
-            </View>
+            </AdminStatRow>
           </View>
 
-          <View className="mb-6 gap-3">
-            <Text className="px-1 text-[12px] font-semibold uppercase tracking-widest text-app-muted dark:text-app-muted-dark">
+          <View style={styles.section}>
+            <Label size={fontSize.labelSmall} tracking={1.6}>
               Catalog
-            </Text>
-            <View className="flex-row flex-wrap gap-3">
+            </Label>
+            <AdminStatRow>
               <AdminStat
                 label="Published"
                 value={data?.book_published_count ?? 0}
@@ -189,33 +192,21 @@ export function AdminOverviewScreen() {
                 value={data?.book_draft_count ?? 0}
                 onPress={() => goToBooks('draft')}
               />
-              <AdminStat label="Authors" value={data?.author_count ?? 0} />
-              <AdminStat label="Categories" value={data?.category_count ?? 0} />
-              <AdminStat label="Collections" value={data?.collection_count ?? 0} />
-              <AdminStat label="Active plans" value={data?.plan_count ?? 0} />
-            </View>
-          </View>
+            </AdminStatRow>
 
-          <View className="mb-6 flex-row flex-wrap gap-3">
-            <IssueTile
-              label="Missing PDF"
-              value={data?.missing_pdf_count ?? 0}
-              Icon={FileWarning}
-              onPress={() => goToBooks('incomplete')}
-            />
-            <IssueTile
-              label="Missing cover"
-              value={data?.missing_cover_count ?? 0}
-              Icon={ImageOff}
-              onPress={() => goToBooks('incomplete')}
-            />
+            {/* The long tail reads better as a sentence than as six more tiles. */}
+            <View style={styles.inlineCounts}>
+              <InlineCount value={data?.author_count ?? 0} label="authors" />
+              <InlineCount value={data?.category_count ?? 0} label="categories" />
+              <InlineCount value={data?.collection_count ?? 0} label="collections" />
+              <InlineCount value={data?.plan_count ?? 0} label="active plans" />
+            </View>
           </View>
         </>
       )}
 
-      <AdminCard
+      <AdminRowGroup
         title="Recent activity"
-        padded={false}
         action={
           <AdminTextAction
             label="View all"
@@ -225,95 +216,141 @@ export function AdminOverviewScreen() {
           />
         }>
         {recent.length === 0 ? (
-          <Text className="p-4 text-[13px] text-app-muted dark:text-app-muted-dark">
-            No admin changes recorded yet.
-          </Text>
+          <View style={styles.emptyActivity}>
+            <Text size={fontSize.caption} leading={1.4} tone="muted">
+              No admin changes recorded yet.
+            </Text>
+          </View>
         ) : (
-          recent.map((entry, index) => (
-            <View
+          recent.map(entry => (
+            <ActivityRow
               key={entry.id}
-              className={`flex-row items-center gap-3 px-4 py-3 ${
-                index === recent.length - 1
-                  ? ''
-                  : 'border-b border-app-border dark:border-app-border-dark'
-              }`}>
-              <AdminBadge
-                label={entry.action}
-                tone={
-                  entry.action === 'delete'
-                    ? 'danger'
-                    : entry.action === 'insert'
-                    ? 'success'
-                    : 'neutral'
-                }
-              />
-              <View className="min-w-0 flex-1">
-                <Text
-                  className="text-[14px] text-app-ink dark:text-app-ink-dark"
-                  numberOfLines={1}>
-                  {entry.entity_label ?? entry.entity_type}
-                </Text>
-                <Text
-                  className="text-[11px] text-app-muted dark:text-app-muted-dark"
-                  numberOfLines={1}>
-                  {entry.entity_type} · {entry.actor_email ?? 'system'}
-                </Text>
-              </View>
-              <Text className="text-[11px]" style={{ color: colors.faint }}>
-                {formatRelative(entry.created_at)}
-              </Text>
-            </View>
+              action={entry.action}
+              label={entry.entity_label ?? entry.entity_type}
+              detail={`${entry.entity_type} · ${entry.actor_email ?? 'system'}`}
+              when={formatRelative(entry.created_at)}
+            />
           ))
         )}
-      </AdminCard>
+      </AdminRowGroup>
     </Screen>
   );
 }
 
-function QuickAction({
+const QuickAction = memo(function QuickAction({
   label,
-  Icon,
+  icon,
   onPress,
 }: {
   label: string;
-  Icon: typeof BookPlus;
+  icon: LucideIcon;
   onPress: () => void;
 }) {
   const { colors } = useTheme();
-  return (
-    <Pressable
-      onPress={onPress}
-      className="min-w-[46%] flex-1 flex-row items-center gap-2.5 rounded-[14px] bg-app-surface px-4 py-3.5 active:opacity-70 dark:bg-app-surface-dark">
-      <Icon size={19} color={colors.primary} strokeWidth={2.1} />
-      <Text className="text-[14px] font-medium text-app-ink dark:text-app-ink-dark">{label}</Text>
-    </Pressable>
-  );
-}
 
-function IssueTile({
-  label,
-  value,
-  Icon,
-  onPress,
-}: {
-  label: string;
-  value: number;
-  Icon: typeof FileWarning;
-  onPress: () => void;
-}) {
-  const { colors } = useTheme();
-  const tone = value > 0 ? WARNING : colors.faint;
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
       onPress={onPress}
-      className="min-w-[46%] flex-1 flex-row items-center gap-3 rounded-[14px] bg-app-surface p-4 active:opacity-70 dark:bg-app-surface-dark">
-      <Icon size={19} color={tone} strokeWidth={2.1} />
-      <View className="min-w-0 flex-1">
-        <Text className="text-[18px] font-bold" style={{ color: tone }}>
-          {value}
-        </Text>
-        <Text className="text-[11px] text-app-muted dark:text-app-muted-dark">{label}</Text>
-      </View>
+      style={({ pressed }) => [
+        styles.quickAction,
+        { backgroundColor: colors.surface },
+        pressed && styles.pressed,
+      ]}>
+      <Icon icon={icon} size={16} tone="primary" strokeWidth={2} />
+      <Text size={11} leading={1} weight="500" align="center" numberOfLines={1}>
+        {label}
+      </Text>
     </Pressable>
   );
-}
+});
+
+const InlineCount = memo(function InlineCount({
+  value,
+  label,
+}: {
+  value: number;
+  label: string;
+}) {
+  return (
+    <Text size={11} leading={1} tone="muted">
+      {`${value} ${label}`}
+    </Text>
+  );
+});
+
+const ActivityRow = memo(function ActivityRow({
+  action,
+  label,
+  detail,
+  when,
+}: {
+  action: string;
+  label: string;
+  detail: string;
+  when: string;
+}) {
+  return (
+    <View style={styles.activityRow}>
+      <AdminBadge
+        label={action}
+        tone={action === 'delete' ? 'danger' : action === 'insert' ? 'success' : 'neutral'}
+      />
+      <View style={styles.activityBody}>
+        <Text size={fontSize.caption} leading={1.2} numberOfLines={1}>
+          {label}
+        </Text>
+        <Text size={10.5} leading={1.2} tone="faint" numberOfLines={1}>
+          {detail}
+        </Text>
+      </View>
+      <Text size={10.5} leading={1} tone="dim">
+        {when}
+      </Text>
+    </View>
+  );
+});
+
+const styles = StyleSheet.create({
+  section: {
+    gap: 9,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  quickAction: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 7,
+    paddingVertical: 11,
+    paddingHorizontal: 8,
+    borderRadius: radius.control,
+  },
+  inlineCounts: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 14,
+    paddingHorizontal: 2,
+    paddingTop: 2,
+  },
+  activityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+  },
+  activityBody: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
+  },
+  emptyActivity: {
+    padding: 14,
+  },
+  pressed: {
+    opacity: 0.72,
+  },
+});

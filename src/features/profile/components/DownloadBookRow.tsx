@@ -1,81 +1,134 @@
-import { memo } from 'react';
-import { Pressable, View } from 'react-native';
-import { Trash2 } from 'lucide-react-native';
+import { memo, useCallback } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Trash2, X } from 'lucide-react-native';
 
-import { DisplayText, Text } from '@/components/ui';
-import { BookSpine } from '@/features/library/components/BookSpine';
+import type { BookSummary } from '@/components/books';
+import { BookCover, Icon, Label, ProgressBar, Text, UrduText } from '@/components/ui';
+import { radius } from '@/theme/palette';
+import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
 
-const COVER_WIDTH = 64;
-
-export type DownloadedBook = {
-  id: string;
-  title: string;
-  author: string;
-  size: string;
-  coverColor: string;
-  coverColorDark: string;
-  coverUrl?: string;
+export type DownloadEntry = BookSummary & {
+  /** Human-readable size and date, e.g. "412 MB · downloaded 2 Aug". */
+  detail?: string;
+  /** 0–1 while a download is in flight; omit once it has finished. */
+  downloadProgress?: number;
 };
 
-type DownloadBookRowProps = {
-  book: DownloadedBook;
-  isLast?: boolean;
-  onRemove?: (id: string) => void;
-};
-
+/**
+ * A downloaded book. An in-flight download shows its own progress in the row
+ * rather than sending the reader to a separate screen.
+ */
 export const DownloadBookRow = memo(function DownloadBookRow({
-  book,
-  isLast = false,
+  entry,
   onRemove,
-}: DownloadBookRowProps) {
-  const { colors } = useTheme();
+  onCancel,
+  onPress,
+}: {
+  entry: DownloadEntry;
+  onRemove?: (entry: DownloadEntry) => void;
+  onCancel?: (entry: DownloadEntry) => void;
+  onPress?: (entry: DownloadEntry) => void;
+}) {
+  const { colors, isDark } = useTheme();
+  const downloading = entry.downloadProgress != null && entry.downloadProgress < 1;
+
+  const handlePress = useCallback(() => onPress?.(entry), [entry, onPress]);
+  const handleRemove = useCallback(() => onRemove?.(entry), [entry, onRemove]);
+  const handleCancel = useCallback(() => onCancel?.(entry), [entry, onCancel]);
 
   return (
-    <View
-      className={`flex-row items-start gap-3.5 px-4 py-4 ${
-        !isLast ? 'border-b border-app-border dark:border-app-border-dark' : ''
-      }`}>
-      <BookSpine
-        title={book.title}
-        coverColor={book.coverColor}
-        coverColorDark={book.coverColorDark}
-        coverUrl={book.coverUrl}
-        width={COVER_WIDTH}
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={entry.title}
+      onPress={handlePress}
+      style={({ pressed }) => [
+        styles.row,
+        {
+          backgroundColor: colors.surfaceAlt,
+          borderColor: downloading ? colors.selectedBorder : colors.borderSoft,
+        },
+        pressed && styles.pressed,
+      ]}>
+      <BookCover
+        width={48}
+        coverUrl={entry.coverUrl}
+        coverColor={(isDark ? entry.coverColorDark : entry.coverColor) ?? undefined}
       />
 
-      <View className="min-w-0 flex-1 gap-1.5 pt-0.5">
-        <DisplayText
-          className="text-[16px] font-semibold leading-5 tracking-tight text-app-ink dark:text-app-ink-dark"
-          numberOfLines={2}>
-          {book.title}
-        </DisplayText>
-
-        <Text
-          className="text-[13px] text-app-muted dark:text-app-muted-dark"
-          numberOfLines={1}>
-          {book.author}
-        </Text>
-
-        <View className="self-start rounded-md bg-app-fill px-2 py-0.5 dark:bg-app-fill-dark">
-          <Text className="text-[11px] font-medium tabular-nums text-app-primary dark:text-app-primary-dark">
-            {book.size}
+      <View style={styles.body}>
+        {entry.isUrdu ? (
+          <UrduText size={16} numberOfLines={1}>
+            {entry.title}
+          </UrduText>
+        ) : (
+          <Text size={fontSize.bodySmall} leading={1.2} weight="500" numberOfLines={2}>
+            {entry.title}
           </Text>
-        </View>
+        )}
+
+        {downloading ? (
+          <>
+            <ProgressBar value={entry.downloadProgress ?? 0} />
+            <Label tone="primary" tracking={0.8}>
+              {`DOWNLOADING · ${Math.round((entry.downloadProgress ?? 0) * 100)}%`}
+            </Label>
+          </>
+        ) : entry.detail ? (
+          <Text size={fontSize.captionSmall} leading={1} tone="muted" numberOfLines={1}>
+            {entry.detail}
+          </Text>
+        ) : null}
       </View>
 
-      <Pressable
-        onPress={() => onRemove?.(book.id)}
-        accessibilityRole="button"
-        accessibilityLabel={`Remove ${book.title}`}
-        hitSlop={8}
-        className="mt-0.5 h-8 w-8 items-center justify-center rounded-full active:opacity-60">
-        <Trash2 size={16} color={colors.faint} strokeWidth={1.75} />
-      </Pressable>
-    </View>
+      {downloading ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Cancel download of ${entry.title}`}
+          hitSlop={8}
+          onPress={handleCancel}
+          style={[styles.action, { borderColor: colors.borderStrong }]}>
+          <Icon icon={X} size={15} tone="soft" />
+        </Pressable>
+      ) : (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Remove ${entry.title} from downloads`}
+          hitSlop={8}
+          onPress={handleRemove}
+          style={[
+            styles.action,
+            { backgroundColor: colors.dangerFill, borderColor: colors.dangerBorder },
+          ]}>
+          <Icon icon={Trash2} size={13} tone="danger" strokeWidth={1.9} />
+        </Pressable>
+      )}
+    </Pressable>
   );
 });
 
-export function getDownloadsTotalSize(books: DownloadedBook[]) {
-  return books.reduce((sum, book) => sum + (parseInt(book.size, 10) || 0), 0);
-}
+const styles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 13,
+    padding: 12,
+    borderRadius: radius.button,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+  },
+  body: {
+    flex: 1,
+    gap: 6,
+  },
+  action: {
+    width: 32,
+    height: 32,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth * 2,
+  },
+  pressed: {
+    opacity: 0.8,
+  },
+});

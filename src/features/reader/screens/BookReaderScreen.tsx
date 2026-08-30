@@ -1,21 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View } from 'react-native';
+import { Alert, Platform, StyleSheet, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 
 import type { RootStackParamList } from '@/app/navigation/types';
-import { Text } from '@/components/ui';
+import { useSheet } from '@/components/ui';
 import type { BookPdfSource } from '@/constants/books';
 import { ROUTES } from '@/constants/routes';
 import { BookPageFlip, type BookPageFlipHandle } from '@/features/reader/components/BookPageFlip';
 import { ReaderChrome } from '@/features/reader/components/ReaderChrome';
+import { ReaderError } from '@/features/reader/components/ReaderError';
+import { ReaderSettingsSheet } from '@/features/reader/components/ReaderSettingsSheet';
 import { ReaderStageSkeleton } from '@/features/reader/components/ReaderStageSkeleton';
 import { MAX_SCALE, MIN_SCALE, SCALE_STEP } from '@/features/reader/constants';
 import { useHighlightMutation, useHighlights, useProgressMutation } from '@/hooks/useAccount';
 import { useBook } from '@/hooks/useCatalog';
 import { downloadPdf, resolvePdfSource } from '@/services/pdf';
 import { useAccess } from '@/lib/access';
+import { useThemeStore } from '@/stores/themeStore';
+import { readerStage } from '@/theme/palette';
 
 type BookReaderRouteProp = RouteProp<RootStackParamList, 'BookReader'>;
 type BookReaderNavigationProp = NativeStackNavigationProp<RootStackParamList, 'BookReader'>;
@@ -40,6 +44,17 @@ export function BookReaderScreen() {
   const [loadProgress, setLoadProgress] = useState(0);
   const [loaderVisible, setLoaderVisible] = useState(true);
   const [hasError, setHasError] = useState(false);
+  // Chrome starts hidden — the page is what the reader came for.
+  const [chromeVisible, setChromeVisible] = useState(false);
+  const [brightness, setBrightness] = useState(1);
+  // Bumping this token re-runs the source effect; that is the retry path.
+  const [retryToken, setRetryToken] = useState(0);
+  const settingsSheet = useSheet();
+  // Page tone is a reading default, shared with the Appearance screen.
+  const pageTone = useThemeStore(state => state.pageTone);
+  const setPageTone = useThemeStore(state => state.setPageTone);
+  /** Set once a download completes, so the error state can offer it. */
+  const downloadedUri = useRef<string | null>(null);
   const { canOpenBooks, isAuthenticated, isSubscriptionLoading } = useAccess();
   const progressMutation = useProgressMutation();
   const highlightMutation = useHighlightMutation(bookId);
@@ -103,7 +118,7 @@ export function BookReaderScreen() {
       active = false;
       abort.abort();
     };
-  }, [bookId, canOpenBooks, isAuthenticated, isSubscriptionLoading, navigation]);
+  }, [bookId, canOpenBooks, isAuthenticated, isSubscriptionLoading, navigation, retryToken]);
 
   const flushProgress = useCallback(() => {
     const value = pendingProgress.current;
@@ -182,6 +197,7 @@ export function BookReaderScreen() {
     setIsDownloading(true);
     try {
       const uri = await downloadPdf(bookId);
+      downloadedUri.current = uri;
       setPdfSource({ uri });
     } catch {
       // Keep the open document visible if an offline download fails.
@@ -216,50 +232,92 @@ export function BookReaderScreen() {
     applyScale(MIN_SCALE);
   }, [applyScale]);
 
-  const handlePrevPage = useCallback(() => {
-    flipRef.current?.turn(-1);
+  const toggleChrome = useCallback(() => {
+    setChromeVisible(current => !current);
   }, []);
 
-  const handleNextPage = useCallback(() => {
-    flipRef.current?.turn(1);
+  /** Bookmarking from the sheet also closes it — the action is complete. */
+  const handleBookmarkFromSheet = useCallback(() => {
+    handleHighlight();
+    settingsSheet.close();
+  }, [handleHighlight, settingsSheet]);
+
+  const handleDownloadFromSheet = useCallback(() => {
+    void handleDownload();
+  }, [handleDownload]);
+
+  const handleGoToPage = useCallback(() => {
+    settingsSheet.close();
+    Alert.prompt?.(
+      'Go to page',
+      totalPages > 0 ? `1 – ${totalPages}` : undefined,
+      value => {
+        const target = Number(value);
+        if (Number.isFinite(target) && target >= 1) {
+          flipRef.current?.goTo(target);
+        }
+      },
+      'plain-text',
+      String(page),
+      'number-pad',
+    );
+
+    // `Alert.prompt` is iOS-only; Android gets a page-turn nudge instead of a
+    // silent no-op until a proper picker sheet is added.
+    if (Platform.OS !== 'ios') {
+      Alert.alert(
+        'Go to page',
+        `You are on page ${page}${totalPages ? ` of ${totalPages}` : ''}. Swipe or tap the page edges to move through the book.`,
+      );
+    }
+  }, [page, settingsSheet, totalPages]);
+
+  const handleRetry = useCallback(() => {
+    setRetryToken(token => token + 1);
+  }, []);
+
+  const handleReadDownloaded = useCallback(() => {
+    const uri = downloadedUri.current;
+    if (uri) {
+      setSourceError(false);
+      setHasError(false);
+      setErrorMessage(null);
+      setIsLoading(true);
+      setLoaderVisible(true);
+      setPdfSource({ uri });
+    }
   }, []);
 
   const canZoomOut = scaleSnapshot > MIN_SCALE;
   const canZoomIn = scaleSnapshot < MAX_SCALE;
-  const canReset = scaleSnapshot !== MIN_SCALE;
   const zoomPercent = Math.round(scaleSnapshot * 100);
   const bookTitle = book?.title?.trim() || 'Book';
   const blocked = hasError || sourceError;
 
+  if (blocked) {
+    return (
+      <ReaderError
+        page={page > 1 ? page : undefined}
+        message={errorMessage ?? undefined}
+        onRetry={handleRetry}
+        onReadDownloaded={downloadedUri.current ? handleReadDownloaded : undefined}
+      />
+    );
+  }
+
   return (
-    <View className="flex-1 bg-[#ECECEB] dark:bg-[#101410]">
+    <View style={styles.root}>
       <ReaderChrome
         title={bookTitle}
         page={page}
         totalPages={totalPages}
-        hasError={blocked || isLoading}
-        canZoomIn={canZoomIn}
-        canZoomOut={canZoomOut}
-        canReset={canReset}
-        zoomPercent={zoomPercent}
-        isDownloading={isDownloading}
+        visible={chromeVisible}
+        saved={false}
+        onToggle={toggleChrome}
         onBack={() => navigation.goBack()}
-        onZoomIn={handleZoomIn}
-        onZoomOut={handleZoomOut}
-        onResetZoom={handleResetZoom}
-        onDownload={() => {
-          void handleDownload();
-        }}
-        onHighlight={handleHighlight}
-        onPrevPage={handlePrevPage}
-        onNextPage={handleNextPage}>
-        {blocked ? (
-          <View className="flex-1 items-center justify-center px-8">
-            <Text className="text-center text-[15px] text-app-muted dark:text-app-muted-dark">
-              {errorMessage ?? 'Unable to open this book.'}
-            </Text>
-          </View>
-        ) : pdfSource ? (
+        onOpenSettings={settingsSheet.open}
+        onBookmark={handleHighlight}>
+        {pdfSource ? (
           <BookPageFlip
             ref={flipRef}
             key={bookId}
@@ -276,13 +334,50 @@ export function BookReaderScreen() {
         ) : null}
       </ReaderChrome>
 
-      {loaderVisible && !blocked ? (
+      {/* The page dimmer. Sits above the page, below the chrome. */}
+      {brightness < 1 ? (
+        <View
+          pointerEvents="none"
+          style={[styles.dimmer, { opacity: (1 - brightness) * 0.75 }]}
+        />
+      ) : null}
+
+      {loaderVisible ? (
         <ReaderStageSkeleton
           ready={!isLoading}
           progress={loadProgress}
           onFinished={hideLoader}
         />
       ) : null}
+
+      <ReaderSettingsSheet
+        visible={settingsSheet.visible}
+        onClose={settingsSheet.close}
+        tone={pageTone}
+        onToneChange={setPageTone}
+        brightness={brightness}
+        onBrightnessChange={setBrightness}
+        zoomPercent={zoomPercent}
+        canZoomIn={canZoomIn}
+        canZoomOut={canZoomOut}
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
+        onBookmark={handleBookmarkFromSheet}
+        onGoToPage={handleGoToPage}
+        onDownload={handleDownloadFromSheet}
+        isDownloading={isDownloading}
+      />
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: readerStage,
+  },
+  dimmer: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: '#000',
+  },
+});

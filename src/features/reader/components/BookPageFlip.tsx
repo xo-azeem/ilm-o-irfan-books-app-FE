@@ -25,7 +25,8 @@ import {
   PdfPageCountProbe,
   ReaderPdfPage,
 } from '@/features/reader/components/ReaderPdfPage';
-import { useTheme } from '@/theme/ThemeContext';
+import { useThemeStore } from '@/stores/themeStore';
+import { readerTones } from '@/theme/palette';
 import {
   FLIP_ACTIVE_OFFSET,
   FLIP_COMMIT_RATIO,
@@ -41,6 +42,8 @@ import {
 
 export type BookPageFlipHandle = {
   turn: (dir: 1 | -1) => void;
+  /** Cuts straight to a page, without the flip animation. */
+  goTo: (page: number) => void;
 };
 
 type BookPageFlipProps = {
@@ -142,8 +145,10 @@ export const BookPageFlip = memo(
     },
     ref,
   ) {
-    const { isDark } = useTheme();
-    const pageFill = isDark ? '#161C16' : '#FFFEFB';
+    // The sheet behind a rendering page matches the reader's chosen tone, so
+    // there is no flash of the wrong colour while a page paints.
+    const pageTone = useThemeStore(state => state.pageTone);
+    const pageFill = readerTones[pageTone].background;
 
     const [totalPages, setTotalPages] = useState(0);
     const [currentPage, setCurrentPage] = useState(1);
@@ -311,7 +316,48 @@ export const BookPageFlip = memo(
       [animateTurn, documentReady, isAnimating],
     );
 
-    useImperativeHandle(ref, () => ({ turn: dir => turnPage(dir) }), [turnPage]);
+    /**
+     * Jumps straight to a page. Unlike `turn`, this is a cut rather than a
+     * flip: animating across two hundred pages would be theatre, and the
+     * reader asked to be somewhere specific.
+     */
+    const goToPage = useCallback(
+      (target: number) => {
+        if (!documentReady || busyRef.current || flippingRef.current) {
+          return;
+        }
+
+        const total = totalPagesRef.current;
+        const next = clampPage(Math.round(target), total);
+        if (next === pageRef.current) {
+          return;
+        }
+
+        pageRef.current = next;
+        currentPageSV.value = next;
+        dragX.value = 0;
+        isDragging.value = 0;
+        liveScale.value = MIN_SCALE;
+        setCurrentPage(next);
+        onPageChanged(next, total);
+        onResetZoom();
+      },
+      [
+        currentPageSV,
+        documentReady,
+        dragX,
+        isDragging,
+        liveScale,
+        onPageChanged,
+        onResetZoom,
+      ],
+    );
+
+    useImperativeHandle(
+      ref,
+      () => ({ turn: dir => turnPage(dir), goTo: page => goToPage(page) }),
+      [goToPage, turnPage],
+    );
 
     const handleCount = useCallback((numberOfPages: number) => {
       if (!Number.isFinite(numberOfPages) || numberOfPages < 1) return;

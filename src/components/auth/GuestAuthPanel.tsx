@@ -1,40 +1,69 @@
-import { Pressable, View } from 'react-native';
+import { useCallback } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import type { AuthReturnTo, RootStackParamList } from '@/app/navigation/types';
-import { EmptyState } from '@/components/layout';
-import { Text } from '@/components/ui';
+import { Button, DashedShelf, Display, Text } from '@/components/ui';
 import { ROUTES } from '@/constants/routes';
+import { fontSize } from '@/theme/typography';
 
-type GuestAuthPanelProps = {
+/**
+ * The signed-out stand-in for a personal surface — the library, the reading
+ * record, saved books. Same shape as an empty state, because that is what it
+ * is: a shelf that has not been filled yet.
+ */
+export function GuestAuthPanel({
+  title,
+  message,
+  returnTo,
+}: {
   title: string;
   message: string;
+  /** Sends the reader back to the book they were opening once signed in. */
   returnTo?: AuthReturnTo;
-};
-
-export function GuestAuthPanel({ title, message, returnTo }: GuestAuthPanelProps) {
+}) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
+  const signIn = useCallback(
+    () => navigation.navigate(ROUTES.LOGIN, returnTo ? { returnTo } : undefined),
+    [navigation, returnTo],
+  );
+
+  const createAccount = useCallback(
+    () => navigation.navigate(ROUTES.SIGN_UP, returnTo ? { returnTo } : undefined),
+    [navigation, returnTo],
+  );
+
   return (
-    <View className="gap-4">
-      <EmptyState title={title} message={message} />
-      <Pressable
-        onPress={() => navigation.navigate(ROUTES.LOGIN, returnTo ? { returnTo } : undefined)}
-        accessibilityRole="button"
-        className="h-[50px] items-center justify-center rounded-[14px] bg-app-primary active:opacity-90 dark:bg-app-primary-dark">
-        <Text className="text-[16px] font-semibold text-app-on-primary dark:text-app-on-primary-dark">
-          Sign in
-        </Text>
-      </Pressable>
-      <Pressable
-        onPress={() => navigation.navigate(ROUTES.SIGN_UP, returnTo ? { returnTo } : undefined)}
-        accessibilityRole="button"
-        className="h-[50px] items-center justify-center rounded-[14px] border border-app-border bg-app-surface active:opacity-80 dark:border-app-border-dark dark:bg-app-surface-dark">
-        <Text className="text-[16px] font-semibold text-app-ink dark:text-app-ink-dark">
-          Create account
-        </Text>
-      </Pressable>
+    <View style={styles.root}>
+      <DashedShelf />
+
+      <Display size={27} align="center">
+        {title}
+      </Display>
+      <Text size={fontSize.bodySmall} leading={1.65} align="center" tone="muted">
+        {message}
+      </Text>
+
+      <View style={styles.actions}>
+        <Button label="Sign in" onPress={signIn} size="md" />
+        <Button label="Create an account" variant="secondary" onPress={createAccount} size="md" />
+      </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    alignItems: 'center',
+    gap: 18,
+    paddingTop: 24,
+    paddingHorizontal: 12,
+  },
+  actions: {
+    alignSelf: 'stretch',
+    gap: 11,
+    marginTop: 2,
+  },
+});

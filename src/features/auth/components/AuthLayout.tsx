@@ -1,81 +1,113 @@
 import type { PropsWithChildren, ReactNode } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft } from 'lucide-react-native';
 
-import { AppLogo } from '@/components/brand';
-import { DisplayText, Text } from '@/components/ui';
-import { APP_LOGO_SIZE } from '@/constants/images';
+import { DiagonalTexture, Display, IconButton, RadialGlow, Text } from '@/components/ui';
+import { layout } from '@/theme/palette';
+import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
 
-type AuthLayoutProps = PropsWithChildren<{
+export type AuthLayoutProps = PropsWithChildren<{
   title: string;
-  subtitle: string;
+  subtitle?: string;
   footer?: ReactNode;
   onBack?: () => void;
 }>;
 
-export function AuthLayout({
-  title,
-  subtitle,
-  footer,
-  onBack,
-  children,
-}: AuthLayoutProps) {
+/**
+ * The shared frame for sign-in, sign-up and the first-run flow: a woven
+ * diagonal texture, a single green bloom behind the heading, and a serif title
+ * that carries the whole page.
+ */
+export function AuthLayout({ title, subtitle, footer, onBack, children }: AuthLayoutProps) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
 
   return (
-    <SafeAreaView
-      className="flex-1 bg-app-bg dark:bg-app-bg-dark"
-      edges={['top', 'left', 'right', 'bottom']}>
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
+      <DiagonalTexture color={colors.primary} opacity={0.07} angle={115} />
+      <RadialGlow
+        color={colors.primary}
+        opacity={0.28}
+        size={460}
+        top={-140}
+        left={-35}
+        style={styles.glow}
+      />
+
       <KeyboardAvoidingView
-        className="flex-1"
+        style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
-          className="flex-1"
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
-          contentContainerClassName="flex-grow px-5 pt-1 pb-8">
+          contentContainerStyle={[
+            styles.content,
+            { paddingTop: insets.top + 12, paddingBottom: Math.max(insets.bottom, 20) + 20 },
+          ]}>
           {onBack ? (
-            <Pressable
+            <IconButton
+              icon={ChevronLeft}
               onPress={onBack}
-              accessibilityRole="button"
+              variant="plain"
+              buttonSize={36}
               accessibilityLabel="Go back"
-              hitSlop={12}
-              className="-ml-1 mb-5 flex-row items-center gap-0.5 self-start py-1 active:opacity-60">
-              <ChevronLeft size={22} color={colors.primary} strokeWidth={2.25} />
-              <Text className="text-[17px] font-medium text-app-primary dark:text-app-primary-dark">
-                Back
-              </Text>
-            </Pressable>
+              style={styles.back}
+            />
           ) : null}
 
-          <View className="mb-8 gap-5">
-            <AppLogo size={APP_LOGO_SIZE} />
-            <View className="gap-1">
-              <DisplayText className="text-[34px] font-bold leading-[41px] tracking-tight text-app-ink dark:text-app-ink-dark">
-                {title}
-              </DisplayText>
-              <Text className="text-[15px] leading-5 text-app-muted dark:text-app-muted-dark">
+          <View style={styles.heading}>
+            <Display size={38} tracking={-0.6}>
+              {title}
+            </Display>
+            {subtitle ? (
+              <Text size={fontSize.bodySmall} leading={1.6} tone="muted">
                 {subtitle}
               </Text>
-            </View>
+            ) : null}
           </View>
 
-          <View className="gap-6">{children}</View>
+          <View style={styles.body}>{children}</View>
 
-          {footer ? (
-            <View className="mt-8 items-center">{footer}</View>
-          ) : null}
+          {footer ? <View style={styles.footer}>{footer}</View> : null}
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+  flex: {
+    flex: 1,
+  },
+  glow: {
+    // Centres the bloom on the heading rather than the screen.
+    left: '50%',
+    marginLeft: -230,
+  },
+  content: {
+    flexGrow: 1,
+    paddingHorizontal: layout.screenPadding + 6,
+    gap: 26,
+  },
+  back: {
+    alignSelf: 'flex-start',
+  },
+  heading: {
+    gap: 10,
+    marginTop: 24,
+  },
+  body: {
+    gap: 26,
+  },
+  footer: {
+    marginTop: 'auto',
+    paddingTop: 24,
+    alignItems: 'center',
+  },
+});

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 
 import { Screen, ScreenHeader } from '@/components/layout';
@@ -103,7 +103,7 @@ export function AdminCategoryEditorScreen() {
         subtitle={existing ? `${existing.book_count} books assigned` : 'A chip on the Explore row.'}
       />
 
-      <View className="gap-4">
+      <View style={s.stack}>
         <AdminField
           label="Label"
           value={form.label}
@@ -119,9 +119,9 @@ export function AdminCategoryEditorScreen() {
           helper={`Currently “${resolvedSlug || '—'}”.`}
         />
 
-        <View className="gap-2">
+        <View style={s.group}>
           <AdminLabel>Icon</AdminLabel>
-          <View className="flex-row flex-wrap gap-2">
+          <View style={s.wrap}>
             {CATEGORY_ICON_KEYS.map(key => (
               <AdminChip
                 key={key}
@@ -132,7 +132,7 @@ export function AdminCategoryEditorScreen() {
               />
             ))}
           </View>
-          <Text className="px-1 text-[12px] text-app-faint dark:text-app-faint-dark">
+          <Text size={12} leading={1.4} tone="faint">
             Only these keys have a matching icon in the reader app.
           </Text>
         </View>
@@ -202,3 +202,9 @@ export function AdminCategoryEditorScreen() {
     </Screen>
   );
 }
+
+const s = StyleSheet.create({
+  stack: { gap: 16 },
+  group: { gap: 8 },
+  wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+});

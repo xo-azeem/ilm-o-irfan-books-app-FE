@@ -1,5 +1,8 @@
 export type ProfileStackParamList = {
+  /** The reading record — statistics, streak, goal and achievements. */
   ProfileMain: undefined;
+  /** The settings menu. Statistics live on ProfileMain, so this is navigation only. */
+  Settings: undefined;
   PersonalDetails: undefined;
   Subscription: undefined;
   Downloads: undefined;
@@ -7,12 +10,7 @@ export type ProfileStackParamList = {
   Appearance: undefined;
   Language: undefined;
   HelpCenter: undefined;
-  RateApp: undefined;
   PrivacySecurity: undefined;
-  About: undefined;
 };
 
-export type ProfileStackScreen = Exclude<
-  keyof ProfileStackParamList,
-  'ProfileMain'
->;
+export type ProfileStackScreen = Exclude<keyof ProfileStackParamList, 'ProfileMain'>;

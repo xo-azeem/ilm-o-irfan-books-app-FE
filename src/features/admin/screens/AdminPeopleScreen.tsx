@@ -1,21 +1,22 @@
-import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, View } from 'react-native';
+import { memo, useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, View, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { ListRowsSkeleton } from '@/components/skeletons/CatalogSkeletons';
-import { DisplayText, Text } from '@/components/ui';
-import { ADMIN_ROUTES } from '@/constants/routes';
-import { AdminSearchBar, AdminSegmented } from '@/features/admin/components/AdminControls';
-import { errorMessage } from '@/features/admin/components/AdminToast';
 import {
-  AdminBadge,
-  AdminEmpty,
-  AdminErrorState,
-} from '@/features/admin/components/AdminUi';
+  Avatar,
+  Display,
+  Label,
+  SearchField,
+  SegmentedControl,
+  Text,
+} from '@/components/ui';
+import { ADMIN_ROUTES } from '@/constants/routes';
+import { errorMessage } from '@/features/admin/components/AdminToast';
+import { AdminBadge, AdminEmpty, AdminErrorState } from '@/features/admin/components/AdminUi';
 import { useDebouncedValue } from '@/features/admin/hooks/useAdminForm';
-import { formatRelative } from '@/features/admin/utils/format';
 import { useAppInsets } from '@/hooks/useAppInsets';
 import { useAdminUsers } from '@/hooks/useAdmin';
 import type {
@@ -24,6 +25,7 @@ import type {
   UserAccessFilter,
   UserRoleFilter,
 } from '@/services/admin';
+import { layout } from '@/theme/palette';
 import { useTheme } from '@/theme/ThemeContext';
 
 import type { AdminPeopleStackParamList } from '../navigation/types';
@@ -40,6 +42,12 @@ const ACCESS_OPTIONS: Array<{ value: UserAccessFilter; label: string }> = [
   { value: 'free', label: 'Free' },
 ];
 
+/**
+ * People.
+ *
+ * Both segmented filters are kept. The plan name replaces a generic
+ * "subscriber" badge, so the revenue mix is readable straight down the list.
+ */
 export function AdminPeopleScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<AdminPeopleStackParamList>>();
   const { colors } = useTheme();
@@ -69,87 +77,51 @@ export function AdminPeopleScreen() {
   const rows = useMemo(() => data?.pages.flatMap(page => page.rows) ?? [], [data]);
   const total = data?.pages[0]?.total ?? 0;
 
+  const openUser = useCallback(
+    (userId: string) => navigation.navigate(ADMIN_ROUTES.USER_DETAIL, { userId }),
+    [navigation],
+  );
+
   const renderItem = useCallback(
-    ({ item, index }: { item: AdminUserRow; index: number }) => {
-      const initials = (item.full_name ?? item.email ?? '?')
-        .split(' ')
-        .slice(0, 2)
-        .map(part => part.charAt(0).toUpperCase())
-        .join('');
-
-      return (
-        <Pressable
-          onPress={() => navigation.navigate(ADMIN_ROUTES.USER_DETAIL, { userId: item.id })}
-          style={({ pressed }) => ({
-            backgroundColor: pressed ? colors.fill : colors.surface,
-            borderTopLeftRadius: index === 0 ? 14 : 0,
-            borderTopRightRadius: index === 0 ? 14 : 0,
-            borderBottomLeftRadius: index === rows.length - 1 ? 14 : 0,
-            borderBottomRightRadius: index === rows.length - 1 ? 14 : 0,
-          })}
-          className={`flex-row items-center gap-3 px-4 py-3 ${
-            index === rows.length - 1
-              ? ''
-              : 'border-b border-app-border dark:border-app-border-dark'
-          }`}>
-          <View
-            className="h-10 w-10 items-center justify-center rounded-full"
-            style={{ backgroundColor: colors.fill }}>
-            <Text className="text-[13px] font-semibold text-app-ink dark:text-app-ink-dark">
-              {initials || '?'}
-            </Text>
-          </View>
-
-          <View className="min-w-0 flex-1 gap-1">
-            <Text className="text-[15px] text-app-ink dark:text-app-ink-dark" numberOfLines={1}>
-              {item.full_name || item.email || 'Unnamed reader'}
-            </Text>
-            <Text
-              className="text-[12px] text-app-muted dark:text-app-muted-dark"
-              numberOfLines={1}>
-              {item.email ?? 'No email'} · {item.books_started} reading · last{' '}
-              {formatRelative(item.last_read_at)}
-            </Text>
-          </View>
-
-          <View className="items-end gap-1">
-            {item.role === 'admin' ? <AdminBadge label="Admin" tone="danger" /> : null}
-            {item.is_subscriber ? (
-              <AdminBadge label={item.plan_name ?? 'Subscriber'} tone="accent" />
-            ) : null}
-          </View>
-        </Pressable>
-      );
-    },
-    [colors, navigation, rows.length],
+    ({ item }: { item: AdminUserRow }) => <PersonRow user={item} onPress={openUser} />,
+    [openUser],
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-app-bg dark:bg-app-bg-dark" edges={['top', 'left', 'right']}>
-      <View className="px-5 pt-1">
-        <View className="mb-4 gap-1">
-          <DisplayText className="text-[34px] font-bold leading-[41px] tracking-tight text-app-ink dark:text-app-ink-dark">
-            People
-          </DisplayText>
-          <Text className="text-[14px] text-app-muted dark:text-app-muted-dark">
-            {total} {total === 1 ? 'account' : 'accounts'} · roles and subscriptions
-          </Text>
+    <SafeAreaView
+      style={[styles.root, { backgroundColor: colors.background }]}
+      edges={['top', 'left', 'right']}>
+      <View style={styles.header}>
+        <View style={styles.titleRow}>
+          <Display size="screenDense">People</Display>
+          <Label uppercase tracking={0.8}>
+            {`${total} ${total === 1 ? 'account' : 'accounts'}`}
+          </Label>
         </View>
 
-        <AdminSearchBar value={query} onChangeText={setQuery} placeholder="Search name or email" />
+        <SearchField
+          value={query}
+          onChangeText={setQuery}
+          onClear={() => setQuery('')}
+          dense
+          placeholder="Search name or email"
+        />
 
-        <View className="mb-3 gap-2">
-          <AdminSegmented options={ROLE_OPTIONS} value={role} onChange={setRole} />
-          <AdminSegmented options={ACCESS_OPTIONS} value={access} onChange={setAccess} />
-        </View>
+        <SegmentedControl options={ROLE_OPTIONS} value={role} onChange={setRole} />
+        <SegmentedControl
+          options={ACCESS_OPTIONS}
+          value={access}
+          onChange={setAccess}
+          variant="soft"
+        />
       </View>
 
       {isLoading ? (
-        <View className="px-5">
-          <ListRowsSkeleton rows={8} />
+        <View style={styles.listPad}>
+          <ListRowsSkeleton count={8} height={62} />
         </View>
       ) : error ? (
-        <View className="px-5">
+        <View style={styles.listPad}>
           <AdminErrorState message={errorMessage(error)} onRetry={() => void refetch()} />
         </View>
       ) : (
@@ -165,7 +137,10 @@ export function AdminPeopleScreen() {
               void fetchNextPage();
             }
           }}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: scrollEndPadding }}
+          contentContainerStyle={{
+            paddingHorizontal: layout.adminPadding,
+            paddingBottom: scrollEndPadding,
+          }}
           ListEmptyComponent={
             <AdminEmpty
               title="No accounts match"
@@ -174,12 +149,103 @@ export function AdminPeopleScreen() {
           }
           ListFooterComponent={
             isFetchingNextPage ? (
-              <ActivityIndicator className="py-5" color={colors.primary} />
+              <ActivityIndicator style={styles.footer} color={colors.primary} />
             ) : null
           }
-          style={{ flex: 1 }}
+          style={styles.list}
         />
       )}
     </SafeAreaView>
   );
 }
+
+const PersonRow = memo(function PersonRow({
+  user,
+  onPress,
+}: {
+  user: AdminUserRow;
+  onPress: (userId: string) => void;
+}) {
+  const { colors } = useTheme();
+  const handlePress = useCallback(() => onPress(user.id), [onPress, user.id]);
+
+  const isAdmin = user.role === 'admin';
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={user.full_name || user.email || 'Reader'}
+      onPress={handlePress}
+      style={({ pressed }) => [
+        styles.row,
+        { borderBottomColor: colors.divider },
+        pressed && { backgroundColor: colors.primaryFillSoft },
+      ]}>
+      <Avatar
+        name={user.full_name ?? user.email}
+        size={38}
+        shape="squircle"
+        tone={isAdmin ? 'danger' : user.is_subscriber ? 'primary' : 'neutral'}
+      />
+
+      <View style={styles.body}>
+        <Text size={14} leading={1.2} weight="500" numberOfLines={1}>
+          {user.full_name || user.email || 'Unnamed reader'}
+        </Text>
+        <Text size={11.5} leading={1.2} tone="muted" numberOfLines={1}>
+          {user.email ?? 'No email'}
+        </Text>
+      </View>
+
+      {isAdmin ? (
+        <AdminBadge label="Admin" tone="danger" />
+      ) : user.is_subscriber ? (
+        <AdminBadge label={user.plan_name ?? 'Subscriber'} tone="accent" />
+      ) : (
+        <Label size={11} tracking={0.6} tone="dim">
+          Free
+        </Label>
+      )}
+    </Pressable>
+  );
+});
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+  header: {
+    paddingHorizontal: layout.adminPadding,
+    paddingTop: 4,
+    paddingBottom: 13,
+    gap: 13,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  list: {
+    flex: 1,
+  },
+  listPad: {
+    paddingHorizontal: layout.adminPadding,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 13,
+    paddingHorizontal: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth * 2,
+  },
+  body: {
+    flex: 1,
+    minWidth: 0,
+    gap: 4,
+  },
+  footer: {
+    paddingVertical: 20,
+  },
+});

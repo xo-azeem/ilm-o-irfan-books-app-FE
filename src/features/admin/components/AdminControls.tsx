@@ -1,16 +1,39 @@
-import { useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
-import { Check, Plus, Search, X } from 'lucide-react-native';
+import { memo, useCallback, useMemo, useState } from 'react';
+import { Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Check, Plus } from 'lucide-react-native';
 
-import { DisplayText, Text } from '@/components/ui';
-import { coverColors } from '@/theme/palette';
+import {
+  Button,
+  Card,
+  Chip,
+  ChipRow,
+  Display,
+  Divider,
+  Icon,
+  Label,
+  SearchField,
+  SegmentedControl,
+  Sheet,
+  Tag,
+  Text,
+  TextButton,
+  TextField,
+} from '@/components/ui';
+import { coverColors, radius } from '@/theme/palette';
+import { fonts, fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
 
-import { AdminButton, AdminChip, AdminLabel, DANGER } from './AdminUi';
+/**
+ * Admin form controls.
+ *
+ * Each of these is a thin arrangement of the shared primitives — the admin
+ * panel gets the same inputs, chips and sheets as the reader app, at a denser
+ * rhythm.
+ */
 
 // ---------------------------------------------------------------- search bar
 
-export function AdminSearchBar({
+export const AdminSearchBar = memo(function AdminSearchBar({
   value,
   onChangeText,
   placeholder = 'Search',
@@ -19,71 +42,28 @@ export function AdminSearchBar({
   onChangeText: (text: string) => void;
   placeholder?: string;
 }) {
-  const { colors } = useTheme();
+  const handleClear = useCallback(() => onChangeText(''), [onChangeText]);
+
   return (
-    <View
-      className="mb-3 flex-row items-center gap-2 rounded-[12px] border bg-app-surface px-3 dark:bg-app-surface-dark"
-      style={{ borderColor: colors.border, height: 46 }}>
-      <Search size={18} color={colors.faint} strokeWidth={2} />
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor={colors.faint}
-        autoCapitalize="none"
-        autoCorrect={false}
-        className="flex-1 text-[16px] text-app-ink dark:text-app-ink-dark"
-      />
-      {value ? (
-        <Pressable onPress={() => onChangeText('')} hitSlop={10} className="active:opacity-60">
-          <X size={17} color={colors.faint} strokeWidth={2.2} />
-        </Pressable>
-      ) : null}
-    </View>
+    <SearchField
+      value={value}
+      onChangeText={onChangeText}
+      onClear={handleClear}
+      placeholder={placeholder}
+      dense
+    />
   );
-}
+});
 
 // --------------------------------------------------------- segmented control
 
 export type SegmentOption<T extends string> = { value: T; label: string };
 
-export function AdminSegmented<T extends string>({
-  options,
-  value,
-  onChange,
-}: {
-  options: SegmentOption<T>[];
-  value: T;
-  onChange: (next: T) => void;
-}) {
-  const { colors } = useTheme();
-  return (
-    <View
-      className="flex-row rounded-[11px] p-[3px]"
-      style={{ backgroundColor: colors.fill }}>
-      {options.map(option => {
-        const selected = option.value === value;
-        return (
-          <Pressable
-            key={option.value}
-            onPress={() => onChange(option.value)}
-            className="flex-1 items-center justify-center rounded-[9px] py-[7px]"
-            style={{ backgroundColor: selected ? colors.surface : 'transparent' }}>
-            <Text
-              className="text-[13px] font-medium"
-              numberOfLines={1}
-              style={{ color: selected ? colors.ink : colors.muted }}>
-              {option.label}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
+/** Kept as a named alias so existing admin screens keep compiling. */
+export const AdminSegmented = SegmentedControl;
 
 /** Horizontally scrolling filter chips, for filters that exceed a segment row. */
-export function AdminChipRow<T extends string | null>({
+function AdminChipRowInner<T extends string | null>({
   options,
   value,
   onChange,
@@ -93,23 +73,35 @@ export function AdminChipRow<T extends string | null>({
   onChange: (next: T) => void;
 }) {
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerClassName="gap-2 pr-5">
+    <ChipRow bleed={0} gap={8}>
       {options.map(option => (
-        <AdminChip
+        <FilterChip
           key={String(option.value)}
-          label={option.label}
-          accent={option.accent}
+          option={option}
           selected={option.value === value}
-          onPress={() => onChange(option.value)}
-          compact
+          onChange={onChange}
         />
       ))}
-    </ScrollView>
+    </ChipRow>
   );
 }
+
+/** Split out so each chip keeps a stable handler across parent re-renders. */
+function FilterChipInner<T extends string | null>({
+  option,
+  selected,
+  onChange,
+}: {
+  option: { value: T; label: string };
+  selected: boolean;
+  onChange: (next: T) => void;
+}) {
+  const handlePress = useCallback(() => onChange(option.value), [onChange, option.value]);
+  return <Chip label={option.label} selected={selected} size="sm" onPress={handlePress} />;
+}
+
+const FilterChip = memo(FilterChipInner) as typeof FilterChipInner;
+export const AdminChipRow = memo(AdminChipRowInner) as typeof AdminChipRowInner;
 
 // -------------------------------------------------------------- picker sheet
 
@@ -121,10 +113,10 @@ export type PickerItem = {
 };
 
 /**
- * Bottom sheet list picker. `multi` keeps the sheet open and returns the full
- * selection; single-select closes on tap.
+ * A bottom-sheet list picker. `multi` keeps the sheet open and returns the full
+ * selection; single-select closes on tap, because the choice is complete.
  */
-export function AdminPickerSheet({
+export const AdminPickerSheet = memo(function AdminPickerSheet({
   visible,
   title,
   items,
@@ -150,7 +142,9 @@ export function AdminPickerSheet({
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    if (!needle) return items;
+    if (!needle) {
+      return items;
+    }
     return items.filter(
       item =>
         item.label.toLowerCase().includes(needle) ||
@@ -158,99 +152,92 @@ export function AdminPickerSheet({
     );
   }, [items, query]);
 
-  const toggle = (id: string) => {
-    if (multi) {
-      onChange(selected.includes(id) ? selected.filter(item => item !== id) : [...selected, id]);
-      return;
-    }
-    onChange([id]);
-    onClose();
-  };
+  const toggle = useCallback(
+    (id: string) => {
+      if (multi) {
+        onChange(selected.includes(id) ? selected.filter(item => item !== id) : [...selected, id]);
+        return;
+      }
+      onChange([id]);
+      onClose();
+    },
+    [multi, onChange, onClose, selected],
+  );
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <Pressable className="flex-1 bg-black/40" onPress={onClose} />
-      <View
-        className="max-h-[76%] rounded-t-[22px] pb-8"
-        style={{ backgroundColor: colors.background }}>
-        <View className="items-center pt-2.5">
-          <View className="h-1 w-10 rounded-full" style={{ backgroundColor: colors.border }} />
-        </View>
+    <Sheet
+      visible={visible}
+      onClose={onClose}
+      title={title}
+      headerAction={<TextButton label="Done" onPress={onClose} />}>
+      {searchable && items.length > 8 ? (
+        <AdminSearchBar value={query} onChangeText={setQuery} placeholder="Filter" />
+      ) : null}
 
-        <View className="flex-row items-center justify-between px-5 py-3">
-          <DisplayText className="text-[19px] font-semibold text-app-ink dark:text-app-ink-dark">
-            {title}
-          </DisplayText>
-          <Pressable onPress={onClose} hitSlop={10} className="active:opacity-60">
-            <Text className="text-[15px] font-semibold text-app-primary dark:text-app-primary-dark">
-              Done
-            </Text>
-          </Pressable>
-        </View>
-
-        {searchable && items.length > 8 ? (
-          <View className="px-5">
-            <AdminSearchBar value={query} onChangeText={setQuery} placeholder="Filter" />
-          </View>
-        ) : null}
-
-        <ScrollView className="px-5" keyboardShouldPersistTaps="handled">
-          {filtered.length === 0 ? (
-            <Text className="py-8 text-center text-[14px] text-app-muted dark:text-app-muted-dark">
-              {emptyLabel}
-            </Text>
-          ) : (
-            <View className="overflow-hidden rounded-[14px] bg-app-surface dark:bg-app-surface-dark">
-              {filtered.map((item, index) => {
-                const isSelected = selected.includes(item.id);
-                return (
-                  <Pressable
-                    key={item.id}
-                    onPress={() => toggle(item.id)}
-                    style={({ pressed }) => (pressed ? { backgroundColor: colors.fill } : undefined)}
-                    className={`min-h-[50px] flex-row items-center gap-3 px-4 py-3 ${
-                      index === filtered.length - 1
-                        ? ''
-                        : 'border-b border-app-border dark:border-app-border-dark'
-                    }`}>
-                    {item.accent ? (
-                      <View
-                        className="h-3 w-3 rounded-full"
-                        style={{ backgroundColor: item.accent }}
-                      />
-                    ) : null}
-                    <View className="min-w-0 flex-1">
-                      <Text
-                        className="text-[16px] text-app-ink dark:text-app-ink-dark"
-                        numberOfLines={1}>
-                        {item.label}
-                      </Text>
-                      {item.sublabel ? (
-                        <Text
-                          className="text-[12px] text-app-muted dark:text-app-muted-dark"
-                          numberOfLines={1}>
-                          {item.sublabel}
-                        </Text>
-                      ) : null}
-                    </View>
-                    {isSelected ? (
-                      <Check size={19} color={colors.primary} strokeWidth={2.4} />
-                    ) : null}
-                  </Pressable>
-                );
-              })}
+      {filtered.length === 0 ? (
+        <Text size={fontSize.bodySmall} leading={1.5} align="center" tone="muted" style={styles.empty}>
+          {emptyLabel}
+        </Text>
+      ) : (
+        <View style={[styles.pickerList, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          {filtered.map((item, index) => (
+            <View key={item.id}>
+              {index > 0 ? <Divider /> : null}
+              <PickerRow
+                item={item}
+                selected={selected.includes(item.id)}
+                onPress={toggle}
+              />
             </View>
-          )}
-          <View className="h-6" />
-        </ScrollView>
-      </View>
-    </Modal>
+          ))}
+        </View>
+      )}
+    </Sheet>
   );
-}
+});
+
+const PickerRow = memo(function PickerRow({
+  item,
+  selected,
+  onPress,
+}: {
+  item: PickerItem;
+  selected: boolean;
+  onPress: (id: string) => void;
+}) {
+  const { colors } = useTheme();
+  const handlePress = useCallback(() => onPress(item.id), [item.id, onPress]);
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      onPress={handlePress}
+      style={({ pressed }) => [
+        styles.pickerRow,
+        pressed && { backgroundColor: colors.primaryFillSoft },
+      ]}>
+      {item.accent ? (
+        <View style={[styles.accentDot, { backgroundColor: item.accent }]} />
+      ) : null}
+      <View style={styles.pickerBody}>
+        <Text size={fontSize.body} leading={1.2} numberOfLines={1}>
+          {item.label}
+        </Text>
+        {item.sublabel ? (
+          <Text size={fontSize.captionSmall} leading={1.2} tone="muted" numberOfLines={1}>
+            {item.sublabel}
+          </Text>
+        ) : null}
+      </View>
+      {selected ? <Icon icon={Check} size={18} tone="primary" strokeWidth={2.4} /> : null}
+    </Pressable>
+  );
+});
 
 // ----------------------------------------------------------------- tag input
 
-export function AdminTagInput({
+export const AdminTagInput = memo(function AdminTagInput({
   label,
   tags,
   onChange,
@@ -264,62 +251,73 @@ export function AdminTagInput({
   const { colors } = useTheme();
   const [draft, setDraft] = useState('');
 
-  const commit = () => {
+  const commit = useCallback(() => {
     const value = draft.trim();
-    if (!value) return;
+    if (!value) {
+      return;
+    }
     if (!tags.some(tag => tag.toLowerCase() === value.toLowerCase())) {
       onChange([...tags, value]);
     }
     setDraft('');
-  };
+  }, [draft, onChange, tags]);
 
   return (
-    <View className="gap-1.5">
-      <AdminLabel>{label}</AdminLabel>
-      <View
-        className="flex-row items-center rounded-[12px] border bg-app-surface px-4 dark:bg-app-surface-dark"
-        style={{ borderColor: colors.border, minHeight: 50 }}>
-        <TextInput
-          value={draft}
-          onChangeText={setDraft}
-          onSubmitEditing={commit}
-          blurOnSubmit={false}
-          returnKeyType="done"
-          placeholder="Add a tag and press return"
-          placeholderTextColor={colors.faint}
-          autoCapitalize="none"
-          autoCorrect={false}
-          className="flex-1 text-[16px] text-app-ink dark:text-app-ink-dark"
-        />
-        <Pressable onPress={commit} hitSlop={10} disabled={!draft.trim()} className="active:opacity-60">
-          <Plus size={19} color={draft.trim() ? colors.primary : colors.faint} strokeWidth={2.2} />
-        </Pressable>
-      </View>
+    <View style={styles.field}>
+      <Label size={fontSize.labelSmall} tracking={1.4}>
+        {label}
+      </Label>
+
+      <TextField
+        value={draft}
+        onChangeText={setDraft}
+        onSubmitEditing={commit}
+        blurOnSubmit={false}
+        returnKeyType="done"
+        placeholder="Add a tag and press return"
+        height={46}
+        trailing={
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Add tag"
+            onPress={commit}
+            hitSlop={10}
+            disabled={!draft.trim()}>
+            <Icon
+              icon={Plus}
+              size={18}
+              color={draft.trim() ? colors.primarySoft : colors.faint}
+              strokeWidth={2.2}
+            />
+          </Pressable>
+        }
+      />
 
       {tags.length ? (
-        <View className="flex-row flex-wrap gap-2 px-1 pt-1">
+        <View style={styles.tags}>
           {tags.map(tag => (
-            <Pressable
+            <Tag
               key={tag}
-              onPress={() => onChange(tags.filter(item => item !== tag))}
-              className="flex-row items-center gap-1.5 rounded-full px-3 py-1.5 active:opacity-70"
-              style={{ backgroundColor: colors.fill }}>
-              <Text className="text-[13px] text-app-ink dark:text-app-ink-dark">{tag}</Text>
-              <X size={13} color={colors.muted} strokeWidth={2.4} />
-            </Pressable>
+              label={tag}
+              onRemove={() => onChange(tags.filter(item => item !== tag))}
+            />
           ))}
+          <Tag label="+ add tag" dashed onPress={commit} />
         </View>
       ) : null}
 
       {helper ? (
-        <Text className="px-1 text-[12px] text-app-faint dark:text-app-faint-dark">{helper}</Text>
+        <Text size={fontSize.captionSmall} leading={1.4} tone="faint">
+          {helper}
+        </Text>
       ) : null}
     </View>
   );
-}
+});
 
 // -------------------------------------------------------------- colour field
 
+/** The brand cover ramp first, then a wider set for one-off titles. */
 const SWATCHES = [
   ...Object.values(coverColors).map(entry => entry.light),
   '#8E44AD',
@@ -330,7 +328,7 @@ const SWATCHES = [
   '#1F1F1F',
 ];
 
-export function AdminColorField({
+export const AdminColorField = memo(function AdminColorField({
   label,
   value,
   onChange,
@@ -345,60 +343,79 @@ export function AdminColorField({
   const valid = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value.trim());
 
   return (
-    <View className="gap-1.5">
-      <AdminLabel>{label}</AdminLabel>
-      <View
-        className="flex-row items-center gap-3 rounded-[12px] border bg-app-surface px-4 dark:bg-app-surface-dark"
-        style={{ borderColor: valid || !value ? colors.border : DANGER, height: 50 }}>
-        <View
-          className="h-6 w-6 rounded-md"
-          style={{
-            backgroundColor: valid ? value : colors.fill,
-            borderWidth: 1,
-            borderColor: colors.border,
-          }}
-        />
-        <TextInput
-          value={value}
-          onChangeText={onChange}
-          placeholder="#2D8A47"
-          placeholderTextColor={colors.faint}
-          autoCapitalize="none"
-          autoCorrect={false}
-          maxLength={7}
-          className="flex-1 text-[16px] text-app-ink dark:text-app-ink-dark"
-        />
-      </View>
+    <View style={styles.field}>
+      <Label size={fontSize.labelSmall} tracking={1.4}>
+        {label}
+      </Label>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerClassName="gap-2 px-1 pt-1">
-        {SWATCHES.map(swatch => (
+      <View style={styles.swatchRow}>
+        {SWATCHES.slice(0, 5).map(swatch => (
           <Pressable
             key={swatch}
+            accessibilityRole="button"
+            accessibilityLabel={`Cover colour ${swatch}`}
             onPress={() => onChange(swatch)}
-            className="h-7 w-7 rounded-full active:opacity-70"
-            style={{
-              backgroundColor: swatch,
-              borderWidth: value.toLowerCase() === swatch.toLowerCase() ? 2.5 : 1,
-              borderColor:
-                value.toLowerCase() === swatch.toLowerCase() ? colors.ink : colors.border,
-            }}
+            style={({ pressed }) => [
+              styles.swatch,
+              {
+                backgroundColor: swatch,
+                borderColor:
+                  value.toLowerCase() === swatch.toLowerCase() ? colors.inkSoft : 'transparent',
+                borderWidth: value.toLowerCase() === swatch.toLowerCase() ? 2 : 0,
+              },
+              pressed && styles.pressed,
+            ]}
+          />
+        ))}
+
+        {/* The hex escape, for a colour outside the ramp. */}
+        <View style={[styles.hexField, { borderColor: valid || !value ? colors.borderStrong : colors.dangerBorder }]}>
+          <TextInput
+            value={value}
+            onChangeText={onChange}
+            placeholder="#"
+            placeholderTextColor={colors.faint}
+            autoCapitalize="none"
+            autoCorrect={false}
+            maxLength={7}
+            style={[styles.hexInput, { color: colors.ink, fontFamily: fonts.mono }]}
+          />
+        </View>
+      </View>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.extraSwatches}>
+        {SWATCHES.slice(5).map(swatch => (
+          <Pressable
+            key={swatch}
+            accessibilityRole="button"
+            accessibilityLabel={`Cover colour ${swatch}`}
+            onPress={() => onChange(swatch)}
+            style={({ pressed }) => [
+              styles.smallSwatch,
+              {
+                backgroundColor: swatch,
+                borderColor:
+                  value.toLowerCase() === swatch.toLowerCase() ? colors.inkSoft : colors.border,
+                borderWidth: value.toLowerCase() === swatch.toLowerCase() ? 2.5 : 1,
+              },
+              pressed && styles.pressed,
+            ]}
           />
         ))}
       </ScrollView>
 
       {helper ? (
-        <Text className="px-1 text-[12px] text-app-faint dark:text-app-faint-dark">{helper}</Text>
+        <Text size={fontSize.captionSmall} leading={1.4} tone="faint">
+          {helper}
+        </Text>
       ) : null}
     </View>
   );
-}
+});
 
 // ------------------------------------------------------------ confirm dialog
 
-export function AdminConfirmSheet({
+export const AdminConfirmSheet = memo(function AdminConfirmSheet({
   visible,
   title,
   message,
@@ -418,27 +435,112 @@ export function AdminConfirmSheet({
   onCancel: () => void;
 }) {
   const { colors } = useTheme();
+
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onCancel}>
-      <View className="flex-1 items-center justify-center bg-black/45 px-8">
-        <View
-          className="w-full gap-3 rounded-[20px] p-5"
-          style={{ backgroundColor: colors.surface }}>
-          <DisplayText className="text-[18px] font-semibold text-app-ink dark:text-app-ink-dark">
-            {title}
-          </DisplayText>
-          <Text className="mb-2 text-[14px] leading-[20px] text-app-muted dark:text-app-muted-dark">
+      <View style={[styles.dialogScrim, { backgroundColor: colors.scrim }]}>
+        <Card tone="surface" rounded={radius.cardLarge} padded={20} gap={12} style={styles.dialog}>
+          <Display size={18}>{title}</Display>
+          <Text size={fontSize.bodySmall} leading={1.45} tone="muted" style={styles.dialogMessage}>
             {message}
           </Text>
-          <AdminButton
+          <Button
             label={confirmLabel}
-            variant={destructive ? 'destructive' : 'primary'}
+            variant={destructive ? 'dangerSolid' : 'primary'}
             loading={loading}
             onPress={onConfirm}
+            size="md"
           />
-          <AdminButton label="Cancel" variant="secondary" onPress={onCancel} disabled={loading} />
-        </View>
+          <Button label="Cancel" variant="secondary" onPress={onCancel} disabled={loading} size="md" />
+        </Card>
       </View>
     </Modal>
   );
-}
+});
+
+const styles = StyleSheet.create({
+  field: {
+    gap: 8,
+  },
+  tags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 7,
+    paddingTop: 2,
+  },
+  pickerList: {
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    overflow: 'hidden',
+  },
+  pickerRow: {
+    minHeight: 50,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+  },
+  pickerBody: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
+  },
+  accentDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  empty: {
+    paddingVertical: 30,
+  },
+  swatchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  swatch: {
+    width: 38,
+    height: 38,
+    borderRadius: 11,
+  },
+  hexField: {
+    width: 46,
+    height: 38,
+    borderRadius: 11,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+  hexInput: {
+    fontSize: 11,
+    padding: 0,
+    textAlign: 'center',
+    includeFontPadding: false,
+  },
+  extraSwatches: {
+    gap: 8,
+    paddingTop: 2,
+  },
+  smallSwatch: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
+  dialogScrim: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  dialog: {
+    width: '100%',
+  },
+  dialogMessage: {
+    marginBottom: 4,
+  },
+  pressed: {
+    opacity: 0.75,
+  },
+});

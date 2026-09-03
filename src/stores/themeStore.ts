@@ -25,17 +25,42 @@ export const PAGE_TONES = ['paper', 'sepia', 'midnight'] as const;
 export type PageTone = (typeof PAGE_TONES)[number];
 
 /**
- * How a book moves under the finger: a page at a time, turned sideways, or one
- * continuous column the reader scrolls down.
+ * How a book moves under the finger.
+ *
+ * `swipe` carries one page off and the next on, `flip` folds the page over on
+ * its spine the way paper does, and `scroll` runs the whole book as one
+ * continuous column. The first two are a page at a time and differ only in the
+ * motion; the last is a different way of holding the book.
  */
-export const READING_MODE_VALUES = ['swipe', 'scroll'] as const;
+export const READING_MODE_VALUES = ['swipe', 'flip', 'scroll'] as const;
 
 export type ReadingMode = (typeof READING_MODE_VALUES)[number];
 
 export const READING_MODES: { value: ReadingMode; label: string }[] = [
   { value: 'swipe', label: 'Swipe' },
+  { value: 'flip', label: 'Flip' },
   { value: 'scroll', label: 'Scroll' },
 ];
+
+/**
+ * What each mode is called where there is room to say it.
+ *
+ * A three-letter segment cannot describe a page turn, so both places that
+ * offer the choice say more beside it — the reader's own sheet in a word or
+ * two, the Appearance screen in a line. Kept here with the modes themselves so
+ * adding a fourth cannot leave either of them describing the wrong thing.
+ */
+export const READING_MODE_TAGS: Record<ReadingMode, string> = {
+  swipe: 'PAGE BY PAGE',
+  flip: 'PAPER FLIP',
+  scroll: 'ONE COLUMN',
+};
+
+export const READING_MODE_HINTS: Record<ReadingMode, string> = {
+  swipe: 'One page at a time, turned sideways',
+  flip: 'Pages fold over on the spine, the way paper does',
+  scroll: 'The book runs as one column you scroll',
+};
 
 type ThemeState = {
   themePreference: ThemePreference;

@@ -13,7 +13,12 @@ import {
 } from '@/components/ui';
 import { ProfileSubScreenLayout } from '@/features/profile/components/ProfileSubScreenLayout';
 import { readerTones, theme, type ReaderTone } from '@/theme/palette';
-import { READING_MODES, useThemeStore, type ThemePreference } from '@/stores/themeStore';
+import {
+  READING_MODE_HINTS,
+  READING_MODES,
+  useThemeStore,
+  type ThemePreference,
+} from '@/stores/themeStore';
 import {
   FONT_SCALES,
   FONT_SCALE_ORDER,
@@ -160,9 +165,7 @@ export function AppearanceScreen() {
                 Reading mode
               </Text>
               <Text size={12.5} leading={1.2} tone="muted">
-                {readingMode === 'scroll'
-                  ? 'The book runs as one column you scroll'
-                  : 'One page at a time, turned sideways'}
+                {READING_MODE_HINTS[readingMode]}
               </Text>
             </View>
             <SegmentedControl

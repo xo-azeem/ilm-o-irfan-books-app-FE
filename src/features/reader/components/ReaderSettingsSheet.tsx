@@ -19,7 +19,7 @@ import {
   TextField,
   type LucideIcon,
 } from '@/components/ui';
-import { READING_MODES, type ReadingMode } from '@/stores/themeStore';
+import { READING_MODE_TAGS, READING_MODES, type ReadingMode } from '@/stores/themeStore';
 import { readerTones, type ReaderTone } from '@/theme/palette';
 import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
@@ -89,7 +89,7 @@ export const ReaderSettingsSheet = memo(function ReaderSettingsSheet({
         <View style={styles.groupHeader}>
           <Label>Reading mode</Label>
           <Label tone="primary" tracking={0.8}>
-            {readingMode === 'scroll' ? 'ONE COLUMN' : 'PAGE BY PAGE'}
+            {READING_MODE_TAGS[readingMode]}
           </Label>
         </View>
         <SegmentedControl

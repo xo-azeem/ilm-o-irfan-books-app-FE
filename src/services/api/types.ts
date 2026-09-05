@@ -89,11 +89,29 @@ export type CollectionRow = {
   book_count: number;
 };
 
-/** `home-feed` bundles the three public reads into one round trip. */
+/**
+ * `home-feed` bundles the public reads into one round trip.
+ *
+ * `shelves` is the editorial answer: hero, trending and new arrivals come from
+ * the `home-hero`, `trending` and `new-arrivals` collections in the CMS, in the
+ * order an editor put them in, and the endpoint already falls back to the
+ * newest published books when a shelf has no membership yet. `books` remains
+ * that newest-first list, and is what an older deployment sends on its own.
+ */
+export type HomeFeedShelves = {
+  hero: BookListItem[];
+  trending: BookListItem[];
+  newArrivals: BookListItem[];
+};
+
 export type HomeFeedPayload = {
   collections: CollectionRow[];
   books: BookListItem[];
   categories: CategoryRow[];
+  /** `app_settings.featured_collection_id` — the collection to lead with. */
+  featuredCollectionId?: string | null;
+  /** Absent on a deployment that predates the curated shelves. */
+  shelves?: HomeFeedShelves | null;
 };
 
 /** `public.plans` rows from `plans-list` and the entitlement join. */
@@ -133,7 +151,18 @@ export type EntitlementRow = {
  * An older deployment returns the bare row instead.
  */
 export type EntitlementStatus = {
+  /** The subscription alone. An admin has none and is still `false` here. */
   isActive: boolean;
+  /** `profiles.role` or the `app_role` JWT claim. */
+  isAdmin?: boolean;
+  /**
+   * `isActive || isAdmin` — the flag premium UI gates on.
+   *
+   * `get-signed-pdf` serves an admin any PDF with no subscription, so gating
+   * the unlock button on `isActive` would lock an admin out of a file the
+   * backend would hand over. Optional because an older deployment omits it.
+   */
+  canAccessPremium?: boolean;
   entitlement: EntitlementRow | null;
 };
 
@@ -154,6 +183,12 @@ export type ProfileRow = {
   role: string | null;
   created_at: string;
   updated_at: string | null;
+  /**
+   * `profile-read` embeds the reading streak, so the profile screen does not
+   * need its own read of `reading_streaks`. Absent from `profile-update`'s
+   * response and from the table fallback.
+   */
+  streak?: ReadingStreak | null;
 };
 
 /** `reading-progress` (GET and POST both answer with this row). */
@@ -204,4 +239,89 @@ export type SignedPdfPayload = {
   signedUrl: string;
   expiresIn: number;
   fileSizeBytes: number | null;
+};
+
+/**
+ * The card `library-overview`, `wishlist-list` and `downloads-list` embed under
+ * `book`.
+ *
+ * Leaner than `BookListItem` on purpose — these endpoints select a fixed set of
+ * card columns rather than the whole list view. `author` is a recent addition;
+ * a deployment that predates it omits the key entirely, which is what
+ * `hasAuthor` in `services/account.ts` tests for.
+ */
+export type LibraryBookCard = {
+  id: string;
+  slug: string | null;
+  title: string;
+  cover_path: string | null;
+  cover_color: string | null;
+  cover_color_dark: string | null;
+  genre: string | null;
+  is_premium: boolean;
+  read_time_minutes: number | null;
+  author?: { name: string | null } | { name: string | null }[] | null;
+};
+
+/** `wishlist-list` rows. */
+export type WishlistItemRow = {
+  book_id: string;
+  created_at: string;
+  book: LibraryBookCard | null;
+};
+
+/** `downloads-list` rows — `DownloadRow` plus the embedded card. */
+export type DownloadListRow = DownloadRow & { book: LibraryBookCard | null };
+
+/** A `reading_progress` row with the book card `library-overview` embeds. */
+export type ProgressItemRow = {
+  book_id: string;
+  current_page: number | null;
+  total_pages: number | null;
+  progress: number | string | null;
+  chapter_label: string | null;
+  last_read_at: string | null;
+  book: LibraryBookCard | null;
+};
+
+/** A highlight with the book card, as `library-overview` returns it. */
+export type HighlightItemRow = HighlightRow & {
+  updated_at?: string | null;
+  book?: LibraryBookCard | null;
+};
+
+/** Each shelf is capped at `limit`; page the dedicated endpoint for the rest. */
+export type LibraryShelfPage<T> = {
+  items: T[];
+  totalCount: number;
+  hasMore: boolean;
+};
+
+/**
+ * `library-overview` — five shelves in one round trip.
+ *
+ * `finished` is split from `readingProgress` server-side at `progress >= 0.99`,
+ * the same threshold `admin_user_directory` counts a book as finished at.
+ */
+export type LibraryOverviewPayload = {
+  limit: number;
+  wishlist: LibraryShelfPage<WishlistItemRow>;
+  readingProgress: LibraryShelfPage<ProgressItemRow>;
+  finished: LibraryShelfPage<ProgressItemRow>;
+  downloads: LibraryShelfPage<DownloadListRow>;
+  highlights: LibraryShelfPage<HighlightItemRow>;
+};
+
+/** `public.reading_streaks`, as `profile-read` embeds it. */
+export type ReadingStreak = {
+  current_streak: number;
+  longest_streak: number;
+  last_read_date: string | null;
+  updated_at?: string | null;
+};
+
+/** `highlights-delete` confirms the row it removed. */
+export type HighlightDeleteResult = {
+  id: string;
+  deleted: boolean;
 };

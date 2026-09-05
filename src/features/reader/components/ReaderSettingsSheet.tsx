@@ -47,6 +47,8 @@ export type ReaderSettingsSheetProps = {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onBookmark: () => void;
+  /** Whether the page in view is already bookmarked — the action toggles. */
+  isBookmarked?: boolean;
   /** Jumps the book to a page the reader typed. */
   onGoToPage: (page: number) => void;
   page: number;
@@ -77,6 +79,7 @@ export const ReaderSettingsSheet = memo(function ReaderSettingsSheet({
   onZoomIn,
   onZoomOut,
   onBookmark,
+  isBookmarked = false,
   onGoToPage,
   page,
   totalPages,
@@ -147,7 +150,11 @@ export const ReaderSettingsSheet = memo(function ReaderSettingsSheet({
       <Divider />
 
       <View style={styles.actions}>
-        <SheetAction icon={Bookmark} label="Bookmark" onPress={onBookmark} />
+        <SheetAction
+          icon={Bookmark}
+          label={isBookmarked ? 'Remove bookmark' : 'Bookmark'}
+          onPress={onBookmark}
+        />
         <SheetAction
           icon={Download}
           label={isDownloading ? 'Saving…' : 'Download'}

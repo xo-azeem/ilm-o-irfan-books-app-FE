@@ -17,7 +17,7 @@ export function useAccess() {
   // is no build flag, no `__DEV__` bypass and no server-side override, so the
   // app can never offer a book the backend would then refuse to sign.
   const canOpenBooks = Boolean(
-    isAuthenticated && (isAdmin || subscription.data?.active),
+    isAuthenticated && (isAdmin || subscription.data?.canAccessPremium),
   );
 
   // An admin is already through, so only a non-admin waits on the entitlement.

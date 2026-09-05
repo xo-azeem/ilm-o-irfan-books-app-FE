@@ -34,6 +34,7 @@
     "react-native-screens": "^4.25.2",
     "react-native-svg": "^15.15.5",
     "react-native-url-polyfill": "^4.0.0",
+    "react-native-view-shot": "^5.1.1",
     "react-native-worklets": "^0.9.1",
     "zustand": "^5.0.14"
   },

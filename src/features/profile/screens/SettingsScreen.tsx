@@ -70,12 +70,12 @@ export function SettingsScreen() {
   const values = useMemo<Partial<Record<string, string>>>(
     () => ({
       'row-subscription': planName,
-      'row-downloads': String(library?.downloads.length ?? 0),
+      'row-downloads': String(library?.downloadsCount ?? 0),
       'row-appearance': THEME_PREFERENCE_LABELS[themePreference],
       'row-language': 'English',
       'row-notifications': 'On',
     }),
-    [library?.downloads.length, planName, themePreference],
+    [library?.downloadsCount, planName, themePreference],
   );
 
   return (

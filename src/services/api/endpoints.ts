@@ -25,6 +25,7 @@ export const ENDPOINTS = {
   downloadsCreate: 'downloads-create',
   highlightsList: 'highlights-list',
   highlightsUpsert: 'highlights-upsert',
+  highlightsDelete: 'highlights-delete',
   libraryOverview: 'library-overview',
   entitlementsStatus: 'entitlements-status',
   signedPdf: 'get-signed-pdf',

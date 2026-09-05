@@ -91,9 +91,12 @@ const DETAIL_FIELDS =
   'id,title,description,cover_path,cover_color,cover_color_dark,rating,tag,genre,read_time_minutes,price_cents,currency,format,is_premium,authors(name)';
 
 /**
- * `home-feed` caps its book list at 12, which is fewer than the home screen
- * renders across the hero, the trending rail and the mood-filtered arrivals.
- * A second paged read gives those rails a pool to draw from.
+ * The pool the home rails fall back to when `home-feed` sends no `shelves`.
+ *
+ * A deployment that predates the curated shelves caps its book list at 12,
+ * which is fewer than the hero, the trending rail and the mood-filtered
+ * arrivals render between them, so that path takes a second paged read. The
+ * current backend answers with all three shelves already ordered, and skips it.
  */
 const HOME_POOL_SIZE = 24;
 const SEARCH_PAGE_SIZE = 50;
@@ -183,23 +186,56 @@ export { mapCatalogBook };
 // Home
 // ---------------------------------------------------------------------------
 
-async function homeFromEndpoints(signal?: AbortSignal) {
-  const [feed, pool] = await Promise.all([
-    requestData<HomeFeedPayload>(ENDPOINTS.homeFeed, { signal }),
-    requestPage<BookListItem>(ENDPOINTS.booksList, { pageSize: HOME_POOL_SIZE, signal }),
-  ]);
+/**
+ * The rails, from whichever shape `home-feed` answered with.
+ *
+ * When the feed carries `shelves`, those are the editor's own hero, trending
+ * and new-arrivals lists — already ordered, and already backfilled server-side
+ * with the newest titles for any shelf that has no membership yet. Re-sorting
+ * them here would throw that curation away, so they are passed through as-is.
+ *
+ * Without `shelves` the rails are derived from the book pool exactly as before:
+ * newest first for arrivals, highest rated for hero and trending.
+ */
+function railsFrom(feed: HomeFeedPayload | null, pool: BookListItem[]) {
+  const shelves = feed?.shelves;
+
+  if (shelves) {
+    return {
+      hero: (shelves.hero ?? []).slice(0, 5).map(fromListItem),
+      trending: (shelves.trending ?? []).slice(0, 10).map(fromListItem),
+      arrivals: (shelves.newArrivals ?? []).slice(0, 10).map(fromListItem),
+    };
+  }
 
   // `books-list` is already ordered newest-first, and `home-feed` sends the
   // same rows; merging keeps whatever the feed adds without duplicating it.
-  const arrivals = dedupeById([...pool.data, ...(feed?.books ?? [])]).map(fromListItem);
+  const arrivals = dedupeById([...pool, ...(feed?.books ?? [])]).map(fromListItem);
   const trending = [...arrivals].sort(byRating);
 
   return {
     hero: trending.slice(0, 5),
     trending: trending.slice(0, 10),
     arrivals: arrivals.slice(0, 10),
+  };
+}
+
+async function homeFromEndpoints(signal?: AbortSignal) {
+  const feed = await requestData<HomeFeedPayload>(ENDPOINTS.homeFeed, { signal });
+
+  // One round trip is enough once the feed carries its shelves. The extra
+  // `books-list` page is only fetched on a deployment that does not, and that
+  // read is what the rails are then derived from.
+  const pool = feed?.shelves
+    ? []
+    : (await requestPage<BookListItem>(ENDPOINTS.booksList, { pageSize: HOME_POOL_SIZE, signal }))
+        .data;
+
+  return {
+    ...railsFrom(feed ?? null, pool),
     collections: (feed?.collections ?? []).map(toCollection),
     categories: (feed?.categories ?? []).map(toCategory),
+    featuredCollectionId: feed?.featuredCollectionId ?? null,
   };
 }
 
@@ -240,6 +276,9 @@ async function homeFromTables() {
     arrivals: unwrap(arrivals).map(row => toCatalogBook(row as CatalogListRow)),
     collections: unwrap(collections).map(row => toCollection(row as CollectionRow)),
     categories: unwrap(categories).map(row => toCategory(row as CategoryRow)),
+    // The tables path has no `app_settings` grant for `anon`, so the feature
+    // slot stays unset rather than failing the whole read for it.
+    featuredCollectionId: null as string | null,
   };
 }
 

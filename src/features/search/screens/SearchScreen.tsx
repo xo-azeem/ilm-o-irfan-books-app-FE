@@ -79,9 +79,14 @@ export function SearchScreen() {
     () => new Set((library?.downloads ?? []).map(book => book.id)),
     [library?.downloads],
   );
+  // "In your library" means the reader has opened it at all, so both shelves
+  // count — a finished book is still in the library.
   const libraryIds = useMemo(
-    () => new Set((library?.progress ?? []).map(book => book.id)),
-    [library?.progress],
+    () =>
+      new Set(
+        [...(library?.reading ?? []), ...(library?.finished ?? [])].map(book => book.id),
+      ),
+    [library?.finished, library?.reading],
   );
 
   const {

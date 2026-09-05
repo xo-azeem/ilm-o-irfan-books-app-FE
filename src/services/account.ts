@@ -2,13 +2,19 @@ import { supabase } from '@/lib/supabase';
 import { ENDPOINTS } from '@/services/api/endpoints';
 import { requestData, requestList, withEndpoint } from '@/services/api/client';
 import type {
+  DownloadListRow,
   DownloadRow,
   EntitlementRow,
   EntitlementStatus,
+  HighlightDeleteResult,
   HighlightRow,
+  LibraryBookCard,
+  LibraryOverviewPayload,
   PlanRow,
   ProfileRow,
+  ProgressItemRow,
   ReadingProgressRow,
+  WishlistItemRow,
   WishlistToggleResult,
 } from '@/services/api/types';
 import { authorName, isEntitlementActive, mapCatalogBook } from '@/services/mappers';
@@ -17,12 +23,40 @@ import { getPlans, publicCoverUrl, type CatalogBook } from '@/services/catalog';
 /**
  * Per-user reads and writes.
  *
- * Writes and the single-record reads go through the backend's authenticated
- * Edge Functions, which own validation and the `user_id` scoping. Three reads
- * deliberately stay on PostgREST because the matching endpoint returns less
- * than the screens need — each one is marked below, and RLS still scopes them
- * to the signed-in user.
+ * Everything here goes through the backend's authenticated Edge Functions,
+ * which own the validation and the `user_id` scoping. Each call keeps a
+ * PostgREST fallback for a project that has not deployed the function yet — see
+ * `withEndpoint` — and RLS scopes those to the signed-in user, so the two paths
+ * return the same rows and nothing above this module can tell which answered.
+ *
+ * Two things stay on PostgREST outright, and are marked where they appear:
+ * `isInWishlist`, which no endpoint answers for a single book, and
+ * `removeDownload`, for which the backend exposes no delete.
  */
+
+/**
+ * Where a book stops counting as "still reading".
+ *
+ * Mirrors `library-overview` and `admin_user_directory`, which both finish a
+ * book at `progress >= 0.99`. Only the fallback path applies it by hand; the
+ * endpoint has already split the two shelves by the time they arrive.
+ */
+const FINISHED_THRESHOLD = 0.99;
+
+/**
+ * Rows per shelf in the library summary.
+ *
+ * `library-overview` caps this at 50 server-side. Every shelf also reports its
+ * true `totalCount`, so the chips stay accurate past the cap.
+ */
+const LIBRARY_SHELF_LIMIT = 50;
+
+/** The streak `profile-read` embeds, flattened for the record screen. */
+export type ProfileStreak = {
+  current: number;
+  longest: number;
+  lastReadDate: string | null;
+};
 
 export type ProfileDetails = {
   fullName: string;
@@ -36,7 +70,15 @@ export type ProfileDetails = {
   postalCode: string;
   country: string;
   memberSince: string;
+  /**
+   * From `profile-read`, which reads `reading_streaks` alongside the profile.
+   * Zeroed on the table fallback, which has no second read to spend on it.
+   */
+  streak: ProfileStreak;
 };
+
+/** The editable half of the profile — what the personal-details form owns. */
+export type ProfileForm = Omit<ProfileDetails, 'memberSince' | 'streak'>;
 
 /**
  * A book joined onto a per-user row. The author relation is selected without
@@ -92,6 +134,67 @@ function toBook(book: NestedBook): CatalogBook {
   );
 }
 
+/**
+ * Maps the card `library-overview`, `wishlist-list` and `downloads-list` embed.
+ *
+ * Richer than the direct-query path it replaces: the card carries `genre`,
+ * `read_time_minutes` and — importantly — `is_premium`, which `toBook` had to
+ * hardcode to `false`, so a premium title on a shelf never wore its badge.
+ * Price and rating are not on the card; the catalog defaults stand in, and no
+ * library surface renders either.
+ */
+function cardToBook(card: LibraryBookCard): CatalogBook {
+  return mapCatalogBook(
+    {
+      id: card.id,
+      title: card.title,
+      author_name: authorName(card.author),
+      cover_path: card.cover_path,
+      cover_color: card.cover_color,
+      cover_color_dark: card.cover_color_dark,
+      rating: null,
+      tag: null,
+      genre: card.genre,
+      read_time_minutes: card.read_time_minutes,
+      price_cents: null,
+      currency: null,
+      format: null,
+      is_premium: card.is_premium,
+    },
+    publicCoverUrl(card.cover_path),
+  );
+}
+
+/**
+ * True when the endpoint's cards carry an author at all.
+ *
+ * The author was added to these three endpoints' book card after they first
+ * shipped, and every library and wishlist row renders one. A project still
+ * running the earlier build answers with the key absent — not null — so the
+ * reads below fall back to the direct queries rather than relabelling a whole
+ * shelf "Unknown". A book with no author record sends `author: null`, which is
+ * a real answer and passes this check.
+ */
+function hasAuthor(cards: Array<LibraryBookCard | null | undefined>): boolean {
+  if (cardsLackAuthor) {
+    return false;
+  }
+  const present = cards.filter(Boolean) as LibraryBookCard[];
+  if (present.length === 0) {
+    return true;
+  }
+  if (present.some(card => 'author' in card)) {
+    return true;
+  }
+  // Remembered for the rest of the session, the same lifetime `withEndpoint`
+  // gives an undeployed function: without it every refetch would pay for the
+  // endpoint call and the fallback queries both.
+  cardsLackAuthor = true;
+  return false;
+}
+
+let cardsLackAuthor = false;
+
 /** PostgREST returns a joined one-to-one relation as an object or a 1-item array. */
 function firstOf<T>(value: T | T[] | null | undefined): T | null {
   if (!value) {
@@ -130,6 +233,14 @@ export async function getProfile(): Promise<ProfileDetails> {
     postalCode: row.postal_code ?? '',
     country: row.country ?? '',
     memberSince: `Member since ${new Date(row.created_at).getFullYear()}`,
+    // `profile-read` reads `reading_streaks` in the same round trip, so the
+    // record screen no longer needs a separate query for the streak — and gets
+    // the real `longest_streak` instead of echoing the current one back.
+    streak: {
+      current: row.streak?.current_streak ?? 0,
+      longest: row.streak?.longest_streak ?? 0,
+      lastReadDate: row.streak?.last_read_date ?? null,
+    },
   };
 }
 
@@ -174,11 +285,25 @@ export async function getSubscription() {
   const entitledPlan = firstOf<PlanRow>(entitlement?.plan ?? entitlement?.plans ?? null);
   const plan = entitledPlan ?? (await getPlans())[0] ?? null;
 
+  // Trust the server's own verdict when it sends one; otherwise derive it.
+  const active =
+    wrapped?.isActive ?? isEntitlementActive(entitlement?.status, entitlement?.expires_at);
+
   return {
-    // Trust the server's own verdict when it sends one; otherwise derive it.
-    active:
-      wrapped?.isActive ??
-      isEntitlementActive(entitlement?.status, entitlement?.expires_at),
+    /** The subscription itself — what the membership badge and paywall read. */
+    active,
+    /** `profiles.role` or the `app_role` claim, as the server sees it. */
+    isAdmin: wrapped?.isAdmin ?? false,
+    /**
+     * What `get-signed-pdf` will actually do, in one flag.
+     *
+     * An admin holds no subscription and is still served every PDF, so gating
+     * the unlock on `active` alone shows them a locked button on a file the
+     * backend would hand over. Older deployments omit the field, and there the
+     * subscription is all this call knows — the caller folds in the local admin
+     * flag for that case.
+     */
+    canAccessPremium: wrapped?.canAccessPremium ?? active,
     expiresAt: entitlement?.expires_at ?? null,
     plan,
   };
@@ -187,48 +312,160 @@ export async function getSubscription() {
 /**
  * Saves the editable profile fields.
  *
- * Still a direct table write. `profile-update` no longer wipes the fields it
- * was not sent, but its writable set deliberately excludes `email` and
- * `date_of_birth` — two fields this form owns. The column-level grant on
- * `profiles` does cover both (see `20260816194000_admin_roles_cms`), and RLS
- * restricts the row to the caller, so the direct write is the lossless path.
+ * `profile-update` writes only the keys it is sent, so the address a reader
+ * saved last week survives a name change, and it owns the validation — a
+ * malformed `date_of_birth` comes back as a 400 naming the field rather than
+ * as a raw Postgres error. `email` is deliberately not sent: it is read-only
+ * on this form, and changing it is an auth operation, not a profile edit.
  *
- * `updated_at` is deliberately not written: it is outside that grant, and
- * including it fails the whole statement with 42501. The trigger maintains it.
+ * The direct table write stays as the fallback for a project without the
+ * function deployed. `updated_at` is written by neither: it is outside the
+ * column-level grant `authenticated` holds on `profiles`, and including it
+ * fails the whole statement with 42501. The trigger maintains it.
  */
-export async function updateProfile(profile: Omit<ProfileDetails, 'memberSince'>) {
-  const id = await userId();
-  check(
-    await supabase
-      .from('profiles')
-      .update({
-        full_name: profile.fullName,
-        email: profile.email,
-        phone: profile.phone,
-        date_of_birth: profile.dateOfBirth || null,
-        address_line1: profile.addressLine1 || null,
-        address_line2: profile.addressLine2 || null,
-        city: profile.city || null,
-        state: profile.state || null,
-        postal_code: profile.postalCode || null,
-        country: profile.country || null,
-      })
-      .eq('id', id)
-      .select()
-      .single(),
+export async function updateProfile(profile: ProfileForm) {
+  const patch = {
+    full_name: profile.fullName,
+    phone: profile.phone,
+    date_of_birth: profile.dateOfBirth || null,
+    address_line1: profile.addressLine1 || null,
+    address_line2: profile.addressLine2 || null,
+    city: profile.city || null,
+    state: profile.state || null,
+    postal_code: profile.postalCode || null,
+    country: profile.country || null,
+  };
+
+  await withEndpoint(
+    ENDPOINTS.profileUpdate,
+    () =>
+      requestData<ProfileRow>(ENDPOINTS.profileUpdate, {
+        method: 'PUT',
+        auth: true,
+        body: patch,
+      }),
+    async () => {
+      const id = await userId();
+      return check(
+        await supabase.from('profiles').update(patch).eq('id', id).select().single(),
+      ) as ProfileRow;
+    },
   );
+}
+
+/** A shelf entry with where the reader left off. */
+export type LibraryProgressBook = CatalogBook & { progress: number; chapter: string };
+
+/** A shelf entry with what it costs on disk. */
+export type LibraryDownloadBook = CatalogBook & { sizeBytes: number };
+
+export type LibrarySummary = {
+  reading: LibraryProgressBook[];
+  finished: LibraryProgressBook[];
+  downloads: LibraryDownloadBook[];
+  /**
+   * The saved shelf, which `library-overview` returns alongside the others.
+   *
+   * Reading it from here is what lets the Library tab render four shelves off a
+   * single request. `getWishlist` stays for the standalone Saved screen, which
+   * pages the full list rather than the capped summary.
+   */
+  saved: CatalogBook[];
+  readingCount: number;
+  finishedCount: number;
+  downloadsCount: number;
+  wishlistCount: number;
+  highlightsCount: number;
+  streak: number;
+};
+
+function toProgressBook(row: ProgressItemRow): LibraryProgressBook | null {
+  if (!row.book) {
+    return null;
+  }
+  return {
+    ...cardToBook(row.book),
+    progress: Number(row.progress ?? 0),
+    chapter: row.chapter_label ?? 'Continue reading',
+  };
+}
+
+function toDownloadBook(row: DownloadListRow): LibraryDownloadBook | null {
+  if (!row.book) {
+    return null;
+  }
+  return { ...cardToBook(row.book), sizeBytes: Number(row.file_size_bytes ?? 0) };
+}
+
+function compact<T>(rows: Array<T | null>): T[] {
+  return rows.filter((row): row is T => row !== null);
 }
 
 /**
  * The shelves behind My Library.
  *
- * Direct reads. `library-overview` now returns real book cards with cover
- * colours and per-shelf counts, but its card still omits the author, and the
- * screen shows one on every row; it also carries neither the highlight count
- * nor the reading streak. Add `authors(name)` to that endpoint's card, plus the
- * two counters, and this can move over wholesale.
+ * `library-overview` answers all five shelves — saved, reading, finished,
+ * downloaded and highlighted — in one round trip, with a real total beside
+ * each one. The direct-query path it replaces cost five, and could only count
+ * the rows it had rather than the rows that exist.
+ *
+ * It also owns where "finished" starts: `progress >= 0.99`, the same threshold
+ * `admin_user_directory` uses. Splitting at `>= 1` on this side left a book the
+ * backend counts as finished sitting on the Reading shelf instead.
+ *
+ * Each shelf is capped at `limit`; `wishlist-list`, `downloads-list` and
+ * `reading-progress` page the full lists when a screen needs them.
  */
-export async function getLibrary() {
+export async function getLibrary(limit = LIBRARY_SHELF_LIMIT): Promise<LibrarySummary> {
+  return withEndpoint(
+    ENDPOINTS.libraryOverview,
+    async () => {
+      const payload = await requestData<LibraryOverviewPayload>(ENDPOINTS.libraryOverview, {
+        auth: true,
+        query: { limit },
+      });
+
+      const reading = payload?.readingProgress?.items ?? [];
+      const finished = payload?.finished?.items ?? [];
+      const downloads = payload?.downloads?.items ?? [];
+      const saved = payload?.wishlist?.items ?? [];
+
+      const cards = [...reading, ...finished, ...downloads, ...saved].map(row => row.book);
+      if (!hasAuthor(cards)) {
+        return libraryFromTables();
+      }
+
+      // The endpoint returns every download row; only a completed one is on
+      // disk, and the shelf means "available offline".
+      const offline = compact(
+        downloads.filter(row => row.status === 'completed').map(toDownloadBook),
+      );
+
+      return {
+        reading: compact(reading.map(toProgressBook)),
+        finished: compact(finished.map(toProgressBook)),
+        saved: compact(saved.map(row => (row.book ? cardToBook(row.book) : null))),
+        downloads: offline,
+        readingCount: payload?.readingProgress?.totalCount ?? reading.length,
+        finishedCount: payload?.finished?.totalCount ?? finished.length,
+        // Counted from the shelf, not from the endpoint's total: that total
+        // includes the pending and failed rows a download leaves behind, and
+        // showing "12 files offline" for nine files on disk is worse than
+        // undercounting a reader who is past the shelf cap.
+        downloadsCount: offline.length,
+        wishlistCount: payload?.wishlist?.totalCount ?? 0,
+        highlightsCount: payload?.highlights?.totalCount ?? 0,
+        // `library-overview` carries no streak. `profile-read` does, and the
+        // record screen reads it from there.
+        streak: 0,
+      };
+    },
+    () => libraryFromTables(),
+  );
+}
+
+/** The pre-`library-overview` path: five reads, kept as the fallback. */
+async function libraryFromTables(): Promise<LibrarySummary> {
   const id = await userId();
   const [progress, wishlist, downloads, highlights, streak] = await Promise.all([
     supabase
@@ -262,29 +499,64 @@ export async function getLibrary() {
     );
   }
 
+  const started = (progress.data ?? []).map(row => ({
+    ...toBook(row.books as unknown as NestedBook),
+    progress: Number(row.progress),
+    chapter: row.chapter_label ?? 'Continue reading',
+  }));
+
+  const reading = started.filter(book => book.progress < FINISHED_THRESHOLD);
+  const finished = started.filter(book => book.progress >= FINISHED_THRESHOLD);
+  const offline = (downloads.data ?? []).map(row => ({
+    ...toBook(row.books as unknown as NestedBook),
+    sizeBytes: Number(row.file_size_bytes ?? 0),
+  }));
+
   return {
-    progress: (progress.data ?? []).map(row => ({
-      ...toBook(row.books as unknown as NestedBook),
-      progress: Number(row.progress),
-      chapter: row.chapter_label ?? 'Continue reading',
-    })),
+    reading,
+    finished,
+    downloads: offline,
+    // The fallback's wishlist read is a count only, so the Library tab falls
+    // back to its own `useWishlist` query for the shelf itself.
+    saved: [],
+    readingCount: reading.length,
+    finishedCount: finished.length,
+    downloadsCount: offline.length,
     wishlistCount: wishlist.data?.length ?? 0,
-    downloads: (downloads.data ?? []).map(row => ({
-      ...toBook(row.books as unknown as NestedBook),
-      sizeBytes: Number(row.file_size_bytes ?? 0),
-    })),
     highlightsCount: highlights.data?.length ?? 0,
     streak: streak.data?.current_streak ?? 0,
   };
 }
 
 /**
- * Saved books.
+ * Saved books, newest first.
  *
- * Direct read: `wishlist-list` now carries the cover colours, but still not the
- * author, and the wishlist row renders one.
+ * `wishlist-list` is paginated and card-sized — the direct read it replaces
+ * pulled a join for every saved title with no page limit at all. The endpoint
+ * also carries `is_premium`, so a saved premium title finally wears its badge
+ * on the shelf.
  */
-export async function getWishlist(): Promise<CatalogBook[]> {
+export async function getWishlist(pageSize = LIBRARY_SHELF_LIMIT): Promise<CatalogBook[]> {
+  return withEndpoint(
+    ENDPOINTS.wishlistList,
+    async () => {
+      const rows = await requestList<WishlistItemRow>(ENDPOINTS.wishlistList, {
+        auth: true,
+        pageSize,
+      });
+
+      const cards = rows.map(row => row.book);
+      if (!hasAuthor(cards)) {
+        return wishlistFromTables();
+      }
+
+      return compact(cards.map(card => (card ? cardToBook(card) : null)));
+    },
+    () => wishlistFromTables(),
+  );
+}
+
+async function wishlistFromTables(): Promise<CatalogBook[]> {
   const id = await userId();
   const result = await supabase
     .from('wishlist')
@@ -417,6 +689,38 @@ export async function addHighlight(bookId: string, pageNumber: number, note?: st
           .select()
           .single(),
       ) as HighlightRow;
+    },
+  );
+}
+
+/**
+ * Removes one of the reader's own bookmarks.
+ *
+ * The endpoint scopes the delete to `user_id` as well as `id`, so an id from
+ * a stale cache can only ever match a row the caller owns, and answers 404
+ * when it matches nothing — which is what makes an already-removed bookmark
+ * distinguishable from a failed request.
+ */
+export async function deleteHighlight(highlightId: string) {
+  await withEndpoint(
+    ENDPOINTS.highlightsDelete,
+    () =>
+      requestData<HighlightDeleteResult>(ENDPOINTS.highlightsDelete, {
+        method: 'POST',
+        auth: true,
+        body: { id: highlightId },
+      }),
+    async () => {
+      const id = await userId();
+      const { error } = await supabase
+        .from('highlights')
+        .delete()
+        .eq('id', highlightId)
+        .eq('user_id', id);
+      if (error) {
+        throw new Error(error.message);
+      }
+      return { id: highlightId, deleted: true };
     },
   );
 }

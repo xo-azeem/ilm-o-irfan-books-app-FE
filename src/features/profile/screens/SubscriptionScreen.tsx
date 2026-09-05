@@ -85,13 +85,17 @@ export function SubscriptionScreen() {
     );
   }, []);
 
+  // Server totals, not the length of a capped shelf: "books opened" is every
+  // title the reader has started, finished ones included.
+  const booksOpened = (library?.readingCount ?? 0) + (library?.finishedCount ?? 0);
+
   const usage = useMemo(
     () => [
-      { value: String(library?.progress.length ?? 0), label: 'BOOKS\nOPENED' },
-      { value: String(library?.downloads.length ?? 0), label: 'FILES\nOFFLINE' },
+      { value: String(booksOpened), label: 'BOOKS\nOPENED' },
+      { value: String(library?.downloadsCount ?? 0), label: 'FILES\nOFFLINE' },
       { value: String(library?.highlightsCount ?? 0), label: 'PAGES\nBOOKMARKED' },
     ],
-    [library?.downloads.length, library?.highlightsCount, library?.progress.length],
+    [booksOpened, library?.downloadsCount, library?.highlightsCount],
   );
 
   if (!isLoading && !isMember) {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -15,7 +15,12 @@ import { ReaderError } from '@/features/reader/components/ReaderError';
 import { ReaderSettingsSheet } from '@/features/reader/components/ReaderSettingsSheet';
 import { ReaderStageSkeleton } from '@/features/reader/components/ReaderStageSkeleton';
 import { MAX_SCALE, MIN_SCALE, SCALE_STEP } from '@/features/reader/constants';
-import { useHighlightMutation, useHighlights, useProgressMutation } from '@/hooks/useAccount';
+import {
+  useDeleteHighlight,
+  useHighlightMutation,
+  useHighlights,
+  useProgressMutation,
+} from '@/hooks/useAccount';
 import { useBook } from '@/hooks/useCatalog';
 import { downloadPdf, resolvePdfSource } from '@/services/pdf';
 import { useAccess } from '@/lib/access';
@@ -81,7 +86,11 @@ function BookReader() {
   const { canOpenBooks, isAuthenticated, isSubscriptionLoading } = useAccess();
   const progressMutation = useProgressMutation();
   const highlightMutation = useHighlightMutation(bookId);
-  useHighlights(bookId);
+  const deleteHighlightMutation = useDeleteHighlight(bookId);
+  // `highlights-list` filters to this book server-side. The result used to be
+  // fetched and dropped, which paid for a round trip on every open and still
+  // left the bookmark button unable to say whether the page was already saved.
+  const { data: highlights } = useHighlights(bookId);
   const lastToggle = useRef(0);
   const pendingProgress = useRef<{ page: number; totalPages: number } | null>(null);
   const progressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -209,11 +218,29 @@ function BookReader() {
     }
   }, [bookId]);
 
+  /** The bookmark on the page in view, if the reader has already set one. */
+  const bookmark = useMemo(
+    () => (highlights ?? []).find(row => row.page_number === page) ?? null,
+    [highlights, page],
+  );
+
+  /**
+   * One button, both directions.
+   *
+   * Tapping it used to only ever add, so a reader who bookmarked the wrong page
+   * had no way back — `highlights-delete` is the other half, and it scopes the
+   * removal to the caller's own row server-side.
+   */
   const handleHighlight = useCallback(() => {
-    if (page > 0) {
-      highlightMutation.mutate(page);
+    if (page <= 0 || highlightMutation.isPending || deleteHighlightMutation.isPending) {
+      return;
     }
-  }, [highlightMutation, page]);
+    if (bookmark) {
+      deleteHighlightMutation.mutate(bookmark.id);
+      return;
+    }
+    highlightMutation.mutate(page);
+  }, [bookmark, deleteHighlightMutation, highlightMutation, page]);
 
   const applyScale = useCallback((next: number) => {
     setControlScale(Number(Math.min(Math.max(next, MIN_SCALE), MAX_SCALE).toFixed(2)));
@@ -297,7 +324,7 @@ function BookReader() {
         page={page}
         totalPages={totalPages}
         visible={chromeVisible}
-        saved={false}
+        saved={Boolean(bookmark)}
         onBack={() => navigation.goBack()}
         onOpenSettings={settingsSheet.open}
         onBookmark={handleHighlight}>
@@ -349,6 +376,7 @@ function BookReader() {
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
         onBookmark={handleBookmarkFromSheet}
+        isBookmarked={Boolean(bookmark)}
         onGoToPage={handleGoToPage}
         page={page}
         totalPages={totalPages}

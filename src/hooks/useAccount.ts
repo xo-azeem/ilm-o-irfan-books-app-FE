@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
   addHighlight,
+  deleteHighlight,
   getHighlights,
   getLibrary,
   getProfile,
@@ -13,7 +14,7 @@ import {
   syncDownload,
   toggleWishlist,
   updateProfile,
-  type ProfileDetails,
+  type ProfileForm,
 } from '@/services/account';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -34,17 +35,24 @@ export function useLibrary() {
   const userId = useAuthStore(state => state.userId);
   return useQuery({
     queryKey: scoped('library', userId),
-    queryFn: getLibrary,
+    queryFn: () => getLibrary(),
     enabled: Boolean(userId),
   });
 }
 
-export function useWishlist() {
+/**
+ * The saved shelf as its own list.
+ *
+ * `library-overview` already returns it inside the library summary, so callers
+ * that have the summary in hand pass `enabled: false` rather than paying for
+ * the same rows twice.
+ */
+export function useWishlist(options: { enabled?: boolean } = {}) {
   const userId = useAuthStore(state => state.userId);
   return useQuery({
     queryKey: scoped('wishlist', userId),
-    queryFn: getWishlist,
-    enabled: Boolean(userId),
+    queryFn: () => getWishlist(),
+    enabled: Boolean(userId) && (options.enabled ?? true),
   });
 }
 
@@ -79,7 +87,7 @@ export function useUpdateProfile() {
   const client = useQueryClient();
   const userId = useAuthStore(state => state.userId);
   return useMutation({
-    mutationFn: (profile: Omit<ProfileDetails, 'memberSince'>) => updateProfile(profile),
+    mutationFn: (profile: ProfileForm) => updateProfile(profile),
     onSuccess: () => client.invalidateQueries({ queryKey: scoped('profile', userId) }),
   });
 }
@@ -122,6 +130,18 @@ export function useHighlightMutation(bookId: string) {
   const userId = useAuthStore(state => state.userId);
   return useMutation({
     mutationFn: (page: number) => addHighlight(bookId, page),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: scoped('highlights', userId, bookId) });
+      void client.invalidateQueries({ queryKey: scoped('library', userId) });
+    },
+  });
+}
+
+export function useDeleteHighlight(bookId: string) {
+  const client = useQueryClient();
+  const userId = useAuthStore(state => state.userId);
+  return useMutation({
+    mutationFn: (highlightId: string) => deleteHighlight(highlightId),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: scoped('highlights', userId, bookId) });
       void client.invalidateQueries({ queryKey: scoped('library', userId) });

@@ -119,7 +119,7 @@ export const ReaderChrome = memo(function ReaderChrome({
             onPress={onBookmark}
             variant={saved ? 'ghost' : 'plain'}
             buttonSize={36}
-            accessibilityLabel="Bookmark this page"
+            accessibilityLabel={saved ? 'Remove this bookmark' : 'Bookmark this page'}
           />
           <IconButton
             icon={Settings2}

@@ -40,24 +40,29 @@ export function ProfileScreen() {
 
   const openSettings = useCallback(() => navigation.navigate('Settings'), [navigation]);
 
-  const finished = useMemo(
-    () => (library?.progress ?? []).filter(book => book.progress >= 1),
-    [library?.progress],
-  );
+  // Every counter is the server's own total rather than the length of a capped
+  // shelf, so a reader with more finished books than one page still sees the
+  // real number.
+  const finishedCount = library?.finishedCount ?? 0;
 
   const stats = useMemo(
     () => [
-      { value: String(finished.length), label: 'BOOKS\nFINISHED' },
+      { value: String(finishedCount), label: 'BOOKS\nFINISHED' },
       {
         value: String(library?.highlightsCount ?? 0),
         label: 'PAGES\nBOOKMARKED',
       },
-      { value: String(library?.downloads.length ?? 0), label: 'BOOKS\nOFFLINE' },
+      { value: String(library?.downloadsCount ?? 0), label: 'BOOKS\nOFFLINE' },
     ],
-    [finished.length, library?.downloads.length, library?.highlightsCount],
+    [finishedCount, library?.downloadsCount, library?.highlightsCount],
   );
 
-  const streak = library?.streak ?? 0;
+  // `profile-read` carries the streak, so it comes from the profile the screen
+  // already loaded rather than from a read of its own. `||` rather than `??`:
+  // a path that cannot report the streak sends zero, not null, and zero and
+  // "unknown" mean the same thing to this card.
+  const streak = profile?.streak.current || library?.streak || 0;
+  const longestStreak = profile?.streak.longest || 0;
 
   // A seven-day sparkline. Without per-day history the streak is shown as a
   // ramp toward today, which is honest about the shape rather than the detail.
@@ -76,13 +81,13 @@ export function ProfileScreen() {
         id: 'books-25',
         mark: '25',
         label: '25 books',
-        earned: finished.length >= 25,
+        earned: finishedCount >= 25,
         tone: 'primary',
       },
       { id: 'night', mark: '☾', label: 'Night reader', earned: false },
       { id: 'locked', mark: '?', label: 'Locked', earned: false },
     ],
-    [finished.length, streak],
+    [finishedCount, streak],
   );
 
   const earned = achievements.filter(achievement => achievement.earned).length;
@@ -133,17 +138,20 @@ export function ProfileScreen() {
         />
       </View>
 
-      <StreakCard current={streak} longest={Math.max(streak, 0) || undefined} week={week} />
+      {/* The longest streak is a real column on `reading_streaks`; it used to
+          echo the current one back, which made the record read as if the
+          reader had never done better than today. */}
+      <StreakCard current={streak} longest={longestStreak || undefined} week={week} />
 
       <StatRow stats={stats} />
 
       <GoalCard
-        completed={Math.min(finished.length, MONTHLY_GOAL)}
+        completed={Math.min(finishedCount, MONTHLY_GOAL)}
         target={MONTHLY_GOAL}
         note={
-          finished.length >= MONTHLY_GOAL
+          finishedCount >= MONTHLY_GOAL
             ? 'Goal reached. Anything else this month is a bonus.'
-            : `${MONTHLY_GOAL - finished.length} more to reach this month’s goal.`
+            : `${MONTHLY_GOAL - finishedCount} more to reach this month’s goal.`
         }
       />
 

@@ -98,12 +98,10 @@ export function HomeScreen() {
     [data?.hero],
   );
 
-  // Books the reader has started but not finished. `getLibrary` already orders
-  // them most-recently-read first.
-  const inProgress = useMemo(
-    () => (library?.progress ?? []).filter(entry => entry.progress < 1).slice(0, 6),
-    [library?.progress],
-  );
+  // Books the reader has started but not finished. `library-overview` returns
+  // that shelf already split from the finished one and ordered most-recently
+  // read first, so there is nothing left to filter here.
+  const inProgress = useMemo(() => (library?.reading ?? []).slice(0, 6), [library?.reading]);
 
   // The design's second rail is a personal one — companion reading for the book
   // most recently opened. Without a reading history there is nothing to be
@@ -111,6 +109,20 @@ export function HomeScreen() {
   // Only a Latin title can be set into the serif rail heading — Newsreader has
   // no Nastaliq, and a mixed-script heading is worse than a plain one.
   const lastRead = inProgress[0] && !isUrduTitle(inProgress[0].title) ? inProgress[0] : null;
+
+  // `app_settings.featured_collection_id` is the collection an admin has
+  // pinned. The rail keeps the editor's own `sort_order` for everything else
+  // and simply leads with that one, so the setting shows up on the home screen
+  // rather than only in the CMS.
+  const collections = useMemo(() => {
+    const rows = data?.collections ?? [];
+    const featuredId = data?.featuredCollectionId;
+    if (!featuredId) {
+      return rows;
+    }
+    const featured = rows.find(collection => collection.id === featuredId);
+    return featured ? [featured, ...rows.filter(row => row.id !== featuredId)] : rows;
+  }, [data?.collections, data?.featuredCollectionId]);
 
   const recommended = useMemo(() => {
     const pool = data?.arrivals ?? [];
@@ -214,12 +226,12 @@ export function HomeScreen() {
             </BookRail>
           ) : null}
 
-          {data?.collections?.length ? (
+          {collections.length ? (
             <BookRail
               title="Curated collections"
               subtitle="Reading paths built by our editors"
               gap={12}>
-              {data.collections.map(collection => (
+              {collections.map(collection => (
                 <CollectionCard
                   key={collection.id}
                   id={collection.id}

@@ -54,7 +54,11 @@ export function DownloadsScreen() {
   );
 
   const usedBytes = useMemo(
-    () => (library?.downloads ?? []).reduce((total, book) => total + book.sizeBytes, 0),
+    () =>
+      (library?.downloads ?? []).reduce(
+        (total: number, book) => total + book.sizeBytes,
+        0,
+      ),
     [library?.downloads],
   );
 

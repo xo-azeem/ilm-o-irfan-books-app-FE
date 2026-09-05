@@ -68,17 +68,19 @@ export const PAGE_TURN = {
  *
  * A different idea from `PAGE_TURN` above, and it needs different numbers. The
  * swipe borrows the document view's pager and only lends it depth; this one
- * takes the turn outright, because a leaf folding about its spine is not a
- * motion any pager can be talked into.
+ * takes the turn outright, because a leaf of paper turning over its spine is
+ * not a motion any pager can be talked into.
  *
- * The turn is two folds about the same instant. The page being read folds up
- * about the spine until it is edge-on and has no width at all, the document
- * view changes page inside that instant, and the page arrived at falls open
- * from the opposite edge. Both halves are real rotations in perspective, so
- * what the reader sees is a sheet of paper rather than a slide.
+ * The leaf is a picture of the page taken the moment a finger comes down, laid
+ * exactly over the real one. The document view underneath moves to the next
+ * page the instant the fold begins, so what the fold reveals is the next page
+ * itself, already there — the way the next page of a book is under the leaf
+ * before anyone turns it. The picture then travels the whole way over: front
+ * to ninety degrees, the back of the sheet from ninety to one-eighty, and off
+ * the spine edge. Let go early and it lies back down; the document view goes
+ * back to the page it left, under cover of the flat leaf.
  *
- * Behind the leaf, for the whole turn, is a blank sheet in the same paper —
- * without it the fold would open onto the stage, and the illusion is over.
+ * The numbers only make sense together, so they live together.
  */
 export const PAGE_FLIP = {
   /** How long a touch may rest before it stops being a tap. */
@@ -87,41 +89,44 @@ export const PAGE_FLIP = {
   slop: 8,
   /**
    * The lens the fold is seen through, in points. Smaller is a wider angle and
-   * a more theatrical fold; larger flattens it. This is close to the page's own
-   * height, which is what a book held at reading distance looks like.
+   * a more theatrical fold; larger flattens it. About the height of the page,
+   * which is what a book held at reading distance looks like.
    */
-  perspective: 1000,
-  /** How much of the frame a drag covers to fold the leaf all the way up. */
-  travel: 0.62,
-  /**
-   * How far up a finger may actually fold it, as a share of the whole fold.
-   *
-   * Never quite all the way: the page only changes once the reader has let go,
-   * so a leaf folded flat to edge-on under the finger would leave them holding
-   * a blank sheet until they did. At 0.86 there is always a sliver of the page
-   * they are leaving still in view, and the last of the fold is the app's.
-   */
-  dragLimit: 0.86,
-  /** A fold let go of past this much of the way turns the page regardless. */
-  commitRatio: 0.34,
+  perspective: 1200,
+  /** How much of the frame a drag covers to carry the leaf the whole way over. */
+  travel: 0.6,
+  /** A fold let go of past this much of the way over turns the page anyway. */
+  commitRatio: 0.25,
   /** ...and so does a flick this fast (px/s), however short it was. */
   flickVelocity: 460,
   /** The least fold a flick has to have started before it counts as one. */
-  flickMin: 0.05,
-  /** How much of the fold a page at either end of the book is allowed. */
-  edgeGive: 0.16,
-  /** The leaf folding the rest of the way up, once the reader has let go. */
-  outMs: 190,
-  /** The new leaf falling open. Slower: it is landing, not leaving. */
-  inMs: 300,
-  /** A fold let go of short of the commit, dropping back flat. */
-  settleMs: 250,
-  /** How long the flip waits edge-on for the page it asked for. */
-  graceMs: 220,
-  /** How dark the crease goes at the top of the fold. */
-  leafShade: 0.46,
-  /** ...and the shadow the raised leaf casts on the sheet under it. */
-  castShade: 0.34,
-  /** How far across the leaf the crease reaches before it has faded out. */
+  flickMin: 0.04,
+  /** How far (pt) a page at either end of the book follows the finger anyway. */
+  edgeGive: 26,
+  /** Finishing a fold the reader let go of. Scaled by how much is left. */
+  commitMs: 340,
+  /** The least of that finish, so the last degrees never snap. */
+  commitMinMs: 140,
+  /** A fold let go of short of the commit, lying back down. */
+  settleMs: 260,
+  /** A whole turn run by a control rather than a finger. */
+  autoMs: 460,
+  /**
+   * How far off vertical the leaf tips when grabbed off-centre, in degrees.
+   * Grabbed at the middle it turns square; grabbed at a corner it turns the
+   * way a corner-grabbed page does, leading with the edge in the hand.
+   */
+  tiltDeg: 4.5,
+  /**
+   * How much paper the back of the leaf is. What is left over is the front's
+   * ink showing through in mirror, which is what the back of a printed sheet
+   * actually looks like.
+   */
+  backOpacity: 0.93,
+  /** How dark the crease on the leaf goes, at the steepest of the fold. */
+  leafShade: 0.42,
+  /** ...and the shadow the raised leaf throws on the page beneath it. */
+  castShade: 0.3,
+  /** How far across the sheet the crease reaches before it has faded out. */
   shadeSpread: 0.72,
 } as const;

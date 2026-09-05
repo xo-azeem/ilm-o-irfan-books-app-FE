@@ -58,31 +58,40 @@ export function LibraryScreen() {
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   const { canOpenBooks } = useAccess();
   const { data, isLoading } = useLibrary();
-  const { data: wishlist } = useWishlist();
+  // Only fetched when the summary did not carry the saved shelf — see below.
+  const { data: wishlist } = useWishlist({
+    // A summary that reports saved books but returns none came from the
+    // fallback path; a genuinely empty shelf reports zero and needs no read.
+    enabled: (data?.wishlistCount ?? 0) > 0 && data?.saved.length === 0,
+  });
   const { itemWidth } = useShelfMetrics();
 
   const [shelf, setShelf] = useState<LibraryShelf>('reading');
   const [view, setView] = useState<ViewMode>('grid');
 
-  const progress = useMemo(() => data?.progress ?? [], [data?.progress]);
-
+  // The two shelves arrive already split, at the same 0.99 threshold the
+  // backend counts a book as finished at.
   const reading = useMemo(
     () =>
-      progress
-        .filter(book => book.progress < 1)
-        .map(book => toSummary(book, { progress: book.progress, meta: book.chapter })),
-    [progress],
+      (data?.reading ?? []).map(book =>
+        toSummary(book, { progress: book.progress, meta: book.chapter }),
+      ),
+    [data?.reading],
   );
 
   const finished = useMemo(
     () =>
-      progress
-        .filter(book => book.progress >= 1)
-        .map(book => toSummary(book, { progress: 1, finished: true })),
-    [progress],
+      (data?.finished ?? []).map(book => toSummary(book, { progress: 1, finished: true })),
+    [data?.finished],
   );
 
-  const saved = useMemo(() => (wishlist ?? []).map(book => toSummary(book)), [wishlist]);
+  // `library-overview` carries the saved shelf too, so the tab renders all four
+  // off one request. `useWishlist` only answers on the fallback path, where the
+  // summary reports a wishlist count but has no books to go with it.
+  const saved = useMemo(
+    () => (data?.saved?.length ? data.saved : (wishlist ?? [])).map(book => toSummary(book)),
+    [data?.saved, wishlist],
+  );
 
   const offline = useMemo(
     () =>
@@ -97,18 +106,29 @@ export function LibraryScreen() {
     [finished, offline, reading, saved],
   );
 
+  // Shelves are capped per request; the counts on the chips are the server's
+  // real totals, so a reader past the cap does not see a short number.
   const counts = useMemo(
     () => ({
-      reading: reading.length,
-      saved: saved.length,
-      finished: finished.length,
-      offline: offline.length,
+      reading: data?.readingCount ?? reading.length,
+      saved: data?.wishlistCount ?? saved.length,
+      finished: data?.finishedCount ?? finished.length,
+      offline: data?.downloadsCount ?? offline.length,
     }),
-    [finished.length, offline.length, reading.length, saved.length],
+    [
+      data?.downloadsCount,
+      data?.finishedCount,
+      data?.readingCount,
+      data?.wishlistCount,
+      finished.length,
+      offline.length,
+      reading.length,
+      saved.length,
+    ],
   );
 
   const books = shelves[shelf];
-  // The most recently read book, which `getLibrary` returns first.
+  // The most recently read book, which the reading shelf returns first.
   const resume = reading[0];
 
   const openBook = useCallback(

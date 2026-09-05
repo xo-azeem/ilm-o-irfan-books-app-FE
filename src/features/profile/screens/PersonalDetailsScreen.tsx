@@ -4,12 +4,15 @@ import { Alert, StyleSheet, View } from 'react-native';
 import { ReadOnlyField, TextButton, TextField } from '@/components/ui';
 import { ProfileSubScreenLayout } from '@/features/profile/components/ProfileSubScreenLayout';
 import { useProfile, useUpdateProfile } from '@/hooks/useAccount';
-import type { ProfileDetails } from '@/services/account';
+import type { ProfileDetails, ProfileForm } from '@/services/account';
 
-type Form = Omit<ProfileDetails, 'memberSince'>;
+type Form = ProfileForm;
 
-/** `memberSince` is derived for display, so it never takes part in the form. */
-function toForm({ memberSince: _derived, ...fields }: ProfileDetails): Form {
+/**
+ * `memberSince` and `streak` are read-only record, not editable fields, so
+ * neither takes part in the form.
+ */
+function toForm({ memberSince: _since, streak: _streak, ...fields }: ProfileDetails): Form {
   return fields;
 }
 

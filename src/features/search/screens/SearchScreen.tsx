@@ -117,7 +117,7 @@ export function SearchScreen() {
     filters,
     tokens,
     activeCount,
-    refinesClientSide,
+    serverFilters,
     apply,
     remove,
     reset,
@@ -137,14 +137,19 @@ export function SearchScreen() {
     hasNextPage,
     fetchNextPage,
     refetch,
-  } = useCatalogFeed(query, filters.categoryId);
+  } = useCatalogFeed(query, serverFilters);
 
   const books = useMemo(() => data?.pages.flatMap(page => page.data) ?? [], [data]);
-  const filtered = useMemo(() => apply(books), [apply, books]);
+
+  // `countIsLocal` is the filters' own verdict on whether the backend applied
+  // the query they sent. When it did, nothing is dropped here and the count
+  // below is the server's real total; when it did not, the only honest number
+  // is the one on screen.
+  const { rows: filtered, countIsLocal } = useMemo(() => apply(books), [apply, books]);
 
   /** What the backend says the whole result set is, before the local filters. */
   const totalCount = data?.pages[0]?.totalCount ?? null;
-  const shownCount = refinesClientSide || totalCount == null ? filtered.length : totalCount;
+  const shownCount = countIsLocal || totalCount == null ? filtered.length : totalCount;
 
   const loadMore = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) {
@@ -154,11 +159,13 @@ export function SearchScreen() {
 
   // A page the local filters emptied is not the end of the catalogue, so keep
   // pulling until there is a screenful to show or there are no pages left.
+  // Once the backend answers the query itself this stops firing: it drops
+  // nothing, so the page is never thin for this reason.
   useEffect(() => {
-    if (refinesClientSide && filtered.length < MIN_FILTERED_ROWS) {
+    if (countIsLocal && filtered.length < MIN_FILTERED_ROWS) {
       loadMore();
     }
-  }, [filtered.length, loadMore, refinesClientSide]);
+  }, [countIsLocal, filtered.length, loadMore]);
 
   const searching = focused || query.trim().length > 0;
   const browsing = !searching && activeCount === 0;

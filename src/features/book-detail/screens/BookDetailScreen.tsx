@@ -26,6 +26,9 @@ import { useWishlistMutation, useWishlistStatus } from '@/hooks/useAccount';
 import { useBook, useHomeCatalog } from '@/hooks/useCatalog';
 import { useAccess } from '@/lib/access';
 import { isUrduTitle } from '@/services/script';
+
+/** The stat strip's two-letter code for each recorded language. */
+const LANGUAGE_CODE = { urdu: 'UR', english: 'EN', arabic: 'AR' } as const;
 import type { CatalogBook } from '@/services/catalog';
 import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
@@ -128,8 +131,15 @@ export function BookDetailScreen() {
     if (book.genre) {
       entries.push({ value: book.genre, label: 'SUBJECT' });
     }
+    // The recorded language, not the script of the title: "Jannat Ki Talash"
+    // is an Urdu book with a Latin-script title, and the guess called it EN.
+    // The guess is kept only for a deployment with no `language` column.
     entries.push({
-      value: isUrduTitle(book.title) ? 'UR' : 'EN',
+      value: book.language
+        ? LANGUAGE_CODE[book.language]
+        : isUrduTitle(book.title)
+          ? 'UR'
+          : 'EN',
       label: 'LANGUAGE',
     });
     return entries;

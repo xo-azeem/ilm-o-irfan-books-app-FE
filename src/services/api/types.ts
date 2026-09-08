@@ -7,6 +7,24 @@
  * with no author record.
  */
 
+/**
+ * `books.language` — the recorded language of the work itself.
+ *
+ * A column, not a guess. The app used to derive this from the script of the
+ * title, which reads a transliterated Urdu title like "Jannat Ki Talash" as
+ * English; 19 of the 20 seeded books are Urdu and most of them are romanised.
+ */
+export type BookLanguage = 'urdu' | 'english' | 'arabic';
+
+/**
+ * The length bucket a book falls in, decided by the backend.
+ *
+ * Boundaries are in pages — `short` under 200, `medium` 200–599, `long` 600
+ * and up — and the app does not re-derive them: it sends the bucket name and
+ * the server owns what it means.
+ */
+export type BookLengthBucket = 'short' | 'medium' | 'long';
+
 /** `public.book_list_items` — the lean catalog row. */
 export type BookListItem = {
   id: string;
@@ -26,6 +44,25 @@ export type BookListItem = {
   format: string | null;
   is_premium: boolean;
   published_at: string | null;
+  /**
+   * `books.language`. `null` means nobody has recorded one, which matches no
+   * language filter — deliberately not the same as English.
+   */
+  language?: BookLanguage | null;
+  /**
+   * A real page count, learned from the first reader to open the book (the
+   * backend fills it from `reading_progress.total_pages`). `null` until then.
+   */
+  page_count?: number | null;
+  /**
+   * Which length bucket the book falls in, decided server-side from
+   * `page_count` or, failing that, the read-time estimate. `null` when there
+   * is no signal either way.
+   *
+   * Its *presence* is also how the app knows it is talking to a deployment that
+   * filters server-side — see `serverFiltered` in the Discover screen.
+   */
+  length_bucket?: BookLengthBucket | null;
   /**
    * A ready-to-load public URL for the cover, or `null` when the book has
    * none. Every catalog endpoint sends it, so it is the field to draw from —
@@ -71,6 +108,25 @@ export type BookDetailRow = {
   is_published: boolean;
   published_at: string | null;
   author: BookAuthor | BookAuthor[] | null;
+  /**
+   * `books.language`. `null` means nobody has recorded one, which matches no
+   * language filter — deliberately not the same as English.
+   */
+  language?: BookLanguage | null;
+  /**
+   * A real page count, learned from the first reader to open the book (the
+   * backend fills it from `reading_progress.total_pages`). `null` until then.
+   */
+  page_count?: number | null;
+  /**
+   * Which length bucket the book falls in, decided server-side from
+   * `page_count` or, failing that, the read-time estimate. `null` when there
+   * is no signal either way.
+   *
+   * Its *presence* is also how the app knows it is talking to a deployment that
+   * filters server-side — see `serverFiltered` in the Discover screen.
+   */
+  length_bucket?: BookLengthBucket | null;
   /**
    * A ready-to-load public URL for the cover, or `null` when the book has
    * none. Every catalog endpoint sends it, so it is the field to draw from —

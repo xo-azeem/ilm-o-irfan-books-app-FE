@@ -23,6 +23,8 @@ import {
 import type {
   BookAuthor,
   BookDetailRow,
+  BookLanguage,
+  BookLengthBucket,
   BookListItem,
   CarouselPayload,
   CarouselSlideRow,
@@ -511,18 +513,58 @@ export async function getWeeklyTrending({
 // Lists
 // ---------------------------------------------------------------------------
 
-export type BrowseParams = {
-  /** Free text. Empty is a browse, which reads the catalog list instead. */
-  query?: string;
+/**
+ * What Discover narrows the catalogue by.
+ *
+ * Every one of these is answered by the database, before `LIMIT` — so
+ * `totalCount` and `hasNextPage` describe the filtered set and paging a
+ * filtered list is the same operation as paging an unfiltered one. The app
+ * neither re-checks them nor re-derives what they mean; `length`, in
+ * particular, is a bucket *name* precisely so the boundaries live in one place.
+ *
+ * "Downloaded only" is deliberately absent: that is this device's state, and
+ * these endpoints are public and unauthenticated.
+ */
+export type CatalogFilters = {
   /**
    * A `categories.id`. The backend's `category` parameter resolves either an id
    * or a slug, and answers 404 `NOT_FOUND` for a subject that does not exist.
    */
   categoryId?: string | null;
+  /** Any of these — the endpoint ORs values inside one parameter. */
+  languages?: BookLanguage[];
+  lengths?: BookLengthBucket[];
+  /** "Only books in my membership". `premium=false` would mean free-only, so
+   *  the parameter is sent only when the toggle is on. */
+  membershipOnly?: boolean;
+  /** `rating >= minRating`; the backend clamps it to 0–5. */
+  minRating?: number;
+};
+
+export type BrowseParams = CatalogFilters & {
+  /** Free text. Empty is a browse, which reads the catalog list instead. */
+  query?: string;
   page?: number;
   pageSize?: number;
   signal?: AbortSignal;
 };
+
+/**
+ * The filters as the endpoints take them.
+ *
+ * A parameter that is not set is left out rather than sent empty — `buildUrl`
+ * drops `undefined` — and an older deployment ignores the ones it does not
+ * know, which is what lets this ship before the backend does.
+ */
+function filterQuery(filters: CatalogFilters) {
+  return {
+    category: filters.categoryId ?? undefined,
+    language: filters.languages?.length ? filters.languages.join(',') : undefined,
+    length: filters.lengths?.length ? filters.lengths.join(',') : undefined,
+    premium: filters.membershipOnly ? true : undefined,
+    minRating: filters.minRating,
+  };
+}
 
 /** Books in one subject, for the fallback path that has no `category` filter. */
 async function bookIdsInCategory(categoryId: string): Promise<string[]> {
@@ -545,9 +587,11 @@ async function bookIdsInCategory(categoryId: string): Promise<string[]> {
 export async function listBooks({
   page = 1,
   pageSize = BROWSE_PAGE_SIZE,
-  categoryId = null,
   signal,
+  ...filters
 }: Omit<BrowseParams, 'query'> = {}): Promise<Page<CatalogBook>> {
+  const { categoryId = null } = filters;
+
   return withEndpoint(
     ENDPOINTS.booksList,
     async () => {
@@ -555,7 +599,7 @@ export async function listBooks({
         const result = await requestPage<BookListItem>(ENDPOINTS.booksList, {
           page,
           pageSize,
-          query: { category: categoryId ?? undefined },
+          query: filterQuery(filters),
           signal,
         });
         return { ...result, data: result.data.map(fromListItem) };
@@ -612,15 +656,16 @@ export async function listBooks({
  */
 export async function browseCatalog({
   query = '',
-  categoryId = null,
   page = 1,
   pageSize = BROWSE_PAGE_SIZE,
   signal,
+  ...filters
 }: BrowseParams = {}): Promise<Page<CatalogBook>> {
   const term = query.trim();
+  const { categoryId = null } = filters;
 
   if (!term) {
-    return listBooks({ page, pageSize, categoryId, signal });
+    return listBooks({ page, pageSize, signal, ...filters });
   }
 
   return withEndpoint(
@@ -630,7 +675,10 @@ export async function browseCatalog({
         const result = await requestPage<BookListItem>(ENDPOINTS.booksSearch, {
           page,
           pageSize,
-          query: { q: term, category: categoryId ?? undefined },
+          // The same filter set as the browse: one SQL function backs both, so
+          // a filter cannot mean one thing while searching and another while
+          // browsing.
+          query: { q: term, ...filterQuery(filters) },
           signal,
         });
         return { ...result, data: result.data.map(fromListItem) };

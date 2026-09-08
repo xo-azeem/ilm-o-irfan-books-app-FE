@@ -1,7 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
 
 import { isUrduTitle } from '@/services/script';
-import type { CatalogBook } from '@/services/catalog';
+import type { BookLanguage, BookLengthBucket } from '@/services/api/types';
+import type { CatalogBook, CatalogFilters } from '@/services/catalog';
 
 /**
  * Discover's filter state — the single source of truth behind the filter
@@ -10,18 +11,24 @@ import type { CatalogBook } from '@/services/catalog';
  * on the panel is the same filter the sheet shows selected and the same chip
  * the reader can dismiss.
  *
- * Every filter is backed by something the catalogue actually has:
- *   · subject  — `book_categories`, pushed down to the backend's `category`
- *   · language — derived from the title's script (see `services/script`)
- *   · length   — `read_time_minutes`
- *   · access   — `is_premium`, plus the reader's own downloads
- *   · rating   — `rating`
+ * Every filter but one is asked of the database, before `LIMIT`, so paging a
+ * filtered list is the same operation as paging the whole catalogue and the
+ * count on screen is the real number of matches:
  *
- * Only the subject is answered by the server. The rest refine the page the
- * server sent, which is why `apply` deliberately ignores `categoryId`.
+ *   · subject  — `book_categories`, as the `category` parameter
+ *   · language — `books.language`, a recorded column and not a guess
+ *   · length   — a bucket name whose boundaries the server owns
+ *   · access   — `is_premium`, as `premium`
+ *   · rating   — `rating >= minRating`
+ *
+ * The exception is `downloadedOnly`, which is this device's state: the
+ * catalogue endpoints are public and unauthenticated and cannot know it.
+ *
+ * `apply` still checks the other four against the rows that came back, and
+ * that is deliberate — see the comment on it.
  */
-export type LanguageFilter = 'urdu' | 'english';
-export type LengthFilter = 'short' | 'medium' | 'long';
+export type LanguageFilter = BookLanguage;
+export type LengthFilter = BookLengthBucket;
 
 export type SearchFilters = {
   /** A `categories.id`, or null for every subject. */
@@ -42,6 +49,9 @@ export const EMPTY_FILTERS: SearchFilters = {
   highlyRatedOnly: false,
 };
 
+/** The rating the "4★ and up" toggle asks the backend for. */
+const HIGHLY_RATED = 4;
+
 /**
  * One active filter, as the chip row draws it.
  *
@@ -56,37 +66,64 @@ export type FilterToken =
   | { kind: 'downloaded' }
   | { kind: 'rating' };
 
-/** Read-time buckets, in minutes, matching the sheet's three length chips. */
-const LENGTH_BOUNDS: Record<LengthFilter, [number, number]> = {
-  short: [0, 200],
-  medium: [200, 600],
-  long: [600, Number.POSITIVE_INFINITY],
-};
-
+/**
+ * The length chips.
+ *
+ * Pages, and honestly so: the backend buckets on a real `page_count` where a
+ * reader has reported one, and on its own estimate otherwise. These are labels
+ * for the server's boundaries — `short` under 200, `medium` 200–599, `long`
+ * 600 and up — and must be changed to follow them, never the other way round.
+ */
 export const LENGTH_LABELS: Record<LengthFilter, string> = {
   short: 'Under 200p',
-  medium: '200–600p',
+  medium: '200–599p',
   long: '600p+',
 };
 
 export const LANGUAGE_LABELS: Record<LanguageFilter, string> = {
   urdu: 'Urdu',
   english: 'English',
+  arabic: 'Arabic',
 };
 
-/** A rough pages-per-minute conversion, so length reads in pages as designed. */
-function approximatePages(readTimeMinutes: string | null | undefined): number | null {
-  if (!readTimeMinutes) {
+/** The order the sheet lists them in. */
+export const LANGUAGES: LanguageFilter[] = ['urdu', 'english', 'arabic'];
+export const LENGTHS: LengthFilter[] = ['short', 'medium', 'long'];
+
+/** The server's bucket boundaries, in pages, for the estimate below. */
+const LENGTH_BOUNDS: Record<LengthFilter, [number, number]> = {
+  short: [0, 200],
+  medium: [200, 600],
+  long: [600, Number.POSITIVE_INFINITY],
+};
+
+/**
+ * A book's bucket when the row did not carry one.
+ *
+ * Reads pages back out of the formatted read time, which was itself estimated
+ * from the PDF's file size — an estimate of an estimate, and exactly why the
+ * bucket belongs on the server. Only reached on a payload with no
+ * `length_bucket`.
+ */
+function estimateBucket(readTime: string | null | undefined): LengthFilter | null {
+  if (!readTime) {
     return null;
   }
-  const match = /(\d+)\s*(min|hr)/.exec(readTimeMinutes);
+  const match = /(\d+)\s*(min|hr)/.exec(readTime);
   if (!match) {
     return null;
   }
   const value = Number(match[1]);
   const minutes = match[2] === 'hr' ? value * 60 : value;
   // ~1.5 minutes a page is the industry rule of thumb for non-fiction.
-  return Math.round(minutes / 1.5);
+  const pages = Math.round(minutes / 1.5);
+
+  return (
+    (Object.keys(LENGTH_BOUNDS) as LengthFilter[]).find(bucket => {
+      const [min, max] = LENGTH_BOUNDS[bucket];
+      return pages >= min && pages < max;
+    }) ?? null
+  );
 }
 
 /** The active filters, in the order the chip row shows them. */
@@ -131,6 +168,16 @@ export function tokenLabel(
       return '4★ and up';
   }
 }
+
+/** What `apply` hands back: the rows to draw, and what the count means. */
+export type AppliedFilters = {
+  rows: CatalogBook[];
+  /**
+   * True when the page had to be narrowed here, so the backend's `totalCount`
+   * is no longer the number of matches and the list must count what it holds.
+   */
+  countIsLocal: boolean;
+};
 
 export function useSearchFilters(downloadedIds?: Set<string>) {
   const [filters, setFilters] = useState<SearchFilters>(EMPTY_FILTERS);
@@ -205,73 +252,108 @@ export function useSearchFilters(downloadedIds?: Set<string>) {
   }, []);
 
   /**
-   * Refines the pages the backend sent.
+   * The query the catalogue is asked for.
    *
-   * The subject is not re-checked here: it narrowed the query itself, so a row
-   * that came back is in that subject by definition, and re-deriving it would
-   * need a category the lean list payload does not carry.
+   * `downloadedOnly` is not in here: no public endpoint knows this reader's
+   * downloads. Everything else goes to the database.
+   */
+  const serverFilters = useMemo<CatalogFilters>(
+    () => ({
+      categoryId: filters.categoryId,
+      languages: filters.languages,
+      lengths: filters.lengths,
+      membershipOnly: filters.membershipOnly,
+      minRating: filters.highlyRatedOnly ? HIGHLY_RATED : undefined,
+    }),
+    [filters],
+  );
+
+  /** How many of the filters the server is being asked to answer. */
+  const serverFilterCount =
+    filters.languages.length +
+    filters.lengths.length +
+    (filters.membershipOnly ? 1 : 0) +
+    (filters.highlyRatedOnly ? 1 : 0);
+
+  /** Does this row satisfy the filters the query already asked for? */
+  const matchesQuery = useCallback(
+    (book: CatalogBook) => {
+      if (filters.languages.length > 0) {
+        // The recorded column, and the old script guess only where a
+        // deployment has not got one. The guess reads romanised Urdu as
+        // English and cannot see Arabic at all, which is what the column fixed.
+        const language =
+          book.language ?? (isUrduTitle(book.title) ? 'urdu' : 'english');
+        if (!filters.languages.includes(language)) {
+          return false;
+        }
+      }
+
+      if (filters.lengths.length > 0) {
+        const bucket = book.lengthBucket ?? estimateBucket(book.readTime);
+        if (!bucket || !filters.lengths.includes(bucket)) {
+          return false;
+        }
+      }
+
+      if (filters.membershipOnly && !book.isPremium) {
+        return false;
+      }
+
+      if (filters.highlyRatedOnly && (book.rating ?? 0) < HIGHLY_RATED) {
+        return false;
+      }
+
+      return true;
+    },
+    [filters],
+  );
+
+  /**
+   * Narrows the page that came back, and says what the count now means.
+   *
+   * The four query filters are re-checked here rather than trusted, because
+   * "the parameter was sent" and "the parameter was applied" are different
+   * facts: a deployment can carry the `language` column on its cards while its
+   * endpoint still ignores `?language=`, which is exactly the state production
+   * was in when this was written. Re-checking is cheap — one pass over a page
+   * of twenty — and it is the only way to be sure the reader is looking at what
+   * they asked for.
+   *
+   * What the check *costs* is the count. If nothing was dropped, the backend
+   * had already done the work and its `totalCount` is the true number of
+   * matches. If rows were dropped, the query was not applied and the only
+   * honest number is the one on screen. `countIsLocal` carries that distinction
+   * up to the list, which also uses it to decide whether a thin page means "no
+   * more matches" or "fetch the next one".
+   *
+   * Once the backend filters, this stops dropping anything and the list quietly
+   * goes back to the server's own count.
    */
   const apply = useCallback(
-    (books: CatalogBook[]) =>
-      books.filter(book => {
-        if (filters.languages.length > 0) {
-          const language: LanguageFilter = isUrduTitle(book.title) ? 'urdu' : 'english';
-          if (!filters.languages.includes(language)) {
-            return false;
-          }
-        }
+    (books: CatalogBook[]): AppliedFilters => {
+      const matching = serverFilterCount === 0 ? books : books.filter(matchesQuery);
+      const serverHonoured = matching.length === books.length;
 
-        if (filters.lengths.length > 0) {
-          const pages = approximatePages(book.readTime);
-          if (pages == null) {
-            return false;
-          }
-          const matches = filters.lengths.some(length => {
-            const [min, max] = LENGTH_BOUNDS[length];
-            return pages >= min && pages < max;
-          });
-          if (!matches) {
-            return false;
-          }
-        }
+      const rows = filters.downloadedOnly
+        ? matching.filter(book => downloadedIds?.has(book.id))
+        : matching;
 
-        if (filters.membershipOnly && !book.isPremium) {
-          return false;
-        }
-
-        if (filters.downloadedOnly && !downloadedIds?.has(book.id)) {
-          return false;
-        }
-
-        if (filters.highlyRatedOnly && (book.rating ?? 0) < 4) {
-          return false;
-        }
-
-        return true;
-      }),
-    [downloadedIds, filters],
+      return {
+        rows,
+        countIsLocal: filters.downloadedOnly || !serverHonoured,
+      };
+    },
+    [downloadedIds, filters.downloadedOnly, matchesQuery, serverFilterCount],
   );
 
   const tokens = useMemo(() => activeTokens(filters), [filters]);
-
-  /**
-   * Whether anything other than the subject is narrowing the list.
-   *
-   * The subject is answered by the backend, so every page it returns is full.
-   * The client-side filters are the ones that can thin a page down to nothing
-   * and leave the screen looking empty while pages are still waiting, which is
-   * what the list uses this to decide to keep paging.
-   */
-  const refinesClientSide = useMemo(
-    () => tokens.some(token => token.kind !== 'category'),
-    [tokens],
-  );
 
   return {
     filters,
     tokens,
     activeCount: tokens.length,
-    refinesClientSide,
+    serverFilters,
     apply,
     remove,
     reset,

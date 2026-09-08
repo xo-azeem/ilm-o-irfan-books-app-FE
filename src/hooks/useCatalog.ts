@@ -9,6 +9,7 @@ import {
   getCollectionBooks,
   getHomeCatalog,
   getWeeklyTrending,
+  type CatalogFilters,
 } from '@/services/catalog';
 
 /** The carousel, the weekly draw and the rest of Home in one round trip. */
@@ -91,15 +92,15 @@ export function useCategories() {
  * which is what lets the list ask for page N+1 before the reader reaches the
  * bottom of page N instead of guessing from a short page.
  */
-export function useCatalogFeed(query: string, categoryId: string | null) {
+export function useCatalogFeed(query: string, filters: CatalogFilters) {
   const debounced = useDebounced(query);
   const term = debounced.trim();
 
   return useInfiniteQuery({
-    queryKey: ['catalog', 'feed', term.toLowerCase(), categoryId],
+    queryKey: ['catalog', 'feed', term.toLowerCase(), filters],
     initialPageParam: 1,
     queryFn: ({ pageParam, signal }) =>
-      browseCatalog({ query: term, categoryId, page: pageParam, signal }),
+      browseCatalog({ ...filters, query: term, page: pageParam, signal }),
     getNextPageParam: page => (page.hasNextPage ? page.page + 1 : undefined),
     staleTime: 60_000,
   });

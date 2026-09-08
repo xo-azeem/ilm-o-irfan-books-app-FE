@@ -4,16 +4,15 @@ import { StyleSheet, View } from 'react-native';
 import { Button, Chip, ChipWrap, Label, Sheet, Text, TextButton, Toggle } from '@/components/ui';
 import {
   LANGUAGE_LABELS,
+  LANGUAGES,
   LENGTH_LABELS,
+  LENGTHS,
   type LanguageFilter,
   type LengthFilter,
   type SearchFilters,
 } from '@/features/search/hooks/useSearchFilters';
 import type { CatalogCategory } from '@/services/catalog';
 import { fontSize } from '@/theme/typography';
-
-const LANGUAGES: LanguageFilter[] = ['urdu', 'english'];
-const LENGTHS: LengthFilter[] = ['short', 'medium', 'long'];
 
 export type FilterSheetProps = {
   visible: boolean;
@@ -109,6 +108,8 @@ export const FilterSheet = memo(function FilterSheet({
       </View>
 
       <View style={styles.group}>
+        {/* Pages, and the backend owns what each bucket means — it reads a real
+            page count where a reader has reported one. */}
         <Label>Length</Label>
         <ChipWrap gap={9}>
           {LENGTHS.map(length => (

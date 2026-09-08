@@ -1,3 +1,4 @@
+import type { BookLanguage, BookLengthBucket } from '@/services/api/types';
 import { coverColors } from '@/theme/palette';
 
 /**
@@ -26,6 +27,9 @@ export type CatalogListRow = {
   format: string | null;
   is_premium: boolean | null;
   description?: string | null;
+  language?: BookLanguage | null;
+  page_count?: number | null;
+  length_bucket?: BookLengthBucket | null;
 };
 
 const fallbackCover = coverColors.forest;
@@ -123,5 +127,15 @@ export function mapCatalogBook(
     currency: row.currency ?? DEFAULT_CURRENCY,
     format: row.format ?? DEFAULT_FORMAT,
     isPremium: Boolean(row.is_premium),
+    /** The recorded language, or `null` when the catalogue has not said. */
+    language: row.language ?? null,
+    /** A real count once a reader has opened the book; `null` before that. */
+    pageCount: row.page_count ?? null,
+    /**
+     * Left `undefined` when the row did not carry the field at all, which is
+     * how the app tells a server-filtered deployment from an older one. A book
+     * the server could not bucket is `null`, which is a different answer.
+     */
+    lengthBucket: row.length_bucket,
   };
 }

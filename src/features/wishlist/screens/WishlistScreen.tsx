@@ -71,8 +71,6 @@ export function WishlistScreen() {
                 coverColor: item.coverColor,
                 coverColorDark: item.coverColorDark,
                 isPremium: item.isPremium,
-                price: item.price,
-                currency: item.currency,
                 isUrdu: isUrduTitle(item.title),
               }}
               onPress={openBook}

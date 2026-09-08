@@ -6,34 +6,31 @@ import { fontSize } from '@/theme/typography';
 /**
  * Every book row states its access reality — the reader should never tap
  * through to a paywall they could have seen coming.
+ *
+ * The catalogue is subscription-only. There are two states a book can be in
+ * and no others: already in the reader's library, or included with the
+ * membership. There is deliberately no free state and no price state —
+ * `useAccess` gates opening a book on the membership alone and never consults
+ * `is_premium`, so a label that said anything else would be contradicting the
+ * gate a tap away.
+ *
+ * `books.price_cents` still exists for admin tooling and reporting, and is
+ * read here by nothing. Rendering it "only when it is non-zero" would be a
+ * trapdoor: one number typed into an admin field and a "buy this book"
+ * affordance appears beside a book nobody can buy.
  */
-export type BookAccess =
-  | { kind: 'membership' }
-  | { kind: 'owned' }
-  | { kind: 'price'; label: string }
-  | { kind: 'free' };
+export type BookAccess = { kind: 'membership' } | { kind: 'owned' };
 
 export function accessFor(book: {
+  /**
+   * Not read. Whether a row is flagged premium cannot change what a reader may
+   * open, because the membership gate does not look at it either — so a book
+   * left unflagged must not advertise itself as free.
+   */
   isPremium?: boolean;
-  price?: number;
-  currency?: string;
   inLibrary?: boolean;
 }): BookAccess {
-  if (book.inLibrary) {
-    return { kind: 'owned' };
-  }
-  if (book.isPremium) {
-    return { kind: 'membership' };
-  }
-  if (book.price && book.price > 0) {
-    return { kind: 'price', label: formatPrice(book.price, book.currency) };
-  }
-  return { kind: 'free' };
-}
-
-export function formatPrice(amount: number, currency = 'PKR'): string {
-  const symbol = currency === 'PKR' ? 'Rs' : currency;
-  return `${symbol} ${Math.round(amount).toLocaleString('en-US')}`;
+  return book.inLibrary ? { kind: 'owned' } : { kind: 'membership' };
 }
 
 /**
@@ -48,18 +45,6 @@ export const AccessLabel = memo(function AccessLabel({
   /** `badge` draws the bordered pill used on the book detail hero. */
   variant?: 'text' | 'badge';
 }) {
-  if (access.kind === 'free') {
-    return null;
-  }
-
-  if (access.kind === 'price') {
-    return (
-      <Text size={fontSize.labelSmall} leading={1} weight="600" tone="muted">
-        {access.label}
-      </Text>
-    );
-  }
-
   const label =
     access.kind === 'membership'
       ? variant === 'badge'

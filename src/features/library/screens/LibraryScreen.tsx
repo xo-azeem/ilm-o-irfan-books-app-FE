@@ -39,8 +39,6 @@ function toSummary(
     coverColor: book.coverColor,
     coverColorDark: book.coverColorDark,
     isPremium: book.isPremium,
-    price: book.price,
-    currency: book.currency,
     inLibrary: true,
     isUrdu: isUrduTitle(book.title),
     ...extra,

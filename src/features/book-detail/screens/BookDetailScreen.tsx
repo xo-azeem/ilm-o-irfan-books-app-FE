@@ -47,8 +47,6 @@ function toSummary(book: CatalogBook): BookSummary {
     coverColor: book.coverColor,
     coverColorDark: book.coverColorDark,
     isPremium: book.isPremium,
-    price: book.price,
-    currency: book.currency,
     isUrdu: isUrduTitle(book.title),
   };
 }

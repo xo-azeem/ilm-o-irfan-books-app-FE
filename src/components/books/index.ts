@@ -1,4 +1,4 @@
-export { AccessLabel, accessFor, formatPrice, type BookAccess } from './BookAccess';
+export { AccessLabel, accessFor, type BookAccess } from './BookAccess';
 export {
   BookCard,
   BookListRow,

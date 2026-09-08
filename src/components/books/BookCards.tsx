@@ -32,8 +32,6 @@ export type BookSummary = {
   coverColor?: string;
   coverColorDark?: string;
   isPremium?: boolean;
-  price?: number;
-  currency?: string;
   /** Set when the reader already has access. */
   inLibrary?: boolean;
   /** Titles that lead in Nastaliq rather than Latin. */

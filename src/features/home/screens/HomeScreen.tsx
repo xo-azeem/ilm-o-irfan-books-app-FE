@@ -44,8 +44,6 @@ function toSummary(book: CatalogBook): BookSummary {
     coverColor: book.coverColor,
     coverColorDark: book.coverColorDark,
     isPremium: book.isPremium,
-    price: book.price,
-    currency: book.currency,
     // Home draws the same covers as Discover and Library, so it has to make the
     // same script call — without this every Urdu title falls back to DM Sans.
     isUrdu: isUrduTitle(book.title),

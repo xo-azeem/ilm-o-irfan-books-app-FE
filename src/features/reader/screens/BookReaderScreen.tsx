@@ -40,6 +40,32 @@ type BookReaderNavigationProp = NativeStackNavigationProp<RootStackParamList, 'B
  * anywhere in here lands on the reader's own failure screen and "Try again"
  * rebuilds the screen from scratch.
  */
+type PdfError = { code?: string; message?: string; name?: string; status?: number };
+
+/**
+ * What to tell the reader when a book will not open.
+ *
+ * `PREMIUM_REQUIRED` is the paywall — every book needs a membership, so this is
+ * the ordinary refusal rather than an edge case.
+ *
+ * A 401 is matched on the *status*, never on the code. A session that has
+ * expired or been mangled is rejected by the functions gateway before
+ * `get-signed-pdf` runs, so it answers with codes of its own
+ * (`UNAUTHORIZED_INVALID_JWT_FORMAT`, `UNAUTHORIZED_NO_AUTH_HEADER`) and a
+ * message — "Invalid JWT" — that would be shown to a reader verbatim. Only the
+ * signed-out path actually reaches the function and answers `AUTH_REQUIRED`,
+ * so the status is the one thing common to all of them.
+ */
+function pdfErrorMessage(error: PdfError): string {
+  if (error?.code === 'PREMIUM_REQUIRED') {
+    return 'An active subscription is required to open this book.';
+  }
+  if (error?.status === 401) {
+    return 'Your session has expired. Sign in again to keep reading.';
+  }
+  return error?.message || 'Unable to open this book.';
+}
+
 export function BookReaderScreen() {
   return (
     <ReaderBoundary>
@@ -132,16 +158,12 @@ function BookReader() {
       .then(source => {
         if (active) setPdfSource(source);
       })
-      .catch((error: { code?: string; message?: string; name?: string }) => {
+      .catch((error: PdfError) => {
         if (!active || error?.name === 'AbortError') {
           return;
         }
         setSourceError(true);
-        setErrorMessage(
-          error?.code === 'PREMIUM_REQUIRED'
-            ? 'An active subscription is required to open this book.'
-            : error?.message || 'Unable to open this book.',
-        );
+        setErrorMessage(pdfErrorMessage(error));
         setIsLoading(false);
         setLoaderVisible(false);
       });

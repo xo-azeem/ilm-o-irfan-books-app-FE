@@ -25,8 +25,6 @@ function toSummary(book: CatalogBook, inLibrary: boolean): BookSummary {
     coverColor: book.coverColor,
     coverColorDark: book.coverColorDark,
     isPremium: book.isPremium,
-    price: book.price,
-    currency: book.currency,
     inLibrary,
     isUrdu: isUrduTitle(book.title),
     meta: book.author ? `${book.author} · ${book.readTime}` : book.readTime,

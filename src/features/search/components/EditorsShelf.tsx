@@ -1,7 +1,7 @@
 import { memo, useCallback } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { AccessLabel, accessFor, type BookSummary } from '@/components/books';
+import { accessFor, type BookSummary } from '@/components/books';
 import { Badge, BookCover, Display, Label, Text, UrduText } from '@/components/ui';
 import { useTheme } from '@/theme/ThemeContext';
 
@@ -60,9 +60,6 @@ export const EditorsShelf = memo(function EditorsShelf({
           <View style={styles.badges}>
             {access.kind === 'membership' ? <Badge label="IN MEMBERSHIP" tone="gold" /> : null}
             {access.kind === 'owned' ? <Badge label="IN YOUR LIBRARY" tone="primary" /> : null}
-            {access.kind === 'price' ? (
-              <AccessLabel access={access} />
-            ) : null}
             {meta ? <Badge label={meta} tone="neutral" /> : null}
           </View>
         </View>

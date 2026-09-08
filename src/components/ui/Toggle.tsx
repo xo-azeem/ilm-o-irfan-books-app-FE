@@ -24,7 +24,12 @@ export type ToggleProps = {
   onValueChange?: (next: boolean) => void;
   disabled?: boolean;
   /** The admin panel runs a smaller switch than the reader app. */
-  size?: 'md' | 'sm';
+  size?: 'md' | 'sm' | 'admin';
+  /**
+   * The off-state track. Admin draws it as a raised panel rather than the
+   * reader app's green wash, so a switch off never reads as faintly on.
+   */
+  trackOff?: string;
   accessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
 };
@@ -32,6 +37,7 @@ export type ToggleProps = {
 const metrics = {
   md: { width: 46, height: 28, knob: 22, pad: 3 },
   sm: { width: 40, height: 24, knob: 18, pad: 3 },
+  admin: { width: 42, height: 26, knob: 20, pad: 3 },
 } as const;
 
 /**
@@ -43,6 +49,7 @@ export const Toggle = memo(function Toggle({
   onValueChange,
   disabled = false,
   size = 'md',
+  trackOff,
   accessibilityLabel,
   style,
 }: ToggleProps) {
@@ -54,12 +61,10 @@ export const Toggle = memo(function Toggle({
     progress.value = withTiming(value ? 1 : 0, TIMING);
   }, [progress, value]);
 
+  const off = trackOff ?? colors.primaryFillSoft;
+
   const trackStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(
-      progress.value,
-      [0, 1],
-      [colors.primaryFillSoft, colors.primary],
-    ),
+    backgroundColor: interpolateColor(progress.value, [0, 1], [off, colors.primary]),
   }));
 
   const knobStyle = useAnimatedStyle(() => ({

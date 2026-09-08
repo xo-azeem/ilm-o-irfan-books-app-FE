@@ -1,37 +1,44 @@
 import { useEffect, useState } from 'react';
-import { Image, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import { launchImageLibrary } from 'react-native-image-picker';
-import { ImageUp, User } from 'lucide-react-native';
+import { ImageUp } from 'lucide-react-native';
 
-import { Screen, ScreenHeader } from '@/components/layout';
 import { Text } from '@/components/ui';
 import { AdminConfirmSheet } from '@/features/admin/components/AdminControls';
 import { errorMessage, useToast } from '@/features/admin/components/AdminToast';
 import {
+  ADMIN_GUTTER,
+  AdminAvatar,
   AdminBackLink,
   AdminButton,
-  AdminCard,
   AdminField,
   AdminHelper,
+  AdminScreenTitle,
+  AdminTag,
+  AdminTextAction,
 } from '@/features/admin/components/AdminUi';
 import { useDirtyTracker, useUnsavedGuard } from '@/features/admin/hooks/useAdminForm';
+import { useAppInsets } from '@/hooks/useAppInsets';
 import { useAdminAuthors, useDeleteAdminAuthor, useSaveAdminAuthor } from '@/hooks/useAdmin';
-import {
-  adminCoverUrl,
-  slugify,
-  uploadAdminAvatar,
-  validateCoverSize,
-} from '@/services/admin';
+import { adminCoverUrl, slugify, uploadAdminAvatar, validateCoverSize } from '@/services/admin';
 import { useTheme } from '@/theme/ThemeContext';
 
-import type { AdminCatalogStackParamList } from '../navigation/types';
+import type { AdminLibraryStackParamList } from '../navigation/types';
 
+/**
+ * An author.
+ *
+ * Small screen, one rule: an author credited on books cannot be deleted, and
+ * the delete action says so with the number rather than failing on tap.
+ */
 export function AdminAuthorEditorScreen() {
   const navigation = useNavigation();
-  const route = useRoute<RouteProp<AdminCatalogStackParamList, 'AdminAuthorEditor'>>();
+  const route = useRoute<RouteProp<AdminLibraryStackParamList, 'AdminAuthorEditor'>>();
   const authorId = route.params?.authorId;
   const { colors } = useTheme();
+  const { scrollEndPadding } = useAppInsets();
   const toast = useToast();
 
   const { data: authors = [] } = useAdminAuthors();
@@ -70,6 +77,7 @@ export function AdminAuthorEditorScreen() {
 
   const resolvedSlug = form.slug.trim() || slugify(form.name);
   const avatarUrl = adminCoverUrl(form.avatarPath);
+  const credited = existing?.book_count ?? 0;
 
   const handleAvatar = async () => {
     const result = await launchImageLibrary({ mediaType: 'photo', selectionLimit: 1 });
@@ -124,89 +132,129 @@ export function AdminAuthorEditorScreen() {
   };
 
   return (
-    <Screen>
-      <AdminBackLink label="Authors" />
-      <ScreenHeader
-        title={authorId ? 'Edit author' : 'New author'}
-        subtitle={existing ? `${existing.book_count} books credited` : 'Add a name to the catalog.'}
-      />
+    <SafeAreaView
+      style={[styles.root, { backgroundColor: colors.background }]}
+      edges={['top', 'left', 'right']}>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <AdminBackLink
+          label="Authors"
+          action={isDirty ? <AdminTag label="UNSAVED" tone="warning" /> : undefined}
+        />
+      </View>
 
-      <View style={s.stack}>
-        <AdminCard title="Portrait">
-          <View style={s.row}>
-            <View style={[s.avatar, { backgroundColor: colors.primaryFillSoft }]}>
-              {avatarUrl ? (
-                <Image source={{ uri: avatarUrl }} style={s.avatarImage} />
-              ) : (
-                <User size={26} color={colors.muted} strokeWidth={1.8} />
-              )}
-            </View>
-            <View style={s.grow}>
-              <AdminButton
-                label={uploading ? 'Uploading…' : avatarUrl ? 'Replace' : 'Upload'}
-                Icon={ImageUp}
-                variant="secondary"
-                compact
-                disabled={uploading}
-                onPress={() => {
-                  void handleAvatar();
-                }}
-              />
-              <AdminHelper>Optional. Square images look best.</AdminHelper>
-            </View>
+      <ScrollView
+        style={styles.grow}
+        contentContainerStyle={{
+          paddingHorizontal: ADMIN_GUTTER,
+          paddingTop: 16,
+          paddingBottom: scrollEndPadding + 80,
+          gap: 17,
+        }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}>
+        <AdminScreenTitle
+          title={authorId ? form.name || 'Edit author' : 'New author'}
+          subtitle={
+            existing
+              ? `${credited} ${credited === 1 ? 'book' : 'books'} credited · ${
+                  existing.published_count
+                } live`
+              : 'A name readers can browse by.'
+          }
+        />
+
+        <View style={styles.portrait}>
+          <AdminAvatar
+            name={form.name || 'A'}
+            imageUrl={avatarUrl}
+            size={104}
+            tone={form.name ? 'primary' : 'neutral'}
+          />
+          <View style={styles.portraitBody}>
+            <Text size={14} leading={1.3} weight="500">
+              Portrait
+            </Text>
+            <Text size={12} leading={1.5} tone="muted">
+              Optional. A square image reads best — readers see it as a circle beside the name.
+            </Text>
+            <AdminButton
+              label={uploading ? 'Uploading…' : avatarUrl ? 'Replace image' : 'Choose image'}
+              Icon={ImageUp}
+              variant="secondary"
+              compact
+              disabled={uploading}
+              onPress={() => {
+                void handleAvatar();
+              }}
+            />
           </View>
-        </AdminCard>
+        </View>
 
-        <AdminField
-          label="Name"
-          value={form.name}
-          onChangeText={value => setForm(current => ({ ...current, name: value }))}
-          maxLength={120}
-        />
-        <AdminField
-          label="Slug"
-          value={form.slug}
-          onChangeText={value => setForm(current => ({ ...current, slug: value }))}
-          placeholder={slugify(form.name) || 'auto-from-name'}
-          autoCapitalize="none"
-          helper={`Currently “${resolvedSlug || '—'}”.`}
-        />
-        <AdminField
-          label="Biography"
-          value={form.bio}
-          onChangeText={value => setForm(current => ({ ...current, bio: value }))}
-          multiline
-        />
+        <View style={styles.stack}>
+          <AdminField
+            label="Name"
+            value={form.name}
+            onChangeText={value => setForm(current => ({ ...current, name: value }))}
+            maxLength={120}
+          />
+          <AdminField
+            label="Public link"
+            value={form.slug}
+            onChangeText={value => setForm(current => ({ ...current, slug: value }))}
+            placeholder={slugify(form.name) || 'auto-from-name'}
+            autoCapitalize="none"
+            mono
+            helper={`Made from the name — currently “${resolvedSlug || '—'}”.`}
+          />
+          <AdminField
+            label="Biography"
+            value={form.bio}
+            onChangeText={value => setForm(current => ({ ...current, bio: value }))}
+            multiline
+            maxLength={800}
+            helper="Shown on the author's page in the reader app."
+          />
+        </View>
 
+        {authorId ? (
+          <View style={styles.deleteBlock}>
+            <AdminTextAction
+              label={
+                credited > 0
+                  ? `Delete — ${credited} ${credited === 1 ? 'book is' : 'books are'} still credited`
+                  : 'Delete this author'
+              }
+              destructive
+              size={13}
+              disabled={credited > 0}
+              onPress={() => setConfirmDelete(true)}
+            />
+            {credited > 0 ? (
+              <AdminHelper>
+                Reassign or remove those titles first, then this author can go.
+              </AdminHelper>
+            ) : null}
+          </View>
+        ) : null}
+      </ScrollView>
+
+      <View
+        style={[
+          styles.footer,
+          { backgroundColor: colors.chrome, borderTopColor: colors.chromeBorder },
+        ]}>
         <AdminButton
-          label={save.isPending ? 'Saving…' : authorId ? 'Save changes' : 'Create author'}
+          label={authorId ? 'Save author' : 'Create author'}
           loading={save.isPending}
           disabled={uploading || !form.name.trim()}
           onPress={handleSave}
         />
-
-        {authorId ? (
-          <>
-            <AdminButton
-              label="Delete author"
-              variant="destructive"
-              disabled={remove.isPending}
-              onPress={() => setConfirmDelete(true)}
-            />
-            {existing && existing.book_count > 0 ? (
-              <Text size={12} leading={1.4} align="center" tone="muted">
-                {existing.book_count} books are still credited to this author and must be reassigned
-                first.
-              </Text>
-            ) : null}
-          </>
-        ) : null}
       </View>
 
       <AdminConfirmSheet
         visible={confirmDelete}
-        title="Delete this author?"
-        message="Authors with books cannot be deleted — reassign or remove those titles first."
+        title={`Delete ${form.name || 'this author'}?`}
+        message="The name disappears from the catalog. Nothing else is touched."
         confirmLabel="Delete"
         destructive
         loading={remove.isPending}
@@ -227,14 +275,39 @@ export function AdminAuthorEditorScreen() {
           })
         }
       />
-    </Screen>
+    </SafeAreaView>
   );
 }
 
-const s = StyleSheet.create({
-  stack: { gap: 16 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  avatar: { width: 64, height: 64, borderRadius: 32, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
-  avatarImage: { width: '100%', height: '100%' },
-  grow: { flex: 1, gap: 8 },
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  header: {
+    paddingHorizontal: ADMIN_GUTTER,
+    paddingTop: 4,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth * 2,
+  },
+  grow: { flex: 1 },
+  portrait: {
+    flexDirection: 'row',
+    gap: 16,
+    alignItems: 'flex-start',
+  },
+  portraitBody: {
+    flex: 1,
+    minWidth: 0,
+    gap: 10,
+  },
+  stack: { gap: 13 },
+  deleteBlock: {
+    alignItems: 'center',
+    gap: 6,
+    paddingTop: 4,
+  },
+  footer: {
+    paddingHorizontal: ADMIN_GUTTER,
+    paddingTop: 13,
+    paddingBottom: 26,
+    borderTopWidth: StyleSheet.hairlineWidth * 2,
+  },
 });

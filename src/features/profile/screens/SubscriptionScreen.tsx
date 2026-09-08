@@ -60,7 +60,10 @@ export function SubscriptionScreen() {
   const { data: subscription, isLoading } = useSubscription();
   const { data: library } = useLibrary();
 
-  const isMember = subscription?.active ?? false;
+  // The CTA follows access, not billing — `get-signed-pdf` serves an admin
+  // with no subscription, and offering them a plan would be wrong. The renewal
+  // details below still come from the entitlement itself.
+  const isMember = subscription?.canAccessPremium ?? false;
 
   const handleSubscribe = useCallback((planId: string) => {
     Alert.alert(

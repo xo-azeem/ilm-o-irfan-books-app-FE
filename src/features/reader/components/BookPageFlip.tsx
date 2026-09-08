@@ -8,11 +8,10 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Image, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { captureRef, releaseCapture } from 'react-native-view-shot';
 import Pdf, { type PdfRef } from 'react-native-pdf';
 
 import { LinearGradient, type GradientStop } from '@/components/ui/Gradient';
@@ -67,26 +66,8 @@ const CREASE_STOPS: GradientStop[] = [
   { offset: PAGE_FLIP.shadeSpread, color: '#000000', opacity: 0 },
 ];
 
-/** The paper of the leaf's back, laid over its mirrored front past edge-on. */
+/** The blank paper a fold opens onto, under the leaf for the whole turn. */
 const SHEET = '#FFFFFF';
-
-/**
- * The leaf's picture. JPEG because a page is opaque paper and the capture has
- * to be quick enough to finish inside the slop of a drag.
- */
-const SNAPSHOT_OPTIONS = { format: 'jpg', quality: 0.9, result: 'tmpfile' } as const;
-
-/** A paper flip in flight, from the moment it is asked for to its cleanup. */
-type FlipTurn = {
-  dir: TurnDirection;
-  from: number;
-  to: number;
-  /** Set for a turn run by a control, which starts once its picture is up. */
-  auto: boolean;
-  started: boolean;
-  /** Set once the leaf has lain back down and the page beneath is walking home. */
-  aborting: boolean;
-};
 
 function clampScale(value: number) {
   if (!Number.isFinite(value)) return MIN_SCALE;
@@ -155,14 +136,17 @@ function errorMessage(error: unknown) {
  * swipe, never takes it, and lends the pages depth as they cross.
  *
  * Flip is the opposite bargain. A pager slides and cannot be made to turn a
- * leaf, so `usePaperFlip` switches the pager off and takes the drag outright.
- * The moment a finger lands, the stage photographs the page; the moment a fold
- * begins, that photograph is mounted exactly over the page and the document
- * view underneath moves to the destination — so the leaf being turned is a
- * picture, and everything it uncovers from its first degree is the real next
- * page, already there the way the next page of a book is. The leaf travels the
- * whole way over its spine, back face and all, and an aborted turn lies back
- * down while the document view walks home under it.
+ * leaf, so this mode switches the pager off and `usePaperFlip` drives the turn
+ * itself: the page folds up about the edge it is leaving by, the document view
+ * changes page in the instant the leaf stands edge-on and cannot be seen, and
+ * the page arrived at falls open about the opposite edge.
+ *
+ * Two things about that are the stage's rather than the hook's. The sheet the
+ * fold opens onto is drawn here, because only the stage knows what colour the
+ * paper is — without it a fold would open onto the room. And the pager is
+ * switched off here, which is also what makes the hook's watch-don't-take
+ * gesture safe: with nothing else competing for the touch, there is no one it
+ * needs to beat.
  *
  * Scroll runs the book as a single column and is left to the document view
  * entirely. Zooming in stops the turn in all three, because then a drag is how
@@ -267,171 +251,6 @@ export const BookPageFlip = memo(
       [applyPage],
     );
 
-    /**
-     * The paper flip's moving parts on the JS side.
-     *
-     * The leaf is a photograph of the page, taken by `prepareFlip` the moment
-     * a finger lands and mounted by `beginFlip` the moment a fold truly
-     * starts. The instant the picture has painted — pixel for pixel over the
-     * real page — the document view underneath moves to the destination, so
-     * everything the fold reveals from its first degree is the actual next
-     * page. The worklets in `usePaperFlip` drive the fold itself and report
-     * back here only at the ends: committed, or lain back down.
-     */
-    const [leaf, setLeaf] = useState<string | null>(null);
-    /** The view the photograph is of: the page box, wash and all. */
-    const shotTargetRef = useRef<View>(null);
-    /** The photograph taken at touch-down, racing the fold that may want it. */
-    const shotRef = useRef<Promise<string | null> | null>(null);
-    const flipTurnRef = useRef<FlipTurn | null>(null);
-    /** The uri on the mounted leaf, so it is released and released once. */
-    const leafUriRef = useRef<string | null>(null);
-    const abortTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-    /** The worklet-side controls, filled in just under the hook they come from. */
-    const animateFlipRef = useRef<(dir: TurnDirection) => void>(() => {});
-    const resetFlipRef = useRef<() => void>(() => {});
-
-    const takeSnapshot = useCallback(() => {
-      const view = shotTargetRef.current;
-      if (!view) return Promise.resolve<string | null>(null);
-      // A failed photograph is not an error anywhere below: the turn simply
-      // happens without its leaf, as a plain page change.
-      return captureRef(view, SNAPSHOT_OPTIONS).then(
-        uri => uri || null,
-        () => null,
-      );
-    }, []);
-
-    /** A finger has landed on the page. Photograph it; a fold may follow. */
-    const prepareFlip = useCallback(() => {
-      if (flipTurnRef.current || !readyRef.current || totalPagesRef.current < 2) return;
-      // A photograph from an earlier touch that no fold ever claimed.
-      const stale = shotRef.current;
-      shotRef.current = takeSnapshot();
-      if (stale) {
-        void stale.then(uri => {
-          if (uri && uri !== leafUriRef.current) releaseCapture(uri);
-        });
-      }
-    }, [takeSnapshot]);
-
-    /**
-     * A turn begins: by finger (`auto` false, the fold is already under it) or
-     * by control (`auto` true, the fold starts once the picture is up).
-     */
-    const beginFlip = useCallback(
-      (dir: TurnDirection, auto: boolean) => {
-        if (flipTurnRef.current || !readyRef.current) return;
-        const total = totalPagesRef.current;
-        const named = targetRef.current;
-        targetRef.current = null;
-        const from = pageRef.current;
-        const to = Math.min(Math.max(named ?? from + dir, 1), total > 0 ? total : 1);
-        if (to === from) return;
-
-        const turn: FlipTurn = {
-          dir: to > from ? 1 : -1,
-          from,
-          to,
-          auto,
-          started: false,
-          aborting: false,
-        };
-        flipTurnRef.current = turn;
-
-        const shot = shotRef.current ?? takeSnapshot();
-        shotRef.current = null;
-        void shot.then(uri => {
-          if (flipTurnRef.current !== turn || turn.aborting) {
-            if (uri) releaseCapture(uri);
-            return;
-          }
-          if (uri) {
-            leafUriRef.current = uri;
-            setLeaf(uri);
-            // The document view moves when the picture reports painted.
-          } else {
-            // No picture could be taken. The page still changes — in plain
-            // sight, once, rather than under a leaf.
-            applyPage(turn.to);
-            if (turn.auto && !turn.started) {
-              turn.started = true;
-              animateFlipRef.current(turn.dir);
-            }
-          }
-        });
-      },
-      [applyPage, takeSnapshot],
-    );
-
-    const handleFoldStart = useCallback(
-      (dir: TurnDirection) => beginFlip(dir, false),
-      [beginFlip],
-    );
-
-    /**
-     * The leaf's picture has painted, pixel for pixel over the real page. Only
-     * now may the document view move — a moment earlier and the next page
-     * shows through for a frame before the picture lands.
-     */
-    const handleLeafReady = useCallback(() => {
-      const turn = flipTurnRef.current;
-      if (!turn || turn.aborting) return;
-      // A frame's grace, because `onLoad` reports the decode rather than the
-      // paint: the picture must genuinely be on screen before the page under
-      // it is allowed to move.
-      requestAnimationFrame(() => {
-        if (flipTurnRef.current !== turn || turn.aborting) return;
-        applyPage(turn.to);
-        if (turn.auto && !turn.started) {
-          turn.started = true;
-          animateFlipRef.current(turn.dir);
-        }
-      });
-    }, [applyPage]);
-
-    /**
-     * The end of every turn, however it ended. When a leaf is up, its unmount
-     * is what resets the fold — see the effect below — but a turn whose
-     * picture never made it to the tree has no unmount coming, so the reset
-     * happens here and now instead.
-     */
-    const clearFlip = useCallback(() => {
-      flipTurnRef.current = null;
-      if (leafUriRef.current === null) resetFlipRef.current();
-      setLeaf(null);
-    }, []);
-
-    /** The leaf finished the turn. The page beneath was there all along. */
-    const finishFlip = useCallback(() => {
-      const turn = flipTurnRef.current;
-      // Already there — unless the picture never painted, in which case the
-      // page owes the reader its change now.
-      if (turn) applyPage(turn.to);
-      clearFlip();
-    }, [applyPage, clearFlip]);
-
-    /**
-     * The leaf lay back down over the page the fold had revealed. The document
-     * view walks home underneath the flat leaf, gets a beat — or its own page
-     * report, whichever is first — to land, and only then is the leaf taken
-     * away. Taken sooner, the reader would see the page it almost turned to.
-     */
-    const abortFlip = useCallback(() => {
-      const turn = flipTurnRef.current;
-      if (!turn) {
-        clearFlip();
-        return;
-      }
-      turn.aborting = true;
-      applyPage(turn.from);
-      if (abortTimer.current) clearTimeout(abortTimer.current);
-      abortTimer.current = setTimeout(() => {
-        abortTimer.current = null;
-        if (flipTurnRef.current === turn) clearFlip();
-      }, 400);
-    }, [applyPage, clearFlip]);
-
     // Both page-at-a-time modes are always mounted and only one is ever live:
     // a hook cannot be called conditionally, and the reader can change mode
     // mid-book. Whichever is off holds its page flat and answers nothing.
@@ -442,10 +261,7 @@ export const BookPageFlip = memo(
     });
     const paperFlip = usePaperFlip({
       enabled: folding && !zoomed,
-      onPrepare: prepareFlip,
-      onFoldStart: handleFoldStart,
-      onCommit: finishFlip,
-      onAbort: abortFlip,
+      onSwap: jumpPage,
       onTap: handleSingleTap,
     });
 
@@ -461,40 +277,9 @@ export const BookPageFlip = memo(
       onPageLayout: onFlipPage,
       setBounds: setFlipBounds,
       setZoom: setFlipZoom,
-      reset: resetFlip,
-      animateTurn: animateFlip,
+      settle: settleFlip,
+      start: startFold,
     } = paperFlip;
-
-    useEffect(() => {
-      animateFlipRef.current = animateFlip;
-      resetFlipRef.current = resetFlip;
-    }, [animateFlip, resetFlip]);
-
-    /**
-     * The leaf has left the tree and its unmount has painted; only now is the
-     * fold's angle put back to zero. Any sooner and a flat copy of the old
-     * page would lie over the new one for a frame.
-     */
-    useEffect(() => {
-      if (leaf) return;
-      resetFlip();
-      if (leafUriRef.current) {
-        releaseCapture(leafUriRef.current);
-        leafUriRef.current = null;
-      }
-    }, [leaf, resetFlip]);
-
-    // Leaving flip mode mid-turn takes the whole turn with it.
-    useEffect(() => {
-      if (!folding) clearFlip();
-    }, [clearFlip, folding]);
-
-    useEffect(
-      () => () => {
-        if (abortTimer.current) clearTimeout(abortTimer.current);
-      },
-      [],
-    );
 
     // The page is sized to this area and both modes measure it, so all three
     // read the same box: what is left of the screen once the bars have had
@@ -549,10 +334,10 @@ export const BookPageFlip = memo(
         const next = pageRef.current + dir;
         if (next < 1 || (total > 0 && next > total)) return;
         targetRef.current = null;
-        if (folding) beginFlip(dir, true);
+        if (folding) startFold(dir);
         else startTurn(dir);
       },
-      [beginFlip, folding, startTurn],
+      [folding, startFold, startTurn],
     );
 
     const goToPage = useCallback(
@@ -568,10 +353,10 @@ export const BookPageFlip = memo(
         // so the movement agrees with what the reader asked for.
         targetRef.current = next;
         const dir: TurnDirection = next > pageRef.current ? 1 : -1;
-        if (folding) beginFlip(dir, true);
+        if (folding) startFold(dir);
         else startTurn(dir);
       },
-      [beginFlip, folding, startTurn],
+      [folding, startFold, startTurn],
     );
 
     useImperativeHandle(ref, () => ({ turn: turnPage, goTo: goToPage }), [goToPage, turnPage]);
@@ -609,22 +394,14 @@ export const BookPageFlip = memo(
         setBounds(pageRef.current, total);
         // The new page is here. A swipe still drawn back from a flick grows it
         // in from this, rather than guessing at when the pager would land.
+        // A leaf held edge-on falls open from here, and a swipe still drawn
+        // back from a flick grows in from here. Only one of them is listening.
         settleTurn();
-
-        // An aborted flip was waiting on exactly this report: the document
-        // view is home, so the flat leaf covering it can come down.
-        const turn = flipTurnRef.current;
-        if (turn?.aborting && pageRef.current === turn.from) {
-          if (abortTimer.current) {
-            clearTimeout(abortTimer.current);
-            abortTimer.current = null;
-          }
-          clearFlip();
-        }
+        settleFlip();
 
         handlers.current.onPageChanged(pageRef.current, total);
       },
-      [clearFlip, setBounds, settleTurn],
+      [setBounds, settleFlip, settleTurn],
     );
 
     const handleLoadProgress = useCallback((percent: number) => {
@@ -652,6 +429,8 @@ export const BookPageFlip = memo(
       () => (boxWidth > 0 ? { width: boxWidth, height: boxHeight } : styles.fill),
       [boxHeight, boxWidth],
     );
+    /** Only drawn while it can be seen: the sheet is nothing to any other mode. */
+    const sheet = folding && box ? pageSize : null;
 
     return (
       <View style={[styles.stage, { backgroundColor: stage }]}>
@@ -668,21 +447,37 @@ export const BookPageFlip = memo(
             accessibilityLabel="Show reading controls"
             onAccessibilityTap={handleSingleTap}>
             <View style={styles.area} onLayout={handleAreaLayout}>
+              {/* The sheet the fold opens onto.
+                  A leaf folding away has to fold away onto something, and the
+                  only page the document view can draw is the one on the leaf.
+                  So underneath it lies a blank sheet in exactly the paper the
+                  page is rendered on — white, under the same tone — and the
+                  fold opens onto margin rather than onto the room. */}
+              {sheet ? (
+                <View pointerEvents="none" style={styles.layer}>
+                  <View style={[sheet, styles.sheet]}>
+                    {wash ? <View style={[styles.wash, { backgroundColor: wash }]} /> : null}
+                    <Animated.View style={[styles.wash, paperFlip.castStyle]}>
+                      <LinearGradient stops={CREASE_STOPS} angle={90} />
+                    </Animated.View>
+                  </View>
+                </View>
+              ) : null}
+
               {/* The depth, and nothing else: a plain transform on the plane
                   the page sits on, with no shadow or corner to recompute per
                   frame. */}
               <Animated.View pointerEvents="box-none" style={[styles.layer, pageTurn.style]}>
                 <Animated.View
-                  ref={shotTargetRef}
                   collapsable={false}
                   onLayout={handlePageLayout}
                   style={[
                     pageSize,
                     { backgroundColor: stage },
-                    // The end-of-book give. The page itself never folds in
-                    // flip mode — it is what the fold reveals — but it still
-                    // answers a pull it cannot honour.
-                    folding ? paperFlip.edgeStyle : undefined,
+                    // The fold, on the page's own plane so it hinges on the
+                    // edge of the paper. Left off entirely in the other modes,
+                    // which have no use for a perspective matrix.
+                    folding ? paperFlip.leafStyle : undefined,
                   ]}>
                   <Pdf
                     key={sourceKey(source)}
@@ -730,46 +525,18 @@ export const BookPageFlip = memo(
                     <View pointerEvents="none" style={[styles.wash, { backgroundColor: wash }]} />
                   ) : null}
 
-                  {/* The shadow the raised leaf throws across this page — the
-                      page the fold is in the act of revealing. */}
+                  {/* The crease. Over the tone as well as the page, because a
+                      folded page shades the paper and the ink alike. */}
                   {folding ? (
                     <Animated.View
                       pointerEvents="none"
-                      style={[styles.wash, paperFlip.castStyle]}>
+                      style={[styles.wash, paperFlip.creaseStyle]}>
                       <LinearGradient stops={CREASE_STOPS} angle={90} />
                     </Animated.View>
                   ) : null}
                 </Animated.View>
               </Animated.View>
 
-              {/* The leaf: the photograph of the page being turned, mounted
-                  the instant a fold begins and folded the whole way over its
-                  hinge. Transparent until its picture paints, so its first
-                  frame shows the identical page through it rather than a
-                  flash of anything else. Past edge-on the renderer draws it
-                  mirrored — being the back of a plane — and the paper backing
-                  over it turns that into the back of a printed sheet, ghost
-                  ink and all. */}
-              {folding && leaf ? (
-                <View pointerEvents="none" style={styles.layer}>
-                  <Animated.View style={[pageSize, paperFlip.leafStyle]}>
-                    <Image
-                      source={{ uri: leaf }}
-                      style={styles.leafImage}
-                      resizeMode="stretch"
-                      fadeDuration={0}
-                      onLoad={handleLeafReady}
-                      onError={handleLeafReady}
-                    />
-                    <Animated.View style={[styles.wash, styles.leafBack, paperFlip.backingStyle]}>
-                      {wash ? <View style={[styles.wash, { backgroundColor: wash }]} /> : null}
-                    </Animated.View>
-                    <Animated.View style={[styles.wash, paperFlip.creaseStyle]}>
-                      <LinearGradient stops={CREASE_STOPS} angle={90} />
-                    </Animated.View>
-                  </Animated.View>
-                </View>
-              ) : null}
             </View>
           </View>
         </GestureDetector>
@@ -801,6 +568,11 @@ const styles = StyleSheet.create({
   fill: {
     alignSelf: 'stretch',
     flex: 1,
+  },
+  /** The blank paper a fold opens onto, under the leaf for the whole turn. */
+  sheet: {
+    backgroundColor: SHEET,
+    overflow: 'hidden',
   },
   /** The leaf's picture, laid exactly over the page it is a picture of. */
   leafImage: {

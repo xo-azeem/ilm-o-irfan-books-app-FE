@@ -18,7 +18,7 @@ import type {
   WishlistToggleResult,
 } from '@/services/api/types';
 import { authorName, isEntitlementActive, mapCatalogBook } from '@/services/mappers';
-import { getPlans, publicCoverUrl, type CatalogBook } from '@/services/catalog';
+import { coverUrlFor, getPlans, publicCoverUrl, type CatalogBook } from '@/services/catalog';
 
 /**
  * Per-user reads and writes.
@@ -161,7 +161,7 @@ function cardToBook(card: LibraryBookCard): CatalogBook {
       format: null,
       is_premium: card.is_premium,
     },
-    publicCoverUrl(card.cover_path),
+    coverUrlFor(card),
   );
 }
 

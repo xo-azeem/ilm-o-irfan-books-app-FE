@@ -14,6 +14,12 @@ export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<RootTabParamList> | undefined;
   BookDetail: { bookId: string };
   BookReader: { bookId: string };
+  /**
+   * One of the two handles, never both — `collection-books` rejects that. The
+   * title is not carried here: the endpoint sends the collection back with the
+   * page, and the screen reads it from there.
+   */
+  Collection: { collectionId?: string; slug?: string };
   Wishlist: undefined;
 };
 

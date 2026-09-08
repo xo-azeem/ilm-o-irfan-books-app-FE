@@ -13,12 +13,20 @@ export const ENDPOINTS = {
   booksSearch: 'books-search',
   categoriesList: 'categories-list',
   collectionsList: 'collections-list',
+  /** One collection's books, in the admin's `sort_order`. Takes `id` or `slug`. */
+  collectionBooks: 'collection-books',
   plansList: 'plans-list',
+  /** The admin-managed home carousel. Also embedded in `home-feed`. */
+  carouselList: 'carousel-list',
+  /** The weekly draw. Also embedded in `home-feed` as `shelves.trending`. */
+  trendingWeekly: 'trending-weekly',
 
   // Authenticated — backend `verify_jwt = true`.
   profileRead: 'profile-read',
   profileUpdate: 'profile-update',
   readingProgress: 'reading-progress',
+  /** "Because you read …" — derived from the reader's own history. */
+  recommendations: 'recommendations',
   wishlistList: 'wishlist-list',
   wishlistToggle: 'wishlist-toggle',
   downloadsList: 'downloads-list',

@@ -34,6 +34,8 @@ export type TextTone =
   | 'faint'
   | 'dim'
   | 'primary'
+  /** Green that reads as a link or a tappable word. */
+  | 'action'
   | 'gold'
   | 'danger'
   | 'warning'
@@ -56,6 +58,8 @@ function toneColor(tone: TextTone, colors: AppColors): string | undefined {
       return colors.dim;
     case 'primary':
       return colors.primarySoft;
+    case 'action':
+      return colors.actionInk;
     case 'gold':
       return colors.goldBright;
     case 'danger':

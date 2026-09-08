@@ -1,61 +1,79 @@
 import { memo, useCallback, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Linking, ScrollView, StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, type RouteProp } from '@react-navigation/native';
 
-import { Screen } from '@/components/layout';
-import { ListRowsSkeleton } from '@/components/skeletons/CatalogSkeletons';
-import { Avatar, Display, Label, ProgressBar, Text } from '@/components/ui';
+import { Display, Label, Text } from '@/components/ui';
 import { AdminConfirmSheet, AdminPickerSheet } from '@/features/admin/components/AdminControls';
+import { AdminMenuSkeleton } from '@/features/admin/components/AdminSkeletons';
 import { errorMessage, useToast } from '@/features/admin/components/AdminToast';
 import {
+  ADMIN_GUTTER,
+  AdminAvatar,
   AdminBackLink,
-  AdminBadge,
   AdminButton,
-  AdminCard,
   AdminErrorState,
+  AdminEyebrow,
+  AdminMeter,
   AdminRowGroup,
   AdminStat,
   AdminStatRow,
+  AdminTag,
+  AdminTextAction,
+  AdminToggleRow,
 } from '@/features/admin/components/AdminUi';
 import {
+  daysFromNow,
   formatBytes,
+  formatCountdown,
   formatDate,
   formatRelative,
   monthsFromNow,
 } from '@/features/admin/utils/format';
+import { useAppInsets } from '@/hooks/useAppInsets';
 import {
   useAdminPlans,
   useAdminUserDetail,
   useSetEntitlement,
   useSetUserRole,
 } from '@/hooks/useAdmin';
-import type { EntitlementStatus } from '@/services/admin';
+import type { AdminUserRow, EntitlementStatus } from '@/services/admin';
 import { useAuthStore } from '@/stores/authStore';
-import { layout } from '@/theme/palette';
-import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
 
 import type { AdminPeopleStackParamList } from '../navigation/types';
 
-type GrantOption = { id: string; label: string; months: number | null };
+type GrantOption = { id: string; label: string; months: number | null; days?: number };
 
 const GRANT_OPTIONS: GrantOption[] = [
+  { id: '14d', label: '14 days', months: null, days: 14 },
   { id: '1', label: '1 month', months: 1 },
   { id: '3', label: '3 months', months: 3 },
   { id: '12', label: '12 months', months: 12 },
   { id: 'forever', label: 'No expiry', months: null },
 ];
 
+const STATUS_LABEL: Record<EntitlementStatus, string> = {
+  active: 'Active',
+  trial: 'Trial',
+  grace: 'Grace period',
+  billing_issue: 'Billing issue',
+  cancelled: 'Cancelled',
+  expired: 'Expired',
+};
+
 /**
  * A reader, as seen from admin.
  *
- * Entitlement facts, then behaviour, then the two irreversible actions last —
- * the order support staff actually work in.
+ * Access first, because it is the reason support opened this screen; then what
+ * they have actually been reading; then the two changes that are hard to
+ * reverse, last and clearly marked.
  */
 export function AdminUserDetailScreen() {
   const route = useRoute<RouteProp<AdminPeopleStackParamList, 'AdminUserDetail'>>();
   const { userId } = route.params;
   const { colors } = useTheme();
+  const { scrollEndPadding } = useAppInsets();
   const toast = useToast();
 
   const currentUserId = useAuthStore(state => state.userId);
@@ -79,18 +97,22 @@ export function AdminUserDetailScreen() {
   );
 
   const grant = useCallback(
-    (months: number | null) => {
+    (option: GrantOption) => {
       setEntitlement.mutate(
         {
           userId,
           status: 'active' as EntitlementStatus,
           planId: activePlan?.id ?? null,
-          expiresAt: months === null ? null : monthsFromNow(months),
+          expiresAt: option.days
+            ? daysFromNow(option.days)
+            : option.months === null
+            ? null
+            : monthsFromNow(option.months),
         },
         {
           onSuccess: () => {
             setShowGrant(false);
-            toast.success('Subscription granted.');
+            toast.success(`Access granted — ${option.label.toLowerCase()}.`);
           },
           onError: caught => {
             setShowGrant(false);
@@ -104,193 +126,232 @@ export function AdminUserDetailScreen() {
 
   if (isLoading) {
     return (
-      <Screen padding={layout.adminPadding} gap={16}>
-        <AdminBackLink label="People" />
-        <ListRowsSkeleton count={5} />
-      </Screen>
+      <Shell>
+        <AdminMenuSkeleton count={5} />
+      </Shell>
     );
   }
 
-  if (error) {
+  if (error || !user) {
     return (
-      <Screen padding={layout.adminPadding} gap={16}>
-        <AdminBackLink label="People" />
-        <AdminErrorState message={errorMessage(error)} onRetry={() => void refetch()} />
-      </Screen>
+      <Shell>
+        <AdminErrorState
+          title={error ? 'Could not load this reader' : 'Reader not found'}
+          message={
+            error
+              ? 'The request did not complete. This is usually the server rather than your connection.'
+              : 'This account may have been deleted since the list was loaded.'
+          }
+          detail={error ? errorMessage(error) : undefined}
+          onRetry={() => void refetch()}
+        />
+      </Shell>
     );
   }
 
-  if (!user) {
-    return (
-      <Screen padding={layout.adminPadding} gap={16}>
-        <AdminBackLink label="People" />
-        <Text size={fontSize.body} leading={1.4} tone="muted">
-          User not found.
-        </Text>
-      </Screen>
-    );
-  }
-
-  const reading = data?.reading.slice(0, 6) ?? [];
-  const downloads = data?.downloads.slice(0, 6) ?? [];
+  const reading = data?.reading.slice(0, 4) ?? [];
+  const downloads = data?.downloads.slice(0, 4) ?? [];
+  const access = describeAccess(user, activePlan?.name);
 
   return (
-    <Screen padding={layout.adminPadding} gap={16}>
-      <AdminBackLink label="People" />
-
-      <View style={styles.identity}>
-        <Avatar
-          name={user.full_name ?? user.email}
-          size={52}
-          shape="squircle"
-          tone={user.role === 'admin' ? 'danger' : user.is_subscriber ? 'primary' : 'neutral'}
+    <SafeAreaView
+      style={[styles.root, { backgroundColor: colors.background }]}
+      edges={['top', 'left', 'right']}>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <AdminBackLink
+          label="People"
+          action={user.role === 'admin' ? <AdminTag label="ADMIN" tone="success" /> : undefined}
         />
-        <View style={styles.identityBody}>
-          <Display size={22} numberOfLines={1}>
-            {user.full_name || 'Reader'}
-          </Display>
-          <Text size={fontSize.captionSmall} leading={1.2} tone="muted" numberOfLines={1}>
-            {user.email ?? user.id}
-          </Text>
-        </View>
-        {user.role === 'admin' ? <AdminBadge label="Admin" tone="danger" /> : null}
       </View>
 
-      {/* Entitlement facts first — the reason support opened this screen. */}
-      <AdminCard>
-        <DetailRow label="Role" value={user.role === 'admin' ? 'Admin' : 'Reader'} />
-        <DetailRow
-          label="Entitlement"
-          value={
-            user.is_subscriber
-              ? `${user.plan_name ?? 'Premium'} · ${user.entitlement_status ?? 'active'}`
-              : 'None'
-          }
-          accent={user.is_subscriber}
-        />
-        <DetailRow
-          label="Renews"
-          value={
-            user.expires_at ? formatDate(user.expires_at) : user.is_subscriber ? 'Never' : '—'
-          }
-        />
-        <DetailRow label="Joined" value={formatDate(user.created_at)} />
-        <DetailRow label="Last seen" value={formatRelative(user.last_read_at)} />
-      </AdminCard>
+      <ScrollView
+        style={styles.grow}
+        contentContainerStyle={{
+          paddingHorizontal: ADMIN_GUTTER,
+          paddingTop: 16,
+          paddingBottom: scrollEndPadding + 20,
+          gap: 16,
+        }}
+        showsVerticalScrollIndicator={false}>
+        <View style={styles.identity}>
+          <AdminAvatar
+            name={user.full_name ?? user.email ?? '?'}
+            size={56}
+            tone={access.tone === 'warning' ? 'warning' : user.is_subscriber ? 'primary' : 'neutral'}
+          />
+          <View style={styles.identityBody}>
+            <Display size={22} weight="500" tracking={-0.4} numberOfLines={1}>
+              {user.full_name || 'Reader'}
+            </Display>
+            <Text size={12} leading={1.35} tone="muted">
+              {[user.email, user.phone, user.country, `joined ${formatDate(user.created_at)}`]
+                .filter(Boolean)
+                .join(' · ')}
+            </Text>
+          </View>
+        </View>
 
-      {/* Then behaviour. */}
-      <AdminStatRow>
-        <AdminStat label="Books read" value={user.books_finished} />
-        <AdminStat label="Downloads" value={user.downloads_count} />
-        <AdminStat label="Wishlist" value={data?.wishlist_count ?? 0} />
-      </AdminStatRow>
+        {/* Access, first and in a sentence. */}
+        <View
+          style={[
+            styles.accessCard,
+            access.tone === 'warning'
+              ? { backgroundColor: colors.warningFill, borderColor: colors.warningBorder }
+              : access.tone === 'active'
+              ? { backgroundColor: colors.primaryFillSoft, borderColor: colors.selectedBorder }
+              : { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}>
+          <View style={styles.between}>
+            <AdminEyebrow tone={access.tone === 'warning' ? 'warning' : 'action'}>
+              {access.eyebrow}
+            </AdminEyebrow>
+            <Label size={10.5} leading={1} weight="400" tracking={0.6} tone="muted">
+              {user.store ?? 'Manual'}
+            </Label>
+          </View>
 
-      {reading.length > 0 ? (
-        <AdminRowGroup title="Recent reading">
-          {reading.map(entry => (
-            <View key={entry.book_id} style={styles.readingRow}>
-              <View style={styles.readingHeader}>
-                <Text size={13} leading={1.2} numberOfLines={1} style={styles.grow}>
-                  {entry.title}
-                </Text>
-                <Label tone="primary" tracking={0.6}>
-                  {`${Math.round(entry.progress * 100)}%`}
-                </Label>
-              </View>
-              <ProgressBar value={entry.progress} height={3} />
-              <Text size={10.5} leading={1.2} tone="faint">
-                {`p. ${entry.current_page} · ${formatRelative(entry.last_read_at)}`}
-              </Text>
-            </View>
-          ))}
-        </AdminRowGroup>
-      ) : null}
+          <Text size={13} leading={1.5}>
+            {access.sentence}
+          </Text>
 
-      {downloads.length > 0 ? (
-        <AdminRowGroup title="Downloads">
-          {downloads.map(entry => (
-            <View key={`${entry.book_id}-${entry.downloaded_at}`} style={styles.downloadRow}>
-              <View style={styles.grow}>
-                <Text size={13} leading={1.2} numberOfLines={1}>
-                  {entry.title}
-                </Text>
-                <Text size={10.5} leading={1.3} tone="faint" numberOfLines={1}>
-                  {`${formatRelative(entry.downloaded_at)} · ${formatBytes(entry.file_size_bytes)}`}
-                </Text>
-              </View>
-              <AdminBadge
-                label={entry.status}
-                tone={entry.status === 'completed' ? 'success' : 'warning'}
+          <View style={styles.accessActions}>
+            <View style={styles.grow}>
+              <AdminButton
+                label="Grant access"
+                variant="secondary"
+                compact
+                loading={setEntitlement.isPending && showGrant}
+                onPress={() => setShowGrant(true)}
               />
             </View>
-          ))}
+            <View style={styles.grow}>
+              <AdminButton
+                label="Email reader"
+                variant="secondary"
+                compact
+                disabled={!user.email}
+                onPress={() => {
+                  if (user.email) {
+                    void Linking.openURL(`mailto:${user.email}`);
+                  }
+                }}
+              />
+            </View>
+          </View>
+
+          {plans.length > 0 ? (
+            <View style={styles.between}>
+              <Text size={11.5} leading={1.4} tone="muted">
+                {`Grants use the ${activePlan?.name ?? 'first'} plan`}
+              </Text>
+              <AdminTextAction
+                label="Change"
+                size={11.5}
+                tone={access.tone === 'warning' ? 'warning' : 'action'}
+                onPress={() => setShowPlanPicker(true)}
+              />
+            </View>
+          ) : null}
+        </View>
+
+        {/* Then behaviour. */}
+        <AdminStatRow>
+          <AdminStat
+            label="Day streak"
+            value={data?.streak?.current_streak ?? 0}
+            tone="success"
+          />
+          <AdminStat label="Started" value={user.books_started} />
+          <AdminStat label="Finished" value={user.books_finished} />
+          <AdminStat label="Downloads" value={user.downloads_count} />
+        </AdminStatRow>
+
+        {reading.length > 0 ? (
+          <AdminRowGroup title="Reading now">
+            {reading.map(entry => (
+              <View key={entry.book_id} style={styles.readingRow}>
+                <View
+                  style={[
+                    styles.readingCover,
+                    { backgroundColor: entry.cover_color ?? colors.coverBase },
+                  ]}
+                />
+                <View style={styles.readingBody}>
+                  <Text size={13} leading={1.2} numberOfLines={1}>
+                    {entry.title}
+                  </Text>
+                  <AdminMeter value={entry.progress} height={4} />
+                  <Text size={10.5} leading={1} tone="faint">
+                    {`${Math.round(entry.progress * 100)}% · page ${
+                      entry.current_page
+                    } · ${formatRelative(entry.last_read_at)}`}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </AdminRowGroup>
+        ) : null}
+
+        {downloads.length > 0 ? (
+          <AdminRowGroup title="Downloads">
+            {downloads.map(entry => (
+              <View key={`${entry.book_id}-${entry.downloaded_at}`} style={styles.downloadRow}>
+                <View style={styles.grow}>
+                  <Text size={13} leading={1.2} numberOfLines={1}>
+                    {entry.title}
+                  </Text>
+                  <Text size={10.5} leading={1.3} tone="faint" numberOfLines={1}>
+                    {`${formatRelative(entry.downloaded_at)} · ${formatBytes(
+                      entry.file_size_bytes,
+                    )}`}
+                  </Text>
+                </View>
+                <AdminTag
+                  label={entry.status.toUpperCase()}
+                  tone={entry.status === 'completed' ? 'success' : 'warning'}
+                />
+              </View>
+            ))}
+          </AdminRowGroup>
+        ) : null}
+
+        {/* Then the two things that are hard to take back. */}
+        <AdminRowGroup>
+          <View style={styles.actionRow}>
+            {isSelf ? (
+              <Text size={14} leading={1.2} tone="muted" style={styles.grow}>
+                You cannot change your own role.
+              </Text>
+            ) : (
+              <AdminToggleRow
+                label="Make this reader an admin"
+                value={user.role === 'admin'}
+                disabled={setRole.isPending}
+                onValueChange={next => setConfirmRole(next ? 'admin' : 'user')}
+              />
+            )}
+          </View>
+
+          {user.is_subscriber ? (
+            <View style={styles.actionRow}>
+              <Text size={14} leading={1.2} tone="danger" style={styles.grow}>
+                Revoke subscription access
+              </Text>
+              <AdminTextAction
+                label="Revoke"
+                destructive
+                size={12.5}
+                onPress={() => setConfirmRevoke(true)}
+              />
+            </View>
+          ) : null}
         </AdminRowGroup>
-      ) : null}
 
-      <AdminCard title="Subscription">
-        <DetailRow label="Source" value={user.store ?? 'Manual'} />
-
-        {plans.length > 0 ? (
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => setShowPlanPicker(true)}
-            style={({ pressed }) => [
-              styles.planRow,
-              { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
-              pressed && styles.pressed,
-            ]}>
-            <Text size={13} leading={1} tone="muted">
-              Plan to grant
-            </Text>
-            <Text size={13} leading={1} weight="500" tone="primary">
-              {activePlan?.name ?? 'Choose'}
-            </Text>
-          </Pressable>
-        ) : null}
-
-        <AdminButton
-          label="Grant subscription"
-          variant="secondary"
-          loading={setEntitlement.isPending && showGrant}
-          onPress={() => setShowGrant(true)}
-        />
-
-        <Text size={12} leading={1.45} tone="faint">
+        <Text size={11.5} leading={1.45} tone="faint">
           Store purchases stay owned by RevenueCat — a webhook will overwrite a manual grant on the
-          next event. Use this for comps and support fixes.
+          next event. Use grants for comps and support fixes.
         </Text>
-      </AdminCard>
-
-      {/* The irreversible actions, last. */}
-      <View style={styles.dangerZone}>
-        {isSelf ? (
-          <Text size={fontSize.caption} leading={1.4} tone="muted" align="center">
-            You cannot change your own role.
-          </Text>
-        ) : user.role === 'admin' ? (
-          <AdminButton
-            label="Remove admin access"
-            variant="secondary"
-            loading={setRole.isPending}
-            onPress={() => setConfirmRole('user')}
-          />
-        ) : (
-          <AdminButton
-            label="Grant admin access"
-            variant="secondary"
-            loading={setRole.isPending}
-            onPress={() => setConfirmRole('admin')}
-          />
-        )}
-
-        {user.is_subscriber ? (
-          <AdminButton
-            label="Revoke subscription"
-            variant="destructive"
-            onPress={() => setConfirmRevoke(true)}
-          />
-        ) : null}
-      </View>
+      </ScrollView>
 
       <AdminPickerSheet
         visible={showGrant}
@@ -302,7 +363,7 @@ export function AdminUserDetailScreen() {
         onChange={next => {
           const option = GRANT_OPTIONS.find(item => item.id === next[0]);
           if (option) {
-            grant(option.months);
+            grant(option);
           }
         }}
       />
@@ -323,8 +384,13 @@ export function AdminUserDetailScreen() {
 
       <AdminConfirmSheet
         visible={confirmRevoke}
-        title="Revoke subscription access?"
-        message="The reader loses premium access immediately. A future RevenueCat event can restore it."
+        title="Revoke premium access?"
+        message="It stops immediately. What that means:"
+        consequences={[
+          'Premium titles lock on their next open',
+          'Downloaded premium files stop opening',
+          'A future store event can restore it',
+        ]}
         confirmLabel="Revoke"
         destructive
         loading={setEntitlement.isPending}
@@ -351,10 +417,20 @@ export function AdminUserDetailScreen() {
         title={confirmRole === 'admin' ? 'Grant admin access?' : 'Remove admin access?'}
         message={
           confirmRole === 'admin'
-            ? 'This account will open the admin panel on its next sign-in and can edit the whole catalog.'
-            : 'They lose CMS access once their session refreshes. The last remaining admin cannot be demoted.'
+            ? 'This account opens the admin panel on its next sign-in. What it gains:'
+            : 'CMS access stops once their session refreshes. What they lose:'
+        }
+        consequences={
+          confirmRole === 'admin'
+            ? [
+                'Every book, author, category and shelf becomes editable',
+                'Every premium PDF opens without a subscription',
+                'Their email is written against every change they make',
+              ]
+            : ['The admin panel', 'Unrestricted access to premium PDFs']
         }
         confirmLabel={confirmRole === 'admin' ? 'Grant' : 'Remove'}
+        cancelLabel="Cancel"
         destructive={confirmRole === 'user'}
         loading={setRole.isPending}
         onCancel={() => setConfirmRole(null)}
@@ -377,93 +453,133 @@ export function AdminUserDetailScreen() {
           )
         }
       />
-    </Screen>
+    </SafeAreaView>
   );
 }
 
-const DetailRow = memo(function DetailRow({
-  label,
-  value,
-  accent = false,
-}: {
-  label: string;
-  value: string;
-  /** Highlights an entitlement so the revenue state is readable at a glance. */
-  accent?: boolean;
-}) {
+/** Access as one sentence, plus the colour it should be read in. */
+function describeAccess(
+  user: AdminUserRow,
+  planName?: string,
+): { eyebrow: string; sentence: string; tone: 'warning' | 'active' | 'none' } {
+  const plan = user.plan_name ?? planName ?? 'Premium';
+  const status = user.entitlement_status;
+
+  if (status === 'billing_issue' || status === 'grace') {
+    return {
+      eyebrow: `Access · ${STATUS_LABEL[status]}`,
+      sentence: `${plan} plan, payment has not gone through. Premium titles stay open ${formatCountdown(
+        user.expires_at,
+      )}, then the account drops to free.`,
+      tone: 'warning',
+    };
+  }
+
+  if (user.is_subscriber) {
+    return {
+      eyebrow: `Access · ${status ? STATUS_LABEL[status] : 'Active'}`,
+      sentence: user.expires_at
+        ? `${plan} plan, renewing ${formatDate(user.expires_at)}. Every premium title is open.`
+        : `${plan} plan with no end date. Every premium title is open.`,
+      tone: 'active',
+    };
+  }
+
+  return {
+    eyebrow: 'Access · Free',
+    sentence:
+      'Free account. Premium titles are locked until this reader subscribes, or you grant access below.',
+    tone: 'none',
+  };
+}
+
+/** The screen frame, reused by the loading and error states. */
+const Shell = memo(function Shell({ children }: { children: React.ReactNode }) {
+  const { colors } = useTheme();
+
   return (
-    <View style={styles.detailRow}>
-      <Text size={13} leading={1} tone="muted">
-        {label}
-      </Text>
-      <Text
-        size={13}
-        leading={1}
-        weight="500"
-        tone={accent ? 'lime' : 'ink'}
-        numberOfLines={1}
-        style={styles.detailValue}>
-        {value}
-      </Text>
-    </View>
+    <SafeAreaView
+      style={[styles.root, { backgroundColor: colors.background }]}
+      edges={['top', 'left', 'right']}>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <AdminBackLink label="People" />
+      </View>
+      <View style={styles.shellBody}>{children}</View>
+    </SafeAreaView>
   );
 });
 
 const styles = StyleSheet.create({
+  root: { flex: 1 },
+  header: {
+    paddingHorizontal: ADMIN_GUTTER,
+    paddingTop: 4,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth * 2,
+  },
+  shellBody: {
+    paddingHorizontal: ADMIN_GUTTER,
+    paddingTop: 16,
+  },
+  grow: {
+    flex: 1,
+    minWidth: 0,
+  },
   identity: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 13,
+    gap: 14,
   },
   identityBody: {
     flex: 1,
     minWidth: 0,
     gap: 5,
   },
-  detailRow: {
+  accessCard: {
+    gap: 12,
+    padding: 15,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+  },
+  between: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
   },
-  detailValue: {
-    maxWidth: '62%',
-  },
-  planRow: {
+  accessActions: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 13,
-    paddingVertical: 11,
-    borderRadius: 11,
-    borderWidth: StyleSheet.hairlineWidth * 2,
+    gap: 9,
   },
   readingRow: {
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-  },
-  readingHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  readingCover: {
+    width: 32,
+    height: 44,
+    borderRadius: 6,
+  },
+  readingBody: {
+    flex: 1,
+    minWidth: 0,
+    gap: 6,
   },
   downloadRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 11,
     paddingHorizontal: 14,
-    paddingVertical: 11,
+    paddingVertical: 12,
   },
-  grow: {
-    flex: 1,
-    minWidth: 0,
-  },
-  dangerZone: {
-    gap: 10,
-    marginTop: 2,
-  },
-  pressed: {
-    opacity: 0.75,
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
   },
 });

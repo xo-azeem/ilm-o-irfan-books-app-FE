@@ -2,7 +2,6 @@ import { memo, useCallback } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Bookmark, Play } from 'lucide-react-native';
 
-import type { BookSummary } from '@/components/books';
 import {
   BookCover,
   Button,
@@ -17,42 +16,59 @@ import { radius } from '@/theme/palette';
 import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
 
-export type FeaturedBook = BookSummary & {
-  description?: string;
+/**
+ * One slide of the admin's carousel, ready to draw.
+ *
+ * Everything with a copy decision in it — the headline, the subtitle, the
+ * badge, the button's label, the image and the accent — is the admin's, and
+ * arrives already resolved against the book. The card renders what it is given
+ * and hides what it is not.
+ */
+export type HeroSlide = {
+  id: string;
+  /** The book the slide opens. */
+  bookId: string;
+  headline: string;
+  /** Absent when unset — the line is hidden, not drawn empty. */
+  subtitle?: string;
+  badge?: string;
+  /** Absent when unset — the button falls back to its own default label. */
+  ctaLabel?: string;
+  accent?: string;
+  imageUrl?: string;
+  /** The book's own title, for the cover caption. */
+  title: string;
+  author?: string;
   rating?: number;
-  readerCount?: number;
-  genre?: string;
-  pages?: number;
+  /** The headline leads in Nastaliq rather than Latin. */
+  isUrdu?: boolean;
 };
 
+/** The label the CTA carries when the admin has not written one. */
+const DEFAULT_CTA = 'Read now';
+
 /**
- * The editorial hero at the top of Home. One book, given the room a bookshop
- * gives its window — cover, verdict, and a single way in.
+ * The slide at the top of Home. One book, given the room a bookshop gives its
+ * window — cover, the admin's line about it, and a single way in.
  */
-export const BookOfTheWeek = memo(function BookOfTheWeek({
-  book,
-  eyebrow = 'BOOK OF THE WEEK',
+export const HeroSlideCard = memo(function HeroSlideCard({
+  slide,
   saved = false,
   onRead,
   onSave,
   onPress,
 }: {
-  book: FeaturedBook;
-  eyebrow?: string;
+  slide: HeroSlide;
   saved?: boolean;
-  onRead?: (book: FeaturedBook) => void;
-  onSave?: (book: FeaturedBook) => void;
-  onPress?: (book: FeaturedBook) => void;
+  onRead?: (slide: HeroSlide) => void;
+  onSave?: (slide: HeroSlide) => void;
+  onPress?: (slide: HeroSlide) => void;
 }) {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
 
-  const handleRead = useCallback(() => onRead?.(book), [book, onRead]);
-  const handleSave = useCallback(() => onSave?.(book), [book, onSave]);
-  const handlePress = useCallback(() => onPress?.(book), [book, onPress]);
-
-  const meta = [book.author, book.genre, book.pages ? `${book.pages} pages` : null]
-    .filter(Boolean)
-    .join(' · ');
+  const handleRead = useCallback(() => onRead?.(slide), [slide, onRead]);
+  const handleSave = useCallback(() => onSave?.(slide), [slide, onSave]);
+  const handlePress = useCallback(() => onPress?.(slide), [slide, onPress]);
 
   return (
     <View
@@ -60,63 +76,74 @@ export const BookOfTheWeek = memo(function BookOfTheWeek({
         styles.card,
         { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
       ]}>
-      {/* A static radial wash rather than a blur pass — free on Android. */}
-      <RadialGlow color={colors.primary} opacity={0.36} size={340} left={-60} top={-120} />
+      {/* A static radial wash rather than a blur pass — free on Android. The
+          accent is the admin's, falling back to the book's own cover colour
+          server-side, so there is nothing left to resolve here. */}
+      <RadialGlow
+        color={slide.accent ?? colors.primary}
+        opacity={0.36}
+        size={340}
+        left={-60}
+        top={-120}
+      />
 
       <View style={styles.top}>
         <BookCover
           width={112}
-          coverUrl={book.coverUrl}
-          coverColor={(isDark ? book.coverColorDark : book.coverColor) ?? undefined}
+          coverUrl={slide.imageUrl}
+          coverColor={slide.accent}
           rounded={10}
           elevated
-          caption={`COVER · ${book.title.toUpperCase()}`}
+          caption={`COVER · ${slide.title.toUpperCase()}`}
         />
 
         <View style={styles.headline}>
-          <Label size={10} weight="600" tracking={1.5} tone="gold">
-            {eyebrow}
-          </Label>
+          {slide.badge ? (
+            <Label size={10} weight="600" tracking={1.5} tone="gold">
+              {slide.badge}
+            </Label>
+          ) : null}
 
-          {book.isUrdu ? (
+          {slide.isUrdu ? (
             <UrduText size={24} numberOfLines={3} onPress={handlePress}>
-              {book.title}
+              {slide.headline}
             </UrduText>
           ) : (
             <Display size="subheading" numberOfLines={3} onPress={handlePress}>
-              {book.title}
+              {slide.headline}
             </Display>
           )}
 
-          {meta ? (
+          {slide.author ? (
             <Text size={fontSize.caption} leading={1.4} tone="muted" numberOfLines={2}>
-              {meta}
+              {slide.author}
             </Text>
           ) : null}
 
-          {book.rating != null ? (
+          {slide.rating != null ? (
             <View style={styles.rating}>
               <Text size={fontSize.caption} leading={1} weight="600" tone="gold">
-                {book.rating.toFixed(1)}
+                {slide.rating.toFixed(1)}
               </Text>
-              {book.readerCount ? (
-                <Text size={fontSize.captionSmall} leading={1} tone="faint">
-                  {book.readerCount.toLocaleString('en-US')} readers
-                </Text>
-              ) : null}
             </View>
           ) : null}
         </View>
       </View>
 
-      {book.description ? (
+      {slide.subtitle ? (
         <Text size={13.5} leading={1.6} tone="soft" numberOfLines={3}>
-          {book.description}
+          {slide.subtitle}
         </Text>
       ) : null}
 
       <View style={styles.actions}>
-        <Button label="Read now" icon={Play} size="md" onPress={handleRead} style={styles.readButton} />
+        <Button
+          label={slide.ctaLabel ?? DEFAULT_CTA}
+          icon={Play}
+          size="md"
+          onPress={handleRead}
+          style={styles.readButton}
+        />
         <IconButton
           icon={Bookmark}
           buttonSize={48}

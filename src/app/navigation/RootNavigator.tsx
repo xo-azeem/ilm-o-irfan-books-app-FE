@@ -14,6 +14,7 @@ import { AdminNavigator } from '@/features/admin/navigation/AdminNavigator';
 import { LoginScreen } from '@/features/auth/screens/LoginScreen';
 import { SignUpScreen } from '@/features/auth/screens/SignUpScreen';
 import { BookDetailScreen } from '@/features/book-detail/screens/BookDetailScreen';
+import { CollectionScreen } from '@/features/collection/screens/CollectionScreen';
 import { HomeScreen } from '@/features/home/screens/HomeScreen';
 import { LibraryScreen } from '@/features/library/screens/LibraryScreen';
 import { OnboardingNavigator } from '@/features/onboarding/navigation/OnboardingNavigator';
@@ -91,6 +92,11 @@ function ConsumerNavigator() {
       <Stack.Screen
         name={ROUTES.BOOK_READER}
         component={BookReaderScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name={ROUTES.COLLECTION}
+        component={CollectionScreen}
         options={{ animation: 'slide_from_right' }}
       />
       <Stack.Screen

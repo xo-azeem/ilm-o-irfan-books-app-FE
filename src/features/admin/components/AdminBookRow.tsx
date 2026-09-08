@@ -1,13 +1,14 @@
 import { memo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import { Check, ChevronRight } from 'lucide-react-native';
 
-import { BookCover, Checkbox, Text, UrduText } from '@/components/ui';
+import { BookCover, Icon, Text, UrduText } from '@/components/ui';
 import { adminCoverUrl, type AdminBookRow as BookRow } from '@/services/admin';
 import { isUrduTitle } from '@/services/script';
 import { useTheme } from '@/theme/ThemeContext';
 
-import { formatRelative } from '../utils/format';
-import { AdminBadge } from './AdminUi';
+import { formatBytes } from '../utils/format';
+import { AdminTag } from './AdminUi';
 
 type Props = {
   book: BookRow;
@@ -15,7 +16,9 @@ type Props = {
   selectionMode: boolean;
   onPress: () => void;
   onLongPress: () => void;
-  /** Kept for call-site compatibility; rows are now standalone cards. */
+  /** The name of the book's first category, shown beside the author. */
+  categoryLabel?: string;
+  /** Kept for call-site compatibility; rows are standalone cards. */
   isFirst?: boolean;
   isLast?: boolean;
 };
@@ -23,8 +26,10 @@ type Props = {
 /**
  * A book in the admin list.
  *
- * The row states why a title cannot publish, so Overview's warning and this
- * list always agree about what is wrong. Long-press enters selection mode.
+ * Status lives on the row rather than behind a filter, and the last line is
+ * whichever sentence matters most: what is blocking publication, or how the
+ * title is doing. A blocked row carries an amber rim, the same signal Today
+ * uses, so the two screens can never disagree about what is wrong.
  */
 function AdminBookRowBase({
   book,
@@ -32,13 +37,58 @@ function AdminBookRowBase({
   selectionMode,
   onPress,
   onLongPress,
+  categoryLabel,
 }: Props) {
   const { colors } = useTheme();
   const missingPdf = !book.pdf_path;
   const missingCover = !book.cover_path;
-  // The amber rim is the same signal the Overview banner uses.
   const blocked = missingPdf || missingCover;
   const isUrdu = isUrduTitle(book.title);
+
+  if (selectionMode) {
+    return (
+      <Pressable
+        onPress={onPress}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: selected }}
+        accessibilityLabel={book.title}
+        style={({ pressed }) => [
+          styles.selectRow,
+          {
+            backgroundColor: selected ? colors.selected : colors.surface,
+            borderColor: selected ? colors.selectedBorder : colors.border,
+          },
+          pressed && styles.pressed,
+        ]}>
+        <View
+          style={[
+            styles.checkbox,
+            selected
+              ? { backgroundColor: colors.primary, borderColor: colors.primary }
+              : { borderColor: colors.borderStrong },
+          ]}>
+          {selected ? <Icon icon={Check} size={12} tone="onPrimary" strokeWidth={3} /> : null}
+        </View>
+
+        <BookCover
+          width={36}
+          height={52}
+          rounded={6}
+          coverColor={book.cover_color ?? undefined}
+          coverUrl={adminCoverUrl(book.cover_path)}
+        />
+
+        <View style={styles.selectBody}>
+          <Text size={14} leading={1.25} weight="500" numberOfLines={1}>
+            {book.title}
+          </Text>
+          <Text size={11} leading={1.2} tone="muted" numberOfLines={1}>
+            {`${book.is_published ? 'Live' : 'Draft'} · ${book.is_premium ? 'Premium' : 'Free'}`}
+          </Text>
+        </View>
+      </Pressable>
+    );
+  }
 
   return (
     <Pressable
@@ -46,75 +96,69 @@ function AdminBookRowBase({
       onLongPress={onLongPress}
       delayLongPress={220}
       accessibilityRole="button"
-      accessibilityState={{ selected: selectionMode ? selected : undefined }}
       accessibilityLabel={book.title}
       style={({ pressed }) => [
         styles.row,
         {
-          backgroundColor: selected ? colors.selected : colors.surface,
-          borderColor: selected
-            ? colors.selectedBorder
-            : blocked
-            ? colors.warningBorder
-            : colors.borderSoft,
+          backgroundColor: colors.surface,
+          borderColor: blocked ? colors.warningBorder : colors.border,
         },
         pressed && styles.pressed,
       ]}>
-      {selectionMode ? <Checkbox selected={selected} /> : null}
-
-      {missingCover ? (
-        <BookCover
-          width={40}
-          height={58}
-          placeholder
-          placeholderLabel={'NO\nCOVER'}
-          rounded={6}
-        />
-      ) : (
-        <BookCover
-          width={40}
-          height={58}
-          rounded={6}
-          coverColor={book.cover_color ?? undefined}
-          coverUrl={adminCoverUrl(book.cover_path)}
-        />
-      )}
+      <BookCover
+        width={48}
+        height={68}
+        rounded={8}
+        coverColor={missingCover ? undefined : book.cover_color ?? undefined}
+        coverUrl={adminCoverUrl(book.cover_path)}
+        caption={missingCover ? 'no art' : undefined}
+      />
 
       <View style={styles.body}>
         {isUrdu ? (
-          <UrduText size={15} numberOfLines={1}>
+          <UrduText size={15} numberOfLines={2}>
             {book.title}
           </UrduText>
         ) : (
-          <Text size={13.5} leading={1.2} weight="500" numberOfLines={1}>
+          <Text size={14.5} leading={1.25} weight="500" numberOfLines={2}>
             {book.title}
           </Text>
         )}
 
-        <Text size={11.5} leading={1} tone="muted" numberOfLines={1}>
-          {`${book.author_name} · updated ${formatRelative(book.updated_at)}`}
+        <Text size={11.5} leading={1.2} tone="muted" numberOfLines={1}>
+          {[book.author_name, categoryLabel ?? book.genre].filter(Boolean).join(' · ')}
         </Text>
 
-        <View style={styles.badges}>
-          <AdminBadge
-            label={book.is_published ? 'Live' : 'Draft'}
+        <View style={styles.tags}>
+          <AdminTag
+            label={book.is_published ? 'LIVE' : 'DRAFT'}
             tone={book.is_published ? 'success' : 'neutral'}
           />
-          {book.is_premium ? <AdminBadge label="Premium" tone="accent" /> : null}
-          {missingPdf ? <AdminBadge label="PDF required" tone="warning" /> : null}
+          {missingPdf ? <AdminTag label="NO PDF" tone="warning" /> : null}
+          {missingCover ? <AdminTag label="NO COVER" tone="warning" /> : null}
+          {!blocked ? (
+            <AdminTag
+              label={book.is_premium ? 'PREMIUM' : 'FREE'}
+              tone={book.is_premium ? 'premium' : 'neutral'}
+            />
+          ) : null}
         </View>
+
+        {/* The one line that matters: the blocker, or how it is doing. */}
+        <Text size={11} leading={1.2} tone={blocked ? 'warning' : 'faint'} numberOfLines={1}>
+          {blocked
+            ? missingPdf
+              ? 'Add a PDF to publish'
+              : 'Add a cover to finish this title'
+            : `${book.reader_count} readers · ${book.download_count} downloads · ${formatBytes(
+                book.file_size_bytes,
+              )}`}
+        </Text>
       </View>
 
-      {!selectionMode ? (
-        <View style={styles.metrics}>
-          <Text size={10.5} leading={1.3} tone="faint" align="right">
-            {`${book.reader_count} readers`}
-          </Text>
-          <Text size={10.5} leading={1.3} tone="faint" align="right">
-            {`${book.download_count} saved`}
-          </Text>
-        </View>
-      ) : null}
+      <View style={styles.chevron}>
+        <Icon icon={ChevronRight} size={15} color={colors.dim} strokeWidth={2} />
+      </View>
     </Pressable>
   );
 }
@@ -122,26 +166,45 @@ function AdminBookRowBase({
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    alignItems: 'center',
     gap: 12,
-    padding: 11,
-    borderRadius: 14,
+    padding: 12,
+    borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth * 2,
   },
   body: {
     flex: 1,
     minWidth: 0,
-    gap: 5,
+    gap: 6,
   },
-  badges: {
+  tags: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
     gap: 6,
   },
-  metrics: {
-    alignItems: 'flex-end',
-    gap: 3,
+  chevron: {
+    justifyContent: 'center',
+  },
+  selectRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 7,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectBody: {
+    flex: 1,
+    minWidth: 0,
+    gap: 4,
   },
   pressed: {
     opacity: 0.78,

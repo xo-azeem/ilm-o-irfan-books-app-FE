@@ -1,190 +1,236 @@
-import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Screen, ScreenHeader } from '@/components/layout';
-import { ListRowsSkeleton } from '@/components/skeletons/CatalogSkeletons';
 import { Text } from '@/components/ui';
 import { AdminPickerSheet } from '@/features/admin/components/AdminControls';
+import { AdminMenuSkeleton } from '@/features/admin/components/AdminSkeletons';
 import { errorMessage, useToast } from '@/features/admin/components/AdminToast';
 import {
+  ADMIN_GUTTER,
   AdminBackLink,
-  AdminBadge,
   AdminButton,
-  AdminCard,
-  AdminDivider,
   AdminErrorState,
+  AdminEyebrow,
   AdminField,
-  AdminHelper,
   AdminNavRow,
+  AdminRowGroup,
+  AdminScreenTitle,
+  AdminTag,
   AdminToggleRow,
 } from '@/features/admin/components/AdminUi';
+import { useAppInsets } from '@/hooks/useAppInsets';
 import { useAdminCollections, useAdminSettings, useUpdateAdminSettings } from '@/hooks/useAdmin';
-import { layout } from '@/theme/palette';
+import { useTheme } from '@/theme/ThemeContext';
 
+/**
+ * App settings.
+ *
+ * Every switch is written as what a reader will see, not as the column it
+ * sets. There is deliberately no PDF-access switch: `get-signed-pdf` grants a
+ * file to the admin role or an active entitlement and to nothing else, so
+ * there is no flag here that could contradict it.
+ */
 export function AdminSettingsScreen() {
+  const { colors } = useTheme();
+  const { scrollEndPadding } = useAppInsets();
   const toast = useToast();
+
   const { data, isLoading, error, refetch } = useAdminSettings();
   const { data: collections = [] } = useAdminCollections();
   const update = useUpdateAdminSettings();
 
-  const [maintenanceMessage, setMaintenanceMessage] = useState('');
-  const [minVersion, setMinVersion] = useState('');
-  const [supportEmail, setSupportEmail] = useState('');
+  const [form, setForm] = useState({
+    maintenanceMode: false,
+    maintenanceMessage: '',
+    signupEnabled: true,
+    minVersion: '',
+    supportEmail: '',
+    featuredCollectionId: null as string | null,
+  });
   const [showCollectionPicker, setShowCollectionPicker] = useState(false);
 
   useEffect(() => {
     if (!data) return;
-    setMaintenanceMessage(data.maintenance_message ?? '');
-    setMinVersion(data.min_supported_version ?? '');
-    setSupportEmail(data.support_email ?? '');
+    setForm({
+      maintenanceMode: data.maintenance_mode,
+      maintenanceMessage: data.maintenance_message ?? '',
+      signupEnabled: data.signup_enabled,
+      minVersion: data.min_supported_version ?? '',
+      supportEmail: data.support_email ?? '',
+      featuredCollectionId: data.featured_collection_id,
+    });
   }, [data]);
 
-  const save = (patch: Parameters<typeof update.mutate>[0], successMessage: string) => {
-    update.mutate(patch, {
-      onSuccess: () => toast.success(successMessage),
-      onError: caught => toast.error(errorMessage(caught)),
-    });
+  const dirty = useMemo(() => {
+    if (!data) return false;
+    return (
+      form.maintenanceMode !== data.maintenance_mode ||
+      form.maintenanceMessage !== (data.maintenance_message ?? '') ||
+      form.signupEnabled !== data.signup_enabled ||
+      form.minVersion !== (data.min_supported_version ?? '') ||
+      form.supportEmail !== (data.support_email ?? '') ||
+      form.featuredCollectionId !== data.featured_collection_id
+    );
+  }, [data, form]);
+
+  const featured = collections.find(item => item.id === form.featuredCollectionId);
+
+  const handleSave = () => {
+    update.mutate(
+      {
+        maintenance_mode: form.maintenanceMode,
+        maintenance_message: form.maintenanceMessage || null,
+        signup_enabled: form.signupEnabled,
+        min_supported_version: form.minVersion || null,
+        support_email: form.supportEmail || null,
+        featured_collection_id: form.featuredCollectionId,
+      },
+      {
+        onSuccess: () => toast.success('Settings saved.'),
+        onError: caught => toast.error(errorMessage(caught)),
+      },
+    );
   };
 
   if (isLoading) {
     return (
-      <Screen>
-        <AdminBackLink label="System" />
-        <ListRowsSkeleton count={5} />
-      </Screen>
+      <Shell>
+        <AdminMenuSkeleton count={4} height={72} />
+      </Shell>
     );
   }
 
   if (error || !data) {
     return (
-      <Screen>
-        <AdminBackLink label="System" />
+      <Shell>
         <AdminErrorState
-          message={error ? errorMessage(error) : 'Settings row is missing.'}
+          title="Couldn't load settings"
+          message="The settings row did not come back. Nothing has been changed."
+          detail={error ? errorMessage(error) : undefined}
           onRetry={() => void refetch()}
         />
-      </Screen>
+      </Shell>
     );
   }
 
-  const featured = collections.find(item => item.id === data.featured_collection_id);
-
   return (
-    <Screen padding={layout.adminPadding} gap={15}>
-      <AdminBackLink label="System" />
-      <ScreenHeader dense title="Settings" subtitle="Product flags that apply to every reader." />
+    <SafeAreaView
+      style={[styles.root, { backgroundColor: colors.background }]}
+      edges={['top', 'left', 'right']}>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <AdminBackLink
+          label="System"
+          action={dirty ? <AdminTag label="UNSAVED" tone="warning" /> : undefined}
+        />
+      </View>
 
-      <View style={settingsStyles.stack}>
-        <AdminCard title="Access">
-          <View style={settingsStyles.group}>
-            {/*
-              PDF access is not configurable. `get-signed-pdf` grants it to the
-              admin role or an active entitlement and to nothing else, so there
-              is no switch here that could contradict it.
-            */}
-            <View style={settingsStyles.row}>
-              <AdminBadge label="Subscription required" tone="success" />
-              <Text size={12} leading={1.3} tone="muted">
-                Readers need an active entitlement. Admins can open every book.
-              </Text>
-            </View>
+      <ScrollView
+        style={styles.grow}
+        contentContainerStyle={{
+          paddingHorizontal: ADMIN_GUTTER,
+          paddingTop: 16,
+          paddingBottom: scrollEndPadding + 80,
+          gap: 16,
+        }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}>
+        <AdminScreenTitle title="App settings" />
 
-            <AdminDivider />
-
-            <AdminToggleRow
-              label="Sign-ups open"
-              description="Turn off to stop new accounts being created."
-              value={data.signup_enabled}
-              disabled={update.isPending}
-              onValueChange={value =>
-                save({ signup_enabled: value }, value ? 'Sign-ups open.' : 'Sign-ups closed.')
-              }
-            />
-          </View>
-        </AdminCard>
-
-        <AdminCard title="Maintenance">
-          <View style={settingsStyles.group}>
+        <AdminRowGroup title="Availability">
+          <View style={styles.settingRow}>
             <AdminToggleRow
               label="Maintenance mode"
-              description="Show a notice instead of the catalog."
-              value={data.maintenance_mode}
-              disabled={update.isPending}
-              onValueChange={value =>
-                save(
-                  { maintenance_mode: value },
-                  value ? 'Maintenance mode on.' : 'Maintenance mode off.',
-                )
+              description={
+                form.maintenanceMode
+                  ? 'On — everyone sees the notice below instead of the app.'
+                  : 'Off — the app opens normally for everyone.'
               }
-            />
-            <AdminField
-              label="Notice"
-              value={maintenanceMessage}
-              onChangeText={setMaintenanceMessage}
-              multiline
-              placeholder="We are updating the library. Back shortly."
-            />
-            <AdminButton
-              label="Save notice"
-              variant="secondary"
-              compact
-              disabled={update.isPending}
-              onPress={() =>
-                save({ maintenance_message: maintenanceMessage || null }, 'Notice saved.')
-              }
+              value={form.maintenanceMode}
+              onValueChange={value => setForm(current => ({ ...current, maintenanceMode: value }))}
             />
           </View>
-        </AdminCard>
+          <View style={styles.settingRow}>
+            <AdminToggleRow
+              label="New signups"
+              description={
+                form.signupEnabled
+                  ? 'Open — anyone can create an account.'
+                  : 'Closed — the sign-up form is hidden and existing accounts still work.'
+              }
+              value={form.signupEnabled}
+              onValueChange={value => setForm(current => ({ ...current, signupEnabled: value }))}
+            />
+          </View>
+        </AdminRowGroup>
 
-        <AdminCard title="Merchandising" padded={false}>
+        <AdminField
+          label="Notice shown during maintenance"
+          value={form.maintenanceMessage}
+          onChangeText={value => setForm(current => ({ ...current, maintenanceMessage: value }))}
+          multiline
+          maxLength={240}
+          placeholder="We're adding new titles. The library will be back within the hour."
+        />
+
+        <AdminRowGroup title="Home screen">
           <AdminNavRow
-            label="Featured collection"
+            label="Featured shelf"
             value={featured?.title ?? 'None'}
-            isLast
             onPress={() => setShowCollectionPicker(true)}
           />
-        </AdminCard>
+        </AdminRowGroup>
 
-        <AdminCard title="App">
-          <View style={settingsStyles.group}>
-            <AdminField
-              label="Minimum supported version"
-              value={minVersion}
-              onChangeText={setMinVersion}
-              placeholder="1.0.0"
-              autoCapitalize="none"
-            />
-            <AdminField
-              label="Support email"
-              value={supportEmail}
-              onChangeText={setSupportEmail}
-              placeholder="support@example.com"
-              autoCapitalize="none"
-              keyboardType="email-address"
-            />
-            <AdminButton
-              label={update.isPending ? 'Saving…' : 'Save app settings'}
-              loading={update.isPending}
-              onPress={() =>
-                save(
-                  {
-                    min_supported_version: minVersion || null,
-                    support_email: supportEmail || null,
-                  },
-                  'App settings saved.',
-                )
-              }
-            />
-            <AdminHelper>
-              Every change here is recorded in the audit log with your account and a timestamp.
-            </AdminHelper>
-          </View>
-        </AdminCard>
+        <View style={styles.block}>
+          <AdminEyebrow>Support &amp; versions</AdminEyebrow>
+          <AdminField
+            label="Support email"
+            value={form.supportEmail}
+            onChangeText={value => setForm(current => ({ ...current, supportEmail: value }))}
+            placeholder="help@ilmoirfan.pk"
+            autoCapitalize="none"
+            keyboardType="email-address"
+            helper="Shown in the reader app's Help centre."
+          />
+          <AdminField
+            label="Oldest allowed app version"
+            value={form.minVersion}
+            onChangeText={value => setForm(current => ({ ...current, minVersion: value }))}
+            placeholder="1.2.0"
+            autoCapitalize="none"
+            mono
+            helper="Older builds are asked to update before reading."
+          />
+        </View>
+
+        <View style={[styles.note, { backgroundColor: colors.primaryFillSoft }]}>
+          <Text size={11.5} leading={1.5} tone="muted">
+            PDF access is decided by the reader's subscription at the moment they ask for a file.
+            There is deliberately no switch here that could open the whole library by accident.
+          </Text>
+        </View>
+
+        <Text size={11.5} leading={1.45} tone="faint">
+          Every change here is written to the change history with your account and a timestamp.
+        </Text>
+      </ScrollView>
+
+      <View
+        style={[
+          styles.footer,
+          { backgroundColor: colors.chrome, borderTopColor: colors.chromeBorder },
+        ]}>
+        <AdminButton
+          label="Save settings"
+          loading={update.isPending}
+          disabled={!dirty}
+          onPress={handleSave}
+        />
       </View>
 
       <AdminPickerSheet
         visible={showCollectionPicker}
-        title="Featured collection"
+        title="Featured shelf"
         items={[
           { id: '', label: 'None' },
           ...collections.map(collection => ({
@@ -194,26 +240,58 @@ export function AdminSettingsScreen() {
             accent: collection.accent,
           })),
         ]}
-        selected={data.featured_collection_id ? [data.featured_collection_id] : ['']}
+        selected={form.featuredCollectionId ? [form.featuredCollectionId] : ['']}
         onClose={() => setShowCollectionPicker(false)}
         onChange={next =>
-          save({ featured_collection_id: next[0] || null }, 'Featured collection updated.')
+          setForm(current => ({ ...current, featuredCollectionId: next[0] || null }))
         }
       />
-    </Screen>
+    </SafeAreaView>
   );
 }
 
-const settingsStyles = StyleSheet.create({
-  stack: {
-    gap: 22,
+/** The screen frame, reused by the loading and error states. */
+function Shell({ children }: { children: React.ReactNode }) {
+  const { colors } = useTheme();
+
+  return (
+    <SafeAreaView
+      style={[styles.root, { backgroundColor: colors.background }]}
+      edges={['top', 'left', 'right']}>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <AdminBackLink label="System" />
+      </View>
+      <View style={styles.shellBody}>{children}</View>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  header: {
+    paddingHorizontal: ADMIN_GUTTER,
+    paddingTop: 4,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth * 2,
   },
-  group: {
-    gap: 12,
+  shellBody: {
+    paddingHorizontal: ADMIN_GUTTER,
+    paddingTop: 16,
   },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 9,
+  grow: { flex: 1 },
+  block: { gap: 9 },
+  settingRow: {
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
+  note: {
+    padding: 14,
+    borderRadius: 14,
+  },
+  footer: {
+    paddingHorizontal: ADMIN_GUTTER,
+    paddingTop: 13,
+    paddingBottom: 26,
+    borderTopWidth: StyleSheet.hairlineWidth * 2,
   },
 });

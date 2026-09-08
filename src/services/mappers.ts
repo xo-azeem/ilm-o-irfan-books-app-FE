@@ -11,7 +11,10 @@ export type CatalogListRow = {
   id: string;
   title: string;
   author_name: string | null;
+  /** The raw Storage key. Prefer `coverUrl`, which the endpoints resolve. */
   cover_path: string | null;
+  /** The endpoint's own resolved cover URL, absent on the fallback path. */
+  coverUrl?: string | null;
   cover_color: string | null;
   cover_color_dark: string | null;
   rating: number | string | null;

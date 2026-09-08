@@ -18,14 +18,15 @@ import { Screen } from '@/components/layout';
 import { HomeCatalogSkeleton } from '@/components/skeletons/CatalogSkeletons';
 import { EmptyState, HeaderWash } from '@/components/ui';
 import { ROUTES } from '@/constants/routes';
-import type { FeaturedBook } from '@/features/home/components/BookOfTheWeek';
 import { HeroCarousel } from '@/features/home/components/HeroCarousel';
+import type { HeroSlide } from '@/features/home/components/HeroSlideCard';
 import { HomeHeader, HomeStickyHeader } from '@/features/home/components/HomeHeader';
 import { MembershipBand } from '@/features/home/components/MembershipBand';
 import { matchesMood, MoodPicker, type ReadingMood } from '@/features/home/components/MoodPicker';
 import { useLibrary, useProfile, useSubscription } from '@/hooks/useAccount';
 import { useHomeCatalog } from '@/hooks/useCatalog';
-import type { CatalogBook } from '@/services/catalog';
+import { useRecommendations } from '@/hooks/useRecommendations';
+import type { CatalogBook, CatalogSlide } from '@/services/catalog';
 import { isUrduTitle } from '@/services/script';
 
 type HomeNavigation = CompositeNavigationProp<
@@ -51,9 +52,28 @@ function toSummary(book: CatalogBook): BookSummary {
   };
 }
 
+/**
+ * Adapts a slide for the carousel.
+ *
+ * The only thing added is the script call for the heading font — every string,
+ * colour and image on a slide is the admin's and arrives already resolved.
+ */
+function toSlide(slide: CatalogSlide): HeroSlide {
+  return { ...slide, isUrdu: isUrduTitle(slide.headline) };
+}
+
+/** The heading a cold-start recommendation list gets. Never "Because you read". */
+const COLD_START = {
+  title: 'Popular right now',
+  subtitle: 'Where other readers are starting',
+} as const;
+
 export function HomeScreen() {
   const navigation = useNavigation<HomeNavigation>();
   const { data, isLoading, isError, error, refetch } = useHomeCatalog();
+  // Fired alongside the feed, not after it: Home draws the rest of itself if
+  // this one fails, and it is disabled outright for a signed-out reader.
+  const { data: recommendations } = useRecommendations();
   const { data: profile } = useProfile();
   const { data: library } = useLibrary();
   const { data: subscription } = useSubscription();
@@ -69,7 +89,31 @@ export function HomeScreen() {
     [navigation],
   );
 
+  // A slide carries the whole book card, so both of these go straight to the
+  // book it points at — there is nothing left to look up first.
+  const openSlide = useCallback(
+    (slide: HeroSlide) => navigation.navigate(ROUTES.BOOK_DETAIL, { bookId: slide.bookId }),
+    [navigation],
+  );
+
+  const readSlide = useCallback(
+    (slide: HeroSlide) => navigation.navigate(ROUTES.BOOK_READER, { bookId: slide.bookId }),
+    [navigation],
+  );
+
   const openProfile = useCallback(() => navigation.navigate(ROUTES.PROFILE), [navigation]);
+
+  // The strip carries collection ids, so that is the handle sent. The screen
+  // titles itself from what `collection-books` sends back rather than from
+  // anything passed through here.
+  const openCollection = useCallback(
+    (collectionId?: string) => {
+      if (collectionId) {
+        navigation.navigate(ROUTES.COLLECTION, { collectionId });
+      }
+    },
+    [navigation],
+  );
 
   // The bell was landing on the reading record, same as the avatar. There is no
   // notification inbox behind it yet, so it opens the notification settings —
@@ -85,30 +129,18 @@ export function HomeScreen() {
     [navigation],
   );
 
-  // Every editorial pick becomes a page of the hero carousel; the shelf falls
-  // back to a single static card when there is only one.
-  const featured = useMemo<FeaturedBook[]>(
-    () =>
-      (data?.hero ?? []).slice(0, 5).map(book => ({
-        ...toSummary(book),
-        description: book.description,
-        rating: book.rating,
-        genre: book.genre,
-      })),
-    [data?.hero],
+  // The carousel is the admin's, top to bottom: which slides, in what order,
+  // and every word on them. Nothing is picked, sorted or padded here, and an
+  // empty list draws no rail rather than being backfilled with newest books.
+  const slides = useMemo<HeroSlide[]>(
+    () => (data?.carousel ?? []).map(toSlide),
+    [data?.carousel],
   );
 
   // Books the reader has started but not finished. `library-overview` returns
   // that shelf already split from the finished one and ordered most-recently
   // read first, so there is nothing left to filter here.
   const inProgress = useMemo(() => (library?.reading ?? []).slice(0, 6), [library?.reading]);
-
-  // The design's second rail is a personal one — companion reading for the book
-  // most recently opened. Without a reading history there is nothing to be
-  // "because" of, so it falls back to the new-arrivals shelf.
-  // Only a Latin title can be set into the serif rail heading — Newsreader has
-  // no Nastaliq, and a mixed-script heading is worse than a plain one.
-  const lastRead = inProgress[0] && !isUrduTitle(inProgress[0].title) ? inProgress[0] : null;
 
   // `app_settings.featured_collection_id` is the collection an admin has
   // pinned. The rail keeps the editor's own `sort_order` for everything else
@@ -124,7 +156,7 @@ export function HomeScreen() {
     return featured ? [featured, ...rows.filter(row => row.id !== featuredId)] : rows;
   }, [data?.collections, data?.featuredCollectionId]);
 
-  const recommended = useMemo(() => {
+  const arrivals = useMemo(() => {
     const pool = data?.arrivals ?? [];
     if (!mood) {
       return pool;
@@ -135,7 +167,10 @@ export function HomeScreen() {
     return matching.length > 0 ? matching : pool;
   }, [data?.arrivals, mood]);
 
-  const hasMembership = subscription?.active ?? false;
+  // What the backend will actually do, not whether a subscription exists: an
+  // admin holds none and is served every book, so nagging them to subscribe
+  // would be selling something they already have.
+  const hasMembership = subscription?.canAccessPremium ?? false;
 
   if (isError) {
     return (
@@ -173,7 +208,7 @@ export function HomeScreen() {
         <HomeCatalogSkeleton />
       ) : (
         <>
-          <HeroCarousel books={featured} onRead={readBook} onPress={openBook} />
+          <HeroCarousel slides={slides} onRead={readSlide} onPress={openSlide} />
 
           {inProgress.length > 0 ? (
             <BookRail
@@ -194,9 +229,46 @@ export function HomeScreen() {
 
           <MoodPicker value={mood} onChange={setMood} gap={26} />
 
+          {/* Both headings below are the backend's own words. "Because you read
+              X" is composed there from the book the reader actually finished,
+              and a reader with no history gets a neutral heading instead —
+              which is what `isPersonalized` decides, never `sections.length`. */}
+          {recommendations?.isPersonalized
+            ? recommendations.sections.map(section => (
+                <BookRail key={section.id} title={section.title} subtitle={section.subtitle} gap={14}>
+                  {section.books.map(book => (
+                    <BookCard
+                      key={book.id}
+                      book={toSummary(book)}
+                      width={106}
+                      showAuthor={false}
+                      onPress={openBook}
+                    />
+                  ))}
+                </BookRail>
+              ))
+            : null}
+
+          {recommendations && !recommendations.isPersonalized && recommendations.books.length ? (
+            <BookRail title={COLD_START.title} subtitle={COLD_START.subtitle} gap={14}>
+              {recommendations.books.map(book => (
+                <BookCard
+                  key={book.id}
+                  book={toSummary(book)}
+                  width={106}
+                  showAuthor={false}
+                  onPress={openBook}
+                />
+              ))}
+            </BookRail>
+          ) : null}
+
+          {/* The weekly draw, as it arrived. The same books in the same order
+              for every reader until Monday — so the subtitle says exactly that
+              rather than implying the rail was picked for this one. */}
           {data?.trending?.length ? (
-            <BookRail title="Trending this week" subtitle="Most opened across the store">
-              {data.trending.slice(0, 8).map((book, index) => (
+            <BookRail title="Trending this week" subtitle="The same shelf for every reader">
+              {data.trending.map((book, index) => (
                 <BookCard
                   key={book.id}
                   book={toSummary(book)}
@@ -207,14 +279,9 @@ export function HomeScreen() {
             </BookRail>
           ) : null}
 
-          {recommended.length > 0 ? (
-            <BookRail
-              title={lastRead ? `Because you read ${lastRead.title}` : 'New arrivals'}
-              subtitle={
-                lastRead ? 'Companion volumes and commentary' : 'Fresh on the shelf'
-              }
-              gap={14}>
-              {recommended.slice(0, 8).map(book => (
+          {arrivals.length > 0 ? (
+            <BookRail title="New arrivals" subtitle="Fresh on the shelf" gap={14}>
+              {arrivals.slice(0, 8).map(book => (
                 <BookCard
                   key={book.id}
                   book={toSummary(book)}
@@ -240,6 +307,7 @@ export function HomeScreen() {
                     collection.subtitle || `${collection.bookCount} books`
                   }
                   accent={collection.accent}
+                  onPress={openCollection}
                 />
               ))}
             </BookRail>

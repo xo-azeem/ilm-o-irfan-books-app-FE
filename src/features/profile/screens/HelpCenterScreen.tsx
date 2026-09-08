@@ -12,6 +12,7 @@ import {
   Text,
 } from '@/components/ui';
 import { ProfileSubScreenLayout } from '@/features/profile/components/ProfileSubScreenLayout';
+import { useHomeCatalog } from '@/hooks/useCatalog';
 import {
   aboutDetails,
   helpTopics,
@@ -31,6 +32,10 @@ const STORE_REVIEW_URL = 'https://ilmoirfan.com/rate';
  */
 export function HelpCenterScreen() {
   const { colors } = useTheme();
+  // The address an admin set, from `app_settings` by way of the home feed.
+  // The bundled one is only what an offline first launch has to fall back on.
+  const { data: home } = useHomeCatalog();
+  const supportEmail = home?.supportEmail || supportContact.email;
   const [query, setQuery] = useState('');
   const [openTopic, setOpenTopic] = useState<string | null>(helpTopics[0]?.id ?? null);
 
@@ -49,11 +54,9 @@ export function HelpCenterScreen() {
 
   const emailSupport = useCallback(() => {
     void Linking.openURL(
-      `mailto:${supportContact.email}?subject=${encodeURIComponent('Ilm o Irfan support')}`,
-    ).catch(() =>
-      Alert.alert('No mail app', `Write to us at ${supportContact.email}.`),
-    );
-  }, []);
+      `mailto:${supportEmail}?subject=${encodeURIComponent('Ilm o Irfan support')}`,
+    ).catch(() => Alert.alert('No mail app', `Write to us at ${supportEmail}.`));
+  }, [supportEmail]);
 
   const rateApp = useCallback(() => {
     void Linking.openURL(STORE_REVIEW_URL).catch(() =>
@@ -93,7 +96,7 @@ export function HelpCenterScreen() {
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Email ${supportContact.email}`}
+        accessibilityLabel={`Email ${supportEmail}`}
         onPress={emailSupport}
         style={({ pressed }) => [
           styles.support,
@@ -112,7 +115,7 @@ export function HelpCenterScreen() {
             Still stuck?
           </Text>
           <Text size={12.5} leading={1.2} tone="muted">
-            {`${supportContact.email} · ${supportContact.replyTime}`}
+            {`${supportEmail} · ${supportContact.replyTime}`}
           </Text>
         </View>
         <View style={[styles.supportAction, { backgroundColor: colors.primary }]}>

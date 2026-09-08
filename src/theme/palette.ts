@@ -50,6 +50,8 @@ export const theme = {
     control: '#151B14',
     /** Muted control fill used inside sheets. */
     controlAlt: '#171E16',
+    /** The raised pill inside a segmented track, and the secondary button. */
+    controlActive: '#232B22',
 
     ink: '#F1F5EE',
     inkSoft: '#D6DED2',
@@ -69,6 +71,15 @@ export const theme = {
     /** Translucent green wash behind selected states. */
     primaryFill: 'rgba(45, 138, 71, 0.18)',
     primaryFillSoft: 'rgba(45, 138, 71, 0.12)',
+    /**
+     * Green carrying an action in running text — a back link, “Change”,
+     * “View all”. Dark mode wants the softest green against near black; the
+     * same value falls under 4.5:1 on a near-white page, so light mode reads
+     * “soft” as “deeper”.
+     */
+    actionInk: palette.greenSoft,
+    /** Green carrying an action as an icon, a step stronger than the text. */
+    actionIcon: palette.greenSoft,
 
     /** Selected chip / card: filled panel plus a green rim. */
     selected: '#1A2419',
@@ -90,7 +101,11 @@ export const theme = {
 
     warning: palette.amber,
     warningFill: 'rgba(217, 154, 43, 0.10)',
+    /** A denser amber wash — status pills and icon tiles, not whole panels. */
+    warningTint: 'rgba(217, 154, 43, 0.16)',
     warningBorder: 'rgba(217, 154, 43, 0.34)',
+    /** The hairline between rows inside an amber panel. */
+    warningDivider: 'rgba(217, 154, 43, 0.24)',
     warningInk: '#C3B48E',
 
     /** Admin premium / entitlement signal. */
@@ -138,6 +153,7 @@ export const theme = {
     surfaceHigh: '#E7EEE2',
     control: '#EEF3EA',
     controlAlt: '#E9F0E5',
+    controlActive: '#FFFFFF',
 
     ink: '#101A12',
     inkSoft: '#2C3D30',
@@ -156,6 +172,8 @@ export const theme = {
     onPrimary: '#FFFFFF',
     primaryFill: 'rgba(45, 138, 71, 0.14)',
     primaryFillSoft: 'rgba(45, 138, 71, 0.08)',
+    actionInk: '#247A3D',
+    actionIcon: palette.green,
 
     selected: '#E4F0E4',
     selectedBorder: 'rgba(45, 138, 71, 0.45)',
@@ -182,7 +200,9 @@ export const theme = {
 
     warning: '#9A6A12',
     warningFill: 'rgba(217, 154, 43, 0.14)',
+    warningTint: 'rgba(217, 154, 43, 0.16)',
     warningBorder: 'rgba(154, 106, 18, 0.30)',
+    warningDivider: 'rgba(154, 106, 18, 0.20)',
     warningInk: '#6B5417',
 
     lime: '#6F8C0F',

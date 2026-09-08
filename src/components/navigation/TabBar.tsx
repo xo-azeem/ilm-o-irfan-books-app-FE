@@ -166,13 +166,15 @@ const Tab = memo(function Tab({
         <Icon
           size={variant === 'admin' ? 19 : 21}
           color={isFocused ? colors.tabActive : colors.tabInactive}
-          strokeWidth={variant === 'admin' ? 1.8 : 1.7}
+          // Admin thickens the selected glyph rather than adding a pill behind
+          // it — the bar carries four destinations and no decoration.
+          strokeWidth={variant === 'admin' ? (isFocused ? 2 : 1.9) : 1.7}
         />
         <Text
-          size={variant === 'admin' ? 9 : 9.5}
+          size={variant === 'admin' ? 10 : 9.5}
           leading={1}
-          weight={isFocused ? '600' : '500'}
-          tracking={0.4}
+          weight={variant === 'admin' ? (isFocused ? '500' : '400') : isFocused ? '600' : '500'}
+          tracking={variant === 'admin' ? 0 : 0.4}
           tone="inherit"
           numberOfLines={1}
           style={{ color: isFocused ? colors.tabActive : colors.tabInactive }}>
@@ -213,6 +215,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   tabInnerAdmin: {
+    gap: 5,
     paddingHorizontal: 6,
   },
 });

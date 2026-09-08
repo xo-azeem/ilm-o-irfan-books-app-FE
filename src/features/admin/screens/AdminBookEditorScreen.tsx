@@ -11,39 +11,43 @@ import {
   pick,
   types,
 } from '@react-native-documents/picker';
-import { Copy, Eye, FileText, ImageUp, Trash2 } from 'lucide-react-native';
+import { Copy, ImageUp, Trash2, type LucideIcon } from 'lucide-react-native';
 
-import { BookCover, Display, Icon, Text } from '@/components/ui';
+import { BookCover, Display, Icon, Label, Text } from '@/components/ui';
 import { ADMIN_ROUTES } from '@/constants/routes';
 import {
   AdminColorField,
   AdminConfirmSheet,
   AdminPickerSheet,
-  AdminSegmented,
   AdminTagInput,
 } from '@/features/admin/components/AdminControls';
 import { errorMessage, useToast } from '@/features/admin/components/AdminToast';
 import {
+  ADMIN_GUTTER,
   AdminBackLink,
-  AdminBadge,
   AdminButton,
   AdminCard,
+  AdminChecklist,
   AdminChip,
   AdminDivider,
+  AdminEyebrow,
   AdminField,
   AdminHelper,
   AdminLabel,
+  AdminPickerField,
+  AdminSectionHeader,
+  AdminTag,
+  AdminTextAction,
   AdminToggleRow,
   AdminUploadProgress,
+  type ChecklistItem,
 } from '@/features/admin/components/AdminUi';
 import {
   useDebouncedValue,
   useDirtyTracker,
   useUnsavedGuard,
 } from '@/features/admin/hooks/useAdminForm';
-import { formatBytes } from '@/features/admin/utils/format';
-import { layout } from '@/theme/palette';
-import { fontSize } from '@/theme/typography';
+import { formatBytes, formatDate } from '@/features/admin/utils/format';
 import { useAppInsets } from '@/hooks/useAppInsets';
 import {
   useAdminAuthors,
@@ -64,20 +68,13 @@ import {
   validatePdfSize,
   type AdminBookInput,
 } from '@/services/admin';
-import { palette } from '@/theme/palette';
+import { coverColors as COVER_RAMP, palette } from '@/theme/palette';
 import { useTheme } from '@/theme/ThemeContext';
 
-import type { AdminBooksStackParamList } from '../navigation/types';
+import type { AdminLibraryStackParamList } from '../navigation/types';
 
-type Tab = 'details' | 'files' | 'placement';
-
-const TABS: Array<{ value: Tab; label: string }> = [
-  { value: 'details', label: 'Details' },
-  { value: 'files', label: 'Files' },
-  { value: 'placement', label: 'Placement' },
-];
-
-const CURRENCIES = ['PKR', 'USD', 'GBP', 'EUR', 'SAR', 'AED'];
+const CURRENCIES = ['PKR', 'USD', 'GBP', 'EUR'];
+const DESCRIPTION_MAX = 600;
 
 type FormState = {
   title: string;
@@ -125,9 +122,17 @@ const EMPTY: FormState = {
   collectionIds: [],
 };
 
+/**
+ * The book editor.
+ *
+ * One scroll instead of three sub-tabs, headed by a live checklist. Everything
+ * that stands between this title and readers is on screen from the first
+ * keystroke, each blocker carrying the tap that clears it — you no longer
+ * learn a PDF is missing by trying to publish and failing.
+ */
 export function AdminBookEditorScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<AdminBooksStackParamList>>();
-  const route = useRoute<RouteProp<AdminBooksStackParamList, 'AdminBookEditor'>>();
+  const navigation = useNavigation<NativeStackNavigationProp<AdminLibraryStackParamList>>();
+  const route = useRoute<RouteProp<AdminLibraryStackParamList, 'AdminBookEditor'>>();
   const bookId = route.params?.bookId;
   const { colors } = useTheme();
   const { scrollEndPadding } = useAppInsets();
@@ -143,7 +148,6 @@ export function AdminBookEditorScreen() {
   const deleteBooks = useDeleteAdminBooks();
 
   const [form, setForm] = useState<FormState>(EMPTY);
-  const [tab, setTab] = useState<Tab>('details');
   const [coverProgress, setCoverProgress] = useState<number | null>(null);
   const [pdfProgress, setPdfProgress] = useState<number | null>(null);
   const [slugTaken, setSlugTaken] = useState(false);
@@ -226,12 +230,12 @@ export function AdminBookEditorScreen() {
   const errors = {
     title: !form.title.trim() ? 'A title is required.' : null,
     author: !form.authorId ? 'Choose an author.' : null,
-    slug: slugTaken ? 'Another title already uses this slug.' : null,
+    slug: slugTaken ? 'Another title already uses this link.' : null,
     price: Number.isNaN(Number(form.price)) ? 'Enter a number.' : null,
     readTime:
-      form.readTime && !Number.isFinite(Number(form.readTime)) ? 'Enter minutes as a number.' : null,
-    publish:
-      form.isPublished && !form.pdfPath ? 'Upload a PDF before publishing this title.' : null,
+      form.readTime && !Number.isFinite(Number(form.readTime))
+        ? 'Enter minutes as a number.'
+        : null,
   };
   const hasErrors = Object.values(errors).some(Boolean);
 
@@ -300,7 +304,7 @@ export function AdminBookEditorScreen() {
     }
   };
 
-  const buildInput = (): AdminBookInput => ({
+  const buildInput = (isPublished: boolean): AdminBookInput => ({
     title: form.title,
     slug: resolvedSlug,
     description: form.description,
@@ -318,27 +322,25 @@ export function AdminBookEditorScreen() {
     currency: form.currency,
     format: form.format,
     is_premium: form.isPremium,
-    is_published: form.isPublished,
+    is_published: isPublished,
     category_ids: form.categoryIds,
     collection_ids: form.collectionIds,
   });
 
-  const handleSave = () => {
+  const save = (isPublished: boolean, successMessage: string) => {
     setTouched(true);
     if (hasErrors) {
-      toast.error(
-        errors.publish ?? errors.title ?? errors.author ?? errors.slug ?? 'Fix the highlighted fields.',
-      );
-      setTab(errors.publish ? 'files' : 'details');
+      toast.error(errors.title ?? errors.author ?? errors.slug ?? 'Fix the highlighted fields.');
       return;
     }
 
     saveBook.mutate(
-      { id: bookId, input: buildInput() },
+      { id: bookId, input: buildInput(isPublished) },
       {
         onSuccess: () => {
+          patch({ isPublished });
           reset();
-          toast.success(bookId ? 'Book saved.' : 'Book created.');
+          toast.success(successMessage);
           navigation.goBack();
         },
         onError: caught => toast.error(errorMessage(caught)),
@@ -346,33 +348,75 @@ export function AdminBookEditorScreen() {
     );
   };
 
+  // Everything standing between this title and readers, in the order it is
+  // usually filled in.
+  const checklist: ChecklistItem[] = [
+    {
+      id: 'identity',
+      label: 'Title and author',
+      done: Boolean(form.title.trim() && form.authorId),
+      actionLabel: 'Add',
+      onAction: () => setShowAuthorPicker(true),
+    },
+    { id: 'description', label: 'Description', done: form.description.trim().length > 0 },
+    {
+      id: 'category',
+      label: 'At least one category',
+      done: form.categoryIds.length > 0,
+      actionLabel: 'Choose',
+      onAction: () => setShowCategoryPicker(true),
+    },
+    {
+      id: 'pdf',
+      label: 'Book PDF',
+      done: Boolean(form.pdfPath),
+      actionLabel: 'Upload',
+      onAction: () => {
+        void handlePdf();
+      },
+    },
+    {
+      id: 'cover',
+      label: 'Cover image',
+      done: Boolean(form.coverPath),
+      optional: true,
+      actionLabel: 'Add',
+      onAction: () => {
+        void handleCover();
+      },
+    },
+  ];
+
+  const publishBlocker = !form.pdfPath ? 'needs a PDF' : hasErrors ? 'fix the fields above' : null;
+  const pdfName = form.pdfPath ? form.pdfPath.split('/').pop() : null;
+
   return (
     <SafeAreaView
       style={[styles.root, { backgroundColor: colors.background }]}
       edges={['top', 'left', 'right']}>
-      <View style={styles.header}>
-        {/* Back on the left, save state on the right — the two things an editor
-            glances at while working. */}
-        <View style={styles.headerTop}>
-          <AdminBackLink label="Books" />
-          <View style={styles.stateBadges}>
-            {isDirty ? <AdminBadge label="Unsaved" tone="warning" /> : null}
-            <AdminBadge
-              label={form.isPublished ? 'Live' : 'Draft'}
-              tone={form.isPublished ? 'success' : 'neutral'}
-            />
-          </View>
-        </View>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <AdminBackLink
+          label="Library"
+          action={
+            <View style={styles.stateBadges}>
+              {isDirty ? <AdminTag label="UNSAVED" tone="warning" /> : null}
+              <AdminTag
+                label={form.isPublished ? 'LIVE' : 'DRAFT'}
+                tone={form.isPublished ? 'success' : 'neutral'}
+              />
+            </View>
+          }
+        />
 
         <View style={styles.titleRow}>
-          <Display size={24} numberOfLines={2} style={styles.title}>
+          <Display size={24} weight="500" tracking={-0.4} numberOfLines={2} style={styles.grow}>
             {bookId ? form.title || 'Edit book' : 'New book'}
           </Display>
 
           {bookId ? (
             <View style={styles.titleActions}>
               <IconAction
-                Icon={Copy}
+                icon={Copy}
                 label="Duplicate"
                 onPress={() =>
                   duplicateBook.mutate(bookId, {
@@ -385,7 +429,7 @@ export function AdminBookEditorScreen() {
                 }
               />
               <IconAction
-                Icon={Trash2}
+                icon={Trash2}
                 label="Delete"
                 tone="danger"
                 onPress={() => setConfirmDelete(true)}
@@ -393,339 +437,426 @@ export function AdminBookEditorScreen() {
             </View>
           ) : null}
         </View>
-
-        <AdminSegmented options={TABS} value={tab} onChange={setTab} />
       </View>
 
       <ScrollView
-        style={styles.scroll}
+        style={styles.grow}
         contentContainerStyle={{
-          paddingHorizontal: layout.adminPadding,
-          paddingBottom: scrollEndPadding + 70,
+          paddingHorizontal: ADMIN_GUTTER,
+          paddingTop: 14,
+          paddingBottom: scrollEndPadding + 80,
+          gap: 20,
         }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}>
         {isLoading && bookId ? (
-          <Text size={fontSize.bodySmall} leading={1.5} align="center" tone="muted" style={styles.loading}>
+          <Text size={14} leading={1.5} align="center" tone="muted" style={styles.loading}>
             Loading…
           </Text>
-        ) : tab === 'details' ? (
-          <View style={styles.stack}>
-            <AdminField
-              label="Title"
-              value={form.title}
-              onChangeText={value => patch({ title: value })}
-              error={touched ? errors.title : null}
-              maxLength={160}
-            />
-            <AdminField
-              label="Slug"
-              value={form.slug}
-              onChangeText={value => patch({ slug: value })}
-              placeholder={slugify(form.title) || 'auto-from-title'}
-              autoCapitalize="none"
-              error={errors.slug}
-              helper={`Public URL key — currently “${resolvedSlug || '—'}”.`}
+        ) : (
+          <>
+            <AdminChecklist
+              title={form.isPublished ? 'This title is live' : 'Before this can go live'}
+              items={checklist}
             />
 
-            <Pressable
-              onPress={() => setShowAuthorPicker(true)}
-              style={({ pressed }) => [styles.field, pressed && styles.pressed]}>
-              <AdminLabel>Author</AdminLabel>
-              <View
-                style={[
-                  styles.pickerRow,
-                  {
-                    backgroundColor: colors.surfaceAlt,
-                    borderColor: touched && errors.author ? colors.dangerBorder : colors.border,
-                  },
-                ]}>
-                <Text size={14} leading={1.2} tone={author ? 'ink' : 'faint'} numberOfLines={1}>
-                  {author?.name ?? 'Choose an author'}
-                </Text>
-                <Text size={13} leading={1} weight="500" tone="primary">
-                  Change
-                </Text>
-              </View>
-              {touched && errors.author ? (
-                <Text size={12} leading={1.4} tone="danger">
-                  {errors.author}
-                </Text>
-              ) : null}
-            </Pressable>
-
-            <AdminField
-              label="Description"
-              value={form.description}
-              onChangeText={value => patch({ description: value })}
-              multiline
-              helper="Shown on the book detail screen."
-            />
-
-            <View style={styles.row}>
-              <View style={styles.grow}>
-                <AdminField
-                  label="Genre"
-                  value={form.genre}
-                  onChangeText={value => patch({ genre: value })}
-                  placeholder="Islamic Studies"
-                />
-              </View>
-              <View style={styles.grow}>
-                <AdminField
-                  label="Badge"
-                  value={form.tag}
-                  onChangeText={value => patch({ tag: value })}
-                  placeholder="New"
-                  helper="Corner label on the cover."
-                />
-              </View>
-            </View>
-
-            <AdminTagInput
-              label="Search tags"
-              tags={form.tags}
-              onChange={tags => patch({ tags })}
-              helper="Feed the catalog search index. Not shown to readers."
-            />
-
-            <View style={styles.row}>
-              <View style={styles.grow}>
-                <AdminField
-                  label="Read time"
-                  value={form.readTime}
-                  onChangeText={value => patch({ readTime: value.replace(/[^0-9]/g, '') })}
-                  keyboardType="number-pad"
-                  suffix="min"
-                  error={errors.readTime}
-                />
-              </View>
-              <View style={styles.grow}>
-                <AdminField
-                  label="Format"
-                  value={form.format}
-                  onChangeText={value => patch({ format: value })}
-                  placeholder="Digital edition"
-                />
-              </View>
-            </View>
-
-            <View style={styles.row}>
-              <View style={styles.grow}>
-                <AdminField
-                  label="Price"
-                  value={form.price}
-                  onChangeText={value => patch({ price: value.replace(/[^0-9.]/g, '') })}
-                  keyboardType="decimal-pad"
-                  error={errors.price}
-                  helper="0 for titles included in a subscription."
-                />
-              </View>
-              <View style={styles.currency}>
-                <AdminLabel>Currency</AdminLabel>
-                <View style={styles.wrap}>
-                  {CURRENCIES.slice(0, 3).map(code => (
-                    <AdminChip
-                      key={code}
-                      label={code}
-                      compact
-                      selected={form.currency === code}
-                      onPress={() => patch({ currency: code })}
-                    />
-                  ))}
-                </View>
-              </View>
-            </View>
-
-            <AdminColorField
-              label="Cover colour"
-              value={form.coverColor}
-              onChange={value => patch({ coverColor: value })}
-              helper="Used behind the cover art and as a fallback."
-            />
-            <AdminColorField
-              label="Cover colour (dark mode)"
-              value={form.coverColorDark}
-              onChange={value => patch({ coverColorDark: value })}
-            />
-          </View>
-        ) : tab === 'files' ? (
-          <View style={styles.stackWide}>
-            <View style={styles.coverPreview}>
-              <BookCover
-                width={128}
-                coverColor={form.coverColor}
-                coverUrl={adminCoverUrl(form.coverPath)}
-                rounded={14}
-                elevated
+            {/* Identity */}
+            <View style={styles.stack}>
+              <AdminField
+                label="Title"
+                value={form.title}
+                onChangeText={value => patch({ title: value })}
+                error={touched ? errors.title : null}
+                maxLength={160}
               />
+
+              <AdminPickerField
+                label="Author"
+                value={author?.name}
+                placeholder="Choose an author"
+                onPress={() => setShowAuthorPicker(true)}
+                error={touched ? errors.author : null}
+              />
+
+              <AdminField
+                label="Description"
+                value={form.description}
+                onChangeText={value => patch({ description: value })}
+                multiline
+                maxLength={DESCRIPTION_MAX}
+                helper="Shown on the book detail screen. Two or three sentences reads best."
+              />
+
+              <AdminPickerField
+                label="Public link"
+                value={resolvedSlug || null}
+                placeholder="auto-from-title"
+                mono
+                verified={Boolean(resolvedSlug) && !slugTaken}
+                actionLabel="Edit"
+                onPress={() => patch({ slug: form.slug || resolvedSlug })}
+                error={errors.slug}
+                helper={
+                  slugTaken ? undefined : 'Made from the title. Available.'
+                }
+                helperTone="faint"
+              />
+
+              {/* Only offered once the operator has asked to change it. */}
+              {form.slug ? (
+                <AdminField
+                  label="Link override"
+                  value={form.slug}
+                  onChangeText={value => patch({ slug: value })}
+                  autoCapitalize="none"
+                  mono
+                  error={errors.slug}
+                  helper="Changing a published link breaks anything already pointing at it."
+                  helperTone="warning"
+                />
+              ) : null}
             </View>
 
-            <AdminCard title="Cover image">
-              <View style={styles.group}>
-                <View style={styles.between}>
-                  <Text size={14} leading={1.2} tone="muted">
-                    {form.coverPath ? 'Uploaded' : 'Not uploaded'}
-                  </Text>
-                  {form.coverPath ? <AdminBadge label="Ready" tone="success" /> : null}
-                </View>
-                {coverProgress !== null ? (
-                  <ProgressBar value={coverProgress} label="Uploading cover" />
-                ) : null}
-                <AdminButton
-                  label={form.coverPath ? 'Replace cover' : 'Upload cover'}
-                  Icon={ImageUp}
-                  variant="secondary"
-                  disabled={uploading}
-                  onPress={() => {
-                    void handleCover();
-                  }}
-                />
-                <AdminHelper>JPG, PNG, or WebP up to 5 MB. Portrait art works best.</AdminHelper>
-              </View>
-            </AdminCard>
+            {/* Files */}
+            <View style={styles.section}>
+              <Display size={22} weight="500" tracking={-0.4}>
+                Files
+              </Display>
 
-            <AdminCard title="Book PDF">
-              <View style={styles.group}>
-                <View style={styles.between}>
-                  <Text size={14} leading={1.2} tone="muted">
-                    {form.pdfPath ? formatBytes(form.fileSizeBytes) : 'Not uploaded'}
+              <View style={styles.coverBlock}>
+                {form.coverPath ? (
+                  <BookCover
+                    width={104}
+                    height={150}
+                    rounded={12}
+                    coverColor={form.coverColor}
+                    coverUrl={adminCoverUrl(form.coverPath)}
+                  />
+                ) : (
+                  <BookCover
+                    width={104}
+                    height={150}
+                    rounded={12}
+                    placeholder
+                    placeholderLabel={'cover art\n1400×2100'}
+                  />
+                )}
+
+                <View style={styles.coverBody}>
+                  <Text size={14} leading={1.3} weight="500">
+                    Cover image
                   </Text>
-                  {form.pdfPath ? (
-                    <AdminBadge label="Ready" tone="success" />
+                  <Text size={12} leading={1.5} tone="muted">
+                    JPG, PNG or WebP up to 5 MB. Portrait art works best — readers see it at 2:3.
+                  </Text>
+
+                  {coverProgress !== null ? (
+                    <AdminUploadProgress
+                      fileName="Uploading cover"
+                      percent={coverProgress * 100}
+                    />
                   ) : (
-                    <AdminBadge label="Required to publish" tone="warning" />
+                    <AdminButton
+                      label={form.coverPath ? 'Replace image' : 'Choose image'}
+                      Icon={ImageUp}
+                      variant="secondary"
+                      compact
+                      disabled={uploading}
+                      onPress={() => {
+                        void handleCover();
+                      }}
+                    />
+                  )}
+
+                  <AdminEyebrow tone="faint">Or pick a colour</AdminEyebrow>
+                  <View style={styles.swatches}>
+                    {Object.values(COVER_RAMP).map(entry => {
+                      const picked = form.coverColor.toLowerCase() === entry.light.toLowerCase();
+                      return (
+                        <Pressable
+                          key={entry.light}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: picked }}
+                          accessibilityLabel={`Cover colour ${entry.light}`}
+                          onPress={() =>
+                            patch({ coverColor: entry.light, coverColorDark: entry.dark })
+                          }
+                          style={[
+                            styles.swatchRing,
+                            picked && { borderColor: colors.actionInk },
+                          ]}>
+                          <View style={[styles.swatch, { backgroundColor: entry.light }]} />
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              </View>
+
+              <AdminCard>
+                <View style={styles.between}>
+                  <Text size={14} leading={1.3} weight="500">
+                    Book PDF
+                  </Text>
+                  {pdfProgress !== null ? (
+                    <AdminTag label="UPLOADING" tone="warning" />
+                  ) : form.pdfPath ? (
+                    <AdminTag label="READY" tone="success" />
+                  ) : (
+                    <AdminTag label="REQUIRED" tone="warning" />
                   )}
                 </View>
+
                 {pdfProgress !== null ? (
-                  <ProgressBar value={pdfProgress} label="Uploading PDF" />
-                ) : null}
-                <AdminButton
-                  label={form.pdfPath ? 'Replace PDF' : 'Upload PDF'}
-                  Icon={FileText}
-                  variant="secondary"
-                  disabled={uploading}
-                  onPress={() => {
-                    void handlePdf();
-                  }}
-                />
-                {bookId && form.pdfPath ? (
+                  <AdminUploadProgress
+                    fileName={`${resolvedSlug || 'book'}.pdf`}
+                    percent={pdfProgress * 100}
+                    detail="Stored privately while it uploads."
+                  />
+                ) : (
                   <AdminButton
-                    label="Preview PDF"
-                    Icon={Eye}
+                    label={form.pdfPath ? 'Replace PDF' : 'Choose a PDF'}
                     variant="secondary"
-                    onPress={() =>
-                      navigation.navigate(ADMIN_ROUTES.PDF_PREVIEW, {
-                        bookId,
-                        title: form.title || 'Preview',
-                      })
+                    compact
+                    disabled={uploading}
+                    onPress={() => {
+                      void handlePdf();
+                    }}
+                  />
+                )}
+
+                <AdminDivider />
+
+                <AdminHelper>
+                  Up to 100 MB. Stored privately — readers only ever get a short-lived signed link,
+                  never the file itself.
+                </AdminHelper>
+              </AdminCard>
+
+              {bookId && form.pdfPath ? (
+                <AdminCard>
+                  <Text size={14} leading={1.3} weight="500">
+                    Currently live file
+                  </Text>
+                  <View style={styles.fileRow}>
+                    <View style={[styles.fileChip, { backgroundColor: colors.controlActive }]}>
+                      <Label size={8} leading={1} weight="700" tracking={0.4} tone="action">
+                        PDF
+                      </Label>
+                    </View>
+                    <View style={styles.grow}>
+                      <Label
+                        size={12.5}
+                        leading={1.2}
+                        weight="400"
+                        tracking={0}
+                        uppercase={false}
+                        tone="soft"
+                        numberOfLines={1}>
+                        {pdfName ?? 'book.pdf'}
+                      </Label>
+                      <Text size={11} leading={1.2} tone="faint" numberOfLines={1}>
+                        {`${formatBytes(form.fileSizeBytes)} · added ${formatDate(
+                          existing?.updated_at,
+                        )}`}
+                      </Text>
+                    </View>
+                    <AdminTextAction
+                      label="Preview"
+                      onPress={() =>
+                        navigation.navigate(ADMIN_ROUTES.PDF_PREVIEW, {
+                          bookId,
+                          title: form.title || 'Preview',
+                        })
+                      }
+                    />
+                  </View>
+                </AdminCard>
+              ) : null}
+            </View>
+
+            {/* Placement */}
+            <View style={styles.section}>
+              <Display size={22} weight="500" tracking={-0.4}>
+                Placement
+              </Display>
+
+              <View style={styles.stack}>
+                <View style={styles.block}>
+                  <AdminSectionHeader
+                    title="Categories"
+                    action={
+                      <AdminTextAction
+                        label="Edit"
+                        size={11.5}
+                        onPress={() => setShowCategoryPicker(true)}
+                      />
                     }
                   />
-                ) : null}
-                <AdminHelper>
-                  Up to 100 MB. Stored privately — readers only get short-lived signed links.
-                </AdminHelper>
+                  {form.categoryIds.length === 0 ? (
+                    <AdminHelper tone="warning">
+                      Not in any category yet — readers will not find it on Explore.
+                    </AdminHelper>
+                  ) : (
+                    <View style={styles.wrap}>
+                      {form.categoryIds.map(id => (
+                        <AdminChip
+                          key={id}
+                          label={categories.find(item => item.id === id)?.label ?? 'Unknown'}
+                          selected
+                          compact
+                          onPress={() =>
+                            patch({ categoryIds: form.categoryIds.filter(item => item !== id) })
+                          }
+                        />
+                      ))}
+                    </View>
+                  )}
+                </View>
+
+                <View style={styles.block}>
+                  <AdminSectionHeader
+                    title="Shelves"
+                    action={
+                      <AdminTextAction
+                        label="Edit"
+                        size={11.5}
+                        onPress={() => setShowCollectionPicker(true)}
+                      />
+                    }
+                  />
+                  {form.collectionIds.length === 0 ? (
+                    <AdminHelper>Not featured on any Home row.</AdminHelper>
+                  ) : (
+                    <View style={styles.wrap}>
+                      {form.collectionIds.map(id => (
+                        <AdminChip
+                          key={id}
+                          label={collections.find(item => item.id === id)?.title ?? 'Unknown'}
+                          selected
+                          compact
+                          onPress={() =>
+                            patch({
+                              collectionIds: form.collectionIds.filter(item => item !== id),
+                            })
+                          }
+                        />
+                      ))}
+                    </View>
+                  )}
+                </View>
+
+                <AdminCard>
+                  <AdminToggleRow
+                    label="Premium"
+                    description="Only subscribers can open the PDF. Free titles open for everyone."
+                    value={form.isPremium}
+                    onValueChange={value => patch({ isPremium: value })}
+                  />
+                </AdminCard>
               </View>
-            </AdminCard>
-          </View>
-        ) : (
-          <View style={styles.stackWide}>
-            <AdminCard title="Visibility">
-              <View style={styles.group}>
-                <AdminToggleRow
-                  label="Published"
-                  description="Live in Home, Search, and Explore."
-                  value={form.isPublished}
-                  onValueChange={value => patch({ isPublished: value })}
-                />
-                {errors.publish ? (
-                  <View
-                    style={[styles.blocker, { backgroundColor: colors.warningFill, borderColor: colors.warningBorder }]}>
-                    <Text size={12} leading={1.4} tone="warning">
-                      {errors.publish}
-                    </Text>
+            </View>
+
+            {/* Details */}
+            <View style={styles.section}>
+              <Display size={22} weight="500" tracking={-0.4}>
+                Details
+              </Display>
+
+              <View style={styles.stack}>
+                <View style={styles.row}>
+                  <View style={styles.grow}>
+                    <AdminField
+                      label="Genre"
+                      value={form.genre}
+                      onChangeText={value => patch({ genre: value })}
+                      placeholder="Islamic Studies"
+                    />
                   </View>
-                ) : null}
-                <AdminDivider />
-                <AdminToggleRow
-                  label="Premium"
-                  description="Shows the premium badge. The paywall itself is controlled in System → Settings."
-                  value={form.isPremium}
-                  onValueChange={value => patch({ isPremium: value })}
+                  <View style={styles.grow}>
+                    <AdminField
+                      label="Badge"
+                      value={form.tag}
+                      onChangeText={value => patch({ tag: value })}
+                      placeholder="New"
+                      helper="Corner label on the cover."
+                    />
+                  </View>
+                </View>
+
+                <AdminTagInput
+                  label="Search tags"
+                  tags={form.tags}
+                  onChange={tags => patch({ tags })}
+                  placeholder="Add a tag and press return"
+                  helper="Feeds the catalog search index. Not shown to readers."
+                />
+
+                <View style={styles.row}>
+                  <View style={styles.grow}>
+                    <AdminField
+                      label="Read time"
+                      value={form.readTime}
+                      onChangeText={value => patch({ readTime: value.replace(/[^0-9]/g, '') })}
+                      keyboardType="number-pad"
+                      suffix="min"
+                      error={errors.readTime}
+                    />
+                  </View>
+                  <View style={styles.grow}>
+                    <AdminField
+                      label="Format"
+                      value={form.format}
+                      onChangeText={value => patch({ format: value })}
+                      placeholder="Digital edition"
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.row}>
+                  <View style={styles.grow}>
+                    <AdminField
+                      label="Price"
+                      value={form.price}
+                      onChangeText={value => patch({ price: value.replace(/[^0-9.]/g, '') })}
+                      keyboardType="decimal-pad"
+                      error={errors.price}
+                      helper="0 for titles included in a subscription."
+                    />
+                  </View>
+                  <View style={styles.currency}>
+                    <AdminLabel>Currency</AdminLabel>
+                    <View style={styles.wrap}>
+                      {CURRENCIES.map(code => (
+                        <AdminChip
+                          key={code}
+                          label={code}
+                          compact
+                          selected={form.currency === code}
+                          onPress={() => patch({ currency: code })}
+                        />
+                      ))}
+                    </View>
+                  </View>
+                </View>
+
+                <AdminColorField
+                  label="Cover colour"
+                  value={form.coverColor}
+                  onChange={value => patch({ coverColor: value })}
+                  helper="Used behind the cover art and as a fallback."
+                />
+                <AdminColorField
+                  label="Cover colour (dark mode)"
+                  value={form.coverColorDark}
+                  onChange={value => patch({ coverColorDark: value })}
                 />
               </View>
-            </AdminCard>
-
-            <AdminCard
-              title="Categories"
-              action={
-                <Pressable onPress={() => setShowCategoryPicker(true)} hitSlop={8}>
-                  <Text size={13} leading={1} weight="600" tone="primary">
-                    Edit
-                  </Text>
-                </Pressable>
-              }>
-              {form.categoryIds.length === 0 ? (
-                <Text size={13} leading={1.4} tone="muted">
-                  Not in any category yet.
-                </Text>
-              ) : (
-                <View style={styles.wrapWide}>
-                  {form.categoryIds.map(id => {
-                    const category = categories.find(item => item.id === id);
-                    return (
-                      <AdminChip
-                        key={id}
-                        label={category?.label ?? 'Unknown'}
-                        accent={category?.accent}
-                        selected
-                        compact
-                        onPress={() =>
-                          patch({ categoryIds: form.categoryIds.filter(item => item !== id) })
-                        }
-                      />
-                    );
-                  })}
-                </View>
-              )}
-            </AdminCard>
-
-            <AdminCard
-              title="Collections"
-              action={
-                <Pressable onPress={() => setShowCollectionPicker(true)} hitSlop={8}>
-                  <Text size={13} leading={1} weight="600" tone="primary">
-                    Edit
-                  </Text>
-                </Pressable>
-              }>
-              {form.collectionIds.length === 0 ? (
-                <Text size={13} leading={1.4} tone="muted">
-                  Not featured in any shelf.
-                </Text>
-              ) : (
-                <View style={styles.wrapWide}>
-                  {form.collectionIds.map(id => {
-                    const collection = collections.find(item => item.id === id);
-                    return (
-                      <AdminChip
-                        key={id}
-                        label={collection?.title ?? 'Unknown'}
-                        selected
-                        compact
-                        onPress={() =>
-                          patch({ collectionIds: form.collectionIds.filter(item => item !== id) })
-                        }
-                      />
-                    );
-                  })}
-                </View>
-              )}
-            </AdminCard>
+            </View>
 
             {existing ? (
-              <AdminCard title="Engagement">
-                <View style={styles.between}>
+              <AdminCard title="How it is doing">
+                <View style={styles.metrics}>
                   <Metric label="Readers" value={existing.reader_count} />
                   <Metric label="Downloads" value={existing.download_count} />
                   <Metric label="Wishlisted" value={existing.wishlist_count} />
@@ -733,18 +864,56 @@ export function AdminBookEditorScreen() {
                 </View>
               </AdminCard>
             ) : null}
-          </View>
+          </>
         )}
       </ScrollView>
 
+      {/* The two ways out of this screen, and why one of them is closed. */}
       <View
-        style={[styles.saveBar, { backgroundColor: colors.chrome, borderTopColor: colors.chromeBorder }]}>
-        <AdminButton
-          label={saveBook.isPending ? 'Saving…' : bookId ? 'Save changes' : 'Create book'}
-          loading={saveBook.isPending}
-          disabled={uploading || (touched && hasErrors)}
-          onPress={handleSave}
-        />
+        style={[
+          styles.footer,
+          { backgroundColor: colors.chrome, borderTopColor: colors.chromeBorder },
+        ]}>
+        {form.isPublished ? (
+          <>
+            <View style={styles.grow}>
+              <AdminButton
+                label="Unpublish"
+                variant="secondary"
+                disabled={uploading || saveBook.isPending}
+                onPress={() => save(false, 'Title unpublished.')}
+              />
+            </View>
+            <View style={styles.grow}>
+              <AdminButton
+                label="Save changes"
+                loading={saveBook.isPending}
+                disabled={uploading}
+                onPress={() => save(true, 'Book saved.')}
+              />
+            </View>
+          </>
+        ) : (
+          <>
+            <View style={styles.grow}>
+              <AdminButton
+                label="Save draft"
+                variant="secondary"
+                loading={saveBook.isPending}
+                disabled={uploading}
+                onPress={() => save(false, bookId ? 'Draft saved.' : 'Draft created.')}
+              />
+            </View>
+            <View style={styles.grow}>
+              <AdminButton
+                label="Publish"
+                blockedReason={publishBlocker}
+                disabled={uploading}
+                onPress={() => save(true, 'Title published.')}
+              />
+            </View>
+          </>
+        )}
       </View>
 
       <AdminPickerSheet
@@ -756,7 +925,7 @@ export function AdminBookEditorScreen() {
           sublabel: `${item.book_count} ${item.book_count === 1 ? 'book' : 'books'}`,
         }))}
         selected={form.authorId ? [form.authorId] : []}
-        emptyLabel="No authors yet. Add one under Catalog → Authors."
+        emptyLabel="No authors yet. Add one from Library → Authors."
         onClose={() => setShowAuthorPicker(false)}
         onChange={next => patch({ authorId: next[0] ?? '' })}
       />
@@ -772,14 +941,14 @@ export function AdminBookEditorScreen() {
           accent: item.accent,
         }))}
         selected={form.categoryIds}
-        emptyLabel="No categories yet. Add one under Catalog → Categories."
+        emptyLabel="No categories yet. Add one from Library → Categories."
         onClose={() => setShowCategoryPicker(false)}
         onChange={next => patch({ categoryIds: next })}
       />
 
       <AdminPickerSheet
         visible={showCollectionPicker}
-        title="Collections"
+        title="Shelves"
         multi
         items={collections.map(item => ({
           id: item.id,
@@ -787,17 +956,27 @@ export function AdminBookEditorScreen() {
           sublabel: `${item.kind} · ${item.book_count} books`,
         }))}
         selected={form.collectionIds}
-        emptyLabel="No collections yet. Add one under Catalog → Collections."
+        emptyLabel="No shelves yet. Add one from Library → Shelves."
         onClose={() => setShowCollectionPicker(false)}
         onChange={next => patch({ collectionIds: next })}
       />
 
       <AdminConfirmSheet
         visible={confirmDelete}
-        title="Delete this book?"
-        message="Reading progress, wishlist entries, downloads, and the uploaded cover and PDF are removed too. This cannot be undone."
+        title={`Delete ${form.title || 'this book'}?`}
+        message="This cannot be undone. Deleting the book also removes:"
+        consequences={[
+          `${existing?.reader_count ?? 0} readers' progress and bookmarks`,
+          `${existing?.download_count ?? 0} downloads on readers' devices`,
+          `The uploaded PDF and cover (${formatBytes(form.fileSizeBytes)})`,
+          `Its place in ${form.collectionIds.length} ${
+            form.collectionIds.length === 1 ? 'shelf' : 'shelves'
+          }`,
+        ]}
+        confirmPhrase={form.isPublished ? form.title : null}
         confirmLabel="Delete"
         destructive
+        footnote="Unpublishing hides it from readers and keeps everything."
         loading={deleteBooks.isPending}
         onCancel={() => setConfirmDelete(false)}
         onConfirm={() =>
@@ -820,13 +999,6 @@ export function AdminBookEditorScreen() {
   );
 }
 
-/** An upload's progress, shown on the card that owns the file. */
-function ProgressBar({ value, label }: { value: number; label: string }) {
-  return (
-    <AdminUploadProgress fileName={label} percent={Math.round(value * 100)} />
-  );
-}
-
 function Metric({ label, value }: { label: string; value: number | string }) {
   return (
     <View style={styles.metric}>
@@ -841,12 +1013,12 @@ function Metric({ label, value }: { label: string; value: number | string }) {
 }
 
 function IconAction({
-  Icon: Glyph,
+  icon,
   label,
   onPress,
   tone,
 }: {
-  Icon: typeof Copy;
+  icon: LucideIcon;
   label: string;
   onPress: () => void;
   tone?: 'danger';
@@ -865,7 +1037,7 @@ function IconAction({
         { backgroundColor: danger ? colors.dangerFill : colors.primaryFillSoft },
         pressed && styles.pressed,
       ]}>
-      <Icon icon={Glyph} size={14} tone={danger ? 'danger' : 'soft'} />
+      <Icon icon={icon} size={14} tone={danger ? 'danger' : 'action'} strokeWidth={1.9} />
     </Pressable>
   );
 }
@@ -875,16 +1047,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingHorizontal: layout.adminPadding,
+    paddingHorizontal: ADMIN_GUTTER,
     paddingTop: 4,
-    paddingBottom: 13,
-    gap: 13,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
+    paddingBottom: 12,
+    gap: 11,
+    borderBottomWidth: StyleSheet.hairlineWidth * 2,
   },
   stateBadges: {
     flexDirection: 'row',
@@ -897,49 +1064,66 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
   },
-  title: {
-    flex: 1,
-    minWidth: 0,
-  },
   titleActions: {
     flexDirection: 'row',
-    gap: 9,
+    gap: 8,
   },
-  scroll: {
-    flex: 1,
+  iconAction: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   loading: {
     paddingVertical: 40,
   },
-  stack: {
+  section: {
     gap: 16,
   },
-  stackWide: {
-    gap: 20,
+  stack: {
+    gap: 13,
   },
-  group: {
-    gap: 12,
+  block: {
+    gap: 9,
   },
   row: {
     flexDirection: 'row',
     gap: 11,
-  },
-  grow: {
-    flex: 1,
-  },
-  currency: {
-    width: 110,
-    gap: 8,
   },
   wrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 7,
   },
-  wrapWide: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  currency: {
+    width: 130,
     gap: 8,
+  },
+  coverBlock: {
+    flexDirection: 'row',
+    gap: 16,
+    alignItems: 'flex-start',
+  },
+  coverBody: {
+    flex: 1,
+    minWidth: 0,
+    gap: 10,
+  },
+  swatches: {
+    flexDirection: 'row',
+    gap: 7,
+  },
+  swatchRing: {
+    padding: 2,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  swatch: {
+    width: 26,
+    height: 26,
+    borderRadius: 9,
   },
   between: {
     flexDirection: 'row',
@@ -947,45 +1131,37 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
   },
-  coverPreview: {
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  field: {
-    gap: 8,
-  },
-  pickerRow: {
-    height: 46,
+  fileRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 11,
+  },
+  fileChip: {
+    width: 34,
+    height: 42,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  metrics: {
+    flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 12,
-    paddingHorizontal: 15,
-    borderRadius: 15,
-    borderWidth: StyleSheet.hairlineWidth * 2,
-  },
-  blocker: {
-    paddingHorizontal: 13,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: StyleSheet.hairlineWidth * 2,
-  },
-  saveBar: {
-    paddingHorizontal: 18,
-    paddingTop: 14,
-    paddingBottom: 26,
-    borderTopWidth: StyleSheet.hairlineWidth * 2,
   },
   metric: {
     alignItems: 'center',
     gap: 3,
   },
-  iconAction: {
-    width: 32,
-    height: 32,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
+  footer: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: ADMIN_GUTTER,
+    paddingTop: 13,
+    paddingBottom: 26,
+    borderTopWidth: StyleSheet.hairlineWidth * 2,
+  },
+  grow: {
+    flex: 1,
+    minWidth: 0,
   },
   pressed: {
     opacity: 0.72,

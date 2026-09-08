@@ -2,9 +2,7 @@ import { Fragment, memo, useCallback } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { ChevronDown, ChevronUp, GripHorizontal, X } from 'lucide-react-native';
 
-import { Card, Divider, Icon, Text, Toggle } from '@/components/ui';
-import { radius } from '@/theme/palette';
-import { fontSize } from '@/theme/typography';
+import { Divider, Icon, Text, Toggle } from '@/components/ui';
 import { useTheme } from '@/theme/ThemeContext';
 
 export type OrderableItem = {
@@ -16,11 +14,11 @@ export type OrderableItem = {
 };
 
 /**
- * Move-up / move-down ordering.
+ * An ordered list a person can rearrange.
  *
- * Chosen over drag-and-drop because the list lives inside a scroll view, where
- * a long-press drag fights the scroll gesture — the arrows are slower to use
- * but they never lose a row.
+ * Move-up / move-down rather than drag-and-drop: this list lives inside a
+ * scroll view, where a long-press drag fights the scroll gesture. The arrows
+ * are slower to use but they never lose a row.
  */
 export const AdminOrderableList = memo(function AdminOrderableList({
   items,
@@ -56,17 +54,20 @@ export const AdminOrderableList = memo(function AdminOrderableList({
 
   if (items.length === 0) {
     return (
-      <Card tone="alt" rounded={radius.chip} padded={22} style={styles.empty}>
-        <Text size={fontSize.caption} leading={1.4} tone="muted">
+      <View
+        style={[
+          styles.empty,
+          { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
+        ]}>
+        <Text size={12.5} leading={1.45} align="center" tone="muted">
           {emptyLabel}
         </Text>
-      </Card>
+      </View>
     );
   }
 
   return (
-    <View
-      style={[styles.list, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View style={[styles.list, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       {items.map((item, index) => (
         <Fragment key={item.id}>
           {index > 0 ? <Divider /> : null}
@@ -106,11 +107,11 @@ const OrderableRow = memo(function OrderableRow({
   const hidden = onToggleVisible ? item.visible === false : false;
 
   return (
-    <View style={[styles.row, hidden && styles.hidden]}>
+    <View style={[styles.row, hidden && styles.dimmed]}>
       <Icon icon={GripHorizontal} size={15} color={colors.dim} strokeWidth={2} />
 
       <View style={styles.body}>
-        <Text size={fontSize.bodySmall} leading={1.2} numberOfLines={1}>
+        <Text size={13} leading={1.2} numberOfLines={1}>
           {item.label}
         </Text>
         {item.sublabel ? (
@@ -126,8 +127,8 @@ const OrderableRow = memo(function OrderableRow({
         onPress={() => onMove(index, index - 1)}
         disabled={isFirst}
         hitSlop={6}
-        style={[styles.arrow, isFirst && styles.disabled]}>
-        <Icon icon={ChevronUp} size={17} tone="muted" strokeWidth={2.2} />
+        style={[styles.control, isFirst && styles.disabled]}>
+        <Icon icon={ChevronUp} size={16} tone="muted" strokeWidth={2.2} />
       </Pressable>
 
       <Pressable
@@ -136,25 +137,26 @@ const OrderableRow = memo(function OrderableRow({
         onPress={() => onMove(index, index + 1)}
         disabled={isLast}
         hitSlop={6}
-        style={[styles.arrow, isLast && styles.disabled]}>
-        <Icon icon={ChevronDown} size={17} tone="muted" strokeWidth={2.2} />
+        style={[styles.control, isLast && styles.disabled]}>
+        <Icon icon={ChevronDown} size={16} tone="muted" strokeWidth={2.2} />
       </Pressable>
 
       {onToggleVisible ? (
         <Toggle
           value={item.visible !== false}
           onValueChange={next => onToggleVisible(item.id, next)}
-          size="sm"
-          accessibilityLabel={`Show ${item.label} on Home`}
+          size="admin"
+          trackOff={colors.controlActive}
+          accessibilityLabel={`Show ${item.label}`}
         />
       ) : onRemove ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`Remove ${item.label}`}
           onPress={() => onRemove(item.id)}
-          hitSlop={6}
-          style={styles.arrow}>
-          <Icon icon={X} size={16} tone="faint" strokeWidth={2.2} />
+          hitSlop={8}
+          style={styles.control}>
+          <Icon icon={X} size={13} tone="danger" strokeWidth={2.4} />
         </Pressable>
       ) : null}
     </View>
@@ -163,32 +165,35 @@ const OrderableRow = memo(function OrderableRow({
 
 const styles = StyleSheet.create({
   list: {
-    borderRadius: radius.button,
+    borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth * 2,
     overflow: 'hidden',
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 11,
     paddingHorizontal: 14,
-    paddingVertical: 13,
+    paddingVertical: 12,
   },
-  hidden: {
-    opacity: 0.65,
+  dimmed: {
+    opacity: 0.6,
   },
   body: {
     flex: 1,
     minWidth: 0,
     gap: 3,
   },
-  arrow: {
+  control: {
     padding: 3,
   },
   disabled: {
     opacity: 0.25,
   },
   empty: {
-    alignItems: 'center',
+    padding: 22,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderStyle: 'dashed',
   },
 });

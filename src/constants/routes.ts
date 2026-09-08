@@ -6,6 +6,7 @@ export const ROUTES = {
   MAIN_TABS: 'MainTabs',
   BOOK_DETAIL: 'BookDetail',
   BOOK_READER: 'BookReader',
+  COLLECTION: 'Collection',
   WISHLIST: 'Wishlist',
   LOGIN: 'Login',
   SIGN_UP: 'SignUp',
@@ -21,43 +22,46 @@ export const ROUTE_LABELS: Record<RouteName, string> = {
   [ROUTES.MAIN_TABS]: 'Main',
   [ROUTES.BOOK_DETAIL]: 'Book',
   [ROUTES.BOOK_READER]: 'Reader',
+  [ROUTES.COLLECTION]: 'Collection',
   [ROUTES.WISHLIST]: 'Wishlist',
   [ROUTES.LOGIN]: 'Login',
   [ROUTES.SIGN_UP]: 'Sign up',
 };
 
+/**
+ * Admin destinations.
+ *
+ * Four tabs, grouped by what an operator is working on rather than by which
+ * table a record lives in: Today (what needs me), Library (everything readers
+ * see), People (readers, access, plans) and System (the weekly jobs). Books
+ * and Catalog were always the same job, so they are segments of one screen;
+ * plans moved to People, because every question about a person ends at their
+ * subscription.
+ */
 export const ADMIN_ROUTES = {
   // Tabs
-  OVERVIEW: 'AdminOverview',
-  BOOKS: 'AdminBooks',
-  CATALOG: 'AdminCatalog',
+  TODAY: 'AdminToday',
+  LIBRARY: 'AdminLibrary',
   PEOPLE: 'AdminPeople',
   SYSTEM: 'AdminSystem',
 
-  // Books stack
-  BOOK_LIST: 'AdminBookList',
+  // Library stack — books, authors, categories and shelves as four segments
+  LIBRARY_HOME: 'AdminLibraryHome',
   BOOK_EDITOR: 'AdminBookEditor',
   PDF_PREVIEW: 'AdminPdfPreview',
-
-  // Catalog stack
-  CATALOG_HOME: 'AdminCatalogHome',
-  AUTHOR_LIST: 'AdminAuthorList',
   AUTHOR_EDITOR: 'AdminAuthorEditor',
-  CATEGORY_LIST: 'AdminCategoryList',
   CATEGORY_EDITOR: 'AdminCategoryEditor',
-  COLLECTION_LIST: 'AdminCollectionList',
   COLLECTION_EDITOR: 'AdminCollectionEditor',
 
-  // People stack
-  PEOPLE_LIST: 'AdminPeopleList',
+  // People stack — readers and plans as two segments
+  PEOPLE_HOME: 'AdminPeopleHome',
   USER_DETAIL: 'AdminUserDetail',
+  PLAN_EDITOR: 'AdminPlanEditor',
 
   // System stack
   SYSTEM_HOME: 'AdminSystemHome',
   ANALYTICS: 'AdminAnalytics',
-  PLAN_LIST: 'AdminPlanList',
-  PLAN_EDITOR: 'AdminPlanEditor',
-  MEDIA: 'AdminMedia',
-  AUDIT_LOG: 'AdminAuditLog',
+  STORAGE: 'AdminStorage',
+  HISTORY: 'AdminHistory',
   SETTINGS: 'AdminSettings',
 } as const;

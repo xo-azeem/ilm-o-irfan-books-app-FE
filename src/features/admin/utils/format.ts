@@ -69,3 +69,24 @@ export function monthsFromNow(months: number): string {
   date.setMonth(date.getMonth() + months);
   return date.toISOString();
 }
+
+/** ISO date for a short support grant, measured in days rather than months. */
+export function daysFromNow(days: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString();
+}
+
+/** "in 3 days", "today", "6 days ago" — how long is left on an entitlement. */
+export function formatCountdown(value: string | null | undefined): string {
+  if (!value) return 'no end date';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'no end date';
+
+  const days = Math.round((date.getTime() - Date.now()) / 86_400_000);
+  if (days === 0) return 'today';
+  if (days === 1) return 'tomorrow';
+  if (days > 0) return `in ${days} days`;
+  if (days === -1) return 'yesterday';
+  return `${Math.abs(days)} days ago`;
+}

@@ -19,7 +19,7 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
-import { BookOfTheWeek, type FeaturedBook } from '@/features/home/components/BookOfTheWeek';
+import { HeroSlideCard, type HeroSlide } from '@/features/home/components/HeroSlideCard';
 import { layout } from '@/theme/palette';
 import { useTheme } from '@/theme/ThemeContext';
 
@@ -27,25 +27,25 @@ import { useTheme } from '@/theme/ThemeContext';
 const AUTO_ADVANCE_MS = 5000;
 
 /**
- * The hero carousel.
+ * The carousel at the top of Home.
  *
- * One page per editorial pick, each drawn by the same `BookOfTheWeek` card the
- * single-hero layout uses — so the carousel is a way of paging the hero, not a
- * second hero design to keep in sync.
+ * One page per slide, in the order the backend sent them — the admin owns what
+ * is here and where it sits, and this component adds nothing to the list, drops
+ * nothing from it and reorders nothing. An empty list draws no rail at all.
  *
  * Movement is native: `scrollTo` on the UI thread drives the platform's own
  * smooth scroll, and the scroll offset feeds the per-page transforms. Nothing
  * about the animation crosses to JS while it runs.
  */
 export const HeroCarousel = memo(function HeroCarousel({
-  books,
+  slides,
   onRead,
   onPress,
   autoAdvance = true,
 }: {
-  books: FeaturedBook[];
-  onRead?: (book: FeaturedBook) => void;
-  onPress?: (book: FeaturedBook) => void;
+  slides: HeroSlide[];
+  onRead?: (slide: HeroSlide) => void;
+  onPress?: (slide: HeroSlide) => void;
   /** Off for reduced motion, or when the reader is mid-decision. */
   autoAdvance?: boolean;
 }) {
@@ -63,7 +63,7 @@ export const HeroCarousel = memo(function HeroCarousel({
   const draggingRef = useRef(false);
 
   const pageWidth = Math.max(width, 1);
-  const count = books.length;
+  const count = slides.length;
 
   const onScroll = useAnimatedScrollHandler(event => {
     scrollX.value = event.contentOffset.x;
@@ -114,13 +114,14 @@ export const HeroCarousel = memo(function HeroCarousel({
     [count, pageWidth],
   );
 
+  // No slides is the admin saying "no carousel". Nothing stands in for it.
   if (count === 0) {
     return null;
   }
 
-  // A lone pick is not a carousel — no paging, no dots, no timer.
+  // A lone slide is not a carousel — no paging, no dots, no timer.
   if (count === 1) {
-    return <BookOfTheWeek book={books[0]} onRead={onRead} onPress={onPress} />;
+    return <HeroSlideCard slide={slides[0]} onRead={onRead} onPress={onPress} />;
   }
 
   return (
@@ -137,10 +138,10 @@ export const HeroCarousel = memo(function HeroCarousel({
         onScrollBeginDrag={handleDragBegin}
         onMomentumScrollEnd={handleSettled}
         style={{ marginHorizontal: -layout.screenPadding }}>
-        {books.map((book, pageIndex) => (
+        {slides.map((slide, pageIndex) => (
           <HeroPage
-            key={book.id}
-            book={book}
+            key={slide.id}
+            slide={slide}
             index={pageIndex}
             scrollX={scrollX}
             pageWidth={pageWidth}
@@ -153,10 +154,10 @@ export const HeroCarousel = memo(function HeroCarousel({
       <View
         style={styles.dots}
         accessibilityRole="tablist"
-        accessibilityLabel={`Featured book ${index + 1} of ${count}`}>
-        {books.map((book, dotIndex) => (
+        accessibilityLabel={`Featured ${index + 1} of ${count}`}>
+        {slides.map((slide, dotIndex) => (
           <Dot
-            key={book.id}
+            key={slide.id}
             index={dotIndex}
             scrollX={scrollX}
             pageWidth={pageWidth}
@@ -172,19 +173,19 @@ export const HeroCarousel = memo(function HeroCarousel({
  * dims, so a swipe reads as a deck being turned rather than a filmstrip.
  */
 const HeroPage = memo(function HeroPage({
-  book,
+  slide,
   index,
   scrollX,
   pageWidth,
   onRead,
   onPress,
 }: {
-  book: FeaturedBook;
+  slide: HeroSlide;
   index: number;
   scrollX: SharedValue<number>;
   pageWidth: number;
-  onRead?: (book: FeaturedBook) => void;
-  onPress?: (book: FeaturedBook) => void;
+  onRead?: (slide: HeroSlide) => void;
+  onPress?: (slide: HeroSlide) => void;
 }) {
   const range = [(index - 1) * pageWidth, index * pageWidth, (index + 1) * pageWidth];
 
@@ -203,7 +204,7 @@ const HeroPage = memo(function HeroPage({
     <View
       style={[styles.page, { width: pageWidth, paddingHorizontal: layout.screenPadding }]}>
       <Animated.View style={cardStyle}>
-        <BookOfTheWeek book={book} onRead={onRead} onPress={onPress} />
+        <HeroSlideCard slide={slide} onRead={onRead} onPress={onPress} />
       </Animated.View>
     </View>
   );

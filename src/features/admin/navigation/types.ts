@@ -2,41 +2,38 @@ import type { NavigatorScreenParams } from '@react-navigation/native';
 
 import type { BookStatusFilter } from '@/services/admin';
 
-export type AdminBooksStackParamList = {
-  AdminBookList: { status?: BookStatusFilter } | undefined;
+/** The four segments of the Library tab. */
+export type LibrarySegment = 'books' | 'authors' | 'categories' | 'shelves';
+
+/** The two segments of the People tab. */
+export type PeopleSegment = 'readers' | 'plans';
+
+export type AdminLibraryStackParamList = {
+  AdminLibraryHome: { segment?: LibrarySegment; status?: BookStatusFilter } | undefined;
   AdminBookEditor: { bookId?: string };
   AdminPdfPreview: { bookId: string; title: string };
-};
-
-export type AdminCatalogStackParamList = {
-  AdminCatalogHome: undefined;
-  AdminAuthorList: undefined;
   AdminAuthorEditor: { authorId?: string };
-  AdminCategoryList: undefined;
   AdminCategoryEditor: { categoryId?: string };
-  AdminCollectionList: undefined;
   AdminCollectionEditor: { collectionId?: string };
 };
 
 export type AdminPeopleStackParamList = {
-  AdminPeopleList: undefined;
+  AdminPeopleHome: { segment?: PeopleSegment } | undefined;
   AdminUserDetail: { userId: string };
+  AdminPlanEditor: { planId?: string };
 };
 
 export type AdminSystemStackParamList = {
   AdminSystemHome: undefined;
   AdminAnalytics: undefined;
-  AdminPlanList: undefined;
-  AdminPlanEditor: { planId?: string };
-  AdminMedia: undefined;
-  AdminAuditLog: undefined;
+  AdminStorage: undefined;
+  AdminHistory: undefined;
   AdminSettings: undefined;
 };
 
 export type AdminTabParamList = {
-  AdminOverview: undefined;
-  AdminBooks: NavigatorScreenParams<AdminBooksStackParamList> | undefined;
-  AdminCatalog: NavigatorScreenParams<AdminCatalogStackParamList> | undefined;
+  AdminToday: undefined;
+  AdminLibrary: NavigatorScreenParams<AdminLibraryStackParamList> | undefined;
   AdminPeople: NavigatorScreenParams<AdminPeopleStackParamList> | undefined;
   AdminSystem: NavigatorScreenParams<AdminSystemStackParamList> | undefined;
 };

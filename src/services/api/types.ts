@@ -26,6 +26,14 @@ export type BookListItem = {
   format: string | null;
   is_premium: boolean;
   published_at: string | null;
+  /**
+   * A ready-to-load public URL for the cover, or `null` when the book has
+   * none. Every catalog endpoint sends it, so it is the field to draw from —
+   * `cover_path` is the raw Storage key and is kept for debugging. Optional
+   * only because the PostgREST fallback selects the view directly and has to
+   * resolve the path itself.
+   */
+  coverUrl?: string | null;
 };
 
 /** The nested author relation `book-detail` selects from `public.authors`. */
@@ -63,6 +71,14 @@ export type BookDetailRow = {
   is_published: boolean;
   published_at: string | null;
   author: BookAuthor | BookAuthor[] | null;
+  /**
+   * A ready-to-load public URL for the cover, or `null` when the book has
+   * none. Every catalog endpoint sends it, so it is the field to draw from —
+   * `cover_path` is the raw Storage key and is kept for debugging. Optional
+   * only because the PostgREST fallback selects the view directly and has to
+   * resolve the path itself.
+   */
+  coverUrl?: string | null;
 };
 
 /** `public.category_with_counts`. */
@@ -77,6 +93,19 @@ export type CategoryRow = {
   book_count: number;
 };
 
+/**
+ * The `collection` object `collection-books` returns alongside its page.
+ *
+ * Leaner than `CollectionRow` — no accent and no count, because the endpoint
+ * pages the books themselves and `totalCount` already says how many there are.
+ * It is what the collection screen titles itself from, so nothing has to be
+ * carried through navigation params.
+ */
+export type CollectionInfoRow = Pick<
+  CollectionRow,
+  'id' | 'slug' | 'title' | 'subtitle' | 'kind' | 'sort_order'
+>;
+
 /** `public.collection_summaries`. */
 export type CollectionRow = {
   id: string;
@@ -90,13 +119,133 @@ export type CollectionRow = {
 };
 
 /**
+ * One slide of the admin-managed home carousel.
+ *
+ * Returned by `carousel-list` and embedded in `home-feed` under `carousel`,
+ * with the identical payload. Everything here is already resolved server-side:
+ * `sort_order` is applied, `headline` / `imageUrl` / `accent` carry the
+ * book's own title, cover and colour wherever the admin left the override
+ * blank, and a slide outside its run window or pointing at an unpublished book
+ * is simply absent. The app renders the list exactly as it arrives.
+ *
+ * `image_path` and `cover_path` are the raw Storage keys behind those two
+ * URLs. Nothing draws from them.
+ */
+export type CarouselSlideRow = {
+  slide_id: string;
+  sort_order: number;
+  /** Already falls back to the book's title — render it directly. */
+  headline: string;
+  /** `null` when unset: hide the element rather than drawing an empty line. */
+  subtitle: string | null;
+  /** The raw Storage key behind `imageUrl`. Not for drawing. */
+  image_path: string | null;
+  /**
+   * The slide's artwork, ready to load: the admin's override, already falling
+   * back to the book's own cover when none is set. This is what a slide draws.
+   */
+  imageUrl?: string | null;
+  /** Already falls back to the book's `cover_color`. */
+  accent: string | null;
+  badge: string | null;
+  /** The CTA's text. `null` means "use the app's own default label". */
+  cta_label: string | null;
+  /** Informational only — scheduling and activation are enforced server-side. */
+  starts_at: string | null;
+  ends_at: string | null;
+  book_id: string;
+  slug: string | null;
+  title: string;
+  author_name: string | null;
+  /** The raw Storage key behind `coverUrl`. Not for drawing. */
+  cover_path: string | null;
+  /** The book's own cover, for a thumbnail beside the slide's artwork. */
+  coverUrl?: string | null;
+  rating: number | string | null;
+  is_premium: boolean;
+};
+
+/** `carousel-list`. `slides` is `[]` when no carousel is configured. */
+export type CarouselPayload = {
+  slides: CarouselSlideRow[];
+};
+
+/**
+ * `trending-weekly` — ten books drawn once a week, identical for every reader.
+ *
+ * `expiresAt` is the following Monday 00:00 UTC, when the current draw stops
+ * being current. The same draw arrives inside `home-feed` as
+ * `shelves.trending`, without the week metadata.
+ */
+export type TrendingWeeklyPayload = {
+  weekStart: string;
+  expiresAt: string;
+  books: BookListItem[];
+};
+
+/** Why the backend picked a book. Styling only — the copy is already composed. */
+export type RecommendationReasonType =
+  | 'author'
+  | 'genre'
+  | 'category'
+  | 'tag'
+  | 'popular';
+
+export type RecommendationReason = {
+  type: RecommendationReasonType;
+  label: string | null;
+  seedBookId: string | null;
+};
+
+/** A card from `recommendations`, tagged with why it is there. */
+export type RecommendedBookRow = BookListItem & {
+  reason?: RecommendationReason | null;
+};
+
+/**
+ * One "Because you read …" rail.
+ *
+ * `title` and `subtitle` are composed server-side from the book the reader
+ * actually read, so they are rendered verbatim rather than rebuilt in the app.
+ */
+export type RecommendationSectionRow = {
+  id: string;
+  seedBookId: string;
+  reasonType: RecommendationReasonType;
+  reasonLabel: string | null;
+  title: string;
+  subtitle: string | null;
+  /** Always a real book from the reader's history. */
+  seedBook: BookListItem;
+  books: RecommendedBookRow[];
+};
+
+/**
+ * `recommendations` — authenticated, per reader.
+ *
+ * `isPersonalized` is the flag to branch on, not `sections.length`: a cold
+ * start answers with no sections, a `books` list of well-rated recent titles
+ * and every reason typed `popular`, and that list must never be captioned
+ * "Because you read …".
+ */
+export type RecommendationsPayload = {
+  generatedAt: string;
+  isPersonalized: boolean;
+  sections: RecommendationSectionRow[];
+  /** The same cards, flat and ranked by relevance. */
+  books: RecommendedBookRow[];
+};
+
+/**
  * `home-feed` bundles the public reads into one round trip.
  *
- * `shelves` is the editorial answer: hero, trending and new arrivals come from
- * the `home-hero`, `trending` and `new-arrivals` collections in the CMS, in the
- * order an editor put them in, and the endpoint already falls back to the
- * newest published books when a shelf has no membership yet. `books` remains
- * that newest-first list, and is what an older deployment sends on its own.
+ * `carousel` is the admin's own slide list and `shelves.trending` is the
+ * weekly draw `trending-weekly` serves — both arrive complete and in order.
+ * `hero` and `newArrivals` are the `home-hero` and `new-arrivals`
+ * collections in the admin's `sort_order`, each falling back server-side to
+ * the newest published books, so neither is blank and neither is special-cased
+ * here. A deployment that predates all of this omits `shelves` entirely — the
+ * only case the rails are derived from `books` locally.
  */
 export type HomeFeedShelves = {
   hero: BookListItem[];
@@ -112,6 +261,13 @@ export type HomeFeedPayload = {
   featuredCollectionId?: string | null;
   /** Absent on a deployment that predates the curated shelves. */
   shelves?: HomeFeedShelves | null;
+  /** Absent on a deployment that predates the admin-managed carousel. */
+  carousel?: CarouselSlideRow[] | null;
+  /**
+   * `app_settings.support_email` — the address Help Center writes to, so an
+   * admin can change it without a release. `null` when unset.
+   */
+  supportEmail?: string | null;
 };
 
 /** `public.plans` rows from `plans-list` and the entitlement join. */
@@ -255,6 +411,8 @@ export type LibraryBookCard = {
   slug: string | null;
   title: string;
   cover_path: string | null;
+  /** Preferred over `cover_path` wherever the endpoint resolves it. */
+  coverUrl?: string | null;
   cover_color: string | null;
   cover_color_dark: string | null;
   genre: string | null;

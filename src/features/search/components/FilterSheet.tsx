@@ -9,6 +9,7 @@ import {
   type LengthFilter,
   type SearchFilters,
 } from '@/features/search/hooks/useSearchFilters';
+import type { CatalogCategory } from '@/services/catalog';
 import { fontSize } from '@/theme/typography';
 
 const LANGUAGES: LanguageFilter[] = ['urdu', 'english'];
@@ -18,31 +19,44 @@ export type FilterSheetProps = {
   visible: boolean;
   onClose: () => void;
   filters: SearchFilters;
+  /** The subjects the catalogue offers — the same list the panel draws. */
+  categories: CatalogCategory[];
   /** Live count of matches, so the primary action states the outcome. */
   resultCount: number;
   onReset: () => void;
+  onCategoryChange: (value: string | null) => void;
   onToggleLanguage: (value: LanguageFilter) => void;
   onToggleLength: (value: LengthFilter) => void;
   onMembershipOnlyChange: (value: boolean) => void;
   onDownloadedOnlyChange: (value: boolean) => void;
+  onHighlyRatedOnlyChange: (value: boolean) => void;
 };
 
 /**
  * The filter sheet. One pattern serves filters, sort and reading settings: a
  * grab handle, labelled groups, and a green action at the foot that states how
  * many books the current selection leaves.
+ *
+ * Subject sits at the top because it is the only filter the backend answers,
+ * and it is the same `categoryId` the subject panel writes — the sheet is a
+ * second way to reach one filter, not a second filter.
  */
 export const FilterSheet = memo(function FilterSheet({
   visible,
   onClose,
   filters,
+  categories,
   resultCount,
   onReset,
+  onCategoryChange,
   onToggleLanguage,
   onToggleLength,
   onMembershipOnlyChange,
   onDownloadedOnlyChange,
+  onHighlyRatedOnlyChange,
 }: FilterSheetProps) {
+  const clearCategory = useCallback(() => onCategoryChange(null), [onCategoryChange]);
+
   return (
     <Sheet
       visible={visible}
@@ -58,6 +72,28 @@ export const FilterSheet = memo(function FilterSheet({
           size="md"
         />
       }>
+      {categories.length > 0 ? (
+        <View style={styles.group}>
+          <Label>Subject</Label>
+          <ChipWrap gap={9}>
+            <Chip
+              label="All subjects"
+              selected={filters.categoryId == null}
+              onPress={clearCategory}
+            />
+            {categories.map(category => (
+              <SubjectChip
+                key={category.id}
+                id={category.id}
+                label={category.label}
+                selected={filters.categoryId === category.id}
+                onToggle={onCategoryChange}
+              />
+            ))}
+          </ChipWrap>
+        </View>
+      ) : null}
+
       <View style={styles.group}>
         <Label>Language</Label>
         <ChipWrap gap={9}>
@@ -108,12 +144,37 @@ export const FilterSheet = memo(function FilterSheet({
             accessibilityLabel="Downloaded only"
           />
         </View>
+        <View style={styles.toggleRow}>
+          <Text size={fontSize.body} leading={1.2} tone="soft" style={styles.grow}>
+            Rated 4★ and up
+          </Text>
+          <Toggle
+            value={filters.highlyRatedOnly}
+            onValueChange={onHighlyRatedOnlyChange}
+            accessibilityLabel="Rated 4 stars and up"
+          />
+        </View>
       </View>
     </Sheet>
   );
 });
 
 /** Split out so each chip keeps a stable handler across sheet re-renders. */
+const SubjectChip = memo(function SubjectChip({
+  id,
+  label,
+  selected,
+  onToggle,
+}: {
+  id: string;
+  label: string;
+  selected: boolean;
+  onToggle: (value: string) => void;
+}) {
+  const handlePress = useCallback(() => onToggle(id), [id, onToggle]);
+  return <Chip label={label} selected={selected} onPress={handlePress} />;
+});
+
 const LanguageChip = memo(function LanguageChip({
   value,
   selected,

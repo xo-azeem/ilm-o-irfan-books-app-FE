@@ -71,14 +71,12 @@ export const PAGE_TURN = {
  * takes the turn outright, because a leaf of paper turning over its spine is
  * not a motion any pager can be talked into.
  *
- * The leaf is a picture of the page taken the moment a finger comes down, laid
- * exactly over the real one. The document view underneath moves to the next
- * page the instant the fold begins, so what the fold reveals is the next page
- * itself, already there — the way the next page of a book is under the leaf
- * before anyone turns it. The picture then travels the whole way over: front
- * to ninety degrees, the back of the sheet from ninety to one-eighty, and off
- * the spine edge. Let go early and it lies back down; the document view goes
- * back to the page it left, under cover of the flat leaf.
+ * The page being read is the leaf. It folds up about the edge it is leaving by
+ * until it stands edge-on and has no width at all, the document view changes
+ * page inside that instant, and the page arrived at falls open about the
+ * opposite edge. Behind it for the whole turn is a blank sheet in the page's
+ * own paper — without it the fold would open onto the stage, and the illusion
+ * would be over in one turn.
  *
  * The numbers only make sense together, so they live together.
  */
@@ -93,39 +91,44 @@ export const PAGE_FLIP = {
    * which is what a book held at reading distance looks like.
    */
   perspective: 1200,
-  /** How much of the frame a drag covers to carry the leaf the whole way over. */
-  travel: 0.6,
-  /** A fold let go of past this much of the way over turns the page anyway. */
-  commitRatio: 0.25,
+  /** How much of the frame a drag covers to fold the leaf all the way up. */
+  travel: 0.55,
+  /**
+   * How far up a finger may actually fold it, as a share of the whole fold.
+   *
+   * Never quite all the way: the page only changes once the fold is over, so a
+   * leaf folded flat to edge-on under the finger would leave the reader
+   * holding a blank sheet until they let go. At 0.88 there is always a sliver
+   * of the page they are leaving in view, and the last of the fold is ours.
+   */
+  dragLimit: 0.88,
+  /** A fold let go of past this much of the way turns the page regardless. */
+  commitRatio: 0.3,
   /** ...and so does a flick this fast (px/s), however short it was. */
   flickVelocity: 460,
   /** The least fold a flick has to have started before it counts as one. */
   flickMin: 0.04,
   /** How far (pt) a page at either end of the book follows the finger anyway. */
   edgeGive: 26,
-  /** Finishing a fold the reader let go of. Scaled by how much is left. */
-  commitMs: 340,
-  /** The least of that finish, so the last degrees never snap. */
-  commitMinMs: 140,
-  /** A fold let go of short of the commit, lying back down. */
-  settleMs: 260,
+  /** The leaf folding the rest of the way up, once the reader has let go. */
+  outMs: 180,
+  /** The new leaf falling open. Slower: it is landing, not leaving. */
+  inMs: 300,
+  /** A fold let go of short of the commit, dropping back flat. */
+  settleMs: 250,
+  /** How long the leaf waits edge-on for the page it asked for. */
+  graceMs: 220,
   /** A whole turn run by a control rather than a finger. */
-  autoMs: 460,
+  autoOutMs: 240,
   /**
    * How far off vertical the leaf tips when grabbed off-centre, in degrees.
    * Grabbed at the middle it turns square; grabbed at a corner it turns the
    * way a corner-grabbed page does, leading with the edge in the hand.
    */
   tiltDeg: 4.5,
-  /**
-   * How much paper the back of the leaf is. What is left over is the front's
-   * ink showing through in mirror, which is what the back of a printed sheet
-   * actually looks like.
-   */
-  backOpacity: 0.93,
   /** How dark the crease on the leaf goes, at the steepest of the fold. */
   leafShade: 0.42,
-  /** ...and the shadow the raised leaf throws on the page beneath it. */
+  /** ...and the shadow the raised leaf throws on the sheet under it. */
   castShade: 0.3,
   /** How far across the sheet the crease reaches before it has faded out. */
   shadeSpread: 0.72,

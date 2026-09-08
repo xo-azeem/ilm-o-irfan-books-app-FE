@@ -14,6 +14,8 @@ export type IconTone =
   | 'faint'
   | 'dim'
   | 'primary'
+  /** Green that reads as a link or a tappable glyph. */
+  | 'action'
   | 'gold'
   | 'danger'
   | 'warning'
@@ -34,6 +36,8 @@ function iconColor(tone: IconTone, colors: AppColors): string {
       return colors.dim;
     case 'primary':
       return colors.primarySoft;
+    case 'action':
+      return colors.actionIcon;
     case 'gold':
       return colors.goldBright;
     case 'danger':

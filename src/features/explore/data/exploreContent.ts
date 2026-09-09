@@ -18,6 +18,8 @@ export type BookItem = {
   coverColorDark: string;
   rating?: number;
   tag?: string;
+  /** Ready-to-load public Storage URL from the API (prefer over placeholder). */
+  coverUrl?: string | null;
 };
 
 export type SearchCatalogBook = BookItem & {

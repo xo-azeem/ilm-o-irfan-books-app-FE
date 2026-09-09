@@ -1,13 +1,21 @@
-import { memo, useCallback, useState, type ReactNode } from 'react';
-import { Pressable, View } from 'react-native';
+import { memo, useCallback, useEffect, useState, type ReactNode } from 'react';
+import { ActivityIndicator, Alert, Pressable, View } from 'react-native';
 
+import { api } from '@/api';
 import { Text } from '@/components/ui';
 import { ProfileFormField } from '@/features/profile/components/ProfileFormField';
 import { ProfileSubScreenLayout } from '@/features/profile/components/ProfileSubScreenLayout';
-import {
-  personalDetailsDefaults,
-  type PersonalDetails,
-} from '@/features/profile/data/profileContent';
+import { palette } from '@/theme/palette';
+
+type PersonalDetails = {
+  fullName: string;
+  email: string;
+  phone: string;
+  dateOfBirth: string;
+  addressLine1: string;
+  city: string;
+  country: string;
+};
 
 function FormSection({
   title,
@@ -28,17 +36,57 @@ function FormSection({
 
 export const PersonalDetailsScreen = memo(function PersonalDetailsScreen() {
   const [isEditing, setIsEditing] = useState(false);
-  const [savedDetails, setSavedDetails] = useState<PersonalDetails>(
-    personalDetailsDefaults,
-  );
-  const [draft, setDraft] = useState<PersonalDetails>(personalDetailsDefaults);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [savedDetails, setSavedDetails] = useState<PersonalDetails>({
+    fullName: '',
+    email: '',
+    phone: '',
+    dateOfBirth: '',
+    addressLine1: '',
+    city: '',
+    country: '',
+  });
+  const [draft, setDraft] = useState<PersonalDetails>(savedDetails);
 
-  const updateDraft = useCallback(
-    (key: keyof PersonalDetails, value: string) => {
-      setDraft(current => ({ ...current, [key]: value }));
-    },
-    [],
-  );
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const profile = await api.profileRead();
+        if (cancelled) {
+          return;
+        }
+        const next: PersonalDetails = {
+          fullName: profile.full_name ?? '',
+          email: profile.email ?? '',
+          phone: profile.phone ?? '',
+          dateOfBirth: profile.date_of_birth ?? '',
+          addressLine1: profile.address_line1 ?? '',
+          city: profile.city ?? '',
+          country: profile.country ?? '',
+        };
+        setSavedDetails(next);
+        setDraft(next);
+      } catch (err) {
+        Alert.alert(
+          'Profile',
+          err instanceof Error ? err.message : 'Could not load profile',
+        );
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const updateDraft = useCallback((key: keyof PersonalDetails, value: string) => {
+    setDraft(current => ({ ...current, [key]: value }));
+  }, []);
 
   const handleEdit = useCallback(() => {
     setDraft(savedDetails);
@@ -50,12 +98,52 @@ export const PersonalDetailsScreen = memo(function PersonalDetailsScreen() {
     setIsEditing(false);
   }, [savedDetails]);
 
-  const handleSave = useCallback(() => {
-    setSavedDetails(draft);
-    setIsEditing(false);
+  const handleSave = useCallback(async () => {
+    setSaving(true);
+    try {
+      const updated = await api.profileUpdate({
+        full_name: draft.fullName || null,
+        phone: draft.phone || null,
+        date_of_birth: draft.dateOfBirth || null,
+        address_line1: draft.addressLine1 || null,
+        city: draft.city || null,
+        country: draft.country || null,
+      });
+      const next: PersonalDetails = {
+        fullName: updated.full_name ?? '',
+        email: updated.email ?? draft.email,
+        phone: updated.phone ?? '',
+        dateOfBirth: updated.date_of_birth ?? '',
+        addressLine1: updated.address_line1 ?? '',
+        city: updated.city ?? '',
+        country: updated.country ?? '',
+      };
+      setSavedDetails(next);
+      setDraft(next);
+      setIsEditing(false);
+    } catch (err) {
+      Alert.alert(
+        'Save failed',
+        err instanceof Error ? err.message : 'Could not update profile',
+      );
+    } finally {
+      setSaving(false);
+    }
   }, [draft]);
 
   const details = isEditing ? draft : savedDetails;
+
+  if (loading) {
+    return (
+      <ProfileSubScreenLayout
+        title="Personal details"
+        subtitle="View and update your account information.">
+        <View className="items-center py-16">
+          <ActivityIndicator color={palette.green} />
+        </View>
+      </ProfileSubScreenLayout>
+    );
+  }
 
   return (
     <ProfileSubScreenLayout
@@ -73,11 +161,14 @@ export const PersonalDetailsScreen = memo(function PersonalDetailsScreen() {
           <ProfileFormField
             label="Email"
             value={details.email}
-            isEditing={isEditing}
-            onChangeText={value => updateDraft('email', value)}
+            isEditing={false}
+            onChangeText={() => undefined}
             keyboardType="email-address"
             autoCapitalize="none"
           />
+          <Text className="px-1 text-[12px] text-app-muted dark:text-app-muted-dark">
+            Email is managed by your account login.
+          </Text>
           <ProfileFormField
             label="Phone"
             value={details.phone}
@@ -90,7 +181,7 @@ export const PersonalDetailsScreen = memo(function PersonalDetailsScreen() {
             value={details.dateOfBirth}
             isEditing={isEditing}
             onChangeText={value => updateDraft('dateOfBirth', value)}
-            placeholder="e.g. 14 March 1996"
+            placeholder="YYYY-MM-DD"
           />
         </FormSection>
 
@@ -100,80 +191,47 @@ export const PersonalDetailsScreen = memo(function PersonalDetailsScreen() {
             value={details.addressLine1}
             isEditing={isEditing}
             onChangeText={value => updateDraft('addressLine1', value)}
-            placeholder="Street address"
           />
           <ProfileFormField
-            label="Address line 2"
-            value={details.addressLine2}
+            label="City"
+            value={details.city}
             isEditing={isEditing}
-            onChangeText={value => updateDraft('addressLine2', value)}
-            placeholder="Apartment, suite, etc."
-            multiline
+            onChangeText={value => updateDraft('city', value)}
           />
-          <View className="flex-row gap-3">
-            <View className="flex-1">
-              <ProfileFormField
-                label="City"
-                value={details.city}
-                isEditing={isEditing}
-                onChangeText={value => updateDraft('city', value)}
-              />
-            </View>
-            <View className="flex-1">
-              <ProfileFormField
-                label="State"
-                value={details.state}
-                isEditing={isEditing}
-                onChangeText={value => updateDraft('state', value)}
-              />
-            </View>
-          </View>
-          <View className="flex-row gap-3">
-            <View className="flex-1">
-              <ProfileFormField
-                label="Postal code"
-                value={details.postalCode}
-                isEditing={isEditing}
-                onChangeText={value => updateDraft('postalCode', value)}
-                keyboardType="number-pad"
-              />
-            </View>
-            <View className="flex-1">
-              <ProfileFormField
-                label="Country"
-                value={details.country}
-                isEditing={isEditing}
-                onChangeText={value => updateDraft('country', value)}
-              />
-            </View>
-          </View>
+          <ProfileFormField
+            label="Country"
+            value={details.country}
+            isEditing={isEditing}
+            onChangeText={value => updateDraft('country', value)}
+          />
         </FormSection>
 
-        <View className="gap-3 pb-2">
+        <View className="flex-row gap-3">
           {isEditing ? (
             <>
               <Pressable
-                onPress={handleSave}
-                className="items-center rounded-[14px] bg-app-primary py-3.5 active:opacity-90 dark:bg-app-primary-dark">
-                <Text className="text-[16px] font-semibold text-app-on-primary dark:text-app-on-primary-dark">
-                  Save changes
-                </Text>
-              </Pressable>
-              <Pressable
                 onPress={handleCancel}
-                className="items-center rounded-[14px] border border-app-border py-3.5 active:opacity-90 dark:border-app-border-dark">
+                className="flex-1 items-center rounded-[14px] border border-app-border py-3.5 dark:border-app-border-dark">
                 <Text className="text-[16px] font-semibold text-app-ink dark:text-app-ink-dark">
                   Cancel
                 </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => void handleSave()}
+                disabled={saving}
+                className="flex-1 items-center rounded-[14px] bg-app-primary py-3.5 dark:bg-app-primary-dark">
+                {saving ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text className="text-[16px] font-semibold text-white">Save</Text>
+                )}
               </Pressable>
             </>
           ) : (
             <Pressable
               onPress={handleEdit}
-              className="items-center rounded-[14px] bg-app-primary py-3.5 active:opacity-90 dark:bg-app-primary-dark">
-              <Text className="text-[16px] font-semibold text-app-on-primary dark:text-app-on-primary-dark">
-                Edit details
-              </Text>
+              className="flex-1 items-center rounded-[14px] bg-app-primary py-3.5 dark:bg-app-primary-dark">
+              <Text className="text-[16px] font-semibold text-white">Edit</Text>
             </Pressable>
           )}
         </View>

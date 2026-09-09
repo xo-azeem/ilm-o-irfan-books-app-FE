@@ -15,6 +15,8 @@ Cross-platform mobile app built with **React Native CLI**, **TypeScript**, and *
 npm install
 ```
 
+Copy `.env.example` → `.env` and set `SUPABASE_URL` + `SUPABASE_ANON_KEY` (see [`docs/staging-connect.md`](docs/staging-connect.md)). Staging defaults are included for local development.
+
 Start Metro:
 
 ```bash
@@ -60,10 +62,13 @@ src/
 | --- | --- |
 | Framework | React Native 0.85 (CLI, bare workflow) |
 | Language | TypeScript |
+| Backend | Supabase Auth + Edge Functions (staging) |
 | Styling | NativeWind + Tailwind CSS v3 |
 | Navigation | React Navigation (bottom tabs) |
+| State | Zustand + MMKV |
 | Gestures | React Native Gesture Handler |
 | Animations | React Native Reanimated |
+| PDF | react-native-pdf + signed Storage URLs |
 
 ## Adding a feature
 

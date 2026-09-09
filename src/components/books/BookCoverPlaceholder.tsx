@@ -9,6 +9,7 @@ type BookCoverPlaceholderProps = {
   width: number;
   height: number;
   coverColor?: string;
+  coverUrl?: string | null;
   borderRadius?: number;
   style?: StyleProp<ViewStyle>;
   showSpine?: boolean;
@@ -22,6 +23,7 @@ export const BookCoverPlaceholder = memo(function BookCoverPlaceholder({
   width,
   height,
   coverColor,
+  coverUrl,
   borderRadius = 14,
   style,
   showSpine = true,
@@ -42,14 +44,23 @@ export const BookCoverPlaceholder = memo(function BookCoverPlaceholder({
         },
         style,
       ]}>
-      <Image
-        source={bookCoverPlaceholder}
-        style={styles.image}
-        resizeMode="cover"
-        accessibilityIgnoresInvertColors
-      />
+      {coverUrl ? (
+        <Image
+          source={{ uri: coverUrl }}
+          style={styles.image}
+          resizeMode="cover"
+          accessibilityIgnoresInvertColors
+        />
+      ) : (
+        <Image
+          source={bookCoverPlaceholder}
+          style={styles.image}
+          resizeMode="cover"
+          accessibilityIgnoresInvertColors
+        />
+      )}
 
-      {coverColor ? (
+      {!coverUrl && coverColor ? (
         <View
           pointerEvents="none"
           style={[styles.tint, { backgroundColor: coverColor }]}
@@ -71,7 +82,9 @@ export const BookCoverPlaceholder = memo(function BookCoverPlaceholder({
         </View>
       ) : null}
 
-      {children ? <View style={styles.childrenOverlay}>{children}</View> : null}
+      {children && !coverUrl ? (
+        <View style={styles.childrenOverlay}>{children}</View>
+      ) : null}
     </View>
   );
 });

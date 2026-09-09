@@ -41,6 +41,11 @@ node_modules/
 npm-debug.log
 yarn-error.log
 
+# Env (anon key is public but keep local overrides out of git)
+.env
+.env.local
+*.apk
+
 # fastlane
 #
 # It is recommended to not store the screenshots in the git repo. Instead, use fastlane to re-generate the

@@ -1,68 +1,102 @@
-import { createMMKV, type MMKV } from 'react-native-mmkv';
+import type { Session, User } from '@supabase/supabase-js';
 import { create } from 'zustand';
-import {
-  createJSONStorage,
-  persist,
-  type StateStorage,
-} from 'zustand/middleware';
+
+import { supabase } from '@/lib/supabase';
 
 type AuthState = {
+  session: Session | null;
+  user: User | null;
   isAuthenticated: boolean;
-  signIn: () => void;
-  signOut: () => void;
+  isHydrated: boolean;
+  hydrate: () => Promise<void>;
+  signInWithPassword: (email: string, password: string) => Promise<void>;
+  signUp: (input: {
+    email: string;
+    password: string;
+    fullName: string;
+    phone?: string;
+  }) => Promise<void>;
+  signOut: () => Promise<void>;
 };
 
-let mmkv: MMKV | null = null;
-try {
-  mmkv = createMMKV({ id: 'ilm-app-storage' });
-} catch {
-  mmkv = null;
-}
+let authListenerAttached = false;
 
-const memoryStore = new Map<string, string>();
+export const useAuthStore = create<AuthState>((set, get) => ({
+  session: null,
+  user: null,
+  isAuthenticated: false,
+  isHydrated: false,
 
-const authStorage: StateStorage = {
-  getItem: name => {
-    try {
-      return mmkv ? (mmkv.getString(name) ?? null) : (memoryStore.get(name) ?? null);
-    } catch {
-      return memoryStore.get(name) ?? null;
+  hydrate: async () => {
+    if (!authListenerAttached) {
+      authListenerAttached = true;
+      supabase.auth.onAuthStateChange((_event, session) => {
+        set({
+          session,
+          user: session?.user ?? null,
+          isAuthenticated: Boolean(session?.user),
+        });
+      });
+    }
+
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+      set({ session: null, user: null, isAuthenticated: false, isHydrated: true });
+      return;
+    }
+
+    set({
+      session: data.session,
+      user: data.session?.user ?? null,
+      isAuthenticated: Boolean(data.session?.user),
+      isHydrated: true,
+    });
+  },
+
+  signInWithPassword: async (email, password) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+    if (error) {
+      throw error;
+    }
+    set({
+      session: data.session,
+      user: data.user,
+      isAuthenticated: Boolean(data.session?.user),
+    });
+  },
+
+  signUp: async ({ email, password, fullName, phone }) => {
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: {
+        data: {
+          full_name: fullName.trim(),
+          phone: phone?.trim() || undefined,
+        },
+      },
+    });
+    if (error) {
+      throw error;
+    }
+    // Email confirm may leave session null — treat as signed in only when session exists.
+    if (data.session) {
+      set({
+        session: data.session,
+        user: data.user,
+        isAuthenticated: true,
+      });
+    } else {
+      // Auto-confirm is often on for staging; if not, try immediate password sign-in.
+      await get().signInWithPassword(email, password);
     }
   },
-  setItem: (name, value) => {
-    try {
-      if (mmkv) {
-        mmkv.set(name, value);
-      } else {
-        memoryStore.set(name, value);
-      }
-    } catch {
-      memoryStore.set(name, value);
-    }
-  },
-  removeItem: name => {
-    try {
-      if (mmkv) {
-        mmkv.remove(name);
-      } else {
-        memoryStore.delete(name);
-      }
-    } catch {
-      memoryStore.delete(name);
-    }
-  },
-};
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    set => ({
-      isAuthenticated: false,
-      signIn: () => set({ isAuthenticated: true }),
-      signOut: () => set({ isAuthenticated: false }),
-    }),
-    {
-      name: 'ilm-auth-session',
-      storage: createJSONStorage(() => authStorage),
-    },
-  ),
-);
+  signOut: async () => {
+    await supabase.auth.signOut();
+    set({ session: null, user: null, isAuthenticated: false });
+  },
+}));

@@ -1,4 +1,5 @@
-import { View } from 'react-native';
+import { useEffect } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -13,7 +14,10 @@ import { HomeScreen } from '@/features/home/screens/HomeScreen';
 import { LibraryScreen } from '@/features/library/screens/LibraryScreen';
 import { ProfileNavigator } from '@/features/profile/navigation/ProfileNavigator';
 import { SearchScreen } from '@/features/search/screens/SearchScreen';
+import { WishlistScreen } from '@/features/wishlist/screens/WishlistScreen';
 import { useAuthStore } from '@/stores/authStore';
+import { useEntitlementStore } from '@/stores/entitlementStore';
+import { palette } from '@/theme/palette';
 
 import type { RootStackParamList, RootTabParamList } from './types';
 
@@ -40,6 +44,30 @@ function MainTabs() {
 
 export function RootNavigator() {
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
+  const isHydrated = useAuthStore(state => state.isHydrated);
+  const hydrate = useAuthStore(state => state.hydrate);
+  const startListening = useEntitlementStore(state => state.startListening);
+  const clearEntitlement = useEntitlementStore(state => state.clear);
+
+  useEffect(() => {
+    void hydrate();
+  }, [hydrate]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      clearEntitlement();
+      return;
+    }
+    return startListening();
+  }, [isAuthenticated, startListening, clearEntitlement]);
+
+  if (!isHydrated) {
+    return (
+      <View className="flex-1 items-center justify-center bg-app-bg dark:bg-app-bg-dark">
+        <ActivityIndicator size="large" color={palette.green} />
+      </View>
+    );
+  }
 
   return (
     <View className="flex-1">
@@ -69,6 +97,11 @@ export function RootNavigator() {
           <Stack.Screen
             name={ROUTES.BOOK_READER}
             component={BookReaderScreen}
+            options={{ animation: 'slide_from_right' }}
+          />
+          <Stack.Screen
+            name={ROUTES.WISHLIST}
+            component={WishlistScreen}
             options={{ animation: 'slide_from_right' }}
           />
         </Stack.Navigator>

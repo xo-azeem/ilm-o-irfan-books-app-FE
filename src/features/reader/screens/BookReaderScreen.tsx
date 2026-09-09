@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -16,9 +16,13 @@ import { ChevronLeft, Minus, Plus, RotateCcw } from 'lucide-react-native';
 
 import type { RootStackParamList } from '@/app/navigation/types';
 import { Text } from '@/components/ui';
-import { getBookPdfSource, type BookPdfSource } from '@/constants/books';
+import { loadBookPdf } from '@/lib/pdf';
+import { ApiError } from '@/api/edge';
+import { api } from '@/api';
+import type { BookPdfSource } from '@/constants/books';
 import { palette } from '@/theme/palette';
 import { useTheme } from '@/theme/ThemeContext';
+import { useEntitlementStore } from '@/stores/entitlementStore';
 
 type BookReaderRouteProp = RouteProp<RootStackParamList, 'BookReader'>;
 type BookReaderNavigationProp = NativeStackNavigationProp<RootStackParamList, 'BookReader'>;
@@ -372,8 +376,11 @@ export function BookReaderScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const insets = useSafeAreaInsets();
+  const canAccessPremium = useEntitlementStore(s => s.canAccessPremium);
+  const refreshEntitlement = useEntitlementStore(s => s.refresh);
 
-  const pdfSource = useMemo(() => getBookPdfSource(route.params.bookId), [route.params.bookId]);
+  const [pdfSource, setPdfSource] = useState<BookPdfSource | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const scaleRef = useRef(1);
   const scaleDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -383,6 +390,62 @@ export function BookReaderScreen() {
   const [totalPages, setTotalPages] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setIsLoading(true);
+      setFetchError(null);
+      setHasError(false);
+      try {
+        await refreshEntitlement();
+        if (!useEntitlementStore.getState().canAccessPremium) {
+          throw new ApiError(
+            'PREMIUM_REQUIRED',
+            'Active subscription required',
+            403,
+          );
+        }
+        const loaded = await loadBookPdf(route.params.bookId);
+        if (!cancelled) {
+          setPdfSource(loaded.source);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          const message =
+            err instanceof ApiError
+              ? err.code === 'PREMIUM_REQUIRED'
+                ? 'Membership required to open this book.'
+                : err.message
+              : 'Unable to open this book.';
+          setFetchError(message);
+          setHasError(true);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [route.params.bookId, refreshEntitlement]);
+
+  useEffect(() => {
+    if (page < 1 || totalPages < 1 || !canAccessPremium) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      void api.readingProgressPost({
+        book_id: route.params.bookId,
+        current_page: page,
+        total_pages: totalPages,
+        progress: Math.min(1, page / totalPages),
+      });
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [page, totalPages, route.params.bookId, canAccessPremium]);
 
   // Live zoom % badge — fades in on change, fades out after inactivity
   const zoomBadgeOpacity = useRef(new Animated.Value(0)).current;
@@ -494,10 +557,10 @@ export function BookReaderScreen() {
             paddingBottom: insets.bottom,
           }}>
           <Text className="text-center text-[15px] text-app-muted dark:text-app-muted-dark">
-            Unable to open this book. Please try again later.
+            {fetchError ?? 'Unable to open this book. Please try again later.'}
           </Text>
         </View>
-      ) : (
+      ) : pdfSource ? (
         <ReaderPdf
           source={pdfSource}
           scale={controlScale}
@@ -506,7 +569,7 @@ export function BookReaderScreen() {
           onPageChanged={handlePageChanged}
           onScaleChanged={handleScaleChanged}
         />
-      )}
+      ) : null}
 
       <ReaderChrome
         isDark={isDark}

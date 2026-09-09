@@ -607,27 +607,27 @@ At this stage, optimize PDF size and ensure clients don’t re-download existing
 
 - [x] Supabase project  
 - [x] PostgreSQL schema (catalog, users, library, plans, entitlements)  
-- [x] Supabase Auth (email + Google)  
+- [~] Supabase Auth (email ready; Google requires Dashboard + OAuth client setup)  
 - [x] Supabase Storage (`covers`, `pdfs`, `avatars`)  
-- [x] Edge Functions (signed PDF + RevenueCat webhook)  
+- [x] Edge Functions (catalog, library, admin, signed PDF, RevenueCat webhook — ~28 on BE `dev`)  
 - [x] RLS on all user tables  
 
 **Billing**
 
-- [x] RevenueCat  
-- [x] App Store Connect products (if iOS)  
-- [x] Play Console subscriptions (if Android)  
+- [~] RevenueCat (webhook code exists; project/store products still ops)  
+- [ ] App Store Connect products (if iOS)  
+- [ ] Play Console subscriptions (if Android)  
 
 **Client**
 
-- [x] React Native app  
-- [x] Supabase JS client  
-- [x] RevenueCat SDK  
-- [x] TanStack Query  
-- [x] Zustand  
-- [x] MMKV  
-- [x] Device FS downloads  
-- [x] react-native-pdf  
+- [~] React Native app (Auth + Edge Functions wired on `feat/supabase-wiring`; RC IAP still pending)
+- [x] Supabase JS client
+- [ ] RevenueCat SDK
+- [ ] TanStack Query
+- [x] Zustand
+- [x] MMKV
+- [x] Device FS downloads (signed PDF → cache via react-native-blob-util)
+- [x] react-native-pdf
 
 **Explicitly deferred**
 

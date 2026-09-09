@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { CommonActions } from '@react-navigation/native';
@@ -37,67 +37,75 @@ function isValidEmail(email: string): boolean {
 export function SignUpScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { colors } = useTheme();
-  const signIn = useAuthStore(state => state.signIn);
+  const signUp = useAuthStore(state => state.signUp);
 
   const [form, setForm] = useState<SignUpForm>(initialForm);
+  const [busy, setBusy] = useState(false);
 
-  const updateField = useCallback(
-    (key: keyof SignUpForm, value: string) => {
-      setForm(current => ({ ...current, [key]: value }));
-    },
-    [],
-  );
+  const updateField = useCallback((key: keyof SignUpForm, value: string) => {
+    setForm(current => ({ ...current, [key]: value }));
+  }, []);
 
-  const completeSignUp = useCallback(() => {
-    signIn();
+  const goMain = useCallback(() => {
     navigation.dispatch(
       CommonActions.reset({
         index: 0,
         routes: [{ name: ROUTES.MAIN_TABS }],
       }),
     );
-  }, [navigation, signIn]);
+  }, [navigation]);
 
   const validateForm = useCallback((): boolean => {
     if (!form.fullName.trim()) {
       Alert.alert('Missing details', 'Please enter your full name.');
       return false;
     }
-
     if (!isValidEmail(form.email)) {
       Alert.alert('Invalid email', 'Please enter a valid email address.');
       return false;
     }
-
     if (form.phone.trim().length < 7) {
       Alert.alert('Invalid phone', 'Please enter a valid phone number.');
       return false;
     }
-
     if (form.password.length < 8) {
       Alert.alert('Weak password', 'Password must be at least 8 characters.');
       return false;
     }
-
     if (form.password !== form.confirmPassword) {
       Alert.alert('Password mismatch', 'Passwords do not match.');
       return false;
     }
-
     return true;
   }, [form]);
 
-  const handleCreateAccount = useCallback(() => {
+  const handleCreateAccount = useCallback(async () => {
     if (!validateForm()) {
       return;
     }
-
-    completeSignUp();
-  }, [completeSignUp, validateForm]);
+    setBusy(true);
+    try {
+      await signUp({
+        email: form.email,
+        password: form.password,
+        fullName: form.fullName,
+        phone: form.phone,
+      });
+      goMain();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Sign up failed';
+      Alert.alert('Sign up failed', message);
+    } finally {
+      setBusy(false);
+    }
+  }, [validateForm, signUp, form, goMain]);
 
   const handleGoogleSignUp = useCallback(() => {
-    completeSignUp();
-  }, [completeSignUp]);
+    Alert.alert(
+      'Coming soon',
+      'Google sign-in will be available after OAuth is configured in Supabase.',
+    );
+  }, []);
 
   return (
     <AuthLayout
@@ -170,12 +178,17 @@ export function SignUpScreen() {
 
       <View className="gap-3 pt-1">
         <Pressable
-          onPress={handleCreateAccount}
+          onPress={() => void handleCreateAccount()}
+          disabled={busy}
           accessibilityRole="button"
           accessibilityLabel="Create account"
           style={{ backgroundColor: colors.primary }}
           className="items-center rounded-[14px] py-4 active:opacity-90">
-          <Text className="text-[16px] font-semibold text-white">Create account</Text>
+          {busy ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text className="text-[16px] font-semibold text-white">Create account</Text>
+          )}
         </Pressable>
 
         <AuthDivider />

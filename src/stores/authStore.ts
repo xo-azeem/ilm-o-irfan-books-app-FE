@@ -1,6 +1,10 @@
 import type { Session, User } from '@supabase/supabase-js';
 import { create } from 'zustand';
 
+import {
+  identifyPurchasesUser,
+  resetPurchasesUser,
+} from '@/billing/purchases';
 import { supabase } from '@/lib/supabase';
 
 type AuthState = {
@@ -21,6 +25,18 @@ type AuthState = {
 
 let authListenerAttached = false;
 
+async function syncPurchasesIdentity(userId: string | null | undefined) {
+  try {
+    if (userId) {
+      await identifyPurchasesUser(userId);
+    } else {
+      await resetPurchasesUser();
+    }
+  } catch {
+    // Billing must not block auth — keys/products may be missing in early builds.
+  }
+}
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   session: null,
   user: null,
@@ -36,6 +52,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           user: session?.user ?? null,
           isAuthenticated: Boolean(session?.user),
         });
+        void syncPurchasesIdentity(session?.user?.id);
       });
     }
 
@@ -51,6 +68,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       isAuthenticated: Boolean(data.session?.user),
       isHydrated: true,
     });
+    void syncPurchasesIdentity(data.session?.user?.id);
   },
 
   signInWithPassword: async (email, password) => {
@@ -66,6 +84,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       user: data.user,
       isAuthenticated: Boolean(data.session?.user),
     });
+    void syncPurchasesIdentity(data.user?.id);
   },
 
   signUp: async ({ email, password, fullName, phone }) => {
@@ -89,6 +108,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         user: data.user,
         isAuthenticated: true,
       });
+      void syncPurchasesIdentity(data.user?.id);
     } else {
       // Auto-confirm is often on for staging; if not, try immediate password sign-in.
       await get().signInWithPassword(email, password);
@@ -96,6 +116,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signOut: async () => {
+    await syncPurchasesIdentity(null);
     await supabase.auth.signOut();
     set({ session: null, user: null, isAuthenticated: false });
   },

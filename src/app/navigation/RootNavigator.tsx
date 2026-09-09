@@ -4,6 +4,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
+import { configurePurchases } from '@/billing/purchases';
 import { CustomTabBar } from '@/components/navigation/CustomTabBar';
 import { ROUTES } from '@/constants/routes';
 import { LoginScreen } from '@/features/auth/screens/LoginScreen';
@@ -50,6 +51,7 @@ export function RootNavigator() {
   const clearEntitlement = useEntitlementStore(state => state.clear);
 
   useEffect(() => {
+    void configurePurchases();
     void hydrate();
   }, [hydrate]);
 

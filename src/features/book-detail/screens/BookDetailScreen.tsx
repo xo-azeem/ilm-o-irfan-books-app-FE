@@ -139,8 +139,12 @@ export function BookDetailScreen() {
       Alert.alert('Membership required', paywallMessage(entitlementReason), [
         { text: 'Not now', style: 'cancel' },
         {
-          text: 'View subscription',
-          onPress: () => navigation.navigate(ROUTES.PROFILE),
+          text: 'Subscribe',
+          onPress: () =>
+            navigation.navigate(ROUTES.MAIN_TABS, {
+              screen: ROUTES.PROFILE,
+              params: { screen: 'Subscription' },
+            }),
         },
       ]);
       return;

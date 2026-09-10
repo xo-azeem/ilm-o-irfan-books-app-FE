@@ -12,6 +12,7 @@ import { BookPageFlip, type BookPageFlipHandle } from '@/features/reader/compone
 import { ReaderBoundary } from '@/features/reader/components/ReaderBoundary';
 import { ReaderChrome } from '@/features/reader/components/ReaderChrome';
 import { ReaderError } from '@/features/reader/components/ReaderError';
+import { ReaderLocked } from '@/features/reader/components/ReaderLocked';
 import { ReaderSettingsSheet } from '@/features/reader/components/ReaderSettingsSheet';
 import { ReaderStageSkeleton } from '@/features/reader/components/ReaderStageSkeleton';
 import { MAX_SCALE, MIN_SCALE, SCALE_STEP } from '@/features/reader/constants';
@@ -48,6 +49,17 @@ type PdfError = { code?: string; message?: string; name?: string; status?: numbe
  * `PREMIUM_REQUIRED` is the paywall — every book needs a membership, so this is
  * the ordinary refusal rather than an edge case.
  *
+ * The two file codes are emphatically *not* paywalls, and saying "subscribe" to
+ * a member whose book is simply missing from storage would be both wrong and
+ * insulting. `PDF_NOT_AVAILABLE` means no file has been attached to the book;
+ * `PDF_NOT_IN_STORAGE` means the row points at an object that is not there.
+ * Either way the reader has done nothing wrong and nothing they do will fix it,
+ * so the copy says so and points at support.
+ *
+ * A 404 `NOT_FOUND` covers a book that has been removed *and* an unpublished
+ * draft — the gate deliberately answers the same way for both, so that asking
+ * for a draft's id cannot confirm it exists. One message serves both.
+ *
  * A 401 is matched on the *status*, never on the code. A session that has
  * expired or been mangled is rejected by the functions gateway before
  * `get-signed-pdf` runs, so it answers with codes of its own
@@ -60,8 +72,14 @@ function pdfErrorMessage(error: PdfError): string {
   if (error?.code === 'PREMIUM_REQUIRED') {
     return 'An active subscription is required to open this book.';
   }
+  if (error?.code === 'PDF_NOT_AVAILABLE' || error?.code === 'PDF_NOT_IN_STORAGE') {
+    return 'This book’s file is missing from our library. Nothing is wrong with your membership — please report it and we will restore it.';
+  }
   if (error?.status === 401) {
     return 'Your session has expired. Sign in again to keep reading.';
+  }
+  if (error?.status === 404) {
+    return 'This book is no longer available.';
   }
   return error?.message || 'Unable to open this book.';
 }
@@ -96,6 +114,9 @@ function BookReader() {
   const [hasError, setHasError] = useState(false);
   // Chrome starts hidden — the page is what the reader came for.
   const [chromeVisible, setChromeVisible] = useState(false);
+  // The flip reader's one line of instruction, which leaves the first time the
+  // reader touches the page and does not come back for the rest of the sitting.
+  const [pageTouched, setPageTouched] = useState(false);
   const [brightness, setBrightness] = useState(1);
   // Bumping this token re-runs the source effect; that is the retry path.
   const [retryToken, setRetryToken] = useState(0);
@@ -109,7 +130,11 @@ function BookReader() {
   const setReadingMode = useThemeStore(state => state.setReadingMode);
   /** Set once a download completes, so the error state can offer it. */
   const downloadedUri = useRef<string | null>(null);
-  const { canOpenBooks, isAuthenticated, isSubscriptionLoading } = useAccess();
+  const { canOpenBooks, isAuthenticated, isSubscriptionLoading, reason } = useAccess();
+  /** True once a page has actually been on screen for this book. */
+  const hasOpened = useRef(false);
+  /** The membership ended with the book open, rather than before it opened. */
+  const [lockedMidRead, setLockedMidRead] = useState(false);
   const progressMutation = useProgressMutation();
   const highlightMutation = useHighlightMutation(bookId);
   const deleteHighlightMutation = useDeleteHighlight(bookId);
@@ -131,7 +156,11 @@ function BookReader() {
       return;
     }
     if (!canOpenBooks) {
-      navigation.replace(ROUTES.BOOK_DETAIL, { bookId });
+      // Only on the way in. A membership that ends mid-read is not a wrong turn
+      // to be undone — it is handled below, after the page is saved.
+      if (!hasOpened.current) {
+        navigation.replace(ROUTES.BOOK_DETAIL, { bookId });
+      }
       return;
     }
 
@@ -156,7 +185,10 @@ function BookReader() {
       },
     })
       .then(source => {
-        if (active) setPdfSource(source);
+        if (active) {
+          hasOpened.current = true;
+          setPdfSource(source);
+        }
       })
       .catch((error: PdfError) => {
         if (!active || error?.name === 'AbortError') {
@@ -172,6 +204,14 @@ function BookReader() {
       abort.abort();
     };
   }, [bookId, canOpenBooks, isAuthenticated, isSubscriptionLoading, navigation, retryToken]);
+
+  /** Plans live in the profile stack, which the reader sits above. */
+  const openPaywall = useCallback(() => {
+    navigation.navigate(ROUTES.MAIN_TABS, {
+      screen: ROUTES.PROFILE,
+      params: { screen: 'Subscription' },
+    });
+  }, [navigation]);
 
   const flushProgress = useCallback(() => {
     const value = pendingProgress.current;
@@ -189,6 +229,31 @@ function BookReader() {
     },
     [flushProgress],
   );
+
+  /**
+   * The membership ending while the book is open.
+   *
+   * The countdown in `accessStore` fires to the second, offline included, so
+   * this runs whether or not anything reached the device. The order matters:
+   * the page is flushed first, then the book is closed, so a reader who renews
+   * a minute later opens on the page they were on. Nothing is deleted — not
+   * progress, not highlights, not downloads.
+   *
+   * Regaining access clears the lock in place, which is what lets a renewal
+   * recover the screen without restarting the app.
+   */
+  useEffect(() => {
+    if (canOpenBooks) {
+      setLockedMidRead(false);
+      return;
+    }
+    if (!hasOpened.current) {
+      return;
+    }
+    flushProgress();
+    setLockedMidRead(true);
+    setPdfSource(null);
+  }, [canOpenBooks, flushProgress]);
 
   const handleLoadComplete = useCallback((numberOfPages: number) => {
     setTotalPages(numberOfPages);
@@ -288,6 +353,14 @@ function BookReader() {
     setChromeVisible(current => !current);
   }, []);
 
+  /**
+   * The reader has put a finger on the page, so they have found it. Set once
+   * and never unset: the hint has said its piece.
+   */
+  const handlePageTouched = useCallback(() => {
+    setPageTouched(true);
+  }, []);
+
   /** Bookmarking from the sheet also closes it — the action is complete. */
   const handleBookmarkFromSheet = useCallback(() => {
     handleHighlight();
@@ -328,6 +401,19 @@ function BookReader() {
   const bookTitle = book?.title?.trim() || 'Book';
   const blocked = hasError || sourceError;
 
+  // Ahead of the error state: a lock is not a fault, and offering "retry" for
+  // an ended membership would be telling the reader to try the door again.
+  if (lockedMidRead) {
+    return (
+      <ReaderLocked
+        page={page}
+        reason={reason}
+        onRenew={openPaywall}
+        onClose={() => navigation.goBack()}
+      />
+    );
+  }
+
   if (blocked) {
     return (
       <ReaderError
@@ -346,6 +432,7 @@ function BookReader() {
         page={page}
         totalPages={totalPages}
         visible={chromeVisible}
+        hint={readingMode === 'flip' && !pageTouched && !isLoading && totalPages > 1}
         saved={Boolean(bookmark)}
         onBack={() => navigation.goBack()}
         onOpenSettings={settingsSheet.open}
@@ -362,6 +449,7 @@ function BookReader() {
               onError={handleError}
               onPageChanged={handlePageChanged}
               onSingleTap={toggleChrome}
+              onFirstTouch={handlePageTouched}
             />
           </ReaderBoundary>
         ) : null}

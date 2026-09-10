@@ -7,6 +7,7 @@ import {
   initialWindowMetrics,
 } from 'react-native-safe-area-context';
 
+import { AccessProvider } from '@/app/providers/AccessProvider';
 import { AuthSessionProvider } from '@/app/providers/AuthSessionProvider';
 import { ThemeProvider } from '@/app/providers/ThemeProvider';
 import { queryClient } from '@/lib/queryClient';
@@ -35,7 +36,9 @@ export function AppProviders({ children }: PropsWithChildren) {
       <ThemeProvider>
         <ThemeStateProvider>
           <AuthSessionProvider>
-            <AppShell>{children}</AppShell>
+            <AccessProvider>
+              <AppShell>{children}</AppShell>
+            </AccessProvider>
           </AuthSessionProvider>
         </ThemeStateProvider>
       </ThemeProvider>

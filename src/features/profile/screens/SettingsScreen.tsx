@@ -20,7 +20,7 @@ import type {
   ProfileStackParamList,
   ProfileStackScreen,
 } from '@/features/profile/navigation/types';
-import { useLibrary, useProfile, useSubscription } from '@/hooks/useAccount';
+import { useAvatarUrl, useLibrary, useProfile, useSubscription } from '@/hooks/useAccount';
 import { signOut } from '@/lib/supabase';
 import { THEME_PREFERENCE_LABELS, useThemeStore } from '@/stores/themeStore';
 import { fontSize } from '@/theme/typography';
@@ -39,6 +39,7 @@ export function SettingsScreen() {
   const navigation = useNavigation<SettingsNavigation>();
   const { colors } = useTheme();
   const { data: profile } = useProfile();
+  const { data: avatarUrl } = useAvatarUrl(profile?.avatarPath);
   const { data: library } = useLibrary();
   const { data: subscription } = useSubscription();
   const themePreference = useThemeStore(state => state.themePreference);
@@ -98,7 +99,7 @@ export function SettingsScreen() {
       />
 
       <Card tone="surface" padded={14} style={styles.identity}>
-        <Avatar name={profile?.fullName} size={46} shape="squircle" />
+        <Avatar imageUrl={avatarUrl} name={profile?.fullName} size={46} shape="squircle" />
         <View style={styles.identityBody}>
           <Text size={15.5} leading={1} weight="500" numberOfLines={1}>
             {profile?.fullName || 'Reader'}

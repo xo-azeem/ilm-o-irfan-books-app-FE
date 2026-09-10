@@ -71,14 +71,24 @@ export type ProfileDetails = {
   country: string;
   memberSince: string;
   /**
+   * `profiles.avatar_path` — a key in the private `avatars` bucket, not a URL.
+   * Drawing it means signing it; see `services/avatar`.
+   */
+  avatarPath: string | null;
+  /**
    * From `profile-read`, which reads `reading_streaks` alongside the profile.
    * Zeroed on the table fallback, which has no second read to spend on it.
    */
   streak: ProfileStreak;
 };
 
-/** The editable half of the profile — what the personal-details form owns. */
-export type ProfileForm = Omit<ProfileDetails, 'memberSince' | 'streak'>;
+/**
+ * The editable half of the profile — what the personal-details form owns.
+ *
+ * The avatar is not a form field: it is written by its own upload flow, which
+ * records the path as soon as the bytes land rather than waiting for a Save.
+ */
+export type ProfileForm = Omit<ProfileDetails, 'memberSince' | 'streak' | 'avatarPath'>;
 
 /**
  * A book joined onto a per-user row. The author relation is selected without
@@ -233,6 +243,7 @@ export async function getProfile(): Promise<ProfileDetails> {
     postalCode: row.postal_code ?? '',
     country: row.country ?? '',
     memberSince: `Member since ${new Date(row.created_at).getFullYear()}`,
+    avatarPath: row.avatar_path ?? null,
     // `profile-read` reads `reading_streaks` in the same round trip, so the
     // record screen no longer needs a separate query for the streak — and gets
     // the real `longest_streak` instead of echoing the current one back.
@@ -304,8 +315,25 @@ export async function getSubscription() {
      * flag for that case.
      */
     canAccessPremium: wrapped?.canAccessPremium ?? active,
-    expiresAt: entitlement?.expires_at ?? null,
+    expiresAt: wrapped?.expiresAt ?? entitlement?.expires_at ?? null,
     plan,
+    /**
+     * The response as the access reducer wants it.
+     *
+     * Normalised so the table fallback and an older deployment produce the same
+     * shape the endpoint does — the countdown and the paywall copy read this,
+     * and neither should have to know which path answered. `serverTime` is
+     * deliberately absent on the fallback: no server clock was quoted, so the
+     * store keeps the offset it already had rather than trusting the device.
+     */
+    raw: (wrapped ?? {
+      isActive: active,
+      isAdmin: false,
+      canAccessPremium: active,
+      entitlement,
+      status: entitlement?.status ?? null,
+      expiresAt: entitlement?.expires_at ?? null,
+    }) as EntitlementStatus,
   };
 }
 

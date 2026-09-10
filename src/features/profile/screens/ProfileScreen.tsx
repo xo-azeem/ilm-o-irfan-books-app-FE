@@ -16,7 +16,7 @@ import {
   type Achievement,
 } from '@/features/profile/components/ReadingRecord';
 import type { ProfileStackParamList } from '@/features/profile/navigation/types';
-import { useLibrary, useProfile, useSubscription } from '@/hooks/useAccount';
+import { useAvatarUrl, useLibrary, useProfile, useSubscription } from '@/hooks/useAccount';
 import { useAuthStore } from '@/stores/authStore';
 
 type ProfileNavigation = NativeStackNavigationProp<ProfileStackParamList, 'ProfileMain'>;
@@ -35,6 +35,7 @@ export function ProfileScreen() {
   const navigation = useNavigation<ProfileNavigation>();
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   const { data: profile } = useProfile();
+  const { data: avatarUrl } = useAvatarUrl(profile?.avatarPath);
   const { data: library } = useLibrary();
   const { data: subscription } = useSubscription();
 
@@ -96,7 +97,7 @@ export function ProfileScreen() {
     return (
       <Screen gap={22}>
         <View style={styles.identity}>
-          <Avatar name={profile?.fullName} size={62} shape="squircle" />
+          <Avatar imageUrl={avatarUrl} name={profile?.fullName} size={62} shape="squircle" />
           <View style={styles.identityBody}>
             <Display size={24}>Your reading record</Display>
           </View>
@@ -119,7 +120,7 @@ export function ProfileScreen() {
   return (
     <Screen gap={20}>
       <View style={styles.identity}>
-        <Avatar name={profile?.fullName} size={62} shape="squircle" />
+        <Avatar imageUrl={avatarUrl} name={profile?.fullName} size={62} shape="squircle" />
         <View style={styles.identityBody}>
           <Display size={24} numberOfLines={1}>
             {profile?.fullName || 'Reader'}

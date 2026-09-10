@@ -34,6 +34,31 @@ cd ios && pod install && cd ..
 npm run ios
 ```
 
+## Environment
+
+Copy `.env.example` to `.env` and fill it in. `react-native-config` bakes these
+into the native binary, so **changing `.env` needs a rebuild** — a Metro reload
+will not pick it up.
+
+| Key | Notes |
+| --- | --- |
+| `SUPABASE_URL` / `SUPABASE_ANON_KEY` | Anon key only. `service_role` must never appear in the app. |
+| `REVENUECAT_IOS_KEY` / `REVENUECAT_ANDROID_KEY` | The **public** SDK keys (`appl_…` / `goog_…`). Safe to ship. |
+
+Never add the RevenueCat secret key or `REVENUECAT_WEBHOOK_AUTH`: the webhook is
+the backend's, and the app only ever reads `entitlements-status`.
+
+Without a RevenueCat key the app runs normally and the paywall reports that
+membership cannot be purchased on that build — which is the right behaviour for a
+simulator or CI.
+
+### Billing (native)
+
+`react-native-purchases` is autolinked, so Android needs nothing beyond a
+rebuild. iOS needs `cd ios && pod install` before the next build, and sandbox
+testing needs a StoreKit/Play test account — entitlement `premium`, product
+matched to `plans.revenuecat_product_id`.
+
 ## Project structure
 
 ```

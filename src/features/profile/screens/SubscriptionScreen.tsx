@@ -15,11 +15,18 @@ import {
   TextButton,
 } from '@/components/ui';
 import { Check } from 'lucide-react-native';
+import { MembershipNotice } from '@/features/home/components/MembershipNotice';
 import { MembershipPaywall } from '@/features/profile/components/MembershipPaywall';
 import { ProfileSubScreenLayout } from '@/features/profile/components/ProfileSubScreenLayout';
 import { subscriptionIncludes } from '@/features/profile/data/profileContent';
 import { useLibrary, useSubscription } from '@/hooks/useAccount';
-import { asNumber } from '@/services/mappers';
+import {
+  useMembershipOptions,
+  usePurchaseMembership,
+  useRestorePurchases,
+  type MembershipOption,
+} from '@/hooks/useBilling';
+import { useAccess } from '@/lib/access';
 import { radius } from '@/theme/palette';
 import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
@@ -34,43 +41,103 @@ function formatDate(iso: string | null | undefined): string {
     : date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-/** `price_cents` is a Postgres `numeric`, which the API serialises as a string. */
-function formatPrice(
-  cents?: number | string | null,
-  currency = 'PKR',
-  interval?: string | null,
-): string {
-  const amount = asNumber(cents);
-  if (amount == null) {
-    return '—';
-  }
-  const symbol = currency === 'PKR' ? 'Rs' : currency;
-  return `${symbol} ${(amount / 100).toLocaleString('en-US')}${interval ? ` / ${interval}` : ''}`;
-}
-
 /**
  * Subscription.
  *
- * A member sees what they have and what it costs; everyone else sees the offer.
+ * A member sees what they have and when it renews; everyone else sees the offer.
  * Usage sits above the exit so cancelling is a considered act rather than a
  * hidden one.
+ *
+ * Two things this screen deliberately does not do:
+ *
+ *   · quote `plans.price_cents`. That column is catalogue copy an admin edits;
+ *     the figure a reader is actually charged is the store's `priceString`, so
+ *     where the two disagree only the store's is shown — and where there is no
+ *     store price to show, no price is shown at all.
+ *   · decide access from `status`. A cancelled membership is paid through to its
+ *     end date and a failing card is inside a period already paid for, so both
+ *     still read books. `canAccessPremium` is the only gate, and `reason` only
+ *     chooses the words.
  */
 export function SubscriptionScreen() {
   const { colors } = useTheme();
   const { data: subscription, isLoading } = useSubscription();
   const { data: library } = useLibrary();
+  const { reason, expiresAt } = useAccess();
 
-  // The CTA follows access, not billing — `get-signed-pdf` serves an admin
-  // with no subscription, and offering them a plan would be wrong. The renewal
+  const { options, features, unavailable } = useMembershipOptions();
+  const purchase = usePurchaseMembership();
+  const { restore, isPending: isRestoring } = useRestorePurchases();
+
+  // The CTA follows access, not billing — `get-signed-pdf` serves an admin with
+  // no subscription, and offering them a plan would be wrong. The renewal
   // details below still come from the entitlement itself.
   const isMember = subscription?.canAccessPremium ?? false;
 
-  const handleSubscribe = useCallback((planId: string) => {
-    Alert.alert(
-      'Almost there',
-      `Checkout for the ${planId} plan opens once billing is connected to the store.`,
+  /**
+   * Opens the store sheet and reports what came back.
+   *
+   * Cancelling is silent: the reader made a decision and does not need an alert
+   * confirming it. A deferred payment — Play's slow-card flow, Apple's Ask to
+   * Buy — gets its own message, because the money has not moved yet and the
+   * entitlement will arrive by webhook, possibly much later.
+   */
+  const handleSubscribe = useCallback(
+    (option: MembershipOption) => {
+      if (!option.purchasable) {
+        return;
+      }
+
+      purchase.mutate(option.purchasable, {
+        onSuccess: outcome => {
+          if (outcome.status === 'pending') {
+            Alert.alert(
+              'Payment pending',
+              'Your store is still processing the payment. Your membership unlocks as soon as it clears — there is nothing more to do.',
+            );
+          }
+          // `purchased` needs no alert: the entitlement has already been
+          // re-read, so the screen itself has changed underneath the sheet.
+        },
+        onError: error =>
+          Alert.alert(
+            'Purchase failed',
+            error instanceof Error ? error.message : 'Please try again.',
+          ),
+      });
+    },
+    [purchase],
+  );
+
+  /**
+   * Restore purchases — required by Apple review, and the only way back for a
+   * reader who has reinstalled.
+   *
+   * What is reported is the *backend's* verdict, not the SDK's: the restore
+   * re-fires the webhook, and if that has not landed yet the honest answer is
+   * "found it, still applying it" rather than an unlock the reader cannot use.
+   */
+  const handleRestore = useCallback(() => {
+    restore().then(
+      ({ restored, granted }) => {
+        if (granted) {
+          Alert.alert('Membership restored', 'Your membership is active on this device.');
+          return;
+        }
+        Alert.alert(
+          restored ? 'Almost there' : 'Nothing to restore',
+          restored
+            ? 'We found your purchase and are still applying it. This usually takes a few seconds.'
+            : 'No previous membership was found for this store account.',
+        );
+      },
+      error =>
+        Alert.alert(
+          'Could not restore',
+          error instanceof Error ? error.message : 'Please try again.',
+        ),
     );
-  }, []);
+  }, [restore]);
 
   const handleCancel = useCallback(() => {
     Alert.alert(
@@ -104,15 +171,40 @@ export function SubscriptionScreen() {
   if (!isLoading && !isMember) {
     return (
       <ProfileSubScreenLayout title="Membership" gap={0}>
-        <MembershipPaywall onSubscribe={handleSubscribe} />
+        <MembershipPaywall
+          options={options}
+          features={features}
+          reason={reason}
+          unavailable={unavailable}
+          isPurchasing={purchase.isPending}
+          isRestoring={isRestoring}
+          onSubscribe={handleSubscribe}
+          onRestore={handleRestore}
+        />
       </ProfileSubScreenLayout>
     );
   }
 
   const plan = subscription?.plan;
 
+  // The store's price for the plan the reader holds, where the two can be
+  // matched. No match means no price line — a number nobody is charging is
+  // worse than none.
+  const heldOption = options.find(
+    option => option.purchasable?.productId === plan?.revenuecat_product_id,
+  );
+
+  // A cancelled membership does not renew, so saying "renews on" would be a
+  // plain untruth on the one screen that has to be exact about dates.
+  const ending = reason === 'cancelled_paid_through';
+  const trialing = reason === 'trial';
+
   return (
     <ProfileSubScreenLayout title="Subscription" gap={20}>
+      {/* A failing card or a membership running out still reads books — the
+          notice says so without taking anything away. */}
+      <MembershipNotice reason={reason} expiresAt={expiresAt} />
+
       <View style={[styles.planCard, { borderColor: colors.goldBorder }]}>
         <LinearGradient
           angle={140}
@@ -128,16 +220,26 @@ export function SubscriptionScreen() {
               Current plan
             </Label>
             <Display size={30}>{plan?.name ?? 'Premium'}</Display>
-            <Text size={13.5} leading={1.2} tone="muted">
-              {formatPrice(plan?.price_cents, plan?.currency ?? 'PKR', plan?.interval)}
-            </Text>
+            {heldOption ? (
+              <Text size={13.5} leading={1.2} tone="muted">
+                {`${heldOption.priceString}${plan?.interval ? ` / ${plan.interval}` : ''}`}
+              </Text>
+            ) : null}
           </View>
-          <Badge label="ACTIVE" tone="primary" bordered />
+          <Badge
+            label={ending ? 'ENDING' : trialing ? 'TRIAL' : 'ACTIVE'}
+            tone="primary"
+            bordered
+          />
         </View>
 
         <Divider />
 
-        <DetailRow label="Renews on" value={formatDate(subscription?.expiresAt)} />
+        <DetailRow
+          label={ending ? 'Access until' : trialing ? 'Trial ends' : 'Renews on'}
+          // `null` is a lifetime comp or an admin — nothing to show a date for.
+          value={expiresAt ? formatDate(expiresAt) : 'Never expires'}
+        />
         <DetailRow label="Billing" value={plan?.interval ? `${plan.interval}ly` : '—'} />
       </View>
 
@@ -146,7 +248,7 @@ export function SubscriptionScreen() {
           What’s included
         </Label>
         <Card tone="surface" padded={16} gap={10}>
-          {subscriptionIncludes.map(feature => (
+          {(plan?.features?.length ? plan.features : subscriptionIncludes).map(feature => (
             <View key={feature} style={styles.feature}>
               <Icon icon={Check} size={13} tone="primary" strokeWidth={2.6} />
               <Text size={fontSize.bodySmall} leading={1.3} tone="soft" style={styles.grow}>
@@ -169,12 +271,21 @@ export function SubscriptionScreen() {
       </View>
 
       <View style={styles.footer}>
-        <Button
-          label="Switch to yearly · save 34%"
-          variant="secondary"
-          size="md"
-          onPress={() => handleSubscribe('yearly')}
-        />
+        {/* Only offered when the store is actually selling something else, and
+            labelled with that package's own price rather than a saving the app
+            has worked out for itself. */}
+        {options
+          .filter(option => option.purchasable && option.id !== heldOption?.id)
+          .map(option => (
+            <Button
+              key={option.id}
+              label={`Switch to ${option.name} · ${option.priceString}`}
+              variant="secondary"
+              size="md"
+              disabled={purchase.isPending}
+              onPress={() => handleSubscribe(option)}
+            />
+          ))}
         <View style={styles.footerLinks}>
           <TextButton
             label="Payment method"
@@ -182,6 +293,12 @@ export function SubscriptionScreen() {
             onPress={() =>
               Alert.alert('Payment method', 'Managed by your App Store or Play Store account.')
             }
+          />
+          <TextButton
+            label={isRestoring ? 'Restoring…' : 'Restore purchases'}
+            tone="muted"
+            disabled={isRestoring}
+            onPress={handleRestore}
           />
           <TextButton label="Cancel subscription" tone="danger" onPress={handleCancel} />
         </View>
@@ -242,12 +359,11 @@ const styles = StyleSheet.create({
     gap: 11,
   },
   footer: {
-    gap: 11,
-    marginTop: 2,
+    gap: 14,
+    paddingTop: 4,
   },
   footerLinks: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 4,
+    alignItems: 'center',
+    gap: 12,
   },
 });

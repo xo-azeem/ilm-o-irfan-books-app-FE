@@ -337,6 +337,15 @@ export type PlanRow = {
   features: string[] | null;
   is_active: boolean;
   sort_order: number | null;
+  /**
+   * The store product this plan corresponds to.
+   *
+   * The webhook matches `event.product_id` against it to decide which plan a
+   * purchase granted, and the paywall matches the same way round to pair the
+   * admin's copy with the store's localized price. `null` on a plan that has not
+   * been connected to a product yet, which is therefore not purchasable.
+   */
+  revenuecat_product_id?: string | null;
 };
 
 /**
@@ -358,9 +367,87 @@ export type EntitlementRow = {
 };
 
 /**
+ * Why a reader has, or does not have, access.
+ *
+ * Copy only. The decision is always `canAccessPremium` — several of these
+ * grant access despite sounding like they should not: a cancelled membership
+ * is paid through to its end date, and a failing card is still inside the
+ * period it already paid for.
+ */
+export type AccessReason =
+  | 'active'
+  | 'trial'
+  | 'grace'
+  | 'billing_issue_paid_through'
+  | 'cancelled_paid_through'
+  | 'lapsed'
+  | 'expired'
+  | 'none'
+  | 'admin';
+
+/**
+ * Where the backend publishes this reader's access changes.
+ *
+ * A Postgres change feed, not a broadcast: the sweep that expires memberships
+ * writes a row to `access_events`, and Realtime delivers that row to the one
+ * reader it belongs to. RLS on the table is what scopes it — the `filter` below
+ * is how the socket is told which rows to send, not what makes it safe.
+ *
+ * Every field is the server's to state. Nothing here is assembled in the app:
+ * the channel name, the table and the filter all arrive in the payload, so the
+ * backend can move the feed without a client release.
+ */
+export type EntitlementRealtime = {
+  /**
+   * How to listen. `postgres_changes` is the current shape.
+   *
+   * Named explicitly because it decides the subscription: a broadcast channel
+   * and a change feed are different calls, and a client that guessed wrong would
+   * subscribe successfully and then never hear anything — the quietest possible
+   * failure, on the one feature whose job is to take access away.
+   */
+  mode?: 'postgres_changes' | 'broadcast';
+  /** The topic to join, e.g. `access:<user_id>`. Never built locally. */
+  channel: string;
+  /** `INSERT` for the change feed; the event name for a broadcast. */
+  event: string;
+  schema?: string;
+  table?: string;
+  /** e.g. `user_id=eq.<user_id>` — which rows this socket should receive. */
+  filter?: string;
+  /** Broadcast-only, and only meaningful in that mode. */
+  private?: boolean;
+};
+
+/**
+ * One `access_events` row, as Realtime delivers it.
+ *
+ * The same facts `entitlements-status` returns, in the database's own
+ * snake_case — these are table columns, not a hand-written response body. The
+ * reducer reads both spellings so the poll and the feed stay one code path; see
+ * `parseAccessState`.
+ */
+export type AccessEventRow = {
+  user_id?: string | null;
+  can_access_premium?: boolean | null;
+  is_admin?: boolean | null;
+  is_active?: boolean | null;
+  status?: string | null;
+  starts_at?: string | null;
+  expires_at?: string | null;
+  seconds_remaining?: number | null;
+  reason?: AccessReason | string | null;
+  server_time?: string | null;
+  created_at?: string | null;
+};
+
+/**
  * `entitlements-status` answers with the derived flag alongside the row, so the
  * app does not re-derive "is this reader premium" from a status and an expiry.
  * An older deployment returns the bare row instead.
+ *
+ * The broadcast payload on `realtime.channel` is this same shape minus
+ * `entitlement`, so one reducer reads both — see `services/entitlements`.
  */
 export type EntitlementStatus = {
   /** The subscription alone. An admin has none and is still `false` here. */
@@ -375,7 +462,30 @@ export type EntitlementStatus = {
    * backend would hand over. Optional because an older deployment omits it.
    */
   canAccessPremium?: boolean;
-  entitlement: EntitlementRow | null;
+  entitlement?: EntitlementRow | null;
+  /**
+   * The raw subscription state. Deliberately **not** what access is decided
+   * on: `trial`, `cancelled`, `grace` and `billing_issue` all still grant it.
+   */
+  status?: string | null;
+  startsAt?: string | null;
+  /** `null` is lifetime or admin — something that never expires. */
+  expiresAt?: string | null;
+  /** `null` when `expiresAt` is; never negative. */
+  secondsRemaining?: number | null;
+  /** For the paywall's wording, never for the decision. */
+  reason?: AccessReason | null;
+  /** The server's own clock, which the countdown is anchored to. */
+  serverTime?: string | null;
+  realtime?: EntitlementRealtime | null;
+};
+
+/** The `access` block `get-signed-pdf` returns alongside the signed URL. */
+export type SignedPdfAccess = {
+  expiresAt?: string | null;
+  secondsRemaining?: number | null;
+  serverTime?: string | null;
+  reason?: AccessReason | null;
 };
 
 /** `profile-read` returns the whole `public.profiles` row. */
@@ -449,8 +559,15 @@ export type SignedPdfPayload = {
   bookId: string;
   title: string;
   signedUrl: string;
+  /**
+   * Seconds the URL stays valid — clamped to what is left of the membership,
+   * with a 15s floor. Not a constant: a reader with 40 seconds left gets a
+   * ~40 second URL, so a stashed URL must never be assumed still good.
+   */
   expiresIn: number;
   fileSizeBytes: number | null;
+  /** Re-anchors the countdown on every successful open. */
+  access?: SignedPdfAccess | null;
 };
 
 /**

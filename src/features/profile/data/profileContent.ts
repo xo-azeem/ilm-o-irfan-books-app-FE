@@ -274,29 +274,17 @@ export const aboutDetails = [
 // Membership
 // ---------------------------------------------------------------------------
 
+/**
+ * The standing pitch, for a deployment whose plans carry no `features[]`.
+ *
+ * Prices are deliberately absent: the only price the app may show is the
+ * store's own `priceString`, which arrives with the RevenueCat offering.
+ */
 export const membershipBenefits = [
   'Every book in the catalogue, unlimited',
   'Offline reading and downloads',
   'Early access to new releases',
   'Reading statistics and goals',
-];
-
-export const membershipPlans = [
-  {
-    id: 'yearly',
-    name: 'Yearly',
-    price: 'Rs 3,900',
-    detail: 'Rs 325 / month, billed once',
-    badge: 'BEST VALUE · SAVE 34%',
-    recommended: true,
-  },
-  {
-    id: 'monthly',
-    name: 'Monthly',
-    price: 'Rs 490',
-    detail: 'Cancel any time',
-    recommended: false,
-  },
 ];
 
 export const subscriptionIncludes = [

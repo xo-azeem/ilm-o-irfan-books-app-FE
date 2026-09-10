@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import ReactNativeBlobUtil from 'react-native-blob-util';
 
 import type { BookPdfSource } from '@/constants/books';
@@ -9,7 +10,26 @@ import { keyValueStore } from '@/stores/storage';
 // should never disturb the other. Created through the shared factory so a
 // missing native module degrades to memory instead of throwing on import.
 const storage = keyValueStore('ilm-offline-books');
-const directory = `${ReactNativeBlobUtil.fs.dirs.DocumentDir}/books`;
+/**
+ * Where downloaded books live: app-private storage, on both platforms.
+ *
+ * On iOS that is `Library`, not `Documents`. `Documents` is the directory iOS
+ * exposes through the Files app and syncs to iCloud, which would put a
+ * members-only PDF somewhere the reader can copy it out of and a backup can
+ * carry it to another device. `Library` is visible only to the app.
+ *
+ * On Android `DocumentDir` already is the app's internal files directory —
+ * private to the app, unlike external storage — so it is the right one there.
+ *
+ * None of this is the gate. A file sitting on disk is not permission to open it;
+ * the reader is gated on `canAccessPremium`, which is why an expired membership
+ * locks a book that is fully downloaded.
+ */
+const directory = `${
+  Platform.OS === 'ios'
+    ? ReactNativeBlobUtil.fs.dirs.LibraryDir
+    : ReactNativeBlobUtil.fs.dirs.DocumentDir
+}/books`;
 const DOWNLOAD_TIMEOUT_MS = 120000;
 /** Anything smaller than this cannot be a PDF, header or not. */
 const MIN_PDF_BYTES = 32;

@@ -7,11 +7,13 @@ import {
   LANGUAGES,
   LENGTH_LABELS,
   LENGTHS,
+  SORT_LABELS,
+  SORTS,
   type LanguageFilter,
   type LengthFilter,
   type SearchFilters,
 } from '@/features/search/hooks/useSearchFilters';
-import type { CatalogCategory } from '@/services/catalog';
+import type { CatalogCategory, CatalogSort } from '@/services/catalog';
 import { fontSize } from '@/theme/typography';
 
 export type FilterSheetProps = {
@@ -29,6 +31,9 @@ export type FilterSheetProps = {
   onMembershipOnlyChange: (value: boolean) => void;
   onDownloadedOnlyChange: (value: boolean) => void;
   onHighlyRatedOnlyChange: (value: boolean) => void;
+  onSortChange: (value: CatalogSort | null) => void;
+  /** True while there is a search term, which is what makes "Best match" real. */
+  searching: boolean;
 };
 
 /**
@@ -36,9 +41,11 @@ export type FilterSheetProps = {
  * grab handle, labelled groups, and a green action at the foot that states how
  * many books the current selection leaves.
  *
- * Subject sits at the top because it is the only filter the backend answers,
- * and it is the same `categoryId` the subject panel writes — the sheet is a
- * second way to reach one filter, not a second filter.
+ * Subject sits at the top, and it is the same `categoryId` the subject panel
+ * writes — the sheet is a second way to reach one filter, not a second filter.
+ *
+ * Every control here narrows or orders the query itself, so the count on the
+ * action is the database's own, not a tally of what survived a local pass.
  */
 export const FilterSheet = memo(function FilterSheet({
   visible,
@@ -53,8 +60,11 @@ export const FilterSheet = memo(function FilterSheet({
   onMembershipOnlyChange,
   onDownloadedOnlyChange,
   onHighlyRatedOnlyChange,
+  onSortChange,
+  searching,
 }: FilterSheetProps) {
   const clearCategory = useCallback(() => onCategoryChange(null), [onCategoryChange]);
+  const clearSort = useCallback(() => onSortChange(null), [onSortChange]);
 
   return (
     <Sheet
@@ -156,6 +166,29 @@ export const FilterSheet = memo(function FilterSheet({
           />
         </View>
       </View>
+
+      <View style={styles.group}>
+        {/* Ordering is the database's, applied before the page is cut, so it
+            reorders the whole result set and not the rows already fetched. */}
+        <Label>Sort</Label>
+        <ChipWrap gap={9}>
+          {/* Unset is the server's default: best match once the reader has
+              typed, newest while they are browsing. */}
+          <Chip
+            label={searching ? SORT_LABELS.relevance : 'Default'}
+            selected={filters.sort == null}
+            onPress={clearSort}
+          />
+          {SORTS.map(sort => (
+            <SortChip
+              key={sort}
+              value={sort}
+              selected={filters.sort === sort}
+              onToggle={onSortChange}
+            />
+          ))}
+        </ChipWrap>
+      </View>
     </Sheet>
   );
 });
@@ -200,6 +233,23 @@ const LengthChip = memo(function LengthChip({
 }) {
   const handlePress = useCallback(() => onToggle(value), [onToggle, value]);
   return <Chip label={LENGTH_LABELS[value]} selected={selected} onPress={handlePress} />;
+});
+
+/** Re-picking the active order returns to the server's default. */
+const SortChip = memo(function SortChip({
+  value,
+  selected,
+  onToggle,
+}: {
+  value: CatalogSort;
+  selected: boolean;
+  onToggle: (value: CatalogSort | null) => void;
+}) {
+  const handlePress = useCallback(
+    () => onToggle(selected ? null : value),
+    [onToggle, selected, value],
+  );
+  return <Chip label={SORT_LABELS[value]} selected={selected} onPress={handlePress} />;
 });
 
 const styles = StyleSheet.create({

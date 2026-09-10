@@ -70,3 +70,38 @@ describe('undeployed endpoint detection', () => {
     assert.equal(isEndpointMissing(new ApiError('nope', 404, 'PDF_NOT_AVAILABLE')), false);
   });
 });
+
+describe('the 401 trap', () => {
+  // An expired or malformed JWT never reaches the function: the Supabase
+  // gateway rejects it first, and that reply carries no `error` wrapper at all.
+  // The app must therefore decide to refresh on the *status*, because the code
+  // it would otherwise match on is not there to be read.
+  it('parses the gateway 401, which has no error envelope', () => {
+    const error = readError(
+      { code: 'UNAUTHORIZED_INVALID_JWT_FORMAT', message: 'Invalid JWT' },
+      401,
+    );
+
+    assert.equal(error.status, 401);
+    assert.equal(error.fromGateway, true);
+    // Not `AUTH_REQUIRED` — which is exactly why nothing branches on it.
+    assert.notEqual(error.code, 'AUTH_REQUIRED');
+  });
+
+  it('is not mistaken for an undeployed function', () => {
+    const error = readError({ code: 'UNAUTHORIZED_INVALID_JWT_FORMAT' }, 401);
+
+    assert.equal(isEndpointMissing(error), false);
+  });
+
+  it('parses a handler 401 too, which does have one', () => {
+    const error = readError(
+      { error: { code: 'AUTH_REQUIRED', message: 'Sign in to continue' } },
+      401,
+    );
+
+    assert.equal(error.status, 401);
+    assert.equal(error.code, 'AUTH_REQUIRED');
+    assert.equal(error.fromGateway, false);
+  });
+});

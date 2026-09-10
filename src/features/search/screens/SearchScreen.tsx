@@ -62,14 +62,14 @@ function toSummary(book: CatalogBook, inLibrary = false): BookSummary {
 const MAX_SUGGESTIONS = 3;
 
 /**
- * How many rows the client-side filters have to leave on screen before the
- * list stops pulling further pages in on their behalf.
+ * How many rows the downloaded filter has to leave on screen before the list
+ * stops pulling further pages in on its behalf.
  *
- * Language, length, access and rating are applied to the page the backend
- * sent, so a strict combination can empty an otherwise full page. Rather than
- * showing "nothing matched" over a catalogue that has more pages waiting, the
- * list keeps asking for the next one until it has a screenful or the catalogue
- * runs out.
+ * Reached only with "Downloaded only" on — the one filter the catalogue
+ * endpoints cannot answer, so it is applied to the page that arrives and can
+ * empty an otherwise full one. Rather than showing "nothing matched" over a
+ * catalogue with more pages waiting, the list keeps asking for the next one
+ * until it has a screenful or the catalogue runs out.
  */
 const MIN_FILTERED_ROWS = 8;
 
@@ -79,9 +79,13 @@ const MIN_FILTERED_ROWS = 8;
  * One list, paged from the backend, with the whole catalogue underneath it: the
  * search field narrows it, the subject panel and the filter sheet narrow it
  * further, and clearing everything leaves the complete catalogue to scroll.
- * Only the subject reaches the database — the rest refine the pages it sends —
- * so all of it lives in one filter object that the sheet, the panel and the
- * chip row share.
+ *
+ * Every filter and the ordering are the database's — applied before the page is
+ * cut, so the count under the field is the true number of matches and paging a
+ * filtered list cannot repeat or skip a book. All of it lives in one filter
+ * object that the sheet, the panel and the chip row share. The single exception
+ * is "Downloaded only", which is this device's state and nothing the public
+ * catalogue can know.
  */
 export function SearchScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -125,6 +129,7 @@ export function SearchScreen() {
     setMembershipOnly,
     setDownloadedOnly,
     setHighlyRatedOnly,
+    setSort,
   } = useSearchFilters(downloadedIds);
 
   const {
@@ -139,13 +144,15 @@ export function SearchScreen() {
 
   const books = useMemo(() => data?.pages.flatMap(page => page.data) ?? [], [data]);
 
-  // `countIsLocal` is the filters' own verdict on whether the backend applied
-  // the query they sent. When it did, nothing is dropped here and the count
-  // below is the server's real total; when it did not, the only honest number
-  // is the one on screen.
+  // Nothing is dropped here unless "Downloaded only" is on — every other
+  // filter was applied before the page was cut. `countIsLocal` says which of
+  // those two the list is looking at.
   const { rows: filtered, countIsLocal } = useMemo(() => apply(books), [apply, books]);
 
-  /** What the backend says the whole result set is, before the local filters. */
+  /**
+   * The backend's own count of the matches — the real size of the filtered set,
+   * not the length of the pages fetched so far.
+   */
   const totalCount = data?.pages[0]?.totalCount ?? null;
   const shownCount = countIsLocal || totalCount == null ? filtered.length : totalCount;
 
@@ -155,10 +162,10 @@ export function SearchScreen() {
     }
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
-  // A page the local filters emptied is not the end of the catalogue, so keep
-  // pulling until there is a screenful to show or there are no pages left.
-  // Once the backend answers the query itself this stops firing: it drops
-  // nothing, so the page is never thin for this reason.
+  // A page the downloaded filter emptied is not the end of the catalogue, so
+  // keep pulling until there is a screenful to show or there are no pages left.
+  // With the toggle off this never fires: nothing is dropped, so a thin page
+  // means the catalogue itself has run out.
   useEffect(() => {
     if (countIsLocal && filtered.length < MIN_FILTERED_ROWS) {
       loadMore();
@@ -390,6 +397,8 @@ export function SearchScreen() {
         onMembershipOnlyChange={setMembershipOnly}
         onDownloadedOnlyChange={setDownloadedOnly}
         onHighlyRatedOnlyChange={setHighlyRatedOnly}
+        onSortChange={setSort}
+        searching={query.trim().length > 0}
       />
     </>
   );

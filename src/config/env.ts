@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import Config from 'react-native-config';
 
 /** Hosted project — used when the native binary still has a stale local URL. */
@@ -50,6 +51,29 @@ function resolveSupabase(): { url: string; anonKey: string } {
   return { url: configuredUrl, anonKey: configuredKey };
 }
 
+/**
+ * The RevenueCat public SDK key for this platform.
+ *
+ * Public by design — `appl_…` and `goog_…` keys are meant to ship in the app.
+ * What must never appear here, or anywhere in this bundle, is
+ * `REVENUECAT_WEBHOOK_AUTH`, the RevenueCat *secret* key, or `service_role`:
+ * the webhook is the backend's business and the app only ever reads
+ * `entitlements-status`.
+ *
+ * An empty value is a supported state, not a crash. Checkout then reports
+ * itself unavailable and everything that is not buying a membership carries on
+ * working, which is what a development build with no store keys needs.
+ */
+function resolveRevenueCatKey(): string {
+  const key = Platform.select({
+    ios: Config.REVENUECAT_IOS_KEY,
+    android: Config.REVENUECAT_ANDROID_KEY,
+    default: undefined,
+  });
+
+  return key?.trim() ?? '';
+}
+
 const supabase = resolveSupabase();
 
 /**
@@ -63,4 +87,6 @@ const supabase = resolveSupabase();
 export const env = {
   supabaseUrl: supabase.url,
   supabaseAnonKey: supabase.anonKey,
+  /** Public RevenueCat SDK key for this platform; `''` when unconfigured. */
+  revenueCatKey: resolveRevenueCatKey(),
 } as const;

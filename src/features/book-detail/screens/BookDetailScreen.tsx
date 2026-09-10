@@ -25,6 +25,7 @@ import { StatStrip, type Stat } from '@/features/book-detail/components/StatStri
 import { useWishlistMutation, useWishlistStatus } from '@/hooks/useAccount';
 import { useBook, useHomeCatalog } from '@/hooks/useCatalog';
 import { useAccess } from '@/lib/access';
+import { reasonCopy } from '@/services/entitlements';
 import { isUrduTitle } from '@/services/script';
 
 /** The stat strip's two-letter code for each recorded language. */
@@ -61,7 +62,7 @@ export function BookDetailScreen() {
   const { data: home } = useHomeCatalog();
   const { data: saved } = useWishlistStatus(bookId);
   const wishlistMutation = useWishlistMutation(bookId);
-  const { isAuthenticated, canOpenBooks, isSubscriptionLoading } = useAccess();
+  const { isAuthenticated, canOpenBooks, isSubscriptionLoading, reason } = useAccess();
 
   const [expanded, setExpanded] = useState(false);
 
@@ -86,18 +87,27 @@ export function BookDetailScreen() {
       return;
     }
     if (!canOpenBooks) {
-      Alert.alert(
-        'Membership required',
-        'An active membership is required to open books.',
-        [
-          { text: 'Not now', style: 'cancel' },
-          { text: 'View plans', onPress: openPaywall },
-        ],
-      );
+      // The wording follows the reason the backend gave — "renew" reads wrong
+      // to someone who has never subscribed, and a pitch reads wrong to someone
+      // whose membership lapsed last week. The reason never decides anything;
+      // it only picks the words.
+      const copy = reasonCopy(reason);
+      Alert.alert(copy.title, copy.message, [
+        { text: 'Not now', style: 'cancel' },
+        { text: 'View plans', onPress: openPaywall },
+      ]);
       return;
     }
     navigation.navigate(ROUTES.BOOK_READER, { bookId: book.id });
-  }, [book, canOpenBooks, isAuthenticated, isSubscriptionLoading, navigation, openPaywall]);
+  }, [
+    book,
+    canOpenBooks,
+    isAuthenticated,
+    isSubscriptionLoading,
+    navigation,
+    openPaywall,
+    reason,
+  ]);
 
   const handleWishlist = useCallback(() => {
     if (!book) {

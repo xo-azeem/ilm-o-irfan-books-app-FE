@@ -1,18 +1,30 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
+import { launchImageLibrary } from 'react-native-image-picker';
 
-import { ReadOnlyField, TextButton, TextField } from '@/components/ui';
+import { Avatar, ReadOnlyField, Text, TextButton, TextField } from '@/components/ui';
 import { ProfileSubScreenLayout } from '@/features/profile/components/ProfileSubScreenLayout';
-import { useProfile, useUpdateProfile } from '@/hooks/useAccount';
+import {
+  useAvatarUpload,
+  useAvatarUrl,
+  useProfile,
+  useUpdateProfile,
+} from '@/hooks/useAccount';
 import type { ProfileDetails, ProfileForm } from '@/services/account';
+import { fontSize } from '@/theme/typography';
 
 type Form = ProfileForm;
 
 /**
- * `memberSince` and `streak` are read-only record, not editable fields, so
- * neither takes part in the form.
+ * `memberSince` and `streak` are read-only record and the avatar writes itself
+ * as soon as it uploads, so none of the three takes part in the form.
  */
-function toForm({ memberSince: _since, streak: _streak, ...fields }: ProfileDetails): Form {
+function toForm({
+  memberSince: _since,
+  streak: _streak,
+  avatarPath: _avatar,
+  ...fields
+}: ProfileDetails): Form {
   return fields;
 }
 
@@ -39,6 +51,8 @@ const EMPTY_FORM: Form = {
 export function PersonalDetailsScreen() {
   const { data: profile } = useProfile();
   const updateProfile = useUpdateProfile();
+  const avatarUpload = useAvatarUpload();
+  const { data: avatarUrl } = useAvatarUrl(profile?.avatarPath);
 
   const [form, setForm] = useState<Form>(EMPTY_FORM);
   const [loaded, setLoaded] = useState(false);
@@ -62,6 +76,32 @@ export function PersonalDetailsScreen() {
     const saved = toForm(profile);
     return (Object.keys(saved) as (keyof Form)[]).some(key => saved[key] !== form[key]);
   }, [form, profile]);
+
+  /**
+   * Picks a photo and uploads it straight away.
+   *
+   * Deliberately not part of Save: the upload records `avatar_path` itself, so
+   * tying it to the form would mean holding bytes in memory while the reader
+   * edits their address — and losing them if they backed out.
+   */
+  const handlePickPhoto = useCallback(async () => {
+    const result = await launchImageLibrary({ mediaType: 'photo', selectionLimit: 1 });
+    const asset = result.assets?.[0];
+    if (result.didCancel || !asset?.uri) {
+      return;
+    }
+
+    avatarUpload.mutate(
+      { uri: asset.uri, mime: asset.type ?? 'image/jpeg' },
+      {
+        onError: error =>
+          Alert.alert(
+            'Could not update your photo',
+            error instanceof Error ? error.message : 'Please try again.',
+          ),
+      },
+    );
+  }, [avatarUpload]);
 
   const handleSave = useCallback(() => {
     updateProfile.mutate(form, {
@@ -87,6 +127,32 @@ export function PersonalDetailsScreen() {
           disabled={!isDirty || updateProfile.isPending}
         />
       }>
+      <View style={styles.photo}>
+        <Avatar
+          imageUrl={avatarUrl}
+          name={profile?.fullName}
+          size={64}
+          shape="squircle"
+        />
+        <View style={styles.photoBody}>
+          <Text size={fontSize.body} leading={1.3}>
+            Profile photo
+          </Text>
+          <TextButton
+            label={
+              avatarUpload.isPending
+                ? 'Uploading…'
+                : avatarUrl
+                  ? 'Change photo'
+                  : 'Add a photo'
+            }
+            onPress={handlePickPhoto}
+            tone={avatarUpload.isPending ? 'muted' : 'primary'}
+            disabled={avatarUpload.isPending}
+          />
+        </View>
+      </View>
+
       <View style={styles.fields}>
         <TextField
           label="Full name"
@@ -161,6 +227,14 @@ export function PersonalDetailsScreen() {
 }
 
 const styles = StyleSheet.create({
+  photo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  photoBody: {
+    gap: 4,
+  },
   fields: {
     gap: 14,
   },

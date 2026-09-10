@@ -22,8 +22,11 @@ import { HeroCarousel } from '@/features/home/components/HeroCarousel';
 import type { HeroSlide } from '@/features/home/components/HeroSlideCard';
 import { HomeHeader, HomeStickyHeader } from '@/features/home/components/HomeHeader';
 import { MembershipBand } from '@/features/home/components/MembershipBand';
+import { MembershipNotice } from '@/features/home/components/MembershipNotice';
 import { matchesMood, MoodPicker, type ReadingMood } from '@/features/home/components/MoodPicker';
-import { useLibrary, useProfile, useSubscription } from '@/hooks/useAccount';
+import { useAvatarUrl, useLibrary, useProfile, useSubscription } from '@/hooks/useAccount';
+import { useMembershipOptions } from '@/hooks/useBilling';
+import { useAccess } from '@/lib/access';
 import { useHomeCatalog } from '@/hooks/useCatalog';
 import { useRecommendations } from '@/hooks/useRecommendations';
 import type { CatalogBook, CatalogSlide } from '@/services/catalog';
@@ -73,9 +76,30 @@ export function HomeScreen() {
   // this one fails, and it is disabled outright for a signed-out reader.
   const { data: recommendations } = useRecommendations();
   const { data: profile } = useProfile();
+  const { data: avatarUrl } = useAvatarUrl(profile?.avatarPath);
+  const { cheapest: cheapestPlan } = useMembershipOptions();
+
+  /**
+   * The band's one line of copy, priced by the store.
+   *
+   * Never a figure written into the app or read from `plans.price_cents`: the
+   * reader is quoted what their own store will charge, in their own currency, or
+   * nothing at all until the offering has loaded.
+   */
+  const membershipPitch = useMemo(() => {
+    if (!cheapestPlan) {
+      return 'See membership plans';
+    }
+    return `See plans from ${cheapestPlan.priceString}${
+      cheapestPlan.interval ? ` / ${cheapestPlan.interval}` : ''
+    }`;
+  }, [cheapestPlan]);
   const { data: library } = useLibrary();
   const { data: subscription } = useSubscription();
   const [mood, setMood] = useState<ReadingMood | null>(null);
+  // The lock's own view of things — a card that is failing or a membership
+  // winding down both still read, and both deserve to be told about.
+  const { reason, expiresAt } = useAccess();
 
   const openBook = useCallback(
     (book: { id: string }) => navigation.navigate(ROUTES.BOOK_DETAIL, { bookId: book.id }),
@@ -197,10 +221,13 @@ export function HomeScreen() {
       stickyHeaderOffset={420}>
       <HomeHeader
         name={profile?.fullName}
+        avatarUrl={avatarUrl}
         hasNotifications
         onProfilePress={openProfile}
         onNotificationsPress={openNotifications}
       />
+
+      <MembershipNotice reason={reason} expiresAt={expiresAt} onPress={openMembership} />
 
       {isLoading ? (
         <HomeCatalogSkeleton />
@@ -312,10 +339,7 @@ export function HomeScreen() {
           ) : null}
 
           {!hasMembership ? (
-            <MembershipBand
-              subtitle="See plans from Rs 490 / month"
-              onPress={openMembership}
-            />
+            <MembershipBand subtitle={membershipPitch} onPress={openMembership} />
           ) : null}
         </>
       )}

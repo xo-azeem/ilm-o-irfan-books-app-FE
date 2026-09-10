@@ -23,6 +23,15 @@ const TIMING = {
   reduceMotion: ReduceMotion.System,
 } as const;
 
+const HINT = {
+  duration: 400,
+  easing: Easing.out(Easing.quad),
+  reduceMotion: ReduceMotion.System,
+} as const;
+
+/** How far the hint floats above the progress rule. */
+const HINT_LIFT = 18;
+
 export type ReaderChromeProps = {
   title: string;
   page: number;
@@ -35,6 +44,13 @@ export type ReaderChromeProps = {
   saved?: boolean;
   /** A chapter or section label, when the document supplies one. */
   chapterLabel?: string;
+  /**
+   * The one line of instruction the reader ever gets, and only in the mode
+   * that needs it: a folded page is not a control anyone has seen before, and
+   * unlike a swipe it does not announce itself by being the obvious thing to
+   * try. It leaves for good the first time they touch the page.
+   */
+  hint?: boolean;
   children: ReactNode;
 };
 
@@ -55,9 +71,10 @@ export const ReaderChrome = memo(function ReaderChrome({
   onBookmark,
   saved = false,
   chapterLabel,
+  hint = false,
   children,
 }: ReaderChromeProps) {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const surface = useReaderSurface();
   const insets = useSafeAreaInsets();
 
@@ -72,6 +89,11 @@ export const ReaderChrome = memo(function ReaderChrome({
     transform: [{ translateY: (shown.value - 1) * 12 }],
   }));
   const statusStyle = useAnimatedStyle(() => ({ opacity: 1 - shown.value }));
+
+  // Slower out than anything else here. It is the one thing on screen the
+  // reader may still be reading as it goes.
+  const hinted = useDerivedValue(() => withTiming(hint ? 1 : 0, HINT), [hint]);
+  const hintStyle = useAnimatedStyle(() => ({ opacity: hinted.value * (1 - shown.value) }));
 
   return (
     <View style={[styles.root, { backgroundColor: surface.stage }]}>
@@ -164,6 +186,29 @@ export const ReaderChrome = memo(function ReaderChrome({
         />
       </View>
 
+      {/* How to turn a page, once. */}
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.hint,
+          { bottom: Math.max(insets.bottom, 8) + READER_RULE_INSET + 2 + HINT_LIFT },
+          hintStyle,
+        ]}>
+        <View
+          style={[
+            styles.hintPill,
+            { backgroundColor: isDark ? 'rgba(5, 7, 6, 0.55)' : 'rgba(231, 234, 227, 0.72)' },
+          ]}>
+          <Label
+            size={10}
+            tracking={1.4}
+            tone="inherit"
+            style={{ color: isDark ? 'rgba(241, 245, 238, 0.5)' : 'rgba(16, 26, 18, 0.55)' }}>
+            DRAG THE PAGE FROM ANYWHERE
+          </Label>
+        </View>
+      </Animated.View>
+
       {/* A scrim under the chrome, so the dimmed page reads as inactive. */}
       <Animated.View
         pointerEvents="none"
@@ -223,5 +268,16 @@ const styles = StyleSheet.create({
     right: 0,
     height: 2,
     flexDirection: 'row',
+  },
+  hint: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  hintPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
   },
 });

@@ -1,8 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 
-import { isUrduTitle } from '@/services/script';
 import type { BookLanguage, BookLengthBucket } from '@/services/api/types';
-import type { CatalogBook, CatalogFilters } from '@/services/catalog';
+import type { CatalogBook, CatalogFilters, CatalogSort } from '@/services/catalog';
 
 /**
  * Discover's filter state — the single source of truth behind the filter
@@ -11,21 +10,28 @@ import type { CatalogBook, CatalogFilters } from '@/services/catalog';
  * on the panel is the same filter the sheet shows selected and the same chip
  * the reader can dismiss.
  *
- * Every filter but one is asked of the database, before `LIMIT`, so paging a
- * filtered list is the same operation as paging the whole catalogue and the
- * count on screen is the real number of matches:
+ * Every filter but one is asked of the database, before `LIMIT`, which is what
+ * makes the count on screen the real number of matches and paging a filtered
+ * list the same operation as paging the whole catalogue:
  *
  *   · subject  — `book_categories`, as the `category` parameter
  *   · language — `books.language`, a recorded column and not a guess
  *   · length   — a bucket name whose boundaries the server owns
  *   · access   — `is_premium`, as `premium`
  *   · rating   — `rating >= minRating`
+ *   · order    — `sort`, applied before the page is cut
  *
- * The exception is `downloadedOnly`, which is this device's state: the
- * catalogue endpoints are public and unauthenticated and cannot know it.
+ * Nothing above re-checks any of them against the rows that come back. Filters
+ * are applied before `LIMIT`/`OFFSET`, so a page that arrives is already the
+ * answer; dropping a row from it here would contradict the `totalCount` and
+ * `hasNextPage` that describe the very set it was cut from — and re-deriving a
+ * language or a length bucket locally is precisely the guesswork the server-side
+ * columns replaced.
  *
- * `apply` still checks the other four against the rows that came back, and
- * that is deliberate — see the comment on it.
+ * The one exception is `downloadedOnly`, which is this device's state: the
+ * catalogue endpoints are public and unauthenticated and cannot know it. It was
+ * deliberately declined as a parameter, so it is the only filter applied to the
+ * rows after they arrive — and the only one that makes the count local.
  */
 export type LanguageFilter = BookLanguage;
 export type LengthFilter = BookLengthBucket;
@@ -38,6 +44,11 @@ export type SearchFilters = {
   membershipOnly: boolean;
   downloadedOnly: boolean;
   highlyRatedOnly: boolean;
+  /**
+   * The order the reader chose, or `null` for the server's own default —
+   * newest while browsing, best match once they have typed.
+   */
+  sort: CatalogSort | null;
 };
 
 export const EMPTY_FILTERS: SearchFilters = {
@@ -47,6 +58,7 @@ export const EMPTY_FILTERS: SearchFilters = {
   membershipOnly: false,
   downloadedOnly: false,
   highlyRatedOnly: false,
+  sort: null,
 };
 
 /** The rating the "4★ and up" toggle asks the backend for. */
@@ -86,45 +98,26 @@ export const LANGUAGE_LABELS: Record<LanguageFilter, string> = {
   arabic: 'Arabic',
 };
 
+/**
+ * The orderings the sheet offers.
+ *
+ * `relevance` is not among them: it is what the backend already does with a
+ * search term, and offering it as a choice while browsing would ask the
+ * database to rank against nothing. Leaving the sort unset is how the reader
+ * asks for it.
+ */
+export const SORTS: CatalogSort[] = ['newest', 'rating', 'title'];
+
+export const SORT_LABELS: Record<CatalogSort, string> = {
+  newest: 'Newest',
+  rating: 'Top rated',
+  title: 'Title A–Z',
+  relevance: 'Best match',
+};
+
 /** The order the sheet lists them in. */
 export const LANGUAGES: LanguageFilter[] = ['urdu', 'english', 'arabic'];
 export const LENGTHS: LengthFilter[] = ['short', 'medium', 'long'];
-
-/** The server's bucket boundaries, in pages, for the estimate below. */
-const LENGTH_BOUNDS: Record<LengthFilter, [number, number]> = {
-  short: [0, 200],
-  medium: [200, 600],
-  long: [600, Number.POSITIVE_INFINITY],
-};
-
-/**
- * A book's bucket when the row did not carry one.
- *
- * Reads pages back out of the formatted read time, which was itself estimated
- * from the PDF's file size — an estimate of an estimate, and exactly why the
- * bucket belongs on the server. Only reached on a payload with no
- * `length_bucket`.
- */
-function estimateBucket(readTime: string | null | undefined): LengthFilter | null {
-  if (!readTime) {
-    return null;
-  }
-  const match = /(\d+)\s*(min|hr)/.exec(readTime);
-  if (!match) {
-    return null;
-  }
-  const value = Number(match[1]);
-  const minutes = match[2] === 'hr' ? value * 60 : value;
-  // ~1.5 minutes a page is the industry rule of thumb for non-fiction.
-  const pages = Math.round(minutes / 1.5);
-
-  return (
-    (Object.keys(LENGTH_BOUNDS) as LengthFilter[]).find(bucket => {
-      const [min, max] = LENGTH_BOUNDS[bucket];
-      return pages >= min && pages < max;
-    }) ?? null
-  );
-}
 
 /** The active filters, in the order the chip row shows them. */
 export function activeTokens(filters: SearchFilters): FilterToken[] {
@@ -173,8 +166,9 @@ export function tokenLabel(
 export type AppliedFilters = {
   rows: CatalogBook[];
   /**
-   * True when the page had to be narrowed here, so the backend's `totalCount`
-   * is no longer the number of matches and the list must count what it holds.
+   * True only when the downloaded toggle has narrowed the page, which is the
+   * one case the backend's `totalCount` stops describing what is on screen and
+   * the list has to count what it holds instead.
    */
   countIsLocal: boolean;
 };
@@ -223,6 +217,11 @@ export function useSearchFilters(downloadedIds?: Set<string>) {
     [],
   );
 
+  const setSort = useCallback(
+    (sort: CatalogSort | null) => setFilters(current => ({ ...current, sort })),
+    [],
+  );
+
   const reset = useCallback(() => setFilters(EMPTY_FILTERS), []);
 
   /** Dismissing a chip in the row under the search field. */
@@ -264,87 +263,41 @@ export function useSearchFilters(downloadedIds?: Set<string>) {
       lengths: filters.lengths,
       membershipOnly: filters.membershipOnly,
       minRating: filters.highlyRatedOnly ? HIGHLY_RATED : undefined,
+      sort: filters.sort,
     }),
     [filters],
   );
 
-  /** How many of the filters the server is being asked to answer. */
-  const serverFilterCount =
-    filters.languages.length +
-    filters.lengths.length +
-    (filters.membershipOnly ? 1 : 0) +
-    (filters.highlyRatedOnly ? 1 : 0);
-
-  /** Does this row satisfy the filters the query already asked for? */
-  const matchesQuery = useCallback(
-    (book: CatalogBook) => {
-      if (filters.languages.length > 0) {
-        // The recorded column, and the old script guess only where a
-        // deployment has not got one. The guess reads romanised Urdu as
-        // English and cannot see Arabic at all, which is what the column fixed.
-        const language =
-          book.language ?? (isUrduTitle(book.title) ? 'urdu' : 'english');
-        if (!filters.languages.includes(language)) {
-          return false;
-        }
-      }
-
-      if (filters.lengths.length > 0) {
-        const bucket = book.lengthBucket ?? estimateBucket(book.readTime);
-        if (!bucket || !filters.lengths.includes(bucket)) {
-          return false;
-        }
-      }
-
-      if (filters.membershipOnly && !book.isPremium) {
-        return false;
-      }
-
-      if (filters.highlyRatedOnly && (book.rating ?? 0) < HIGHLY_RATED) {
-        return false;
-      }
-
-      return true;
-    },
-    [filters],
-  );
-
   /**
-   * Narrows the page that came back, and says what the count now means.
+   * Applies the one filter the backend cannot.
    *
-   * The four query filters are re-checked here rather than trusted, because
-   * "the parameter was sent" and "the parameter was applied" are different
-   * facts: a deployment can carry the `language` column on its cards while its
-   * endpoint still ignores `?language=`, which is exactly the state production
-   * was in when this was written. Re-checking is cheap — one pass over a page
-   * of twenty — and it is the only way to be sure the reader is looking at what
-   * they asked for.
+   * Only `downloadedOnly` is left to do here, and only because it is this
+   * device's state — `books-list` is public and unauthenticated and has no way
+   * to know what this reader has on disk. A `downloaded` parameter was asked
+   * for and deliberately declined; the rows come from `downloads-list`.
    *
-   * What the check *costs* is the count. If nothing was dropped, the backend
-   * had already done the work and its `totalCount` is the true number of
-   * matches. If rows were dropped, the query was not applied and the only
-   * honest number is the one on screen. `countIsLocal` carries that distinction
-   * up to the list, which also uses it to decide whether a thin page means "no
-   * more matches" or "fetch the next one".
+   * Everything else arrives already narrowed. The page the backend sent *is*
+   * the answer, so it is drawn as it came: re-checking a language or a length
+   * here would mean re-deriving what the server decided, and dropping a row
+   * would put the list at odds with the `totalCount` and `hasNextPage` that
+   * describe the set the page was cut from.
    *
-   * Once the backend filters, this stops dropping anything and the list quietly
-   * goes back to the server's own count.
+   * `countIsLocal` therefore says one thing only: whether the downloaded
+   * toggle has narrowed the page, in which case the server's total no longer
+   * describes what is on screen.
    */
   const apply = useCallback(
     (books: CatalogBook[]): AppliedFilters => {
-      const matching = serverFilterCount === 0 ? books : books.filter(matchesQuery);
-      const serverHonoured = matching.length === books.length;
-
-      const rows = filters.downloadedOnly
-        ? matching.filter(book => downloadedIds?.has(book.id))
-        : matching;
+      if (!filters.downloadedOnly) {
+        return { rows: books, countIsLocal: false };
+      }
 
       return {
-        rows,
-        countIsLocal: filters.downloadedOnly || !serverHonoured,
+        rows: books.filter(book => downloadedIds?.has(book.id)),
+        countIsLocal: true,
       };
     },
-    [downloadedIds, filters.downloadedOnly, matchesQuery, serverFilterCount],
+    [downloadedIds, filters.downloadedOnly],
   );
 
   const tokens = useMemo(() => activeTokens(filters), [filters]);
@@ -363,5 +316,6 @@ export function useSearchFilters(downloadedIds?: Set<string>) {
     setMembershipOnly,
     setDownloadedOnly,
     setHighlyRatedOnly,
+    setSort,
   };
 }

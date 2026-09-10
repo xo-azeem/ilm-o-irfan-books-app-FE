@@ -525,6 +525,19 @@ export async function getWeeklyTrending({
  * "Downloaded only" is deliberately absent: that is this device's state, and
  * these endpoints are public and unauthenticated.
  */
+/**
+ * How the catalogue is ordered.
+ *
+ * The server's own default is `newest` while browsing and `relevance` once
+ * there is a search term, so Discover sends nothing at all until the reader
+ * picks an order themselves — which keeps "best match" meaning best match
+ * without the app having to know which endpoint it is talking to.
+ *
+ * Ordering is the database's in every case. Sorting a page here would reorder
+ * twenty rows out of a hundred and twenty and call it a sorted catalogue.
+ */
+export type CatalogSort = 'newest' | 'rating' | 'title' | 'relevance';
+
 export type CatalogFilters = {
   /**
    * A `categories.id`. The backend's `category` parameter resolves either an id
@@ -539,6 +552,11 @@ export type CatalogFilters = {
   membershipOnly?: boolean;
   /** `rating >= minRating`; the backend clamps it to 0–5. */
   minRating?: number;
+  /**
+   * The order to return matches in. Omitted means "the server's default for
+   * this call" — newest for a browse, relevance for a search.
+   */
+  sort?: CatalogSort | null;
 };
 
 export type BrowseParams = CatalogFilters & {
@@ -563,6 +581,7 @@ function filterQuery(filters: CatalogFilters) {
     length: filters.lengths?.length ? filters.lengths.join(',') : undefined,
     premium: filters.membershipOnly ? true : undefined,
     minRating: filters.minRating,
+    sort: filters.sort ?? undefined,
   };
 }
 
@@ -842,7 +861,9 @@ export async function getPlans(signal?: AbortSignal): Promise<PlanRow[]> {
     async () => {
       const result = await supabase
         .from('plans')
-        .select('id,code,name,price_cents,currency,interval,features,is_active,sort_order')
+        .select(
+          'id,code,name,price_cents,currency,interval,features,revenuecat_product_id,is_active,sort_order',
+        )
         .eq('is_active', true)
         .order('sort_order');
 

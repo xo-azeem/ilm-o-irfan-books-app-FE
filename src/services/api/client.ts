@@ -72,18 +72,35 @@ async function accessToken(): Promise<string | null> {
 }
 
 /**
- * Calls one Edge Function and returns its parsed body.
+ * Forces a new access token, for the one retry a 401 is allowed.
  *
- * Errors always surface as `ApiError`, so callers can branch on `.code` rather
- * than string-matching a message.
+ * `getSession` hands back whatever is cached — including the very token the
+ * gateway has just rejected — so a refresh has to be asked for explicitly.
+ * `null` means there was no refresh token left to spend, which makes the 401
+ * final rather than the first turn of a loop.
  */
-export async function request<T>(name: string, options: RequestOptions = {}): Promise<T> {
-  const { method = 'GET', query, body, auth = false, signal } = options;
-
-  const token = await accessToken();
-  if (auth && !token) {
-    throw new ApiError('You must be signed in.', 401, 'AUTH_REQUIRED');
+async function refreshedAccessToken(): Promise<string | null> {
+  try {
+    const { data, error } = await supabase.auth.refreshSession();
+    return error ? null : data.session?.access_token ?? null;
+  } catch {
+    return null;
   }
+}
+
+/**
+ * One HTTP round trip to an Edge Function, with nothing retried.
+ *
+ * Returns the status alongside the parsed body instead of throwing, because the
+ * caller has to be able to tell a 401 — the one status worth a second attempt —
+ * from every other failure before deciding to raise it.
+ */
+async function send(
+  name: string,
+  options: RequestOptions,
+  token: string | null,
+): Promise<{ status: number; payload: unknown; ok: boolean }> {
+  const { method = 'GET', query, body, signal } = options;
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -131,16 +148,55 @@ export async function request<T>(name: string, options: RequestOptions = {}): Pr
     }
   }
 
-  if (!response.ok) {
-    throw readError(payload, response.status);
+  return { status: response.status, payload, ok: response.ok };
+}
+
+/**
+ * Calls one Edge Function and returns its parsed body.
+ *
+ * Errors always surface as `ApiError`, so callers can branch on `.code` rather
+ * than string-matching a message.
+ *
+ * **Every 401 is treated as a stale session**, refreshed once and retried — and
+ * deliberately without looking at the code that came back. An expired or
+ * malformed JWT is rejected by the Supabase gateway *before* the function runs,
+ * and that reply has no error envelope at all: it is a top-level
+ * `{ code: 'UNAUTHORIZED_INVALID_JWT_FORMAT', message: 'Invalid JWT' }`, so
+ * `json.error?.code` is `undefined` and any attempt to match `AUTH_REQUIRED`
+ * misses it. The status is the only reliable signal. One retry, never two: if
+ * the refreshed token is refused as well, the session is genuinely finished and
+ * the 401 is raised for the auth layer to act on.
+ */
+export async function request<T>(name: string, options: RequestOptions = {}): Promise<T> {
+  const { auth = false } = options;
+
+  const token = await accessToken();
+  if (auth && !token) {
+    throw new ApiError('You must be signed in.', 401, 'AUTH_REQUIRED');
+  }
+
+  let result = await send(name, options, token);
+
+  // Only a call that carried a user token can be rescued by a refresh. A public
+  // read authorised with the anon key has no session behind it, so a 401 there
+  // is a project configuration problem and retrying it would only double it.
+  if (result.status === 401 && token) {
+    const refreshed = await refreshedAccessToken();
+    if (refreshed) {
+      result = await send(name, options, refreshed);
+    }
+  }
+
+  if (!result.ok) {
+    throw readError(result.payload, result.status);
   }
 
   // A 200 can still carry an error envelope on the handlers that answer 410.
-  if (payload && typeof payload === 'object' && 'error' in payload) {
-    throw readError(payload, response.status);
+  if (result.payload && typeof result.payload === 'object' && 'error' in result.payload) {
+    throw readError(result.payload, result.status);
   }
 
-  return payload as T;
+  return result.payload as T;
 }
 
 /**

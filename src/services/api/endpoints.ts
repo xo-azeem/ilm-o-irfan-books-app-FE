@@ -24,6 +24,8 @@ export const ENDPOINTS = {
   // Authenticated — backend `verify_jwt = true`.
   profileRead: 'profile-read',
   profileUpdate: 'profile-update',
+  /** Issues a one-off upload ticket for the reader's own avatar folder. */
+  avatarUploadUrl: 'avatar-upload-url',
   readingProgress: 'reading-progress',
   /** "Because you read …" — derived from the reader's own history. */
   recommendations: 'recommendations',

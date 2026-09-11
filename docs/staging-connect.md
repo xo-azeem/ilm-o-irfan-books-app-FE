@@ -46,7 +46,12 @@ Without public SDK keys or store products, Subscribe shows a clear “billing no
 2. Open Home → book → **Read book** → PDF loads via `get-signed-pdf`.
 3. A non-entitled user sees the membership paywall (`PREMIUM_REQUIRED`).
 
-## Still needs ops (credentials)
+## Screen capture
+
+- **Android:** screenshots and screen recording of the app are blocked (`FLAG_SECURE`).
+- **iOS:** screen *recording* / AirPlay shows a black blocker; Apple does not allow apps to fully disable still screenshots.
+
+Rebuild native binaries after pulling these changes.
 
 - RevenueCat project + public SDK keys in `.env`
 - App Store / Play subscription products

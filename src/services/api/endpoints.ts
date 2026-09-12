@@ -35,6 +35,8 @@ export const ENDPOINTS = {
   downloadsCreate: 'downloads-create',
   highlightsList: 'highlights-list',
   highlightsUpsert: 'highlights-upsert',
+  /** Adds the bookmark on `(book_id, page_number)` if absent, removes it if present. */
+  highlightsToggle: 'highlights-toggle',
   highlightsDelete: 'highlights-delete',
   libraryOverview: 'library-overview',
   entitlementsStatus: 'entitlements-status',

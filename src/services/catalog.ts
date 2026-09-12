@@ -28,6 +28,7 @@ import type {
   BookListItem,
   CarouselPayload,
   CarouselSlideRow,
+  CarouselSource,
   CategoryRow,
   CollectionInfoRow,
   CollectionRow,
@@ -250,6 +251,10 @@ export { mapCatalogBook };
  * here is chosen, reordered, filtered or topped up by the app.
  */
 export type CatalogSlide = {
+  /**
+   * A stable key for the list: the slide's own id when the admin curated it,
+   * or the book's id for a weekly-draw slide, which has none of its own.
+   */
   id: string;
   /** The book the slide opens. Its card is already in the payload. */
   bookId: string;
@@ -277,7 +282,9 @@ export type CatalogSlide = {
 
 function toSlide(row: CarouselSlideRow): CatalogSlide {
   return {
-    id: row.slide_id,
+    // Fallback slides arrive with `slide_id: null`; without this every page of
+    // the weekly draw would share the key "null".
+    id: row.slide_id ?? row.book_id,
     bookId: row.book_id,
     // No local fallback on the words or the colour: the backend has already
     // put the book's own title and cover colour wherever the admin left the
@@ -392,9 +399,14 @@ async function homeFromEndpoints(signal?: AbortSignal) {
         .data;
 
   return {
-    // Rendered in the order given, or not at all. An empty list is the admin
-    // saying "no carousel", not a gap for the app to fill.
+    // Rendered in the order given, or not at all. The backend already stands
+    // in its weekly draw when the admin has curated nothing, so an empty list
+    // means there is nothing to show (no published books, or the carousel read
+    // failed server-side) — not a gap for the app to fill.
     carousel: (feed?.carousel ?? []).map(toSlide),
+    // Which of the two the backend sent. Analytics and debugging only; the UI
+    // draws both identically.
+    carouselSource: feed?.carouselSource ?? null,
     ...railsFrom(feed ?? null, pool),
     collections: (feed?.collections ?? []).map(toCollection),
     categories: (feed?.categories ?? []).map(toCategory),
@@ -440,6 +452,7 @@ async function homeFromTables() {
     // reproduces an admin's slides, and inventing one here is the curation this
     // removed — a project without the functions deployed shows no carousel.
     carousel: [] as CatalogSlide[],
+    carouselSource: null as CarouselSource | null,
     // Only this rail carries real blurbs, so the hero keeps the `books` read.
     hero: unwrap(hero).map(fromJoinedRow),
     trending: unwrap(trending).map(row => fromViewRow(row as CatalogListRow)),

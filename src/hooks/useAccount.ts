@@ -1,22 +1,27 @@
+import { useCallback, useSyncExternalStore } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
-  addHighlight,
-  deleteHighlight,
   getHighlights,
   getLibrary,
   getProfile,
   getSubscription,
   getWishlist,
   isInWishlist,
+  progressCaption,
   removeDownload,
-  saveReadingProgress,
   syncDownload,
+  toggleHighlight,
   toggleWishlist,
   updateProfile,
+  type LibraryProgressBook,
+  type LibrarySummary,
   type ProfileForm,
 } from '@/services/account';
+import type { HighlightRow } from '@/services/api/types';
 import { getAvatarUrl, uploadAvatar } from '@/services/avatar';
+import { readBookmarks, writeBookmarks } from '@/services/bookmarkCache';
+import { getPosition, positionsVersion, subscribeToPositions } from '@/services/readingPosition';
 import { useAuthStore } from '@/stores/authStore';
 
 function scoped(name: string, userId: string | null, extra?: string) {
@@ -68,12 +73,59 @@ export function useAvatarUpload() {
   });
 }
 
+/**
+ * Lays the device's own positions over the server's shelves.
+ *
+ * A page turned a moment ago is on disk before it is on the server — and while
+ * offline it is *only* on disk — so a "Continue reading" card built from the
+ * server row alone would say the wrong page. Any cached position newer than
+ * the row's replaces its page and caption; the row's `progress` moves with it
+ * so the bar agrees with the caption.
+ */
+function overlayPositions(
+  userId: string | null,
+  books: LibraryProgressBook[],
+): LibraryProgressBook[] {
+  if (!userId) {
+    return books;
+  }
+  return books.map(book => {
+    const local = getPosition(userId, book.id);
+    const serverAt = book.lastReadAt ? Date.parse(book.lastReadAt) : 0;
+    if (!local || Date.parse(local.updatedAt) <= serverAt) {
+      return book;
+    }
+    const totalPages = local.totalPages || book.totalPages;
+    return {
+      ...book,
+      currentPage: local.page,
+      totalPages,
+      lastReadAt: local.updatedAt,
+      progress: totalPages > 0 ? Math.min(1, local.page / totalPages) : book.progress,
+      chapter: progressCaption(null, local.page, totalPages),
+    };
+  });
+}
+
 export function useLibrary() {
   const userId = useAuthStore(state => state.userId);
+  // Re-runs `select` whenever a position is written, so the shelf follows the
+  // reader out of a book without waiting for the server's copy to come back.
+  const version = useSyncExternalStore(subscribeToPositions, positionsVersion);
+  const select = useCallback(
+    (data: LibrarySummary): LibrarySummary => ({
+      ...data,
+      reading: overlayPositions(userId, data.reading),
+    }),
+    // `version` is the dependency that matters even though the body never reads it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [userId, version],
+  );
   return useQuery({
     queryKey: scoped('library', userId),
     queryFn: () => getLibrary(),
     enabled: Boolean(userId),
+    select,
   });
 }
 
@@ -111,12 +163,93 @@ export function useSubscription() {
   });
 }
 
+/**
+ * The bookmarks in one book.
+ *
+ * Starts from the on-disk mirror so the bookmark button is right on the first
+ * frame, then refreshes from `highlights-list` behind it. `initialDataUpdatedAt`
+ * is pinned to the epoch so the mirror never counts as fresh — it is a warm
+ * start, not an answer.
+ */
 export function useHighlights(bookId: string) {
   const userId = useAuthStore(state => state.userId);
   return useQuery({
     queryKey: scoped('highlights', userId, bookId),
-    queryFn: () => getHighlights(bookId),
+    queryFn: async () => {
+      const rows = await getHighlights(bookId);
+      if (userId) {
+        writeBookmarks(userId, bookId, rows);
+      }
+      return rows;
+    },
+    initialData: () => (userId ? readBookmarks(userId, bookId) : undefined),
+    initialDataUpdatedAt: 0,
+    // The client default is `false`, which would take the mirror as the
+    // answer and never ask the server. Stale on arrival means it asks once.
+    refetchOnMount: true,
     enabled: Boolean(userId && bookId),
+  });
+}
+
+/**
+ * The reader's bookmark button, optimistic in both directions.
+ *
+ * The page flips to "saved" (or back) the moment it is tapped, from the
+ * highlights the screen already holds; `highlights-toggle` then answers with
+ * the real row, which replaces the placeholder, and a failure puts the list
+ * back exactly as it was. The mirror on disk follows the query cache, so the
+ * next open starts from whatever this settled on.
+ */
+export function useBookmarkToggle(bookId: string) {
+  const client = useQueryClient();
+  const userId = useAuthStore(state => state.userId);
+  const queryKey = scoped('highlights', userId, bookId);
+
+  return useMutation({
+    mutationFn: (page: number) => toggleHighlight(bookId, page),
+    onMutate: async (page: number) => {
+      await client.cancelQueries({ queryKey });
+      const previous = client.getQueryData<HighlightRow[]>(queryKey) ?? [];
+      const existing = previous.some(row => row.page_number === page);
+      const next = existing
+        ? previous.filter(row => row.page_number !== page)
+        : [
+            ...previous,
+            {
+              id: `pending:${page}`,
+              user_id: userId ?? '',
+              book_id: bookId,
+              page_number: page,
+              text_excerpt: null,
+              note: null,
+              color: null,
+              created_at: new Date().toISOString(),
+            },
+          ].sort((a, b) => (a.page_number ?? 0) - (b.page_number ?? 0));
+      client.setQueryData<HighlightRow[]>(queryKey, next);
+      return { previous };
+    },
+    onError: (_error, _page, context) => {
+      if (context) {
+        client.setQueryData<HighlightRow[]>(queryKey, context.previous);
+      }
+    },
+    onSuccess: (result, page) => {
+      client.setQueryData<HighlightRow[]>(queryKey, current => {
+        const rest = (current ?? []).filter(row => row.page_number !== page);
+        return result.bookmarked && result.highlight
+          ? [...rest, result.highlight].sort(
+              (a, b) => (a.page_number ?? 0) - (b.page_number ?? 0),
+            )
+          : rest;
+      });
+      void client.invalidateQueries({ queryKey: scoped('library', userId) });
+    },
+    onSettled: () => {
+      if (userId) {
+        writeBookmarks(userId, bookId, client.getQueryData<HighlightRow[]>(queryKey) ?? []);
+      }
+    },
   });
 }
 
@@ -140,47 +273,6 @@ export function useWishlistMutation(bookId: string) {
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: scoped('wishlist', userId) });
       void client.invalidateQueries({ queryKey: scoped('wishlist-item', userId, bookId) });
-      void client.invalidateQueries({ queryKey: scoped('library', userId) });
-    },
-  });
-}
-
-export function useProgressMutation() {
-  const client = useQueryClient();
-  const userId = useAuthStore(state => state.userId);
-  return useMutation({
-    mutationFn: ({
-      bookId,
-      page,
-      totalPages,
-    }: {
-      bookId: string;
-      page: number;
-      totalPages: number;
-    }) => saveReadingProgress(bookId, page, totalPages),
-    onSuccess: () => client.invalidateQueries({ queryKey: scoped('library', userId) }),
-  });
-}
-
-export function useHighlightMutation(bookId: string) {
-  const client = useQueryClient();
-  const userId = useAuthStore(state => state.userId);
-  return useMutation({
-    mutationFn: (page: number) => addHighlight(bookId, page),
-    onSuccess: () => {
-      void client.invalidateQueries({ queryKey: scoped('highlights', userId, bookId) });
-      void client.invalidateQueries({ queryKey: scoped('library', userId) });
-    },
-  });
-}
-
-export function useDeleteHighlight(bookId: string) {
-  const client = useQueryClient();
-  const userId = useAuthStore(state => state.userId);
-  return useMutation({
-    mutationFn: (highlightId: string) => deleteHighlight(highlightId),
-    onSuccess: () => {
-      void client.invalidateQueries({ queryKey: scoped('highlights', userId, bookId) });
       void client.invalidateQueries({ queryKey: scoped('library', userId) });
     },
   });

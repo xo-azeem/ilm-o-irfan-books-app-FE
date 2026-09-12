@@ -16,20 +16,40 @@ import { ReaderLocked } from '@/features/reader/components/ReaderLocked';
 import { ReaderSettingsSheet } from '@/features/reader/components/ReaderSettingsSheet';
 import { ReaderStageSkeleton } from '@/features/reader/components/ReaderStageSkeleton';
 import { MAX_SCALE, MIN_SCALE, SCALE_STEP } from '@/features/reader/constants';
-import {
-  useDeleteHighlight,
-  useHighlightMutation,
-  useHighlights,
-  useProgressMutation,
-} from '@/hooks/useAccount';
+import { useBookmarkToggle, useHighlights } from '@/hooks/useAccount';
 import { useBook } from '@/hooks/useCatalog';
 import { downloadPdf, resolvePdfSource } from '@/services/pdf';
+import {
+  flushPositions,
+  getPosition,
+  pullPosition,
+  recordPosition,
+} from '@/services/readingPosition';
 import { useAccess } from '@/lib/access';
+import { useAuthStore } from '@/stores/authStore';
 import { useThemeStore } from '@/stores/themeStore';
 import { useReaderSurface } from '@/features/reader/useReaderSurface';
 
 /** How close two reported taps have to be before the second is a duplicate. */
 const TOGGLE_GUARD_MS = 220;
+
+/**
+ * How long the reader has to stay on a page before it counts as *their* page.
+ *
+ * Not every page in view is the one the reader is on. Flicking back three
+ * leaves to find a name and closing the book should not reopen it three
+ * leaves back; neither should a glance at the last page to see how long the
+ * book is mark it finished. So a page only becomes the saved position once
+ * the reader has settled on it — and a page arrived at by a jump (go-to, or a
+ * run of turns) has to earn it for longer than the next page over, because a
+ * single turn is almost always reading and a jump is almost always looking.
+ *
+ * The page on screen and the progress rule follow every turn instantly; only
+ * what is *remembered* waits. Closing the book mid-wait remembers nothing
+ * new, which is exactly the point.
+ */
+const SETTLE_TURN_MS = 2500;
+const SETTLE_JUMP_MS = 8000;
 
 type BookReaderRouteProp = RouteProp<RootStackParamList, 'BookReader'>;
 type BookReaderNavigationProp = NativeStackNavigationProp<RootStackParamList, 'BookReader'>;
@@ -41,7 +61,12 @@ type BookReaderNavigationProp = NativeStackNavigationProp<RootStackParamList, 'B
  * anywhere in here lands on the reader's own failure screen and "Try again"
  * rebuilds the screen from scratch.
  */
-type PdfError = { code?: string; message?: string; name?: string; status?: number };
+type PdfError = {
+  code?: string;
+  message?: string;
+  name?: string;
+  status?: number;
+};
 
 /**
  * What to tell the reader when a book will not open.
@@ -97,6 +122,7 @@ function BookReader() {
   const route = useRoute<BookReaderRouteProp>();
   const bookId = route.params.bookId;
   const { data: book } = useBook(bookId);
+  const userId = useAuthStore(state => state.userId);
 
   const [pdfSource, setPdfSource] = useState<BookPdfSource | null>(null);
   const [sourceError, setSourceError] = useState(false);
@@ -106,7 +132,16 @@ function BookReader() {
   // other way round, so the controls can never end up describing a zoom that
   // is not the one on screen.
   const [controlScale, setControlScale] = useState(MIN_SCALE);
-  const [page, setPage] = useState(1);
+  /**
+   * Where the book opens: the page on disk from the last sitting, read before
+   * the first render so the document never shows page 1 on its way there.
+   * The server is asked behind it — see `pullPosition` below — and a newer
+   * answer moves the book once it is up.
+   */
+  const [startPage, setStartPage] = useState(
+    () => (userId ? getPosition(userId, bookId)?.page : undefined) ?? 1,
+  );
+  const [page, setPage] = useState(startPage);
   const [totalPages, setTotalPages] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [loadProgress, setLoadProgress] = useState(0);
@@ -120,6 +155,17 @@ function BookReader() {
   const [brightness, setBrightness] = useState(1);
   // Bumping this token re-runs the source effect; that is the retry path.
   const [retryToken, setRetryToken] = useState(0);
+  /**
+   * The screen has finished sliding in, and is not on its way out.
+   *
+   * The heavy things wait for this. A native document view created mid-slide
+   * and a blur sampling the window on every frame of it are the difference
+   * between a screen that glides in and one that stutters in; the skeleton
+   * is on stage from the first frame regardless, so nothing is seen to wait.
+   */
+  const [settled, setSettled] = useState(false);
+  /** Set once the screen has settled, and kept: the book stays up on the way out. */
+  const [entered, setEntered] = useState(false);
   const settingsSheet = useSheet();
   // The stage follows the app's theme; only the page itself follows the tone.
   const surface = useReaderSurface();
@@ -135,16 +181,21 @@ function BookReader() {
   const hasOpened = useRef(false);
   /** The membership ended with the book open, rather than before it opened. */
   const [lockedMidRead, setLockedMidRead] = useState(false);
-  const progressMutation = useProgressMutation();
-  const highlightMutation = useHighlightMutation(bookId);
-  const deleteHighlightMutation = useDeleteHighlight(bookId);
-  // `highlights-list` filters to this book server-side. The result used to be
-  // fetched and dropped, which paid for a round trip on every open and still
-  // left the bookmark button unable to say whether the page was already saved.
+  // Only the stable `mutate` is kept: the mutation object itself is new on
+  // every render, and anything keyed on it would be rebuilt on every render.
+  const { mutate: toggleBookmark } = useBookmarkToggle(bookId);
+  // `highlights-list` filters to this book server-side, and starts from the
+  // on-disk mirror so the button knows the page's state on the first frame.
   const { data: highlights } = useHighlights(bookId);
   const lastToggle = useRef(0);
-  const pendingProgress = useRef<{ page: number; totalPages: number } | null>(null);
-  const progressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** The wait for the page in view to become the page remembered. */
+  const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** The last page that was remembered, so the next can tell a turn from a jump. */
+  const settledPage = useRef(startPage);
+  /** True once the document has loaded, so a late server position jumps rather than seeds. */
+  const documentReady = useRef(false);
+  /** `page`, readable from an effect without being a dependency of it. */
+  const pageRef = useRef(startPage);
   const flipRef = useRef<BookPageFlipHandle>(null);
 
   useEffect(() => {
@@ -169,7 +220,12 @@ function BookReader() {
     setPdfSource(null);
     setSourceError(false);
     setErrorMessage(null);
-    setPage(1);
+    documentReady.current = false;
+    const cached = (userId ? getPosition(userId, bookId)?.page : undefined) ?? 1;
+    pageRef.current = cached;
+    settledPage.current = cached;
+    setStartPage(cached);
+    setPage(cached);
     setTotalPages(0);
     setIsLoading(true);
     setLoadProgress(0);
@@ -203,7 +259,44 @@ function BookReader() {
       active = false;
       abort.abort();
     };
-  }, [bookId, canOpenBooks, isAuthenticated, isSubscriptionLoading, navigation, retryToken]);
+  }, [bookId, canOpenBooks, isAuthenticated, isSubscriptionLoading, navigation, retryToken, userId]);
+
+  /**
+   * Asks the server where this book was left, behind the page already up.
+   *
+   * The cache answered first; this is the correction. A newer position — from
+   * another device, or a sitting this device never got to send — either
+   * re-seeds the start page if the document is still loading, or turns the
+   * book to it if it is not. The same page, or an older one, changes nothing:
+   * `pullPosition` has already merged it and handed back whichever won.
+   */
+  useEffect(() => {
+    if (!userId || !canOpenBooks) {
+      return;
+    }
+    let active = true;
+    void pullPosition(userId, bookId).then(position => {
+      if (!active || !position) {
+        return;
+      }
+      if (position.page === pageRef.current) {
+        return;
+      }
+      if (documentReady.current) {
+        flipRef.current?.goTo(position.page);
+        return;
+      }
+      // Still loading: re-seed. The stage is keyed on the start page, so the
+      // document view comes back up on the new one rather than page 1.
+      pageRef.current = position.page;
+      settledPage.current = position.page;
+      setStartPage(position.page);
+      setPage(position.page);
+    });
+    return () => {
+      active = false;
+    };
+  }, [bookId, canOpenBooks, userId, retryToken]);
 
   /** Plans live in the profile stack, which the reader sits above. */
   const openPaywall = useCallback(() => {
@@ -213,22 +306,21 @@ function BookReader() {
     });
   }, [navigation]);
 
+  /**
+   * Sends whatever has been remembered to the server. A page still waiting to
+   * settle is abandoned, not hurried: the reader left before it was theirs.
+   */
   const flushProgress = useCallback(() => {
-    const value = pendingProgress.current;
-    if (!value?.totalPages) return;
-    progressMutation.mutate({ bookId, ...value });
-    pendingProgress.current = null;
-  }, [bookId, progressMutation]);
+    if (settleTimer.current) {
+      clearTimeout(settleTimer.current);
+      settleTimer.current = null;
+    }
+    if (userId) {
+      void flushPositions(userId);
+    }
+  }, [userId]);
 
-  useEffect(
-    () => () => {
-      if (progressTimer.current) {
-        clearTimeout(progressTimer.current);
-      }
-      flushProgress();
-    },
-    [flushProgress],
-  );
+  useEffect(() => () => flushProgress(), [flushProgress]);
 
   /**
    * The membership ending while the book is open.
@@ -256,6 +348,7 @@ function BookReader() {
   }, [canOpenBooks, flushProgress]);
 
   const handleLoadComplete = useCallback((numberOfPages: number) => {
+    documentReady.current = true;
     setTotalPages(numberOfPages);
     setLoadProgress(100);
     setIsLoading(false);
@@ -268,17 +361,37 @@ function BookReader() {
     setLoadProgress(prev => Math.max(prev ?? 0, next));
   }, []);
 
+  /**
+   * A page turned. The screen follows it now; the saved position follows it
+   * once the reader has stayed — see `SETTLE_TURN_MS`. Every turn restarts
+   * the wait, so a run of turns only ever remembers the page it ends on.
+   */
   const handlePageChanged = useCallback(
     (currentPage: number, numberOfPages: number) => {
-      setPage(currentPage);
+      const landed =
+        numberOfPages > 0 ? Math.min(Math.max(1, currentPage), numberOfPages) : currentPage;
+      pageRef.current = landed;
+      setPage(landed);
       setTotalPages(numberOfPages);
-      pendingProgress.current = { page: currentPage, totalPages: numberOfPages };
-      if (progressTimer.current) {
-        clearTimeout(progressTimer.current);
+      if (settleTimer.current) {
+        clearTimeout(settleTimer.current);
+        settleTimer.current = null;
       }
-      progressTimer.current = setTimeout(flushProgress, 1500);
+      if (!userId || numberOfPages <= 0) {
+        return;
+      }
+      // The page the book opened on is already the remembered one; it only
+      // needs its timestamp refreshed, and that can happen at once.
+      const distance = Math.abs(landed - settledPage.current);
+      const wait = distance === 0 ? 0 : distance === 1 ? SETTLE_TURN_MS : SETTLE_JUMP_MS;
+      settleTimer.current = setTimeout(() => {
+        settleTimer.current = null;
+        settledPage.current = landed;
+        recordPosition(userId, bookId, landed, numberOfPages);
+        void flushPositions(userId);
+      }, wait);
     },
-    [flushProgress],
+    [bookId, userId],
   );
 
   const handleError = useCallback((message?: string) => {
@@ -291,6 +404,29 @@ function BookReader() {
   const hideLoader = useCallback(() => {
     setLoaderVisible(false);
   }, []);
+
+  useEffect(() => {
+    const onEnd = navigation.addListener('transitionEnd', event => {
+      if (!event.data.closing) {
+        setSettled(true);
+        setEntered(true);
+      }
+    });
+    const onStart = navigation.addListener('transitionStart', event => {
+      if (event.data.closing) setSettled(false);
+    });
+    // A transition that never reports — a stack configured without one, or a
+    // platform that does not say — must not leave the book unopened.
+    const fallback = setTimeout(() => {
+      setSettled(true);
+      setEntered(true);
+    }, 700);
+    return () => {
+      onEnd();
+      onStart();
+      clearTimeout(fallback);
+    };
+  }, [navigation]);
 
   const handleDownload = useCallback(async () => {
     setIsDownloading(true);
@@ -312,22 +448,18 @@ function BookReader() {
   );
 
   /**
-   * One button, both directions.
+   * One button, both directions, one round trip.
    *
-   * Tapping it used to only ever add, so a reader who bookmarked the wrong page
-   * had no way back — `highlights-delete` is the other half, and it scopes the
-   * removal to the caller's own row server-side.
+   * `highlights-toggle` decides the direction from the row it finds, so the
+   * button does not have to know — and the list flips optimistically, so the
+   * icon answers the tap rather than the network.
    */
   const handleHighlight = useCallback(() => {
-    if (page <= 0 || highlightMutation.isPending || deleteHighlightMutation.isPending) {
+    if (page <= 0) {
       return;
     }
-    if (bookmark) {
-      deleteHighlightMutation.mutate(bookmark.id);
-      return;
-    }
-    highlightMutation.mutate(page);
-  }, [bookmark, deleteHighlightMutation, highlightMutation, page]);
+    toggleBookmark(page);
+  }, [page, toggleBookmark]);
 
   const applyScale = useCallback((next: number) => {
     setControlScale(Number(Math.min(Math.max(next, MIN_SCALE), MAX_SCALE).toFixed(2)));
@@ -433,16 +565,22 @@ function BookReader() {
         totalPages={totalPages}
         visible={chromeVisible}
         hint={readingMode === 'flip' && !pageTouched && !isLoading && totalPages > 1}
+        // The blur waits for the screen to settle and the book to be up: while
+        // either is still moving, it would be sampling the window every frame.
+        glass={settled && !loaderVisible}
         saved={Boolean(bookmark)}
         onBack={() => navigation.goBack()}
         onOpenSettings={settingsSheet.open}
         onBookmark={handleHighlight}>
-        {pdfSource ? (
+        {pdfSource && entered ? (
           <ReaderBoundary>
             <BookPageFlip
               ref={flipRef}
-              key={bookId}
+              // Keyed on the start page as well: a newer position that lands
+              // while the file is still loading reopens it there, once.
+              key={`${bookId}:${startPage}`}
               source={pdfSource}
+              initialPage={startPage}
               scale={controlScale}
               onLoadComplete={handleLoadComplete}
               onLoadProgress={handleLoadProgress}
@@ -457,18 +595,11 @@ function BookReader() {
 
       {/* The page dimmer. Sits above the page, below the chrome. */}
       {brightness < 1 ? (
-        <View
-          pointerEvents="none"
-          style={[styles.dimmer, { opacity: (1 - brightness) * 0.75 }]}
-        />
+        <View pointerEvents="none" style={[styles.dimmer, { opacity: (1 - brightness) * 0.75 }]} />
       ) : null}
 
       {loaderVisible ? (
-        <ReaderStageSkeleton
-          ready={!isLoading}
-          progress={loadProgress}
-          onFinished={hideLoader}
-        />
+        <ReaderStageSkeleton ready={!isLoading} progress={loadProgress} onFinished={hideLoader} />
       ) : null}
 
       <ReaderSettingsSheet

@@ -5,6 +5,7 @@ import {
 } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
+import { TAB_TRANSITION } from '@/components/navigation/tabTransition';
 import { ADMIN_ROUTES } from '@/constants/routes';
 import { useTheme } from '@/theme/ThemeContext';
 import { AdminToastProvider } from '@/features/admin/components/AdminToast';
@@ -103,7 +104,7 @@ export function AdminNavigator() {
             headerShown: false,
             lazy: true,
             freezeOnBlur: true,
-            animation: 'none',
+            ...TAB_TRANSITION,
           }}>
           <Tab.Screen name={ADMIN_ROUTES.TODAY} component={AdminTodayScreen} />
           <Tab.Screen name={ADMIN_ROUTES.LIBRARY} component={AdminLibraryNavigator} />

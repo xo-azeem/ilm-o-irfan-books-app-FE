@@ -175,7 +175,7 @@ export type CollectionRow = {
 };
 
 /**
- * One slide of the admin-managed home carousel.
+ * One slide of the home carousel.
  *
  * Returned by `carousel-list` and embedded in `home-feed` under `carousel`,
  * with the identical payload. Everything here is already resolved server-side:
@@ -184,11 +184,17 @@ export type CollectionRow = {
  * blank, and a slide outside its run window or pointing at an unpublished book
  * is simply absent. The app renders the list exactly as it arrives.
  *
+ * The list is never empty while the catalogue has a published book: when the
+ * admin has curated no slides the backend draws five books for the week
+ * (identical for every reader, rotating Monday 00:00 UTC) and sends them in
+ * this same shape with `slide_id: null`. Both kinds render identically.
+ *
  * `image_path` and `cover_path` are the raw Storage keys behind those two
  * URLs. Nothing draws from them.
  */
 export type CarouselSlideRow = {
-  slide_id: string;
+  /** `null` for a weekly-draw slide — key on `book_id` instead. */
+  slide_id: string | null;
   sort_order: number;
   /** Already falls back to the book's title — render it directly. */
   headline: string;
@@ -221,9 +227,19 @@ export type CarouselSlideRow = {
   is_premium: boolean;
 };
 
-/** `carousel-list`. `slides` is `[]` when no carousel is configured. */
+/**
+ * Where a carousel came from. Informational only — analytics and debugging.
+ * `admin` is a curated slide list; `fallback` is the backend's weekly draw.
+ */
+export type CarouselSource = 'admin' | 'fallback';
+
+/**
+ * `carousel-list`. `slides` is `[]` only when the catalogue has no published
+ * books at all.
+ */
 export type CarouselPayload = {
   slides: CarouselSlideRow[];
+  source?: CarouselSource | null;
 };
 
 /**
@@ -319,6 +335,8 @@ export type HomeFeedPayload = {
   shelves?: HomeFeedShelves | null;
   /** Absent on a deployment that predates the admin-managed carousel. */
   carousel?: CarouselSlideRow[] | null;
+  /** Which of the two the backend sent as `carousel`. Informational only. */
+  carouselSource?: CarouselSource | null;
   /**
    * `app_settings.support_email` — the address Help Center writes to, so an
    * admin can change it without a release. `null` when unset.
@@ -513,8 +531,16 @@ export type ProfileRow = {
   streak?: ReadingStreak | null;
 };
 
-/** `reading-progress` (GET and POST both answer with this row). */
+/**
+ * `reading-progress` — the GET single/list rows and the POST response.
+ *
+ * `last_read_at` is the instant the reader was on `current_page`: on a write
+ * that carried `client_updated_at` it is that stamp verbatim, otherwise the
+ * server's clock. It is what the last-write-wins comparison runs on, both
+ * server-side and in `services/readingPosition`.
+ */
 export type ReadingProgressRow = {
+  id?: string;
   user_id: string;
   book_id: string;
   current_page: number | null;
@@ -522,6 +548,13 @@ export type ReadingProgressRow = {
   progress: number | string | null;
   chapter_label: string | null;
   last_read_at: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  /**
+   * POST only. `false` means a newer position was already stored and this
+   * call's values were not written — the row around it is the one that won.
+   */
+  applied?: boolean;
 };
 
 /** `highlights-list` / `highlights-upsert`. */
@@ -534,6 +567,15 @@ export type HighlightRow = {
   note: string | null;
   color: string | null;
   created_at: string;
+  updated_at?: string | null;
+  /** `highlights-upsert` only: `false` when the page already had a bookmark. */
+  created?: boolean;
+};
+
+/** `highlights-toggle` — the bookmark after the call, if there is one. */
+export type HighlightToggleResult = {
+  bookmarked: boolean;
+  highlight: HighlightRow | null;
 };
 
 /** `downloads-create` and the rows behind `downloads-list`. */
@@ -651,8 +693,12 @@ export type ReadingStreak = {
   updated_at?: string | null;
 };
 
-/** `highlights-delete` confirms the row it removed. */
+/**
+ * `highlights-delete` confirms the row it removed. A row that was already
+ * gone is `deleted: false` with a 200, never a 404; `id` is null when the
+ * delete was by `(book_id, page_number)` and matched nothing.
+ */
 export type HighlightDeleteResult = {
-  id: string;
+  id: string | null;
   deleted: boolean;
 };

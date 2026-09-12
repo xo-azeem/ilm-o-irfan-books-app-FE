@@ -613,32 +613,32 @@ At this stage, optimize PDF size and ensure clients don’t re-download existing
 
 ---
 
-## 11. Final stack checklist (complete)
+## 11. Final stack checklist
 
 **Cloud**
 
 - [x] Supabase project  
 - [x] PostgreSQL schema (catalog, users, library, plans, entitlements)  
-- [x] Supabase Auth (email + Google)  
+- [~] Supabase Auth (email ready; Google requires Dashboard + OAuth client setup)  
 - [x] Supabase Storage (`covers`, `pdfs`, `avatars`)  
-- [x] Edge Functions (signed PDF + RevenueCat webhook)  
+- [x] Edge Functions (catalog, library, profile, admin, `get-signed-pdf`, RevenueCat webhook — see BE `_shared/endpoint-manifest.ts`)  
 - [x] RLS on all user tables  
 
 **Billing**
 
-- [x] RevenueCat  
-- [x] App Store Connect products (if iOS)  
-- [x] Play Console subscriptions (if Android)  
+- [~] RevenueCat (webhook + `entitlements-status` live; project/store products still ops)  
+- [ ] App Store Connect products (if iOS)  
+- [ ] Play Console subscriptions (if Android)  
 
 **Client**
 
-- [x] React Native app  
+- [x] React Native app (Auth, Edge Function client, access lock, admin console)  
 - [x] Supabase JS client  
-- [x] RevenueCat SDK  
+- [x] RevenueCat SDK (`react-native-purchases`; degrades to "unavailable" without keys)  
 - [x] TanStack Query  
 - [x] Zustand  
 - [x] MMKV  
-- [x] Device FS downloads  
+- [x] Device FS downloads (signed PDF → app-private storage via react-native-blob-util)  
 - [x] react-native-pdf  
 
 **Explicitly deferred**

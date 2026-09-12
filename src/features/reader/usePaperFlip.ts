@@ -122,7 +122,14 @@ export type PaperFlip = ReturnType<typeof usePaperFlip>;
  *
  * A tap is not this hook's either. The document view counts taps itself, one
  * for the chrome and two for zoom, and anything that claims the first loses
- * the second. Only a touch that never became a fold is taken here.
+ * the second — and reports the first a second time, since the document view
+ * still confirms its own single tap a beat later. So a tap on the page is
+ * left to it, as the swipe mode leaves it, and only a tap that landed on the
+ * stage beside the page is taken here.
+ *
+ * Nor is the zoom. The document view pinches and double-taps on its own, and
+ * once it has, a drag pans the page rather than folding it; `setZoom` is how
+ * the stage tells this hook so, whichever of the two took the zoom.
  */
 export function usePaperFlip({
   enabled,
@@ -137,7 +144,7 @@ export function usePaperFlip({
   onBegin: (dir: TurnDirection) => void;
   /** The leaf has landed, turned or not. The stage settles the document view. */
   onEnd: (commit: boolean, dir: TurnDirection) => void;
-  /** A touch that never became a fold. */
+  /** A tap on the stage beside the page. Taps on the page are the page's own. */
   onTap: () => void;
   /** A finger has landed on the page. Fires on every touch, fold or not. */
   onTouch?: () => void;
@@ -275,15 +282,18 @@ export function usePaperFlip({
     // Measured off the point the corner is chasing rather than the eased one:
     // the reader's hand has already said where the page is going.
     const covered = progressOf(tx.value, dir.value, w.value);
+    // The speed is the last move's, and a finger that has stopped sends no
+    // moves: only a finger still moving as it lifts was flicking.
+    const moving = Date.now() - lastAt.value <= PAGE_FLIP.flickWindowMs;
     const flicked =
-      Math.abs(velocity.value) > PAGE_FLIP.flickVelocity && covered > PAGE_FLIP.flickMin;
+      moving && Math.abs(velocity.value) > PAGE_FLIP.flickVelocity && covered > PAGE_FLIP.flickMin;
     // A flick only counts while it is still going the way the fold is; a hand
     // that changed its mind mid-drag has said so.
     const agrees = velocity.value < 0 === (dir.value === 1);
     const commit = covered >= PAGE_FLIP.commitRatio || (flicked && agrees);
 
     land(commit, commit ? TURN : SETTLE);
-  }, [dir, dragging, edge, land, tx, velocity, w]);
+  }, [dir, dragging, edge, land, lastAt, tx, velocity, w]);
 
   const gesture = useMemo(
     () =>
@@ -379,12 +389,7 @@ export function usePaperFlip({
           // The corner follows the finger, amplified — a sheet lifts further
           // than the hand travels — and is then tethered to the spine.
           const travel = PAGE_FLIP.amplify * (px - startX.value);
-          const carried = tether(
-            restX(dir.value) + travel,
-            cy.value + dy,
-            cy.value,
-            w.value,
-          );
+          const carried = tether(restX(dir.value) + travel, cy.value + dy, cy.value, w.value);
           tx.value = carried.x;
           ty.value = carried.y;
           // Applied now as well as on the next frame: the fold answers the
@@ -393,7 +398,15 @@ export function usePaperFlip({
         })
         .onTouchesUp(() => {
           if (!dragging.value && !turning.value && !moved.value) {
-            if (Date.now() - downAt.value < PAGE_FLIP.tapMs) runOnJS(tapped)();
+            // A tap, but only ours if it missed the page: the document view
+            // answers taps on the page itself, and it must see both of a
+            // double-tap to zoom on them.
+            const onPage =
+              downX.value >= 0 &&
+              downX.value <= w.value &&
+              downY.value >= 0 &&
+              downY.value <= h.value;
+            if (!onPage && Date.now() - downAt.value < PAGE_FLIP.tapMs) runOnJS(tapped)();
           }
           release();
         })

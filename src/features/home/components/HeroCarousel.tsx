@@ -114,7 +114,9 @@ export const HeroCarousel = memo(function HeroCarousel({
     [count, pageWidth],
   );
 
-  // No slides is the admin saying "no carousel". Nothing stands in for it.
+  // No slides means the backend had nothing to send — no published books, or
+  // its carousel read failed. It already covers "admin curated nothing" with a
+  // weekly draw, so nothing stands in for an empty list here.
   if (count === 0) {
     return null;
   }

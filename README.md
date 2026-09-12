@@ -85,6 +85,11 @@ src/
 | --- | --- |
 | Framework | React Native 0.85 (CLI, bare workflow) |
 | Language | TypeScript |
+| Backend | Supabase Auth + Edge Functions (`src/services/api/`) |
+| Data fetching | TanStack Query (`src/hooks/`) |
+| State | Zustand + MMKV (`src/stores/`) |
+| Billing | RevenueCat (`react-native-purchases`) — status always read from `entitlements-status` |
+| PDF | react-native-pdf + signed Storage URLs, streamed to app-private storage |
 | Styling | NativeWind + Tailwind CSS v3 |
 | Navigation | React Navigation (bottom tabs) |
 | Gestures | React Native Gesture Handler |

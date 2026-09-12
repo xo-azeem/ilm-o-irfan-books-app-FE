@@ -9,6 +9,7 @@ import {
 
 import { AccessProvider } from '@/app/providers/AccessProvider';
 import { AuthSessionProvider } from '@/app/providers/AuthSessionProvider';
+import { ReadingSyncProvider } from '@/app/providers/ReadingSyncProvider';
 import { ThemeProvider } from '@/app/providers/ThemeProvider';
 import { queryClient } from '@/lib/queryClient';
 import { ThemeStateProvider, useTheme } from '@/theme/ThemeContext';
@@ -37,7 +38,9 @@ export function AppProviders({ children }: PropsWithChildren) {
         <ThemeStateProvider>
           <AuthSessionProvider>
             <AccessProvider>
-              <AppShell>{children}</AppShell>
+              <ReadingSyncProvider>
+                <AppShell>{children}</AppShell>
+              </ReadingSyncProvider>
             </AccessProvider>
           </AuthSessionProvider>
         </ThemeStateProvider>

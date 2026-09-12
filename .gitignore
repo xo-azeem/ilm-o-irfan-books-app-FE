@@ -71,6 +71,10 @@ yarn-error.log
 .env.*
 !.env.example
 
+# Local build outputs
+*.apk
+*.aab
+
 # Yarn
 .yarn/*
 !.yarn/patches

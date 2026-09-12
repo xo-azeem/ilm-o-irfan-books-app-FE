@@ -1,4 +1,4 @@
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useEffect } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import Animated, {
@@ -103,6 +103,17 @@ const PRESS_TIMING = {
   reduceMotion: ReduceMotion.System,
 } as const;
 
+/**
+ * The pill moving to the tab just chosen. Quick, and on the same ease-out as
+ * the scenes changing over above it, so the bar and the screen read as one
+ * motion rather than two.
+ */
+const PILL_TIMING = {
+  duration: 200,
+  easing: Easing.out(Easing.cubic),
+  reduceMotion: ReduceMotion.System,
+} as const;
+
 const Tab = memo(function Tab({
   item,
   colors,
@@ -114,8 +125,23 @@ const Tab = memo(function Tab({
   const { Icon, label } = item;
   const pressed = useSharedValue(0);
 
+  // Only the reader bar draws a pill behind the active tab.
+  const showPill = variant === 'reader' && isFocused;
+  const pill = useSharedValue(showPill ? 1 : 0);
+
+  useEffect(() => {
+    pill.value = withTiming(showPill ? 1 : 0, PILL_TIMING);
+  }, [pill, showPill]);
+
   const pressStyle = useAnimatedStyle(() => ({
     transform: [{ scale: withTiming(pressed.value === 1 ? 0.9 : 1, PRESS_TIMING) }],
+  }));
+
+  // The pill fades up and grows the last little way into place rather than
+  // appearing whole, so the tab that was chosen is visibly the one that moved.
+  const pillStyle = useAnimatedStyle(() => ({
+    opacity: pill.value,
+    transform: [{ scale: 0.85 + 0.15 * pill.value }],
   }));
 
   const handlePress = useCallback(() => {
@@ -138,9 +164,6 @@ const Tab = memo(function Tab({
     pressed.value = 0;
   }, [pressed]);
 
-  // Only the reader bar draws a pill behind the active tab.
-  const showPill = variant === 'reader' && isFocused;
-
   return (
     <Pressable
       onPress={handlePress}
@@ -151,18 +174,17 @@ const Tab = memo(function Tab({
       accessibilityState={{ selected: isFocused }}
       accessibilityLabel={label}>
       <Animated.View
-        style={[
-          styles.tabInner,
-          variant === 'admin' && styles.tabInnerAdmin,
-          showPill && {
-            paddingHorizontal: 16,
-            borderRadius: 20,
-            backgroundColor: colors.tabSelection,
-            borderWidth: StyleSheet.hairlineWidth * 2,
-            borderColor: colors.tabSelectionRim,
-          },
-          pressStyle,
-        ]}>
+        style={[styles.tabInner, variant === 'admin' && styles.tabInnerAdmin, pressStyle]}>
+        {variant === 'reader' ? (
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.pill,
+              { backgroundColor: colors.tabSelection, borderColor: colors.tabSelectionRim },
+              pillStyle,
+            ]}
+          />
+        ) : null}
         <Icon
           size={variant === 'admin' ? 19 : 21}
           color={isFocused ? colors.tabActive : colors.tabInactive}
@@ -213,6 +235,17 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingVertical: 6,
     paddingHorizontal: 14,
+  },
+  // Two points past the content on either side — the room the pill used to
+  // add as padding, drawn behind instead so nothing moves when it appears.
+  pill: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: -2,
+    right: -2,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth * 2,
   },
   tabInnerAdmin: {
     gap: 5,

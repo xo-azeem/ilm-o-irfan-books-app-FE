@@ -1,5 +1,6 @@
-import { memo, type ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { memo, useEffect, useState, type ReactNode } from 'react';
+import { Platform, StyleSheet, View } from 'react-native';
+import { BlurView } from '@react-native-community/blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   Easing,
@@ -11,6 +12,7 @@ import Animated, {
 import { Bookmark, ChevronLeft, Settings2 } from 'lucide-react-native';
 
 import { IconButton } from '@/components/ui';
+import { LinearGradient, type GradientStop } from '@/components/ui/Gradient';
 import { Label, Text } from '@/components/ui/Text';
 import { READER_RULE_INSET } from '@/features/reader/constants';
 import { useReaderSurface } from '@/features/reader/useReaderSurface';
@@ -51,8 +53,84 @@ export type ReaderChromeProps = {
    * try. It leaves for good the first time they touch the page.
    */
   hint?: boolean;
+  /**
+   * Whether the glass is blurring. Off while the screen is still arriving or
+   * the book still loading, when a blur would be sampling the window on every
+   * frame for nothing anyone is looking at.
+   */
+  glass?: boolean;
   children: ReactNode;
 };
+
+/**
+ * What the top bar's glass is made of.
+ *
+ * Thinner than the tab bar's: that capsule floats over a scrolling list and
+ * needs body, this rises over the page the reader was just reading and
+ * needs to be looked through. So the tint is light and the blur does the
+ * work, and what makes it read as glass rather than as a dimmed strip is the
+ * light on it — a sheen from the screen's edge fading towards the page, and
+ * a bright thread along the edge that meets the paper.
+ */
+const GLASS = {
+  light: {
+    blur: 32,
+    tint: 'rgba(250, 252, 247, 0.30)',
+    sheen: [
+      { offset: 0, color: '#FFFFFF', opacity: 0.34 },
+      { offset: 0.55, color: '#FFFFFF', opacity: 0.08 },
+      { offset: 1, color: '#FFFFFF', opacity: 0 },
+    ] as GradientStop[],
+    edge: 'rgba(16, 26, 18, 0.10)',
+    rim: 'rgba(255, 255, 255, 0.78)',
+  },
+  dark: {
+    blur: 28,
+    tint: 'rgba(12, 16, 12, 0.38)',
+    sheen: [
+      { offset: 0, color: '#FFFFFF', opacity: 0.09 },
+      { offset: 0.55, color: '#FFFFFF', opacity: 0.025 },
+      { offset: 1, color: '#FFFFFF', opacity: 0 },
+    ] as GradientStop[],
+    edge: 'rgba(241, 245, 238, 0.10)',
+    rim: 'rgba(255, 255, 255, 0.13)',
+  },
+} as const;
+
+/**
+ * The top bar's glass: the blur, the tint, the sheen, and along its foot the
+ * edge. Fills the bar.
+ *
+ * The blur is the one part of it that costs anything, and on Android it costs
+ * on every frame of anything moving anywhere on screen — it samples the whole
+ * window to know what it is blurring. So it is switched off while the screen
+ * is still arriving, while the book is still loading, and while the bar is
+ * not showing; the tint, the sheen and the edge stand alone in the meantime.
+ */
+const Glass = memo(function Glass({ blur }: { blur: boolean }) {
+  const { colors, isDark } = useTheme();
+  const glass = isDark ? GLASS.dark : GLASS.light;
+  return (
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      {blur ? (
+        <BlurView
+          style={StyleSheet.absoluteFill}
+          blurType={isDark ? 'dark' : 'light'}
+          blurAmount={glass.blur}
+          reducedTransparencyFallbackColor={colors.surface}
+          {...(Platform.OS === 'android'
+            ? { overlayColor: 'transparent', blurRadius: 25, downsampleFactor: 4 }
+            : null)}
+        />
+      ) : null}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: glass.tint }]} />
+      {/* The light on the glass: strongest at the screen's edge, gone by the page. */}
+      <LinearGradient stops={glass.sheen} angle={180} />
+      <View style={[styles.hairline, styles.hairlineBottom, { backgroundColor: glass.edge }]} />
+      <View style={[styles.hairline, styles.rimBottom, { backgroundColor: glass.rim }]} />
+    </View>
+  );
+});
 
 /**
  * The reader's frame.
@@ -72,11 +150,25 @@ export const ReaderChrome = memo(function ReaderChrome({
   saved = false,
   chapterLabel,
   hint = false,
+  glass = true,
   children,
 }: ReaderChromeProps) {
   const { colors, isDark } = useTheme();
   const surface = useReaderSurface();
   const insets = useSafeAreaInsets();
+
+  // The bar's blur runs only while the bar can be seen: from the moment it is
+  // asked for until its fade out has finished. Hidden, it would be blurring a
+  // strip nobody can see on every frame of a turn.
+  const [barBlur, setBarBlur] = useState(visible);
+  useEffect(() => {
+    if (visible) {
+      setBarBlur(true);
+      return undefined;
+    }
+    const timer = setTimeout(() => setBarBlur(false), TIMING.duration + 40);
+    return () => clearTimeout(timer);
+  }, [visible]);
 
   const progress = totalPages > 0 ? Math.min(1, page / totalPages) : 0;
   const percent = Math.round(progress * 100);
@@ -93,7 +185,9 @@ export const ReaderChrome = memo(function ReaderChrome({
   // Slower out than anything else here. It is the one thing on screen the
   // reader may still be reading as it goes.
   const hinted = useDerivedValue(() => withTiming(hint ? 1 : 0, HINT), [hint]);
-  const hintStyle = useAnimatedStyle(() => ({ opacity: hinted.value * (1 - shown.value) }));
+  const hintStyle = useAnimatedStyle(() => ({
+    opacity: hinted.value * (1 - shown.value),
+  }));
 
   return (
     <View style={[styles.root, { backgroundColor: surface.stage }]}>
@@ -104,18 +198,12 @@ export const ReaderChrome = memo(function ReaderChrome({
       */}
       <View style={styles.stage}>{children}</View>
 
-      {/* Top bar — only reachable while the chrome is showing. */}
+      {/* Top bar — only reachable while the chrome is showing. Glass, so the
+          page it rises over shows through it frosted. */}
       <Animated.View
         pointerEvents={visible ? 'auto' : 'none'}
-        style={[
-          styles.top,
-          {
-            paddingTop: insets.top + 10,
-            backgroundColor: colors.chrome,
-            borderBottomColor: colors.chromeBorder,
-          },
-          topStyle,
-        ]}>
+        style={[styles.top, { paddingTop: insets.top + 10 }, topStyle]}>
+        <Glass blur={glass && barBlur} />
         <IconButton
           icon={ChevronLeft}
           onPress={onBack}
@@ -156,7 +244,7 @@ export const ReaderChrome = memo(function ReaderChrome({
       {/* Immersed status line — fades out as the chrome fades in. */}
       <Animated.View
         pointerEvents="none"
-        style={[styles.status, { paddingBottom: Math.max(insets.bottom, 8) }, statusStyle]}>
+        style={[styles.status, { bottom: Math.max(insets.bottom, 8) }, statusStyle]}>
         {totalPages > 0 ? (
           // This line sits on the stage rather than in the chrome, so it takes
           // the stage's own ink rather than the chrome's.
@@ -191,19 +279,25 @@ export const ReaderChrome = memo(function ReaderChrome({
         pointerEvents="none"
         style={[
           styles.hint,
-          { bottom: Math.max(insets.bottom, 8) + READER_RULE_INSET + 2 + HINT_LIFT },
+          {
+            bottom: Math.max(insets.bottom, 8) + READER_RULE_INSET + 2 + HINT_LIFT,
+          },
           hintStyle,
         ]}>
         <View
           style={[
             styles.hintPill,
-            { backgroundColor: isDark ? 'rgba(5, 7, 6, 0.55)' : 'rgba(231, 234, 227, 0.72)' },
+            {
+              backgroundColor: isDark ? 'rgba(5, 7, 6, 0.55)' : 'rgba(231, 234, 227, 0.72)',
+            },
           ]}>
           <Label
             size={10}
             tracking={1.4}
             tone="inherit"
-            style={{ color: isDark ? 'rgba(241, 245, 238, 0.5)' : 'rgba(16, 26, 18, 0.55)' }}>
+            style={{
+              color: isDark ? 'rgba(241, 245, 238, 0.5)' : 'rgba(16, 26, 18, 0.55)',
+            }}>
             DRAG THE PAGE FROM ANYWHERE
           </Label>
         </View>
@@ -230,6 +324,19 @@ const styles = StyleSheet.create({
     // Sits under the bars but over the page.
     zIndex: 1,
   },
+  /** The edge of the glass: a hairline, and a thread of light just inside it. */
+  hairline: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: StyleSheet.hairlineWidth * 2,
+  },
+  hairlineBottom: {
+    bottom: 0,
+  },
+  rimBottom: {
+    bottom: StyleSheet.hairlineWidth * 2,
+  },
   top: {
     position: 'absolute',
     left: 0,
@@ -242,7 +349,7 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: 18,
     paddingBottom: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth * 2,
+    overflow: 'hidden',
   },
   titleBlock: {
     flex: 1,
@@ -257,8 +364,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 0,
-    height: 52,
+    // The band between the system's inset and the rule, exactly.
+    height: READER_RULE_INSET,
     alignItems: 'center',
     justifyContent: 'center',
   },

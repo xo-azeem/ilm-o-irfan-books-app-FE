@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { ENDPOINTS } from '@/services/api/endpoints';
-import { requestData, requestList, withEndpoint } from '@/services/api/client';
+import { requestData, requestList, requestPage, withEndpoint } from '@/services/api/client';
 import type {
   DownloadListRow,
   DownloadRow,
@@ -8,6 +8,7 @@ import type {
   EntitlementStatus,
   HighlightDeleteResult,
   HighlightRow,
+  HighlightToggleResult,
   LibraryBookCard,
   LibraryOverviewPayload,
   PlanRow,
@@ -110,6 +111,14 @@ function check<T>(result: { data: T | null; error: { message: string } | null })
   }
   if (result.data == null) {
     throw new Error('Expected data was not returned.');
+  }
+  return result.data;
+}
+
+/** `check`, for a `maybeSingle` read where no row is a real answer. */
+function checkMaybe<T>(result: { data: T | null; error: { message: string } | null }): T | null {
+  if (result.error) {
+    throw new Error(result.error.message);
   }
   return result.data;
 }
@@ -382,7 +391,30 @@ export async function updateProfile(profile: ProfileForm) {
 }
 
 /** A shelf entry with where the reader left off. */
-export type LibraryProgressBook = CatalogBook & { progress: number; chapter: string };
+export type LibraryProgressBook = CatalogBook & {
+  progress: number;
+  chapter: string;
+  /** The page to reopen on. `0` when the row predates page tracking. */
+  currentPage: number;
+  totalPages: number;
+  /** ISO instant the reader was last on `currentPage`, for the LWW merge. */
+  lastReadAt: string | null;
+};
+
+/** The shelf's one-line caption: the chapter if the backend named one, else the page. */
+export function progressCaption(
+  chapterLabel: string | null | undefined,
+  currentPage: number,
+  totalPages: number,
+): string {
+  if (chapterLabel) {
+    return chapterLabel;
+  }
+  if (currentPage > 0 && totalPages > 0) {
+    return `Page ${currentPage} of ${totalPages}`;
+  }
+  return 'Continue reading';
+}
 
 /** A shelf entry with what it costs on disk. */
 export type LibraryDownloadBook = CatalogBook & { sizeBytes: number };
@@ -411,10 +443,15 @@ function toProgressBook(row: ProgressItemRow): LibraryProgressBook | null {
   if (!row.book) {
     return null;
   }
+  const currentPage = Number(row.current_page ?? 0);
+  const totalPages = Number(row.total_pages ?? 0);
   return {
     ...cardToBook(row.book),
     progress: Number(row.progress ?? 0),
-    chapter: row.chapter_label ?? 'Continue reading',
+    chapter: progressCaption(row.chapter_label, currentPage, totalPages),
+    currentPage,
+    totalPages,
+    lastReadAt: row.last_read_at ?? null,
   };
 }
 
@@ -499,7 +536,7 @@ async function libraryFromTables(): Promise<LibrarySummary> {
     supabase
       .from('reading_progress')
       .select(
-        'book_id,progress,chapter_label,books!inner(id,title,cover_path,cover_color,cover_color_dark,authors(name))',
+        'book_id,progress,chapter_label,current_page,total_pages,last_read_at,books!inner(id,title,cover_path,cover_color,cover_color_dark,authors(name))',
       )
       .eq('user_id', id)
       .order('last_read_at', { ascending: false }),
@@ -527,11 +564,18 @@ async function libraryFromTables(): Promise<LibrarySummary> {
     );
   }
 
-  const started = (progress.data ?? []).map(row => ({
-    ...toBook(row.books as unknown as NestedBook),
-    progress: Number(row.progress),
-    chapter: row.chapter_label ?? 'Continue reading',
-  }));
+  const started = (progress.data ?? []).map(row => {
+    const currentPage = Number(row.current_page ?? 0);
+    const totalPages = Number(row.total_pages ?? 0);
+    return {
+      ...toBook(row.books as unknown as NestedBook),
+      progress: Number(row.progress),
+      chapter: progressCaption(row.chapter_label, currentPage, totalPages),
+      currentPage,
+      totalPages,
+      lastReadAt: (row.last_read_at as string | null) ?? null,
+    };
+  });
 
   const reading = started.filter(book => book.progress < FINISHED_THRESHOLD);
   const finished = started.filter(book => book.progress >= FINISHED_THRESHOLD);
@@ -725,9 +769,9 @@ export async function addHighlight(bookId: string, pageNumber: number, note?: st
  * Removes one of the reader's own bookmarks.
  *
  * The endpoint scopes the delete to `user_id` as well as `id`, so an id from
- * a stale cache can only ever match a row the caller owns, and answers 404
- * when it matches nothing — which is what makes an already-removed bookmark
- * distinguishable from a failed request.
+ * a stale cache can only ever match a row the caller owns. A row that is
+ * already gone answers `deleted: false` with a 200 — not a failure, and the
+ * caller's end state is the one it asked for either way.
  */
 export async function deleteHighlight(highlightId: string) {
   await withEndpoint(
@@ -753,21 +797,157 @@ export async function deleteHighlight(highlightId: string) {
   );
 }
 
+/**
+ * The reader's bookmark button: one round trip, either direction.
+ *
+ * `highlights-toggle` decides from the row it finds on `(book, page)`, so two
+ * quick taps cannot leave two rows behind, and the answer says which way it
+ * went rather than leaving the caller to infer it from a stale list.
+ *
+ * The fallback reads first and then writes, which is not atomic — but the
+ * unique key on `(user_id, book_id, page_number)` still makes a duplicate
+ * insert fail rather than duplicate.
+ */
+export async function toggleHighlight(
+  bookId: string,
+  pageNumber: number,
+): Promise<HighlightToggleResult> {
+  return withEndpoint(
+    ENDPOINTS.highlightsToggle,
+    () =>
+      requestData<HighlightToggleResult>(ENDPOINTS.highlightsToggle, {
+        method: 'POST',
+        auth: true,
+        body: { book_id: bookId, page_number: pageNumber },
+      }),
+    async () => {
+      const id = await userId();
+      const existing = checkMaybe(
+        await supabase
+          .from('highlights')
+          .select('id')
+          .eq('user_id', id)
+          .eq('book_id', bookId)
+          .eq('page_number', pageNumber)
+          .maybeSingle(),
+      ) as { id: string } | null;
+
+      if (existing) {
+        const { error } = await supabase.from('highlights').delete().eq('id', existing.id);
+        if (error) {
+          throw new Error(error.message);
+        }
+        return { bookmarked: false, highlight: null };
+      }
+
+      const highlight = check(
+        await supabase
+          .from('highlights')
+          .insert({ user_id: id, book_id: bookId, page_number: pageNumber })
+          .select()
+          .single(),
+      ) as HighlightRow;
+      return { bookmarked: true, highlight };
+    },
+  );
+}
+
+/** The columns the app reads back from `reading_progress` on the table path. */
+const PROGRESS_COLUMNS =
+  'id,user_id,book_id,current_page,total_pages,progress,chapter_label,last_read_at,created_at,updated_at';
+
+/**
+ * Where the reader is in one book, or `null` if they have never opened it.
+ *
+ * A single keyed lookup on the server, no book embed — this is on the path to
+ * the first page, so it carries nothing the page does not need.
+ */
+export async function getReadingProgress(bookId: string): Promise<ReadingProgressRow | null> {
+  return withEndpoint(
+    ENDPOINTS.readingProgress,
+    async () =>
+      (await requestData<ReadingProgressRow | null>(ENDPOINTS.readingProgress, {
+        auth: true,
+        query: { book_id: bookId },
+      })) ?? null,
+    async () => {
+      const id = await userId();
+      return checkMaybe(
+        await supabase
+          .from('reading_progress')
+          .select(PROGRESS_COLUMNS)
+          .eq('user_id', id)
+          .eq('book_id', bookId)
+          .maybeSingle(),
+      ) as ReadingProgressRow | null;
+    },
+  );
+}
+
+/**
+ * Every position the reader has, newest first.
+ *
+ * Read once per session to seed the local position cache, which is what lets
+ * any book open on its page without a round trip. The backend caps a page at
+ * 200 rows; a library larger than that is paged.
+ */
+export async function listReadingProgress(): Promise<ReadingProgressRow[]> {
+  return withEndpoint(
+    ENDPOINTS.readingProgress,
+    async () => {
+      const rows: ReadingProgressRow[] = [];
+      for (let page = 1; page <= 10; page += 1) {
+        const result = await requestPage<ReadingProgressRow>(ENDPOINTS.readingProgress, {
+          auth: true,
+          page,
+          pageSize: 200,
+        });
+        rows.push(...result.data);
+        if (!result.hasNextPage) {
+          break;
+        }
+      }
+      return rows;
+    },
+    async () => {
+      const id = await userId();
+      return check(
+        await supabase
+          .from('reading_progress')
+          .select(PROGRESS_COLUMNS)
+          .eq('user_id', id)
+          .order('last_read_at', { ascending: false }),
+      ) as ReadingProgressRow[];
+    },
+  );
+}
+
+/**
+ * Records where the reader is in a book, last write wins.
+ *
+ * `clientUpdatedAt` is the instant the reader was on the page — stamped when
+ * the page turned, not when the request was sent — and the server keeps
+ * whichever of it and the stored `last_read_at` is newer. That is what makes
+ * a queue replayed after being offline safe in any order. The answer is always
+ * the stored row, with `applied` saying whether this call's values won; the
+ * caller should take the row over what it sent either way.
+ */
 export async function saveReadingProgress(
   bookId: string,
   currentPage: number,
   totalPages: number,
-) {
-  // The endpoint rejects `current_page > total_pages` with a 400, and the
+  clientUpdatedAt?: string,
+): Promise<ReadingProgressRow> {
+  // The endpoint rejects `current_page` two or more past `total_pages`, and the
   // reader can briefly report a page past the end while a document is still
   // settling — so the page is clamped to the book rather than sent as-is.
   const pages = totalPages > 0 ? Math.round(totalPages) : null;
   const page = Math.max(1, Math.min(Math.round(currentPage), pages ?? Number.MAX_SAFE_INTEGER));
-  // `progress` is now strictly 0–1; anything outside that range is a 400, and
+  // `progress` is strictly 0–1; anything outside that range is a 400, and
   // `progress_percent` is the separate field for a 0–100 value.
   const progress = pages ? Math.max(0, Math.min(page / pages, 1)) : 0;
 
-  await withEndpoint(
+  return withEndpoint(
     ENDPOINTS.readingProgress,
     () =>
       requestData<ReadingProgressRow>(ENDPOINTS.readingProgress, {
@@ -778,11 +958,12 @@ export async function saveReadingProgress(
           current_page: page,
           total_pages: pages,
           progress,
+          ...(clientUpdatedAt ? { client_updated_at: clientUpdatedAt } : null),
         },
       }),
     async () => {
       const id = await userId();
-      return check(
+      const row = check(
         await supabase
           .from('reading_progress')
           .upsert(
@@ -792,13 +973,14 @@ export async function saveReadingProgress(
               current_page: page,
               total_pages: pages,
               progress,
-              last_read_at: new Date().toISOString(),
+              last_read_at: clientUpdatedAt ?? new Date().toISOString(),
             },
             { onConflict: 'user_id,book_id' },
           )
-          .select()
+          .select(PROGRESS_COLUMNS)
           .single(),
       ) as ReadingProgressRow;
+      return { ...row, applied: true };
     },
   );
 }

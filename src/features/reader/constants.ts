@@ -17,9 +17,11 @@ export const PAGE_FILL_LIMIT = 1.18;
 /**
  * The stage's own furniture, which is on screen whether the chrome is or not:
  * the progress rule, and the line of status under it. `ReaderChrome` draws the
- * rule this far above the foot of the screen.
+ * rule this far above the foot of the screen, and the status line sits in the
+ * band between — one line of small capitals, and no more room than it needs,
+ * because every point here is a point of glass over the page.
  */
-export const READER_RULE_INSET = 44;
+export const READER_RULE_INSET = 22;
 
 /** The same with the rule itself, which is what a page has to keep clear of. */
 export const READER_FOOT = READER_RULE_INSET + 2;
@@ -74,7 +76,7 @@ export const PAGE_TURN = {
  * Grab the sheet anywhere — corner, edge, middle — and drag. The paper folds on
  * a real crease line, the page under it shows through where the sheet has
  * lifted, and the raised leaf carries its own shadow. Drag the other way to
- * come back to the page before. Let go past a third of the way and it turns;
+ * come back to the page before. Let go past halfway and it turns;
  * short of that it drops back.
  *
  * The geometry of all that is in `paperFold.ts`. These are the numbers that
@@ -102,12 +104,26 @@ export const PAGE_FLIP = {
    */
   followTouch: 0.42,
   followFrame: 0.3,
-  /** A fold let go of past this much of the way turns the page regardless. */
-  commitRatio: 0.3,
+  /**
+   * A fold let go of past this much of the way turns the page regardless.
+   *
+   * Half: the corner has crossed the spine, which is the point a real leaf
+   * falls the other way. Short of it the leaf drops back where it came from,
+   * however far it was lifted — a page the reader lets go of before the
+   * middle is a page they decided not to turn.
+   */
+  commitRatio: 0.5,
   /** ...and so does a flick this fast (pt/ms), however short it was. */
   flickVelocity: 0.46,
   /** The least fold a flick has to have started before it counts as one. */
-  flickMin: 0.04,
+  flickMin: 0.08,
+  /**
+   * How recently (ms) the finger has to have been moving, when it lifts, for
+   * its speed to count as a flick. A finger that swept the page and then
+   * stopped before letting go reports the speed of the sweep and none of the
+   * stop; taken at face value that turns a page the reader was putting back.
+   */
+  flickWindowMs: 60,
   /** How far (pt) a page at either end of the book follows the finger anyway. */
   edgeGive: 26,
   /** ...and how much of the finger's travel it follows on the way there. */
@@ -127,6 +143,13 @@ export const PAGE_FLIP = {
    * unseen — but only for as long as the leaf is still there to hide it.
    */
   graceMs: 260,
+  /**
+   * How long a fold going forward waits for the leaf's picture to be drawn
+   * before the document view is moved on underneath it regardless. Until the
+   * picture is there the flat part of the leaf is see-through, so moving the
+   * view early would show the next page where this one should still be.
+   */
+  coverMs: 320,
   /** How hard both shadows are laid on. 1 is the design; 0 is none of it. */
   shadowStrength: 1,
   /** The lit edge of the crease on the folded half. 0 turns it off. */

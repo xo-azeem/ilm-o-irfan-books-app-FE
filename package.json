@@ -7,7 +7,7 @@
     "ios": "react-native run-ios",
     "lint": "eslint .",
     "start": "react-native start",
-    "test": "npx --yes tsx --test src/services/mappers.test.ts src/services/api/errors.test.ts src/services/accessClock.test.ts src/services/accessState.test.ts src/services/billing/options.test.ts src/features/reader/paperFold.test.ts"
+    "test": "npx --yes tsx --test src/services/mappers.test.ts src/services/api/errors.test.ts src/services/accessClock.test.ts src/services/accessState.test.ts src/services/billing/options.test.ts src/features/reader/paperFold.test.ts src/services/readingPositionMerge.test.ts"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^3.1.1",

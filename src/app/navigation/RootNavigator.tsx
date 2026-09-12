@@ -9,6 +9,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { AuthSplash } from '@/app/navigation/AuthSplash';
 import { MainTabBar } from '@/components/navigation/MainTabBar';
+import { TAB_TRANSITION } from '@/components/navigation/tabTransition';
 import { ROUTES } from '@/constants/routes';
 import { AdminNavigator } from '@/features/admin/navigation/AdminNavigator';
 import { LoginScreen } from '@/features/auth/screens/LoginScreen';
@@ -43,7 +44,7 @@ function MainTabs() {
         headerShown: false,
         lazy: true,
         freezeOnBlur: true,
-        animation: 'none',
+        ...TAB_TRANSITION,
       }}>
       <Tab.Screen name={ROUTES.HOME} component={HomeScreen} />
       <Tab.Screen name={ROUTES.SEARCH} component={SearchScreen} />

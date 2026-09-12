@@ -47,6 +47,10 @@ export type HeroSlide = {
 /** The label the CTA carries when the admin has not written one. */
 const DEFAULT_CTA = 'Read now';
 
+/** The `md` Button's height and corner radius, which the save button mirrors. */
+const ACTION_HEIGHT = 48;
+const ACTION_RADIUS = 14;
+
 /**
  * The slide at the top of Home. One book, given the room a bookshop gives its
  * window — cover, the admin's line about it, and a single way in.
@@ -64,7 +68,12 @@ export const HeroSlideCard = memo(function HeroSlideCard({
   onSave?: (slide: HeroSlide) => void;
   onPress?: (slide: HeroSlide) => void;
 }) {
-  const { colors } = useTheme();
+  const { colors, fontScale } = useTheme();
+
+  // The save button sits beside a `md` Button, which grows its height with the
+  // reader's font scale. Following the same ramp keeps the two the same size
+  // rather than letting "Read now" outgrow its neighbour on a scaled-up device.
+  const saveButtonSize = Math.round(ACTION_HEIGHT * Math.max(1, fontScale));
 
   const handleRead = useCallback(() => onRead?.(slide), [slide, onRead]);
   const handleSave = useCallback(() => onSave?.(slide), [slide, onSave]);
@@ -146,10 +155,11 @@ export const HeroSlideCard = memo(function HeroSlideCard({
         />
         <IconButton
           icon={Bookmark}
-          buttonSize={48}
+          buttonSize={saveButtonSize}
           onPress={handleSave}
           accessibilityLabel={saved ? 'Remove from wishlist' : 'Save for later'}
           variant={saved ? 'ghost' : 'secondary'}
+          style={styles.saveButton}
         />
       </View>
     </View>
@@ -185,9 +195,13 @@ const styles = StyleSheet.create({
   },
   actions: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 10,
   },
   readButton: {
     flex: 1,
+  },
+  saveButton: {
+    borderRadius: ACTION_RADIUS,
   },
 });

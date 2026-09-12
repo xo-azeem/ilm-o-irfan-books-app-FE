@@ -12,7 +12,7 @@ import { AuthField } from '@/features/auth/components/AuthField';
 import { AuthLayout } from '@/features/auth/components/AuthLayout';
 import { GoogleSignInButton } from '@/features/auth/components/GoogleSignInButton';
 import { resumeAfterAuth, waitForAccessCheck } from '@/lib/access';
-import { signUpWithEmail } from '@/lib/supabase';
+import { signInWithEmail, signUpWithEmail } from '@/lib/supabase';
 import { fontSize } from '@/theme/typography';
 
 type SignUpForm = {
@@ -78,12 +78,26 @@ export function SignUpScreen() {
 
     setIsSubmitting(true);
     try {
-      const data = await signUpWithEmail({
+      let data = await signUpWithEmail({
         fullName: form.fullName,
         email: form.email,
         phone: form.phone,
         password: form.password,
       });
+
+      // The backend has email confirmation off, so `signUp` normally answers
+      // with a session. When it does not — an older project with confirmation
+      // on, or Supabase's enumeration guard handing back a bare user for an
+      // address that already exists — a password sign-in settles it: it either
+      // lands the reader in the app or fails with the real reason, and only
+      // then is the "check your email" route worth showing.
+      if (!data.session) {
+        try {
+          data = await signInWithEmail({ email: form.email, password: form.password });
+        } catch {
+          // Fall through to the confirmation prompt below.
+        }
+      }
 
       if (!data.session) {
         Alert.alert(

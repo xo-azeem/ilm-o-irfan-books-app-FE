@@ -151,9 +151,10 @@ export function HomeScreen() {
     [navigation],
   );
 
-  // The carousel is the admin's, top to bottom: which slides, in what order,
-  // and every word on them. Nothing is picked, sorted or padded here, and an
-  // empty list draws no rail rather than being backfilled with newest books.
+  // The carousel is the backend's, top to bottom: which slides, in what order,
+  // and every word on them — the admin's curated list, or the weekly draw the
+  // backend stands in when there is none. Nothing is picked, sorted or padded
+  // here, and an empty list draws no rail rather than being backfilled.
   const slides = useMemo<HeroSlide[]>(
     () => (data?.carousel ?? []).map(toSlide),
     [data?.carousel],

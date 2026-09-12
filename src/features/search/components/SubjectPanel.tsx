@@ -29,6 +29,12 @@ export type SubjectPanelProps = {
   /** The subject currently filtering the list, from `useSearchFilters`. */
   selectedId: string | null;
   onSelect: (id: string | null) => void;
+  /**
+   * The `gap` of the column the panel sits in. A closed panel is zero-height
+   * but still a child of that column, so it would otherwise leave one blank
+   * gap behind; this pulls the panel up by that much until it opens.
+   */
+  columnGap?: number;
 };
 
 /**
@@ -44,6 +50,7 @@ export const SubjectPanel = memo(function SubjectPanel({
   categories,
   selectedId,
   onSelect,
+  columnGap = 0,
 }: SubjectPanelProps) {
   const { width: screenWidth } = useWindowDimensions();
   const { colors } = useTheme();
@@ -60,6 +67,7 @@ export const SubjectPanel = memo(function SubjectPanel({
   const containerStyle = useAnimatedStyle(() => ({
     height: progress.value * contentHeight,
     opacity: progress.value,
+    marginTop: (progress.value - 1) * columnGap,
   }));
 
   const clear = useCallback(() => onSelect(null), [onSelect]);

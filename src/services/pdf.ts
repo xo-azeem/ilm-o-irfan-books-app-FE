@@ -150,10 +150,16 @@ async function downloadToPath(url: string, target: string, options: DownloadOpti
   const lastPercent = { value: -1 };
   emitTransferProgress(0, expectedBytes, options.onProgress, lastPercent);
 
+  // No `trusty`. In react-native-blob-util 0.24 that flag does not mean "accept
+  // any certificate" — it means "use the trust manager the app registered
+  // natively", and with none registered the request throws before a byte moves
+  // ("Use of own trust manager but none defined"), which took every
+  // not-yet-downloaded book down with it. The signed URL is on Supabase
+  // Storage behind a public certificate; the platform's own trust store is the
+  // right one, and the only one that verifies the host.
   const task = ReactNativeBlobUtil.config({
     path: temporary,
     overwrite: true,
-    trusty: true,
     timeout: DOWNLOAD_TIMEOUT_MS,
   }).fetch('GET', url);
 

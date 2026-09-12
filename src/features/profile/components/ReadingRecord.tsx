@@ -2,7 +2,6 @@ import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import {
-  Badge,
   Card,
   Display,
   Label,
@@ -170,19 +169,26 @@ const AchievementBadge = memo(function AchievementBadge({
   );
 });
 
-/** The reader's identity block: avatar, name, membership badge, settings gear. */
+/**
+ * The lines beneath the reader's name: email, then the member-since date. The
+ * plan pill sits on the name row itself, so no membership badge repeats here.
+ */
 export const RecordHeader = memo(function RecordHeader({
+  email,
   memberSince,
-  isMember,
 }: {
+  email?: string;
   memberSince?: string;
-  isMember: boolean;
 }) {
   return (
     <View style={styles.recordMeta}>
-      {isMember ? <Badge label="MEMBER" tone="gold" bordered /> : null}
+      {email ? (
+        <Text size={fontSize.captionSmall} leading={1.35} tone="muted" numberOfLines={1}>
+          {email}
+        </Text>
+      ) : null}
       {memberSince ? (
-        <Text size={fontSize.captionSmall} leading={1} tone="faint">
+        <Text size={fontSize.captionSmall} leading={1.35} tone="faint">
           {memberSince}
         </Text>
       ) : null}
@@ -230,7 +236,8 @@ const styles = StyleSheet.create({
   },
   badgeRow: {
     flexDirection: 'row',
-    gap: 11,
+    justifyContent: 'center',
+    gap: 18,
   },
   badge: {
     width: 62,
@@ -246,9 +253,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth * 2,
   },
   recordMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    gap: 2,
   },
   statRow: {
     flexDirection: 'row',

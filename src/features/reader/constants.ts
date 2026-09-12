@@ -76,7 +76,7 @@ export const PAGE_TURN = {
  * Grab the sheet anywhere — corner, edge, middle — and drag. The paper folds on
  * a real crease line, the page under it shows through where the sheet has
  * lifted, and the raised leaf carries its own shadow. Drag the other way to
- * come back to the page before. Let go past halfway and it turns;
+ * come back to the page before. Let go past a third of the way and it turns;
  * short of that it drops back.
  *
  * The geometry of all that is in `paperFold.ts`. These are the numbers that
@@ -107,23 +107,22 @@ export const PAGE_FLIP = {
   /**
    * A fold let go of past this much of the way turns the page regardless.
    *
-   * Half: the corner has crossed the spine, which is the point a real leaf
-   * falls the other way. Short of it the leaf drops back where it came from,
-   * however far it was lifted — a page the reader lets go of before the
-   * middle is a page they decided not to turn.
+   * The corner has come a third of its way to the far edge — a good handful
+   * of page in the hand, and well short of the spine. Any less and the leaf
+   * drops back where it came from, and stays there.
    */
-  commitRatio: 0.5,
+  commitRatio: 0.3,
   /** ...and so does a flick this fast (pt/ms), however short it was. */
   flickVelocity: 0.46,
   /** The least fold a flick has to have started before it counts as one. */
-  flickMin: 0.08,
+  flickMin: 0.06,
   /**
    * How recently (ms) the finger has to have been moving, when it lifts, for
    * its speed to count as a flick. A finger that swept the page and then
    * stopped before letting go reports the speed of the sweep and none of the
    * stop; taken at face value that turns a page the reader was putting back.
    */
-  flickWindowMs: 60,
+  flickWindowMs: 80,
   /** How far (pt) a page at either end of the book follows the finger anyway. */
   edgeGive: 26,
   /** ...and how much of the finger's travel it follows on the way there. */

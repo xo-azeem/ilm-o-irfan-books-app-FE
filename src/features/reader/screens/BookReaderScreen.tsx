@@ -26,6 +26,9 @@ import {
   recordPosition,
 } from '@/services/readingPosition';
 import { useAccess } from '@/lib/access';
+import type { AccessReason } from '@/services/api/types';
+import { reasonCopy } from '@/services/entitlements';
+import { useAccessStore } from '@/stores/accessStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useThemeStore } from '@/stores/themeStore';
 import { useReaderSurface } from '@/features/reader/useReaderSurface';
@@ -71,8 +74,10 @@ type PdfError = {
 /**
  * What to tell the reader when a book will not open.
  *
- * `PREMIUM_REQUIRED` is the paywall — every book needs a membership, so this is
- * the ordinary refusal rather than an edge case.
+ * `PREMIUM_REQUIRED` never reaches here — that is the paywall, not a fault,
+ * and the screen answers it with the lock rather than an error. Likewise a
+ * 401, which sends the reader to sign in. Both are handled where the source
+ * is resolved.
  *
  * The two file codes are emphatically *not* paywalls, and saying "subscribe" to
  * a member whose book is simply missing from storage would be both wrong and
@@ -84,7 +89,18 @@ type PdfError = {
  * A 404 `NOT_FOUND` covers a book that has been removed *and* an unpublished
  * draft — the gate deliberately answers the same way for both, so that asking
  * for a draft's id cannot confirm it exists. One message serves both.
- *
+ */
+function pdfErrorMessage(error: PdfError): string {
+  if (error?.code === 'PDF_NOT_AVAILABLE' || error?.code === 'PDF_NOT_IN_STORAGE') {
+    return 'This book’s file is missing from our library. Nothing is wrong with your membership — please report it and we will restore it.';
+  }
+  if (error?.status === 404) {
+    return 'This book is no longer available.';
+  }
+  return error?.message || 'Unable to open this book.';
+}
+
+/**
  * A 401 is matched on the *status*, never on the code. A session that has
  * expired or been mangled is rejected by the functions gateway before
  * `get-signed-pdf` runs, so it answers with codes of its own
@@ -93,20 +109,26 @@ type PdfError = {
  * signed-out path actually reaches the function and answers `AUTH_REQUIRED`,
  * so the status is the one thing common to all of them.
  */
-function pdfErrorMessage(error: PdfError): string {
-  if (error?.code === 'PREMIUM_REQUIRED') {
-    return 'An active subscription is required to open this book.';
+function isSessionRejected(error: PdfError): boolean {
+  return error?.status === 401;
+}
+
+/**
+ * The wording the lock gets.
+ *
+ * The store's reason is the last thing the server said, and it can lag: a
+ * membership that ended a minute ago still reads `active` here until the next
+ * poll lands, and the local countdown or the backend's refusal is what locked
+ * the book. A lock captioned "Membership active — you have full access" is
+ * worse than no caption, so a reason that still grants access is not used:
+ * `expired` when the countdown is what ran out, the plain pitch otherwise,
+ * until the refresh corrects it.
+ */
+function lockReason(reason: AccessReason | null, expired: boolean): AccessReason {
+  if (reason && !reasonCopy(reason).soft) {
+    return reason;
   }
-  if (error?.code === 'PDF_NOT_AVAILABLE' || error?.code === 'PDF_NOT_IN_STORAGE') {
-    return 'This book’s file is missing from our library. Nothing is wrong with your membership — please report it and we will restore it.';
-  }
-  if (error?.status === 401) {
-    return 'Your session has expired. Sign in again to keep reading.';
-  }
-  if (error?.status === 404) {
-    return 'This book is no longer available.';
-  }
-  return error?.message || 'Unable to open this book.';
+  return expired ? 'expired' : 'none';
 }
 
 export function BookReaderScreen() {
@@ -177,10 +199,18 @@ function BookReader() {
   /** Set once a download completes, so the error state can offer it. */
   const downloadedUri = useRef<string | null>(null);
   const { canOpenBooks, isAuthenticated, isSubscriptionLoading, reason } = useAccess();
+  // Whether the local countdown is what locked the book, for the lock's wording.
+  const expired = useAccessStore(state => state.expired);
   /** True once a page has actually been on screen for this book. */
   const hasOpened = useRef(false);
   /** The membership ended with the book open, rather than before it opened. */
   const [lockedMidRead, setLockedMidRead] = useState(false);
+  /**
+   * The backend refused to sign the book. The server is the gate, and its "no"
+   * stands even when the local countdown still says yes — the countdown is
+   * only ever a mirror of what the server last said, and it can be behind.
+   */
+  const [refused, setRefused] = useState(false);
   // Only the stable `mutate` is kept: the mutation object itself is new on
   // every render, and anything keyed on it would be rebuilt on every render.
   const { mutate: toggleBookmark } = useBookmarkToggle(bookId);
@@ -207,11 +237,9 @@ function BookReader() {
       return;
     }
     if (!canOpenBooks) {
-      // Only on the way in. A membership that ends mid-read is not a wrong turn
-      // to be undone — it is handled below, after the page is saved.
-      if (!hasOpened.current) {
-        navigation.replace(ROUTES.BOOK_DETAIL, { bookId });
-      }
+      // Nothing is fetched. The lock is drawn in place — see `locked` below —
+      // rather than the reader being bounced somewhere else: the book stays on
+      // the shelf, and this screen is where the membership is checked.
       return;
     }
 
@@ -219,6 +247,7 @@ function BookReader() {
     const abort = new AbortController();
     setPdfSource(null);
     setSourceError(false);
+    setRefused(false);
     setErrorMessage(null);
     documentReady.current = false;
     const cached = (userId ? getPosition(userId, bookId)?.page : undefined) ?? 1;
@@ -250,10 +279,22 @@ function BookReader() {
         if (!active || error?.name === 'AbortError') {
           return;
         }
-        setSourceError(true);
-        setErrorMessage(pdfErrorMessage(error));
         setIsLoading(false);
         setLoaderVisible(false);
+        if (error?.code === 'PREMIUM_REQUIRED') {
+          // The paywall, not a fault: the lock, never "try again". The store
+          // is re-read behind it so the rest of the app catches up with what
+          // the server just said, and a renewal unlocks this screen in place.
+          setRefused(true);
+          void useAccessStore.getState().refresh();
+          return;
+        }
+        if (isSessionRejected(error)) {
+          navigation.replace(ROUTES.LOGIN, { returnTo: { bookId } });
+          return;
+        }
+        setSourceError(true);
+        setErrorMessage(pdfErrorMessage(error));
       });
     return () => {
       active = false;
@@ -533,13 +574,24 @@ function BookReader() {
   const bookTitle = book?.title?.trim() || 'Book';
   const blocked = hasError || sourceError;
 
+  /**
+   * The membership check, made when the book is viewed and nowhere earlier.
+   *
+   * Three ways to be locked: arriving without access, the server refusing to
+   * sign the file, and the membership ending mid-read. All three draw the same
+   * screen in place, so a book stays on the shelf whatever the membership says
+   * and the answer is given here, at the door, with the way to renew.
+   */
+  const locked =
+    lockedMidRead || refused || (isAuthenticated && !isSubscriptionLoading && !canOpenBooks);
+
   // Ahead of the error state: a lock is not a fault, and offering "retry" for
   // an ended membership would be telling the reader to try the door again.
-  if (lockedMidRead) {
+  if (locked) {
     return (
       <ReaderLocked
         page={page}
-        reason={reason}
+        reason={lockReason(reason, expired)}
         onRenew={openPaywall}
         onClose={() => navigation.goBack()}
       />

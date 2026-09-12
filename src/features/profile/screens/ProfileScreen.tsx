@@ -1,12 +1,9 @@
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Settings2 } from 'lucide-react-native';
 
 import { GuestAuthPanel } from '@/components/auth/GuestAuthPanel';
 import { Screen } from '@/components/layout';
-import { Avatar, Display, IconButton } from '@/components/ui';
+import { Avatar, Badge, Display } from '@/components/ui';
 import {
   AchievementRail,
   GoalCard,
@@ -15,11 +12,9 @@ import {
   StreakCard,
   type Achievement,
 } from '@/features/profile/components/ReadingRecord';
-import type { ProfileStackParamList } from '@/features/profile/navigation/types';
+import { SettingsSection } from '@/features/profile/components/SettingsSection';
 import { useAvatarUrl, useLibrary, useProfile, useSubscription } from '@/hooks/useAccount';
 import { useAuthStore } from '@/stores/authStore';
-
-type ProfileNavigation = NativeStackNavigationProp<ProfileStackParamList, 'ProfileMain'>;
 
 /** This month's target. A real goal-setting screen would replace the constant. */
 const MONTHLY_GOAL = 4;
@@ -27,19 +22,16 @@ const MONTHLY_GOAL = 4;
 /**
  * The reading record.
  *
- * Statistics come first and settings live behind the gear, because what a
+ * Statistics come first and settings follow beneath them, because what a
  * reader wants from this tab most often is a sense of how their reading is
- * going — not a list of preferences.
+ * going — the list of preferences is one scroll away rather than a tap.
  */
 export function ProfileScreen() {
-  const navigation = useNavigation<ProfileNavigation>();
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   const { data: profile } = useProfile();
   const { data: avatarUrl } = useAvatarUrl(profile?.avatarPath);
   const { data: library } = useLibrary();
   const { data: subscription } = useSubscription();
-
-  const openSettings = useCallback(() => navigation.navigate('Settings'), [navigation]);
 
   // Every counter is the server's own total rather than the length of a capped
   // shelf, so a reader with more finished books than one page still sees the
@@ -93,6 +85,8 @@ export function ProfileScreen() {
 
   const earned = achievements.filter(achievement => achievement.earned).length;
 
+  const planName = subscription?.active ? subscription.plan?.name ?? 'Premium' : 'Free';
+
   if (!isAuthenticated) {
     return (
       <Screen gap={22}>
@@ -101,18 +95,12 @@ export function ProfileScreen() {
           <View style={styles.identityBody}>
             <Display size={24}>Your reading record</Display>
           </View>
-          <IconButton
-            icon={Settings2}
-            onPress={openSettings}
-            variant="plain"
-            buttonSize={36}
-            accessibilityLabel="Settings"
-          />
         </View>
         <GuestAuthPanel
           title="Your record starts here."
           message="Sign in to keep your streak, your finished books and your reading time across devices."
         />
+        <SettingsSection />
       </Screen>
     );
   }
@@ -125,17 +113,14 @@ export function ProfileScreen() {
           <Display size={24} numberOfLines={1}>
             {profile?.fullName || 'Reader'}
           </Display>
-          <RecordHeader
-            memberSince={profile?.memberSince}
-            isMember={subscription?.active ?? false}
-          />
+          <RecordHeader email={profile?.email} memberSince={profile?.memberSince} />
         </View>
-        <IconButton
-          icon={Settings2}
-          onPress={openSettings}
-          variant="plain"
-          buttonSize={36}
-          accessibilityLabel="Settings"
+        {/* Centred against the whole name / email / date block, not just the
+            name line — the row's `alignItems` does the work. */}
+        <Badge
+          label={planName.toUpperCase()}
+          tone={subscription?.active ? 'gold' : 'neutral'}
+          bordered
         />
       </View>
 
@@ -161,6 +146,8 @@ export function ProfileScreen() {
         earnedCount={earned}
         totalCount={achievements.length}
       />
+
+      <SettingsSection />
     </Screen>
   );
 }

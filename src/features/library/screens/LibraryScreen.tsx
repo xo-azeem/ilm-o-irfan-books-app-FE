@@ -17,7 +17,6 @@ import {
 } from '@/features/library/components/LibraryFilters';
 import { ShelfGrid, useShelfMetrics } from '@/features/library/components/ShelfGrid';
 import { useLibrary, useWishlist } from '@/hooks/useAccount';
-import { useAccess } from '@/lib/access';
 import { useAuthStore } from '@/stores/authStore';
 import type { CatalogBook } from '@/services/catalog';
 import { isUrduTitle } from '@/services/script';
@@ -54,7 +53,6 @@ function toSummary(
 export function LibraryScreen() {
   const navigation = useNavigation<LibraryNavigation>();
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
-  const { canOpenBooks } = useAccess();
   const { data, isLoading } = useLibrary();
   // Only fetched when the summary did not carry the saved shelf — see below.
   const { data: wishlist } = useWishlist({
@@ -129,16 +127,12 @@ export function LibraryScreen() {
   // The most recently read book, which the reading shelf returns first.
   const resume = reading[0];
 
+  // Every book on the shelf opens, whatever the membership says: the shelf is
+  // the reader's own, and the membership is checked by the reader itself, at
+  // the door, with the way to renew — never here, and never by hiding a book.
   const openBook = useCallback(
-    (book: { id: string }) => {
-      // Without an entitlement the detail page is the right landing spot: it is
-      // where the reader can see why the book will not open.
-      navigation.navigate(
-        canOpenBooks ? ROUTES.BOOK_READER : ROUTES.BOOK_DETAIL,
-        { bookId: book.id },
-      );
-    },
-    [canOpenBooks, navigation],
+    (book: { id: string }) => navigation.navigate(ROUTES.BOOK_READER, { bookId: book.id }),
+    [navigation],
   );
 
   const browse = useCallback(() => navigation.navigate(ROUTES.SEARCH), [navigation]);

@@ -190,16 +190,20 @@ type NativeZoom = {
 const NATIVE_ZOOM_EPS = 0.05;
 
 /**
- * Whether the flip mode keeps the document view's page snap.
+ * Whether a page the document view has zoomed back out of is seated by hand.
  *
  * On Android the view's zoom-out animation — a double-tap's — pivots on the
  * middle of the screen, so a page zoomed into on one side comes back out of
  * the zoom shifted, with a strip of the next page showing. The view's own
- * snap, which runs as the tail of that animation, is what glides it home. On
- * iOS the paging flag turns the view over to a page controller instead, and
- * PDFKit centres a page it has zoomed out of by itself.
+ * page snap would glide it home, but it cannot be left on in the flip mode:
+ * it runs on every finger lifted off the page, fold or not, as a 400ms
+ * animation that overrides any page the fold asks for meanwhile — a leaf
+ * dropped back landed on the next page anyway, and a fast turn on the page
+ * after the one it showed. So the page is seated from here instead, as the
+ * zoom-out's tail is drawn (see `handleScaleChanged`). On iOS PDFKit centres
+ * a page it has zoomed out of by itself.
  */
-const SNAP_IN_FLIP = Platform.OS === 'android';
+const SEAT_ZOOM_OUT = Platform.OS === 'android';
 
 /**
  * The reading stage.
@@ -450,20 +454,26 @@ export const BookPageFlip = memo(
      * Not a moment sooner. Asking mid-pinch, on a timer, had the view
      * re-queue its painting under the reader's fingers every time the zoom
      * paused near the page's size, which is a stutter; the fingers lifting
-     * is the one signal that the pinch is done. A double-tap's zoom-out needs
-     * none of this: it is the view's own animation, and the view's own page
-     * snap — kept on for this (see `SNAP_IN_FLIP`) — glides the page home as
-     * the tail of it. Only a page at a time is seated: a book read as a
-     * column is wherever the reader scrolled it to.
+     * is the one signal that the pinch is done.
+     *
+     * A double-tap's zoom-out has no fingers to wait for: it is the view's
+     * own animation, and it too lands the page shifted. That one is seated on
+     * every report the view makes as the tail of the animation is drawn (see
+     * `SEAT_ZOOM_OUT`). Each seat puts the page's edge on the view's at that
+     * frame's zoom, and the frames after carry on from there, so the page
+     * glides to its seat as the zoom finishes rather than jumping after it.
+     * Only a page at a time is seated: a book read as a column is wherever
+     * the reader scrolled it to.
      */
     const pagedRef = useRef(paged);
     pagedRef.current = paged;
-    /** The document view has zoomed since it was last seated. */
+    /** The document view has zoomed since a touch last found it unzoomed. */
     const pinchedRef = useRef(false);
+    /** A finger is on the stage. */
+    const touchingRef = useRef(false);
     const seatPage = useCallback(() => {
       if (!readyRef.current || !pagedRef.current || turnRef.current) return;
       if (nativeZoomRef.current > MIN_SCALE) return;
-      pinchedRef.current = false;
       try {
         pdfRef.current?.setPage(pageRef.current);
       } catch {
@@ -471,11 +481,20 @@ export const BookPageFlip = memo(
       }
     }, []);
 
+    const handleStageTouchStart = useCallback(() => {
+      touchingRef.current = true;
+    }, []);
+
     /** The last finger has left the stage. */
     const handleStageTouchEnd = useCallback(
       (event: GestureResponderEvent) => {
         if (event.nativeEvent.touches.length > 0) return;
-        if (pinchedRef.current) seatPage();
+        touchingRef.current = false;
+        // Still zoomed — the taps of a double-tap out of a zoom end here too
+        // — and the seat waits for the zoom to come off.
+        if (!pinchedRef.current || nativeZoomRef.current > MIN_SCALE) return;
+        pinchedRef.current = false;
+        seatPage();
       },
       [seatPage],
     );
@@ -492,10 +511,12 @@ export const BookPageFlip = memo(
         }
         const value = ratio / native.base;
         const next = value > MIN_SCALE + NATIVE_ZOOM_EPS ? value : MIN_SCALE;
+        const changed = setNativeZoom(next);
         if (next > MIN_SCALE) pinchedRef.current = true;
-        if (setNativeZoom(next)) pushZoom();
+        else if (SEAT_ZOOM_OUT && pinchedRef.current && !touchingRef.current) seatPage();
+        if (changed) pushZoom();
       },
-      [pushZoom, setNativeZoom],
+      [pushZoom, seatPage, setNativeZoom],
     );
 
     /**
@@ -1120,6 +1141,7 @@ export const BookPageFlip = memo(
       // finger has gone, which is when a pinched page is seated again.
       <View
         style={[styles.stage, { backgroundColor: stage }]}
+        onTouchStart={handleStageTouchStart}
         onTouchEnd={handleStageTouchEnd}
         onTouchCancel={handleStageTouchEnd}>
         <GestureDetector gesture={folding ? paperFlip.gesture : pageTurn.gesture}>
@@ -1180,17 +1202,15 @@ export const BookPageFlip = memo(
                         page={startPage}
                         style={pdfStyle}
                         horizontal={paged}
-                        // The fold is the turn in this mode, so the pager's swipe
-                        // is off (`scrollEnabled` below): left on, it would slide
-                        // the page out from under its own leaf. On Android the
-                        // pager's *snap* stays on regardless — swipe is off, so it
-                        // cannot be swiped, and its snap is what carries a page the
-                        // reader has zoomed back out of home to its own edge, as
-                        // the tail of the zoom-out's own animation rather than as a
-                        // jump after it. Scrolling comes back the moment the reader
-                        // zooms in, because then a drag is how they move around
-                        // the page.
-                        enablePaging={paged && !zoomed && (!folding || SNAP_IN_FLIP)}
+                        // The fold is the turn in this mode, so the pager is off
+                        // entirely: its swipe (`scrollEnabled` below) would slide
+                        // the page out from under its own leaf, and its snap runs
+                        // on every finger lifted and would drag the view back from
+                        // any page the fold has just sent it to (see
+                        // `SEAT_ZOOM_OUT`). Scrolling comes back the moment the
+                        // reader zooms in, because then a drag is how they move
+                        // around the page.
+                        enablePaging={paged && !zoomed && !folding}
                         scrollEnabled={!folding || zoomed}
                         singlePage={false}
                         scale={zoom}

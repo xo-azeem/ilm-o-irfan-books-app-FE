@@ -109,7 +109,7 @@ export function DownloadsScreen() {
           <EmptyState
             title="Nothing saved yet."
             message="Download a book from the reader and it will be here, ready without a connection."
-            action={{ label: 'Back to settings', onPress: goBack }}
+            action={{ label: 'Back to profile', onPress: goBack }}
           />
         </View>
       ) : (

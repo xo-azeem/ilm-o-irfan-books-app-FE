@@ -31,8 +31,8 @@ export type ProfileGroup = {
 
 /**
  * The settings menu — exactly the four groups the app has always had, with the
- * coloured icon tiles kept. Statistics moved to their own screen, so this page
- * is only navigation.
+ * coloured icon tiles kept. It renders beneath the reading record on the profile
+ * tab, so this data is only navigation.
  */
 export const profileGroups: ProfileGroup[] = [
   {

@@ -1,8 +1,6 @@
 export type ProfileStackParamList = {
-  /** The reading record — statistics, streak, goal and achievements. */
+  /** The reading record — statistics, streak, goal, achievements — with the settings menu beneath. */
   ProfileMain: undefined;
-  /** The settings menu. Statistics live on ProfileMain, so this is navigation only. */
-  Settings: undefined;
   PersonalDetails: undefined;
   Subscription: undefined;
   Downloads: undefined;

@@ -21,7 +21,7 @@ import {
   type LucideIcon,
 } from '@/components/ui';
 import { ROUTES } from '@/constants/routes';
-import { EditorsShelf } from '@/features/search/components/EditorsShelf';
+import { CarouselMarquee } from '@/features/search/components/CarouselMarquee';
 import { FilterSheet } from '@/features/search/components/FilterSheet';
 import {
   SearchSuggestions,
@@ -37,7 +37,7 @@ import {
 import { useRecentSearches } from '@/features/search/hooks/useRecentSearches';
 import { useLibrary } from '@/hooks/useAccount';
 import { useCatalogFeed, useCategories, useHomeCatalog } from '@/hooks/useCatalog';
-import type { CatalogBook } from '@/services/catalog';
+import type { CatalogBook, CatalogSlide } from '@/services/catalog';
 import { isUrduTitle } from '@/services/script';
 import { layout } from '@/theme/palette';
 import { useTheme } from '@/theme/ThemeContext';
@@ -60,6 +60,12 @@ function toSummary(book: CatalogBook, inLibrary = false): BookSummary {
 }
 
 const MAX_SUGGESTIONS = 3;
+
+/** The space between the header's rows. */
+const HEADER_GAP = 20;
+
+/** A stable empty list, so the rail's hooks do not see a new array every render. */
+const EMPTY_CAROUSEL: CatalogSlide[] = [];
 
 /**
  * How many rows the downloaded filter has to leave on screen before the list
@@ -238,20 +244,42 @@ export function SearchScreen() {
   );
 
   /**
-   * Discover's pick is the editor's own hero shelf — the `home-hero`
-   * collection, in the order an admin put it in — not a book this screen chose
-   * for itself. The backend keeps that shelf populated, falling back to the
-   * newest published books when the collection is empty, so it is read as a
-   * plain list rather than being hidden on an empty one.
+   * Discover's rail is the home carousel — the admin's slides, or the backend's
+   * weekly draw when none are curated — in the order the backend sent them.
+   * It is read straight out of the `home-feed` payload React Query already
+   * holds for Home, so this screen makes no request of its own for it.
    */
-  const editorsPick = useMemo<BookSummary | null>(() => {
-    const book = home?.hero?.[0];
-    return book ? toSummary(book, libraryIds.has(book.id)) : null;
-  }, [home?.hero, libraryIds]);
+  const carousel = home?.carousel ?? EMPTY_CAROUSEL;
+
+  const openSlide = useCallback(
+    (slide: CatalogSlide) =>
+      navigation.navigate(ROUTES.BOOK_DETAIL, { bookId: slide.bookId }),
+    [navigation],
+  );
+
+  // The filter and subject controls sit at the top right of the screen, beside
+  // the title. While searching the title is gone — "Cancel" takes its place next
+  // to the field — so they drop into the chip row to stay within reach.
+  const controls = (
+    <View style={styles.controls}>
+      <IconControl
+        icon={SlidersHorizontal}
+        label="Filters"
+        active={activeCount > 0}
+        onPress={filterSheet.open}
+      />
+      <IconControl
+        icon={LayoutGrid}
+        label="Browse by subject"
+        active={subjectsOpen || filters.categoryId != null}
+        onPress={toggleSubjects}
+      />
+    </View>
+  );
 
   const header = (
     <View style={styles.header}>
-      {!searching ? <ScreenHeader title="Discover" /> : null}
+      {!searching ? <ScreenHeader title="Discover" action={controls} /> : null}
 
       <View style={styles.searchRow}>
         <SearchField
@@ -267,34 +295,28 @@ export function SearchScreen() {
         {searching ? <TextButton label="Cancel" tone="muted" onPress={cancelSearch} /> : null}
       </View>
 
-      <ChipRow gap={9}>
-        <IconControl
-          icon={SlidersHorizontal}
-          label="Filters"
-          active={activeCount > 0}
-          onPress={filterSheet.open}
-        />
-        <IconControl
-          icon={LayoutGrid}
-          label="Browse by subject"
-          active={subjectsOpen || filters.categoryId != null}
-          onPress={toggleSubjects}
-        />
+      {searching || tokens.length > 0 ? (
+        <ChipRow gap={9}>
+          {searching ? controls : null}
 
-        {tokens.map(token => (
-          <FilterChip
-            key={tokenKey(token)}
-            token={token}
-            label={tokenLabel(token, subjectName)}
-            onRemove={remove}
-          />
-        ))}
+          {tokens.map(token => (
+            <FilterChip
+              key={tokenKey(token)}
+              token={token}
+              label={tokenLabel(token, subjectName)}
+              onRemove={remove}
+            />
+          ))}
 
-        {activeCount > 1 ? <TextButton label="Clear all" tone="muted" onPress={reset} /> : null}
-      </ChipRow>
+          {activeCount > 1 ? (
+            <TextButton label="Clear all" tone="muted" onPress={reset} />
+          ) : null}
+        </ChipRow>
+      ) : null}
 
       <SubjectPanel
         open={subjectsOpen}
+        columnGap={HEADER_GAP}
         categories={categories}
         selectedId={filters.categoryId}
         onSelect={handleSubject}
@@ -308,15 +330,11 @@ export function SearchScreen() {
         />
       ) : null}
 
-      {browsing && editorsPick ? (
-        <EditorsShelf book={editorsPick} onPress={openBook} />
+      {browsing && carousel.length > 0 ? (
+        <CarouselMarquee slides={carousel} onPress={openSlide} />
       ) : null}
 
-      <Label>
-        {isPending && filtered.length === 0
-          ? 'Books'
-          : `Books · ${shownCount.toLocaleString('en-US')}`}
-      </Label>
+      <Label>All books</Label>
 
       {isPending && books.length === 0 ? <ListSkeleton count={4} /> : null}
     </View>
@@ -467,7 +485,7 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   header: {
-    gap: 20,
+    gap: HEADER_GAP,
     paddingBottom: 14,
   },
   searchRow: {
@@ -477,6 +495,11 @@ const styles = StyleSheet.create({
   },
   grow: {
     flex: 1,
+  },
+  controls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
   },
   section: {
     gap: 12,

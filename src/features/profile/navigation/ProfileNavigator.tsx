@@ -10,7 +10,6 @@ import { NotificationsScreen } from '@/features/profile/screens/NotificationsScr
 import { PersonalDetailsScreen } from '@/features/profile/screens/PersonalDetailsScreen';
 import { PrivacySecurityScreen } from '@/features/profile/screens/PrivacySecurityScreen';
 import { ProfileScreen } from '@/features/profile/screens/ProfileScreen';
-import { SettingsScreen } from '@/features/profile/screens/SettingsScreen';
 import { SubscriptionScreen } from '@/features/profile/screens/SubscriptionScreen';
 import { useTheme } from '@/theme/ThemeContext';
 
@@ -35,7 +34,6 @@ export function ProfileNavigator() {
           freezeOnBlur: true,
         }}>
         <Stack.Screen name="ProfileMain" component={ProfileScreen} />
-        <Stack.Screen name="Settings" component={SettingsScreen} />
         <Stack.Screen name="PersonalDetails" component={PersonalDetailsScreen} />
         <Stack.Screen name="Subscription" component={SubscriptionScreen} />
         <Stack.Screen name="Downloads" component={DownloadsScreen} />

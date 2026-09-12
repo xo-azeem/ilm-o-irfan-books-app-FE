@@ -1,5 +1,5 @@
 module.exports = {
-  presets: ['module:@react-native/babel-preset'],
+  presets: ['babel-preset-expo'],
   plugins: [
     [
       'module-resolver',
@@ -11,6 +11,7 @@ module.exports = {
         extensions: ['.ios.js', '.android.js', '.js', '.ts', '.tsx', '.json'],
       },
     ],
-    'react-native-reanimated/plugin',
+    // react-native-worklets/plugin (needed by Reanimated 4) is added
+    // automatically by babel-preset-expo when the package is installed.
   ],
 };

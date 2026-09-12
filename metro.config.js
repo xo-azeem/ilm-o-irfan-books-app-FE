@@ -1,5 +1,5 @@
 const path = require('path');
-const { getDefaultConfig } = require('@react-native/metro-config');
+const { getDefaultConfig } = require('expo/metro-config');
 
 /**
  * Windows can expose the same folder as `d:\...` (Node cwd) and `D:\...`

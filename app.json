@@ -1,4 +1,9 @@
 {
   "name": "IlmOIrfanApp",
-  "displayName": "Ilm o Irfan"
+  "displayName": "Ilm o Irfan",
+  "expo": {
+    "name": "Ilm o Irfan",
+    "slug": "ilm-o-irfan",
+    "version": "1.0.0"
+  }
 }

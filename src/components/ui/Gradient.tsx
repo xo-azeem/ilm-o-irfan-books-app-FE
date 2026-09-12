@@ -43,7 +43,8 @@ export const LinearGradient = memo(function LinearGradient({
             x1={`${(0.5 - x) * 100}%`}
             y1={`${(0.5 - y) * 100}%`}
             x2={`${(0.5 + x) * 100}%`}
-            y2={`${(0.5 + y) * 100}%`}>
+            y2={`${(0.5 + y) * 100}%`}
+          >
             {stops.map((stop, index) => (
               <Stop
                 key={index}
@@ -89,7 +90,19 @@ export const RadialGlow = memo(function RadialGlow({
   return (
     <View
       pointerEvents="none"
-      style={[{ position: 'absolute', width: size, height: size, left, right, top, bottom }, style]}>
+      style={[
+        {
+          position: 'absolute',
+          width: size,
+          height: size,
+          left,
+          right,
+          top,
+          bottom,
+        },
+        style,
+      ]}
+    >
       <Svg pointerEvents="none" width="100%" height="100%">
         <Defs>
           <SvgRadialGradient id={id} cx="50%" cy="50%" r="50%">
@@ -135,7 +148,8 @@ export const DiagonalTexture = memo(function DiagonalTexture({
             patternUnits="userSpaceOnUse"
             width={spacing}
             height={spacing}
-            patternTransform={`rotate(${angle})`}>
+            patternTransform={`rotate(${angle})`}
+          >
             <Line
               x1={thickness / 2}
               y1={0}

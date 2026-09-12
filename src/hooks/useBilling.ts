@@ -75,11 +75,16 @@ export type MembershipOption = MembershipRow<BillingPackage>;
  * would be a button with no price behind it.
  */
 export function useMembershipOptions() {
-  const { data: offering, isPending: offeringPending, error: offeringError } = useBillingOffering();
+  const {
+    data: offering,
+    isPending: offeringPending,
+    error: offeringError,
+  } = useBillingOffering();
   const { data: plans } = usePlans();
 
   const options = useMemo<MembershipOption[]>(
-    () => buildMembershipRows(offering?.packages ?? [], plans, PREMIUM_PLAN_CODE),
+    () =>
+      buildMembershipRows(offering?.packages ?? [], plans, PREMIUM_PLAN_CODE),
     [offering?.packages, plans],
   );
 
@@ -95,7 +100,8 @@ export function useMembershipOptions() {
      * offering, or the store could not be reached. The paywall says so instead
      * of opening a sheet that cannot complete.
      */
-    unavailable: !isBillingAvailable() || Boolean(offeringError) || options.length === 0,
+    unavailable:
+      !isBillingAvailable() || Boolean(offeringError) || options.length === 0,
   };
 }
 

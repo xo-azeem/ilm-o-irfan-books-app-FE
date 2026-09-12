@@ -30,7 +30,8 @@ import { useTheme } from '@/theme/ThemeContext';
  * and the language switch decides which script leads titles app-wide.
  */
 export function SubjectsScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<OnboardingStackParamList>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<OnboardingStackParamList>>();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -39,7 +40,10 @@ export function SubjectsScreen() {
   const toggleSubject = useOnboardingStore(state => state.toggleSubject);
   const setLanguage = useOnboardingStore(state => state.setLanguage);
 
-  const goNext = useCallback(() => navigation.navigate('OnboardingRhythm'), [navigation]);
+  const goNext = useCallback(
+    () => navigation.navigate('OnboardingRhythm'),
+    [navigation],
+  );
 
   const chosen = subjects.length;
   const canContinue = chosen >= MIN_SUBJECTS;
@@ -48,7 +52,11 @@ export function SubjectsScreen() {
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + 12 }]}>
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + 12 },
+        ]}
+      >
         <OnboardingProgress step={1} />
 
         <View style={styles.heading}>
@@ -84,10 +92,18 @@ export function SubjectsScreen() {
       <View
         style={[
           styles.footer,
-          { paddingBottom: Math.max(insets.bottom, 20) + 18, backgroundColor: colors.background },
-        ]}>
+          {
+            paddingBottom: Math.max(insets.bottom, 20) + 18,
+            backgroundColor: colors.background,
+          },
+        ]}
+      >
         <Button
-          label={canContinue ? `Continue · ${chosen} chosen` : `Pick ${MIN_SUBJECTS - chosen} more`}
+          label={
+            canContinue
+              ? `Continue · ${chosen} chosen`
+              : `Pick ${MIN_SUBJECTS - chosen} more`
+          }
           onPress={goNext}
           disabled={!canContinue}
         />
@@ -109,7 +125,14 @@ function SubjectChip({
   onToggle: (id: string) => void;
 }) {
   const handlePress = useCallback(() => onToggle(id), [id, onToggle]);
-  return <Chip label={label} selected={selected} variant="solid" onPress={handlePress} />;
+  return (
+    <Chip
+      label={label}
+      selected={selected}
+      variant="solid"
+      onPress={handlePress}
+    />
+  );
 }
 
 const styles = StyleSheet.create({

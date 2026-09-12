@@ -21,7 +21,9 @@ const TERMS_URL = 'https://ilmoirfan.com/terms';
  */
 export function PrivacySecurityScreen() {
   const [options, setOptions] = useState(() =>
-    Object.fromEntries(privacyOptions.map(option => [option.id, option.defaultValue])),
+    Object.fromEntries(
+      privacyOptions.map(option => [option.id, option.defaultValue]),
+    ),
   );
 
   const setOption = useCallback((id: string, value: boolean) => {
@@ -43,7 +45,10 @@ export function PrivacySecurityScreen() {
         );
         break;
       case 'devices':
-        Alert.alert('Signed-in devices', 'Signing out here signs you out everywhere.');
+        Alert.alert(
+          'Signed-in devices',
+          'Signing out here signs you out everywhere.',
+        );
         break;
       case 'export':
         Alert.alert(
@@ -76,7 +81,8 @@ export function PrivacySecurityScreen() {
   return (
     <ProfileSubScreenLayout
       title="Privacy & security"
-      subtitle="You decide what leaves this device.">
+      subtitle="You decide what leaves this device."
+    >
       <SettingsGroup>
         {privacyOptions.map(option => (
           <SettingsRow
@@ -107,12 +113,19 @@ export function PrivacySecurityScreen() {
           <SettingsRow
             key={row.id}
             title={row.label}
-            onPress={() => openUrl(row.id === 'terms' ? TERMS_URL : PRIVACY_POLICY_URL)}
+            onPress={() =>
+              openUrl(row.id === 'terms' ? TERMS_URL : PRIVACY_POLICY_URL)
+            }
           />
         ))}
       </SettingsGroup>
 
-      <Button label="Delete account" variant="danger" size="md" onPress={handleDelete} />
+      <Button
+        label="Delete account"
+        variant="danger"
+        size="md"
+        onPress={handleDelete}
+      />
     </ProfileSubScreenLayout>
   );
 }

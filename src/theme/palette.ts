@@ -243,9 +243,21 @@ export const theme = {
  * a reader picks a page tone once and it holds in light and dark alike.
  */
 export const readerTones = {
-  paper: { background: '#E8E3D8', ink: '#30302B', muted: 'rgba(48, 48, 43, 0.55)' },
-  sepia: { background: '#161512', ink: '#E8E3D8', muted: 'rgba(232, 227, 216, 0.45)' },
-  midnight: { background: '#0B0E0C', ink: '#C8D2C4', muted: 'rgba(200, 210, 196, 0.42)' },
+  paper: {
+    background: '#E8E3D8',
+    ink: '#30302B',
+    muted: 'rgba(48, 48, 43, 0.55)',
+  },
+  sepia: {
+    background: '#161512',
+    ink: '#E8E3D8',
+    muted: 'rgba(232, 227, 216, 0.45)',
+  },
+  midnight: {
+    background: '#0B0E0C',
+    ink: '#C8D2C4',
+    muted: 'rgba(200, 210, 196, 0.42)',
+  },
 } as const;
 
 export type ReaderTone = keyof typeof readerTones;

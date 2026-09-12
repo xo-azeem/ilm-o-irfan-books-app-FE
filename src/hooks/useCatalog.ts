@@ -122,7 +122,13 @@ export function useBook(id: string) {
  * deep link would carry a slug. The collection itself rides along on the first
  * page, so the screen has its own title without being told one.
  */
-export function useCollectionBooks({ id, slug }: { id?: string | null; slug?: string | null }) {
+export function useCollectionBooks({
+  id,
+  slug,
+}: {
+  id?: string | null;
+  slug?: string | null;
+}) {
   return useInfiniteQuery({
     queryKey: ['catalog', 'collection', id ?? null, slug ?? null],
     initialPageParam: 1,

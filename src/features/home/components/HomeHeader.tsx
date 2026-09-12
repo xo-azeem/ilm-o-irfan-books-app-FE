@@ -64,7 +64,10 @@ export const HomeHeader = memo(function HomeHeader({
             <View
               style={[
                 styles.dot,
-                { backgroundColor: colors.gold, borderColor: colors.background },
+                {
+                  backgroundColor: colors.gold,
+                  borderColor: colors.background,
+                },
               ]}
             />
           ) : null}
@@ -74,7 +77,8 @@ export const HomeHeader = memo(function HomeHeader({
           accessibilityRole="button"
           accessibilityLabel="Your profile"
           onPress={onProfilePress}
-          style={({ pressed }) => (pressed ? styles.pressed : undefined)}>
+          style={({ pressed }) => (pressed ? styles.pressed : undefined)}
+        >
           <Avatar name={name} imageUrl={avatarUrl} size={38} />
         </Pressable>
       </View>
@@ -137,7 +141,12 @@ export const HomeStickyHeader = memo(function HomeStickyHeader({
   return (
     <View style={styles.sticky}>
       <Display size="section">{title}</Display>
-      <Text size={fontSize.captionSmall} leading={1} weight="500" tone="primary">
+      <Text
+        size={fontSize.captionSmall}
+        leading={1}
+        weight="500"
+        tone="primary"
+      >
         {note}
       </Text>
     </View>

@@ -79,10 +79,10 @@ export function AdminToastProvider({ children }: PropsWithChildren) {
   const accent = !toast
     ? colors.primary
     : toast.tone === 'error'
-    ? DANGER
-    : toast.tone === 'info'
-    ? colors.primary
-    : WARNING;
+      ? DANGER
+      : toast.tone === 'info'
+        ? colors.primary
+        : WARNING;
 
   return (
     <ToastContext.Provider value={api}>
@@ -90,7 +90,8 @@ export function AdminToastProvider({ children }: PropsWithChildren) {
       {toast ? (
         <View
           pointerEvents="none"
-          style={[styles.host, { top: insets.top + 8 }]}>
+          style={[styles.host, { top: insets.top + 8 }]}
+        >
           <Animated.View
             key={toast.id}
             entering={FadeInDown.duration(180)}
@@ -98,7 +99,8 @@ export function AdminToastProvider({ children }: PropsWithChildren) {
             style={[
               styles.toast,
               { backgroundColor: colors.surface, borderColor: `${accent}55` },
-            ]}>
+            ]}
+          >
             <Icon
               size={18}
               color={toast.tone === 'success' ? colors.primary : accent}
@@ -143,7 +145,10 @@ const styles = StyleSheet.create({
 });
 
 /** Pulls a readable message out of whatever a mutation rejected with. */
-export function errorMessage(error: unknown, fallback = 'Something went wrong.'): string {
+export function errorMessage(
+  error: unknown,
+  fallback = 'Something went wrong.',
+): string {
   if (error instanceof Error && error.message) {
     return error.message;
   }

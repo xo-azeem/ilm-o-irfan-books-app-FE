@@ -1,8 +1,29 @@
-import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
 import { Check, ListFilter, Plus, Search, X } from 'lucide-react-native';
 
-import { Display, Divider, Icon, Label, Sheet, Tag, Text } from '@/components/ui';
+import {
+  Display,
+  Divider,
+  Icon,
+  Label,
+  Sheet,
+  Tag,
+  Text,
+} from '@/components/ui';
 import { coverColors, radius } from '@/theme/palette';
 import { fonts, sansFamily } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
@@ -42,7 +63,8 @@ export const AdminSearchBar = memo(function AdminSearchBar({
       style={[
         styles.searchBar,
         { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
-      ]}>
+      ]}
+    >
       <Icon icon={Search} size={15} tone="faint" strokeWidth={2} />
       <TextInput
         value={value}
@@ -52,14 +74,18 @@ export const AdminSearchBar = memo(function AdminSearchBar({
         autoCapitalize="none"
         autoCorrect={false}
         returnKeyType="search"
-        style={[styles.searchInput, { color: colors.ink, fontFamily: sansFamily('400') }]}
+        style={[
+          styles.searchInput,
+          { color: colors.ink, fontFamily: sansFamily('400') },
+        ]}
       />
       {value ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Clear search"
           hitSlop={10}
-          onPress={() => onChangeText('')}>
+          onPress={() => onChangeText('')}
+        >
           <Icon icon={X} size={15} tone="faint" strokeWidth={2.2} />
         </Pressable>
       ) : null}
@@ -94,11 +120,23 @@ export const AdminFilterButton = memo(function AdminFilterButton({
           borderColor: active ? colors.selectedBorder : colors.border,
         },
         pressed && styles.pressed,
-      ]}>
-      <Icon icon={ListFilter} size={15} tone={active ? 'action' : 'muted'} strokeWidth={2} />
+      ]}
+    >
+      <Icon
+        icon={ListFilter}
+        size={15}
+        tone={active ? 'action' : 'muted'}
+        strokeWidth={2}
+      />
       {active ? (
         <View style={[styles.filterCount, { backgroundColor: colors.primary }]}>
-          <Label size={9} leading={1} weight="700" tracking={0} tone="onPrimary">
+          <Label
+            size={9}
+            leading={1}
+            weight="700"
+            tracking={0}
+            tone="onPrimary"
+          >
             {String(count)}
           </Label>
         </View>
@@ -127,9 +165,13 @@ export const AdminActiveFilter = memo(function AdminActiveFilter({
       onPress={onClear}
       style={({ pressed }) => [
         styles.activeFilter,
-        { backgroundColor: colors.primaryFill, borderColor: colors.selectedBorder },
+        {
+          backgroundColor: colors.primaryFill,
+          borderColor: colors.selectedBorder,
+        },
         pressed && styles.pressed,
-      ]}>
+      ]}
+    >
       <Text size={11.5} leading={1} weight="500" tone="action">
         {label}
       </Text>
@@ -151,7 +193,12 @@ function AdminChipRowInner<T extends string | null>({
   value,
   onChange,
 }: {
-  options: Array<{ value: T; label: string; count?: number; accent?: string | null }>;
+  options: Array<{
+    value: T;
+    label: string;
+    count?: number;
+    accent?: string | null;
+  }>;
   value: T;
   onChange: (next: T) => void;
 }) {
@@ -179,7 +226,10 @@ function FilterChipInner<T extends string | null>({
   selected: boolean;
   onChange: (next: T) => void;
 }) {
-  const handlePress = useCallback(() => onChange(option.value), [onChange, option.value]);
+  const handlePress = useCallback(
+    () => onChange(option.value),
+    [onChange, option.value],
+  );
   return (
     <AdminChip
       label={option.label}
@@ -220,7 +270,7 @@ export const AdminFilterSheet = memo(function AdminFilterSheet({
 }: {
   visible: boolean;
   title?: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- groups are heterogeneous by design
+  // groups are heterogeneous by design
   groups: Array<FilterGroup<any>>;
   resultLabel: string;
   onClear: () => void;
@@ -232,7 +282,8 @@ export const AdminFilterSheet = memo(function AdminFilterSheet({
       onClose={onClose}
       title={title}
       headerAction={<AdminTextAction label="Clear all" onPress={onClear} />}
-      footer={<AdminButton label={resultLabel} onPress={onClose} />}>
+      footer={<AdminButton label={resultLabel} onPress={onClose} />}
+    >
       {groups.map(group => (
         <View key={group.id} style={styles.filterGroup}>
           <AdminEyebrow>{group.title}</AdminEyebrow>
@@ -299,7 +350,11 @@ export const AdminPickerSheet = memo(function AdminPickerSheet({
   const toggle = useCallback(
     (id: string) => {
       if (multi) {
-        onChange(selected.includes(id) ? selected.filter(item => item !== id) : [...selected, id]);
+        onChange(
+          selected.includes(id)
+            ? selected.filter(item => item !== id)
+            : [...selected, id],
+        );
         return;
       }
       onChange([id]);
@@ -313,22 +368,43 @@ export const AdminPickerSheet = memo(function AdminPickerSheet({
       visible={visible}
       onClose={onClose}
       title={title}
-      headerAction={<AdminTextAction label="Done" onPress={onClose} size={12.5} />}>
+      headerAction={
+        <AdminTextAction label="Done" onPress={onClose} size={12.5} />
+      }
+    >
       {searchable && items.length > 8 ? (
-        <AdminSearchBar value={query} onChangeText={setQuery} placeholder="Filter" />
+        <AdminSearchBar
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Filter"
+        />
       ) : null}
 
       {filtered.length === 0 ? (
-        <Text size={14} leading={1.5} align="center" tone="muted" style={styles.sheetEmpty}>
+        <Text
+          size={14}
+          leading={1.5}
+          align="center"
+          tone="muted"
+          style={styles.sheetEmpty}
+        >
           {emptyLabel}
         </Text>
       ) : (
         <View
-          style={[styles.pickerList, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          style={[
+            styles.pickerList,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+        >
           {filtered.map((item, index) => (
             <View key={item.id}>
               {index > 0 ? <Divider /> : null}
-              <PickerRow item={item} selected={selected.includes(item.id)} onPress={toggle} />
+              <PickerRow
+                item={item}
+                selected={selected.includes(item.id)}
+                onPress={toggle}
+              />
             </View>
           ))}
         </View>
@@ -357,8 +433,11 @@ const PickerRow = memo(function PickerRow({
       style={({ pressed }) => [
         styles.pickerRow,
         pressed && { backgroundColor: colors.primaryFillSoft },
-      ]}>
-      {item.accent ? <View style={[styles.accentDot, { backgroundColor: item.accent }]} /> : null}
+      ]}
+    >
+      {item.accent ? (
+        <View style={[styles.accentDot, { backgroundColor: item.accent }]} />
+      ) : null}
       <View style={styles.pickerBody}>
         <Text size={14} leading={1.2} numberOfLines={1}>
           {item.label}
@@ -369,7 +448,9 @@ const PickerRow = memo(function PickerRow({
           </Text>
         ) : null}
       </View>
-      {selected ? <Icon icon={Check} size={18} tone="action" strokeWidth={2.4} /> : null}
+      {selected ? (
+        <Icon icon={Check} size={18} tone="action" strokeWidth={2.4} />
+      ) : null}
     </Pressable>
   );
 });
@@ -414,7 +495,8 @@ export const AdminTagInput = memo(function AdminTagInput({
         style={[
           styles.tagField,
           { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
-        ]}>
+        ]}
+      >
         <TextInput
           value={draft}
           onChangeText={setDraft}
@@ -423,14 +505,18 @@ export const AdminTagInput = memo(function AdminTagInput({
           returnKeyType="done"
           placeholder={placeholder}
           placeholderTextColor={colors.faint}
-          style={[styles.tagInput, { color: colors.ink, fontFamily: sansFamily('400') }]}
+          style={[
+            styles.tagInput,
+            { color: colors.ink, fontFamily: sansFamily('400') },
+          ]}
         />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Add"
           onPress={commit}
           hitSlop={10}
-          disabled={!draft.trim()}>
+          disabled={!draft.trim()}
+        >
           <Icon
             icon={Plus}
             size={18}
@@ -443,7 +529,11 @@ export const AdminTagInput = memo(function AdminTagInput({
       {tags.length ? (
         <View style={styles.tags}>
           {tags.map(tag => (
-            <Tag key={tag} label={tag} onRemove={() => onChange(tags.filter(item => item !== tag))} />
+            <Tag
+              key={tag}
+              label={tag}
+              onRemove={() => onChange(tags.filter(item => item !== tag))}
+            />
           ))}
         </View>
       ) : null}
@@ -504,7 +594,8 @@ export const AdminColorField = memo(function AdminColorField({
                 styles.swatchRing,
                 picked && { borderColor: colors.actionInk },
                 pressed && styles.pressed,
-              ]}>
+              ]}
+            >
               <View style={[styles.swatch, { backgroundColor: swatch }]} />
             </Pressable>
           );
@@ -514,8 +605,12 @@ export const AdminColorField = memo(function AdminColorField({
         <View
           style={[
             styles.hexField,
-            { borderColor: valid || !value ? colors.borderStrong : colors.dangerBorder },
-          ]}>
+            {
+              borderColor:
+                valid || !value ? colors.borderStrong : colors.dangerBorder,
+            },
+          ]}
+        >
           <TextInput
             value={value}
             onChangeText={onChange}
@@ -524,7 +619,10 @@ export const AdminColorField = memo(function AdminColorField({
             autoCapitalize="none"
             autoCorrect={false}
             maxLength={7}
-            style={[styles.hexInput, { color: colors.ink, fontFamily: fonts.mono }]}
+            style={[
+              styles.hexInput,
+              { color: colors.ink, fontFamily: fonts.mono },
+            ]}
           />
         </View>
       </View>
@@ -532,7 +630,8 @@ export const AdminColorField = memo(function AdminColorField({
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.extraSwatches}>
+        contentContainerStyle={styles.extraSwatches}
+      >
         {SWATCHES.slice(5).map(swatch => (
           <Pressable
             key={swatch}
@@ -544,8 +643,11 @@ export const AdminColorField = memo(function AdminColorField({
               {
                 backgroundColor: swatch,
                 borderColor:
-                  value.toLowerCase() === swatch.toLowerCase() ? colors.actionInk : colors.border,
-                borderWidth: value.toLowerCase() === swatch.toLowerCase() ? 2.5 : 1,
+                  value.toLowerCase() === swatch.toLowerCase()
+                    ? colors.actionInk
+                    : colors.border,
+                borderWidth:
+                  value.toLowerCase() === swatch.toLowerCase() ? 2.5 : 1,
               },
               pressed && styles.pressed,
             ]}
@@ -612,13 +714,18 @@ export const AdminConfirmSheet = memo(function AdminConfirmSheet({
     }
   }, [visible]);
 
-  const armed = !confirmPhrase || typed.trim().toLowerCase() === confirmPhrase.trim().toLowerCase();
+  const armed =
+    !confirmPhrase ||
+    typed.trim().toLowerCase() === confirmPhrase.trim().toLowerCase();
 
   return (
     <Sheet
       visible={visible}
       onClose={onCancel}
-      contentStyle={destructive ? { borderTopColor: colors.dangerBorder } : undefined}>
+      contentStyle={
+        destructive ? { borderTopColor: colors.dangerBorder } : undefined
+      }
+    >
       <View style={styles.confirmHead}>
         <Display size={20} leading={1.25} weight="500">
           {title}
@@ -632,11 +739,17 @@ export const AdminConfirmSheet = memo(function AdminConfirmSheet({
         <View
           style={[
             styles.consequences,
-            { backgroundColor: colors.dangerFill, borderColor: colors.dangerBorder },
-          ]}>
+            {
+              backgroundColor: colors.dangerFill,
+              borderColor: colors.dangerBorder,
+            },
+          ]}
+        >
           {consequences.map(line => (
             <View key={line} style={styles.consequence}>
-              <View style={[styles.bullet, { backgroundColor: colors.danger }]} />
+              <View
+                style={[styles.bullet, { backgroundColor: colors.danger }]}
+              />
               <Text size={12.5} leading={1.3} tone="soft" style={styles.grow}>
                 {line}
               </Text>
@@ -651,8 +764,12 @@ export const AdminConfirmSheet = memo(function AdminConfirmSheet({
           <View
             style={[
               styles.confirmInput,
-              { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
-            ]}>
+              {
+                backgroundColor: colors.surfaceAlt,
+                borderColor: colors.border,
+              },
+            ]}
+          >
             <TextInput
               value={typed}
               onChangeText={setTyped}
@@ -660,7 +777,10 @@ export const AdminConfirmSheet = memo(function AdminConfirmSheet({
               placeholderTextColor={colors.faint}
               autoCapitalize="none"
               autoCorrect={false}
-              style={[styles.confirmInputText, { color: colors.ink, fontFamily: sansFamily('400') }]}
+              style={[
+                styles.confirmInputText,
+                { color: colors.ink, fontFamily: sansFamily('400') },
+              ]}
             />
           </View>
         </View>
@@ -668,7 +788,11 @@ export const AdminConfirmSheet = memo(function AdminConfirmSheet({
 
       <View style={styles.confirmActions}>
         <View style={styles.grow}>
-          <AdminButton label={cancelLabel} variant="secondary" onPress={onCancel} />
+          <AdminButton
+            label={cancelLabel}
+            variant="secondary"
+            onPress={onCancel}
+          />
         </View>
         <View style={styles.grow}>
           <AdminButton

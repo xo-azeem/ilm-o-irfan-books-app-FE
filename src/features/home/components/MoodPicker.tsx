@@ -17,7 +17,12 @@ import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
 
 /** The reading moods offered on Home. Ordered calmest-last, as an evening ramp. */
-export const READING_MOODS = ['Reflective', 'Curious', 'Focused', 'Calm'] as const;
+export const READING_MOODS = [
+  'Reflective',
+  'Curious',
+  'Focused',
+  'Calm',
+] as const;
 
 export type ReadingMood = (typeof READING_MOODS)[number];
 
@@ -34,7 +39,10 @@ export const MOOD_SUBJECTS: Record<ReadingMood, string[]> = {
 };
 
 /** A null mood matches everything, so clearing the choice restores the rail. */
-export function matchesMood(genre: string | undefined | null, mood: ReadingMood | null): boolean {
+export function matchesMood(
+  genre: string | undefined | null,
+  mood: ReadingMood | null,
+): boolean {
   if (!mood) {
     return true;
   }
@@ -82,7 +90,8 @@ const REPLY_IN_MS = 280;
 /** The line is on screen and fully legible for this long. */
 const REPLY_HOLD_MS = 2000;
 const REPLY_OUT_MS = 320;
-const REPLY_END_MS = REPLY_START_MS + REPLY_IN_MS + REPLY_HOLD_MS + REPLY_OUT_MS;
+const REPLY_END_MS =
+  REPLY_START_MS + REPLY_IN_MS + REPLY_HOLD_MS + REPLY_OUT_MS;
 
 // Beat three: the card folds away.
 const COLLAPSE_MS = 340;
@@ -158,10 +167,18 @@ export const MoodPicker = memo(function MoodPicker({
       const discSettleMs = 150;
 
       discOpacity.value = withSequence(
-        withTiming(1, { duration: 130, easing: Easing.out(Easing.quad), ...MOTION }),
+        withTiming(1, {
+          duration: 130,
+          easing: Easing.out(Easing.quad),
+          ...MOTION,
+        }),
         withDelay(
           TICK_IN_MS + TICK_HOLD_MS - 130,
-          withTiming(0, { duration: TICK_OUT_MS, easing: Easing.in(Easing.quad), ...MOTION }),
+          withTiming(0, {
+            duration: TICK_OUT_MS,
+            easing: Easing.in(Easing.quad),
+            ...MOTION,
+          }),
         ),
       );
 
@@ -173,7 +190,11 @@ export const MoodPicker = memo(function MoodPicker({
           easing: Easing.out(Easing.back(2.4)),
           ...MOTION,
         }),
-        withTiming(1, { duration: discSettleMs, easing: Easing.out(Easing.quad), ...MOTION }),
+        withTiming(1, {
+          duration: discSettleMs,
+          easing: Easing.out(Easing.quad),
+          ...MOTION,
+        }),
         withDelay(
           TICK_HOLD_MS - discSettleMs,
           withTiming(1.35, {
@@ -186,7 +207,10 @@ export const MoodPicker = memo(function MoodPicker({
 
       // The tick lands a beat after the disc, so it reads as being stamped into
       // it rather than painted on the same frame.
-      iconOpacity.value = withDelay(100, withTiming(1, { duration: 100, ...MOTION }));
+      iconOpacity.value = withDelay(
+        100,
+        withTiming(1, { duration: 100, ...MOTION }),
+      );
       iconScale.value = withDelay(
         100,
         withSequence(
@@ -195,7 +219,11 @@ export const MoodPicker = memo(function MoodPicker({
             easing: Easing.out(Easing.back(3)),
             ...MOTION,
           }),
-          withTiming(1, { duration: 160, easing: Easing.out(Easing.quad), ...MOTION }),
+          withTiming(1, {
+            duration: 160,
+            easing: Easing.out(Easing.quad),
+            ...MOTION,
+          }),
         ),
       );
 
@@ -204,7 +232,11 @@ export const MoodPicker = memo(function MoodPicker({
       replyOpacity.value = withDelay(
         REPLY_START_MS,
         withSequence(
-          withTiming(1, { duration: REPLY_IN_MS, easing: Easing.out(Easing.quad), ...MOTION }),
+          withTiming(1, {
+            duration: REPLY_IN_MS,
+            easing: Easing.out(Easing.quad),
+            ...MOTION,
+          }),
           withDelay(
             REPLY_HOLD_MS,
             withTiming(0, {
@@ -217,11 +249,19 @@ export const MoodPicker = memo(function MoodPicker({
       );
       replyY.value = withDelay(
         REPLY_START_MS,
-        withTiming(0, { duration: REPLY_IN_MS + 90, easing: Easing.out(Easing.cubic), ...MOTION }),
+        withTiming(0, {
+          duration: REPLY_IN_MS + 90,
+          easing: Easing.out(Easing.cubic),
+          ...MOTION,
+        }),
       );
       replyScale.value = withDelay(
         REPLY_START_MS,
-        withTiming(1, { duration: REPLY_IN_MS + 90, easing: Easing.out(Easing.cubic), ...MOTION }),
+        withTiming(1, {
+          duration: REPLY_IN_MS + 90,
+          easing: Easing.out(Easing.cubic),
+          ...MOTION,
+        }),
       );
 
       contentOpacity.value = withTiming(0, {
@@ -291,7 +331,10 @@ export const MoodPicker = memo(function MoodPicker({
   }));
 
   return (
-    <Animated.View style={[styles.root, containerStyle]} onLayout={handleLayout}>
+    <Animated.View
+      style={[styles.root, containerStyle]}
+      onLayout={handleLayout}
+    >
       <View style={styles.card}>
         <Animated.View style={[styles.body, cardStyle]}>
           <Display size="section" align="center">
@@ -310,13 +353,25 @@ export const MoodPicker = memo(function MoodPicker({
           </ChipWrap>
         </Animated.View>
 
-        <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.tickLayer]}>
+        <View
+          pointerEvents="none"
+          style={[StyleSheet.absoluteFill, styles.tickLayer]}
+        >
           <View style={styles.tickStack}>
             <Animated.View
-              style={[styles.ring, { borderColor: colors.primarySoft }, ringStyle]}
+              style={[
+                styles.ring,
+                { borderColor: colors.primarySoft },
+                ringStyle,
+              ]}
             />
             <Animated.View
-              style={[styles.disc, { backgroundColor: colors.primary }, discStyle]}>
+              style={[
+                styles.disc,
+                { backgroundColor: colors.primary },
+                discStyle,
+              ]}
+            >
               <Animated.View style={iconStyle}>
                 <Icon icon={Check} size={34} tone="onPrimary" strokeWidth={3} />
               </Animated.View>
@@ -328,7 +383,12 @@ export const MoodPicker = memo(function MoodPicker({
               <Display size="cardTitle" align="center" tone="primary">
                 {picked}
               </Display>
-              <Text size={fontSize.caption} leading={1.35} align="center" tone="muted">
+              <Text
+                size={fontSize.caption}
+                leading={1.35}
+                align="center"
+                tone="muted"
+              >
                 {MOOD_REPLIES[picked]}
               </Text>
             </Animated.View>
@@ -351,7 +411,9 @@ const MoodChip = memo(function MoodChip({
 }) {
   const handlePress = useCallback(() => onSelect(mood), [mood, onSelect]);
 
-  return <Chip label={mood} selected={selected} size="sm" onPress={handlePress} />;
+  return (
+    <Chip label={mood} selected={selected} size="sm" onPress={handlePress} />
+  );
 });
 
 const styles = StyleSheet.create({

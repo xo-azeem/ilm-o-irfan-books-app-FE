@@ -20,7 +20,10 @@ const CLEAR: ReaderBoundaryState = { hasError: false, message: null };
  * whole app down. Here it lands on the same failure screen a network error
  * does, and "Try again" remounts the stage from scratch.
  */
-export class ReaderBoundary extends Component<ReaderBoundaryProps, ReaderBoundaryState> {
+export class ReaderBoundary extends Component<
+  ReaderBoundaryProps,
+  ReaderBoundaryState
+> {
   state: ReaderBoundaryState = CLEAR;
 
   static getDerivedStateFromError(error: unknown): ReaderBoundaryState {

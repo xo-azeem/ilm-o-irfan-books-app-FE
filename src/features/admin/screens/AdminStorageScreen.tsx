@@ -53,26 +53,37 @@ export function AdminStorageScreen() {
   const clearTarget = useCallback(() => setTarget(null), []);
 
   const orphanBytes = useMemo(
-    () => (data?.orphans ?? []).reduce((total, object) => total + (object.size ?? 0), 0),
+    () =>
+      (data?.orphans ?? []).reduce(
+        (total, object) => total + (object.size ?? 0),
+        0,
+      ),
     [data?.orphans],
   );
 
   const pdfBytes = data?.totals.pdfs_bytes ?? 0;
   const coverBytes = data?.totals.covers_bytes ?? 0;
   const totalBytes = pdfBytes + coverBytes;
-  const fileCount = (data?.totals.pdfs_count ?? 0) + (data?.totals.covers_count ?? 0);
+  const fileCount =
+    (data?.totals.pdfs_count ?? 0) + (data?.totals.covers_count ?? 0);
 
   const deleteAll = useCallback(() => {
     const orphans = data?.orphans ?? [];
     void Promise.allSettled(
-      orphans.map(object => remove.mutateAsync({ bucket: object.bucket, name: object.name })),
+      orphans.map(object =>
+        remove.mutateAsync({ bucket: object.bucket, name: object.name }),
+      ),
     ).then(results => {
-      const failed = results.filter(result => result.status === 'rejected').length;
+      const failed = results.filter(
+        result => result.status === 'rejected',
+      ).length;
       setConfirmAll(false);
       if (failed === 0) {
         toast.success(`${orphans.length} files deleted.`);
       } else {
-        toast.error(`${orphans.length - failed} deleted, ${failed} could not be removed.`);
+        toast.error(
+          `${orphans.length - failed} deleted, ${failed} could not be removed.`,
+        );
       }
     });
   }, [data?.orphans, remove, toast]);
@@ -80,7 +91,8 @@ export function AdminStorageScreen() {
   return (
     <SafeAreaView
       style={[styles.root, { backgroundColor: colors.background }]}
-      edges={['top', 'left', 'right']}>
+      edges={['top', 'left', 'right']}
+    >
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <AdminBackLink label="System" />
       </View>
@@ -93,11 +105,14 @@ export function AdminStorageScreen() {
           paddingBottom: scrollEndPadding + 20,
           gap: 16,
         }}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+      >
         <AdminScreenTitle
           title="Storage"
           subtitle={
-            data ? `${formatBytes(totalBytes)} across ${fileCount} files` : 'Counting the files…'
+            data
+              ? `${formatBytes(totalBytes)} across ${fileCount} files`
+              : 'Counting the files…'
           }
         />
 
@@ -117,12 +132,28 @@ export function AdminStorageScreen() {
               style={[
                 styles.usage,
                 { backgroundColor: colors.surface, borderColor: colors.border },
-              ]}>
+              ]}
+            >
               <View style={[styles.bar, { backgroundColor: colors.border }]}>
-                <View style={{ flex: Math.max(pdfBytes, 1), backgroundColor: palette.green }} />
-                <View style={{ flex: Math.max(coverBytes, 1), backgroundColor: palette.lime }} />
+                <View
+                  style={{
+                    flex: Math.max(pdfBytes, 1),
+                    backgroundColor: palette.green,
+                  }}
+                />
+                <View
+                  style={{
+                    flex: Math.max(coverBytes, 1),
+                    backgroundColor: palette.lime,
+                  }}
+                />
                 {orphanBytes > 0 ? (
-                  <View style={{ flex: orphanBytes, backgroundColor: colors.warning }} />
+                  <View
+                    style={{
+                      flex: orphanBytes,
+                      backgroundColor: colors.warning,
+                    }}
+                  />
                 ) : null}
               </View>
 
@@ -178,20 +209,31 @@ export function AdminStorageScreen() {
             {data.broken.length > 0 ? (
               <AdminRowGroup
                 title={`Books with a missing file · ${data.broken.length}`}
-                tone="warning">
+                tone="warning"
+              >
                 {data.broken.map(book => (
                   <View key={book.book_id} style={styles.brokenRow}>
-                    <View style={[styles.brokenCover, { backgroundColor: colors.coverBase }]} />
+                    <View
+                      style={[
+                        styles.brokenCover,
+                        { backgroundColor: colors.coverBase },
+                      ]}
+                    />
                     <View style={styles.grow}>
                       <Text size={13} leading={1.2} numberOfLines={1}>
                         {book.title}
                       </Text>
-                      <Text size={10.5} leading={1.2} tone="warning" numberOfLines={1}>
+                      <Text
+                        size={10.5}
+                        leading={1.2}
+                        tone="warning"
+                        numberOfLines={1}
+                      >
                         {book.missing_pdf && book.missing_cover
                           ? 'No PDF, no cover'
                           : book.missing_pdf
-                          ? 'No PDF'
-                          : 'No cover'}
+                            ? 'No PDF'
+                            : 'No cover'}
                       </Text>
                     </View>
                     <AdminTextAction
@@ -217,8 +259,9 @@ export function AdminStorageScreen() {
             ) : null}
 
             <Text size={11.5} leading={1.45} tone="faint">
-              A file a book still points at cannot be deleted here — replace it from the book
-              editor instead, so the record and the file change together.
+              A file a book still points at cannot be deleted here — replace it
+              from the book editor instead, so the record and the file change
+              together.
             </Text>
           </>
         )}
@@ -280,7 +323,12 @@ const LegendRow = memo(function LegendRow({
   return (
     <View style={styles.legendRow}>
       <View style={[styles.dot, { backgroundColor: color }]} />
-      <Text size={12.5} leading={1} tone={warn ? 'warning' : 'ink'} style={styles.grow}>
+      <Text
+        size={12.5}
+        leading={1}
+        tone={warn ? 'warning' : 'ink'}
+        style={styles.grow}
+      >
         {label}
       </Text>
       <Label
@@ -289,7 +337,8 @@ const LegendRow = memo(function LegendRow({
         weight="400"
         tracking={0}
         uppercase={false}
-        tone={warn ? 'warning' : 'muted'}>
+        tone={warn ? 'warning' : 'muted'}
+      >
         {value}
       </Label>
     </View>
@@ -311,17 +360,23 @@ const OrphanRow = memo(function OrphanRow({
   onDelete: (target: StorageTarget) => void;
 }) {
   const { colors } = useTheme();
-  const handleDelete = useCallback(() => onDelete({ bucket, name }), [bucket, name, onDelete]);
+  const handleDelete = useCallback(
+    () => onDelete({ bucket, name }),
+    [bucket, name, onDelete],
+  );
 
   return (
     <View style={styles.orphanRow}>
-      <View style={[styles.typeChip, { backgroundColor: colors.controlActive }]}>
+      <View
+        style={[styles.typeChip, { backgroundColor: colors.controlActive }]}
+      >
         <Label
           size={8}
           leading={1}
           weight="700"
           tracking={0.4}
-          tone={bucket === 'pdfs' ? 'action' : 'lime'}>
+          tone={bucket === 'pdfs' ? 'action' : 'lime'}
+        >
           {bucket === 'pdfs' ? 'PDF' : 'IMG'}
         </Label>
       </View>
@@ -334,7 +389,8 @@ const OrphanRow = memo(function OrphanRow({
           tracking={0}
           uppercase={false}
           tone="soft"
-          numberOfLines={1}>
+          numberOfLines={1}
+        >
           {name}
         </Label>
         <Text size={10.5} leading={1.2} tone="faint" numberOfLines={1}>
@@ -342,7 +398,12 @@ const OrphanRow = memo(function OrphanRow({
         </Text>
       </View>
 
-      <AdminTextAction label="Delete" size={11.5} destructive onPress={handleDelete} />
+      <AdminTextAction
+        label="Delete"
+        size={11.5}
+        destructive
+        onPress={handleDelete}
+      />
     </View>
   );
 });

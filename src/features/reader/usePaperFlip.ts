@@ -196,9 +196,13 @@ export function usePaperFlip({
   const handlers = useRef({ onBegin, onEnd, onTap, onTouch });
   handlers.current = { onBegin, onEnd, onTap, onTouch };
 
-  const began = useCallback((value: TurnDirection) => handlers.current.onBegin(value), []);
+  const began = useCallback(
+    (value: TurnDirection) => handlers.current.onBegin(value),
+    [],
+  );
   const ended = useCallback(
-    (commit: boolean, value: TurnDirection) => handlers.current.onEnd(commit, value),
+    (commit: boolean, value: TurnDirection) =>
+      handlers.current.onEnd(commit, value),
     [],
   );
   const tapped = useCallback(() => handlers.current.onTap(), []);
@@ -286,7 +290,9 @@ export function usePaperFlip({
     // moves: only a finger still moving as it lifts was flicking.
     const moving = Date.now() - lastAt.value <= PAGE_FLIP.flickWindowMs;
     const flicked =
-      moving && Math.abs(velocity.value) > PAGE_FLIP.flickVelocity && covered > PAGE_FLIP.flickMin;
+      moving &&
+      Math.abs(velocity.value) > PAGE_FLIP.flickVelocity &&
+      covered > PAGE_FLIP.flickMin;
     // A flick only counts while it is still going the way the fold is; a hand
     // that changed its mind mid-drag has said so.
     const agrees = velocity.value < 0 === (dir.value === 1);
@@ -323,7 +329,8 @@ export function usePaperFlip({
           moved.value = 0;
 
           // Which corner the sheet hinges from — the near one.
-          if (!turning.value) cy.value = downY.value < h.value / 2 ? 0 : h.value;
+          if (!turning.value)
+            cy.value = downY.value < h.value / 2 ? 0 : h.value;
 
           runOnJS(touched)();
         })
@@ -389,7 +396,12 @@ export function usePaperFlip({
           // The corner follows the finger, amplified — a sheet lifts further
           // than the hand travels — and is then tethered to the spine.
           const travel = PAGE_FLIP.amplify * (px - startX.value);
-          const carried = tether(restX(dir.value) + travel, cy.value + dy, cy.value, w.value);
+          const carried = tether(
+            restX(dir.value) + travel,
+            cy.value + dy,
+            cy.value,
+            w.value,
+          );
           tx.value = carried.x;
           ty.value = carried.y;
           // Applied now as well as on the next frame: the fold answers the
@@ -406,7 +418,8 @@ export function usePaperFlip({
               downX.value <= w.value &&
               downY.value >= 0 &&
               downY.value <= h.value;
-            if (!onPage && Date.now() - downAt.value < PAGE_FLIP.tapMs) runOnJS(tapped)();
+            if (!onPage && Date.now() - downAt.value < PAGE_FLIP.tapMs)
+              runOnJS(tapped)();
           }
           release();
         })
@@ -547,7 +560,10 @@ export function usePaperFlip({
     [zoom],
   );
 
-  const fold: FoldState = useMemo(() => ({ fx, fy, cy, w, h, live }), [cy, fx, fy, h, live, w]);
+  const fold: FoldState = useMemo(
+    () => ({ fx, fy, cy, w, h, live }),
+    [cy, fx, fy, h, live, w],
+  );
 
   return {
     gesture,

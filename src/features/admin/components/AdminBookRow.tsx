@@ -59,15 +59,19 @@ function AdminBookRowBase({
             borderColor: selected ? colors.selectedBorder : colors.border,
           },
           pressed && styles.pressed,
-        ]}>
+        ]}
+      >
         <View
           style={[
             styles.checkbox,
             selected
               ? { backgroundColor: colors.primary, borderColor: colors.primary }
               : { borderColor: colors.borderStrong },
-          ]}>
-          {selected ? <Icon icon={Check} size={12} tone="onPrimary" strokeWidth={3} /> : null}
+          ]}
+        >
+          {selected ? (
+            <Icon icon={Check} size={12} tone="onPrimary" strokeWidth={3} />
+          ) : null}
         </View>
 
         <BookCover
@@ -104,12 +108,13 @@ function AdminBookRowBase({
           borderColor: blocked ? colors.warningBorder : colors.border,
         },
         pressed && styles.pressed,
-      ]}>
+      ]}
+    >
       <BookCover
         width={48}
         height={68}
         rounded={8}
-        coverColor={missingCover ? undefined : book.cover_color ?? undefined}
+        coverColor={missingCover ? undefined : (book.cover_color ?? undefined)}
         coverUrl={adminCoverUrl(book.cover_path)}
         caption={missingCover ? 'no art' : undefined}
       />
@@ -126,7 +131,9 @@ function AdminBookRowBase({
         )}
 
         <Text size={11.5} leading={1.2} tone="muted" numberOfLines={1}>
-          {[book.author_name, categoryLabel ?? book.genre].filter(Boolean).join(' · ')}
+          {[book.author_name, categoryLabel ?? book.genre]
+            .filter(Boolean)
+            .join(' · ')}
         </Text>
 
         <View style={styles.tags}>
@@ -145,7 +152,12 @@ function AdminBookRowBase({
         </View>
 
         {/* The one line that matters: the blocker, or how it is doing. */}
-        <Text size={11} leading={1.2} tone={blocked ? 'warning' : 'faint'} numberOfLines={1}>
+        <Text
+          size={11}
+          leading={1.2}
+          tone={blocked ? 'warning' : 'faint'}
+          numberOfLines={1}
+        >
           {blocked
             ? missingPdf
               ? 'Add a PDF to publish'
@@ -157,7 +169,12 @@ function AdminBookRowBase({
       </View>
 
       <View style={styles.chevron}>
-        <Icon icon={ChevronRight} size={15} color={colors.dim} strokeWidth={2} />
+        <Icon
+          icon={ChevronRight}
+          size={15}
+          color={colors.dim}
+          strokeWidth={2}
+        />
       </View>
     </Pressable>
   );

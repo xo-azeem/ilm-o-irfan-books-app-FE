@@ -31,7 +31,12 @@ export function ProfileSubScreenLayout({
 
   return (
     <Screen gap={gap} overlay={overlay}>
-      <ScreenHeader title={title} subtitle={subtitle} action={action} onBack={goBack} />
+      <ScreenHeader
+        title={title}
+        subtitle={subtitle}
+        action={action}
+        onBack={goBack}
+      />
       {children}
     </Screen>
   );

@@ -136,7 +136,9 @@ function unwrap<T>(result: {
     });
   }
   if (result.data == null) {
-    throw Object.assign(new Error('Expected data was not returned.'), { status: 404 });
+    throw Object.assign(new Error('Expected data was not returned.'), {
+      status: 404,
+    });
   }
   return result.data;
 }
@@ -152,7 +154,9 @@ function unwrap<T>(result: {
  * `undefined` is a real answer: a book with no cover file draws its
  * `cover_color` placeholder, which every cover component already does.
  */
-export function coverUrlFor(row: { coverUrl?: string | null }): string | undefined {
+export function coverUrlFor(row: {
+  coverUrl?: string | null;
+}): string | undefined {
   return row.coverUrl ?? undefined;
 }
 
@@ -165,7 +169,9 @@ function fromListItem(row: BookListItem): CatalogBook {
 }
 
 /** A `books` row selected with its author as a nested relation, not a column. */
-type JoinedBookRow = Omit<CatalogListRow, 'author_name'> & { authors?: unknown };
+type JoinedBookRow = Omit<CatalogListRow, 'author_name'> & {
+  authors?: unknown;
+};
 
 /**
  * A row read straight from a view, for the PostgREST fallbacks.
@@ -181,7 +187,9 @@ function fromViewRow(row: CatalogListRow): CatalogBook {
 function fromJoinedRow(row: JoinedBookRow): CatalogBook {
   return fromViewRow({
     ...row,
-    author_name: authorName(row.authors as { name: string } | { name: string }[] | null),
+    author_name: authorName(
+      row.authors as { name: string } | { name: string }[] | null,
+    ),
   });
 }
 
@@ -338,11 +346,17 @@ function railsFrom(feed: HomeFeedPayload | null, pool: BookListItem[]) {
 
   // `books-list` is already ordered newest-first, and `home-feed` sends the
   // same rows; merging keeps whatever the feed adds without duplicating it.
-  const catalogue = dedupeById([...pool, ...(feed?.books ?? [])]).map(fromListItem);
+  const catalogue = dedupeById([...pool, ...(feed?.books ?? [])]).map(
+    fromListItem,
+  );
 
   if (shelves) {
     return {
-      hero: railOr(shelves.hero, [...catalogue].sort(byRating), RAIL_TARGET.hero),
+      hero: railOr(
+        shelves.hero,
+        [...catalogue].sort(byRating),
+        RAIL_TARGET.hero,
+      ),
       trending: (shelves.trending ?? []).map(fromListItem),
       arrivals: railOr(shelves.newArrivals, catalogue, RAIL_TARGET.arrivals),
     };
@@ -388,15 +402,21 @@ function feedIsEnough(feed: HomeFeedPayload | null): boolean {
 }
 
 async function homeFromEndpoints(signal?: AbortSignal) {
-  const feed = await requestData<HomeFeedPayload>(ENDPOINTS.homeFeed, { signal });
+  const feed = await requestData<HomeFeedPayload>(ENDPOINTS.homeFeed, {
+    signal,
+  });
 
   // One round trip is enough when the feed already carries the whole of Home.
   // Otherwise the catalogue is read for what the rails are short of — the same
   // page the no-shelves path has always used.
   const pool = feedIsEnough(feed)
     ? []
-    : (await requestPage<BookListItem>(ENDPOINTS.booksList, { pageSize: HOME_POOL_SIZE, signal }))
-        .data;
+    : (
+        await requestPage<BookListItem>(ENDPOINTS.booksList, {
+          pageSize: HOME_POOL_SIZE,
+          signal,
+        })
+      ).data;
 
   return {
     // Rendered in the order given, or not at all. The backend already stands
@@ -418,34 +438,36 @@ async function homeFromEndpoints(signal?: AbortSignal) {
 }
 
 async function homeFromTables() {
-  const [hero, trending, arrivals, collections, categories] = await Promise.all([
-    supabase
-      .from('books')
-      .select(DETAIL_FIELDS)
-      .eq('is_published', true)
-      .order('rating', { ascending: false })
-      .limit(RAIL_TARGET.hero),
-    supabase
-      .from('book_list_items')
-      .select(LIST_FIELDS)
-      .order('rating', { ascending: false })
-      .limit(10),
-    supabase
-      .from('book_list_items')
-      .select(LIST_FIELDS)
-      .order('published_at', { ascending: false })
-      .limit(10),
-    supabase
-      .from('collection_summaries')
-      .select('id,title,subtitle,accent,kind,book_count,sort_order')
-      .order('sort_order')
-      .limit(10),
-    supabase
-      .from('category_with_counts')
-      .select('id,label,icon_key,accent,accent_dark,book_count,sort_order')
-      .order('sort_order')
-      .limit(10),
-  ]);
+  const [hero, trending, arrivals, collections, categories] = await Promise.all(
+    [
+      supabase
+        .from('books')
+        .select(DETAIL_FIELDS)
+        .eq('is_published', true)
+        .order('rating', { ascending: false })
+        .limit(RAIL_TARGET.hero),
+      supabase
+        .from('book_list_items')
+        .select(LIST_FIELDS)
+        .order('rating', { ascending: false })
+        .limit(10),
+      supabase
+        .from('book_list_items')
+        .select(LIST_FIELDS)
+        .order('published_at', { ascending: false })
+        .limit(10),
+      supabase
+        .from('collection_summaries')
+        .select('id,title,subtitle,accent,kind,book_count,sort_order')
+        .order('sort_order')
+        .limit(10),
+      supabase
+        .from('category_with_counts')
+        .select('id,label,icon_key,accent,accent_dark,book_count,sort_order')
+        .order('sort_order')
+        .limit(10),
+    ],
+  );
 
   return {
     // The carousel lives only behind its endpoint. There is no table read that
@@ -457,7 +479,9 @@ async function homeFromTables() {
     hero: unwrap(hero).map(fromJoinedRow),
     trending: unwrap(trending).map(row => fromViewRow(row as CatalogListRow)),
     arrivals: unwrap(arrivals).map(row => fromViewRow(row as CatalogListRow)),
-    collections: unwrap(collections).map(row => toCollection(row as CollectionRow)),
+    collections: unwrap(collections).map(row =>
+      toCollection(row as CollectionRow),
+    ),
     categories: unwrap(categories).map(row => toCategory(row as CategoryRow)),
     // The tables path has no `app_settings` grant for `anon`, so the feature
     // slot and the support address stay unset rather than failing the whole
@@ -483,8 +507,12 @@ export async function getHomeCatalog(signal?: AbortSignal) {
  * fallback — an undeployed function means no carousel, not a locally assembled
  * one.
  */
-export async function getCarousel(signal?: AbortSignal): Promise<CatalogSlide[]> {
-  const payload = await requestData<CarouselPayload>(ENDPOINTS.carouselList, { signal });
+export async function getCarousel(
+  signal?: AbortSignal,
+): Promise<CatalogSlide[]> {
+  const payload = await requestData<CarouselPayload>(ENDPOINTS.carouselList, {
+    signal,
+  });
   return (payload?.slides ?? []).map(toSlide);
 }
 
@@ -510,10 +538,13 @@ export async function getWeeklyTrending({
   limit = 10,
   signal,
 }: { limit?: number; signal?: AbortSignal } = {}): Promise<WeeklyTrending> {
-  const payload = await requestData<TrendingWeeklyPayload>(ENDPOINTS.trendingWeekly, {
-    query: { limit },
-    signal,
-  });
+  const payload = await requestData<TrendingWeeklyPayload>(
+    ENDPOINTS.trendingWeekly,
+    {
+      query: { limit },
+      signal,
+    },
+  );
 
   return {
     weekStart: payload?.weekStart ?? null,
@@ -590,7 +621,9 @@ export type BrowseParams = CatalogFilters & {
 function filterQuery(filters: CatalogFilters) {
   return {
     category: filters.categoryId ?? undefined,
-    language: filters.languages?.length ? filters.languages.join(',') : undefined,
+    language: filters.languages?.length
+      ? filters.languages.join(',')
+      : undefined,
     length: filters.lengths?.length ? filters.lengths.join(',') : undefined,
     premium: filters.membershipOnly ? true : undefined,
     minRating: filters.minRating,
@@ -639,7 +672,11 @@ export async function listBooks({
         // A subject the catalogue has since dropped answers 404 NOT_FOUND. That
         // is an empty shelf, not a broken tab — but an undeployed function is a
         // 404 too, and that one has to reach the fallback.
-        if (error instanceof ApiError && error.status === 404 && !isEndpointMissing(error)) {
+        if (
+          error instanceof ApiError &&
+          error.status === 404 &&
+          !isEndpointMissing(error)
+        ) {
           return emptyPage<CatalogBook>(page, pageSize);
         }
         throw error;
@@ -660,7 +697,9 @@ export async function listBooks({
 
       const result = await builder;
 
-      const rows = unwrap(result).map(row => fromViewRow(row as CatalogListRow));
+      const rows = unwrap(result).map(row =>
+        fromViewRow(row as CatalogListRow),
+      );
       const totalCount = result.count ?? null;
 
       return {
@@ -668,9 +707,12 @@ export async function listBooks({
         page,
         pageSize,
         totalCount,
-        totalPages: totalCount == null ? null : Math.ceil(totalCount / pageSize),
+        totalPages:
+          totalCount == null ? null : Math.ceil(totalCount / pageSize),
         hasNextPage:
-          totalCount == null ? rows.length === pageSize : page * pageSize < totalCount,
+          totalCount == null
+            ? rows.length === pageSize
+            : page * pageSize < totalCount,
         hasPreviousPage: page > 1,
       };
     },
@@ -715,7 +757,11 @@ export async function browseCatalog({
         });
         return { ...result, data: result.data.map(fromListItem) };
       } catch (error) {
-        if (error instanceof ApiError && error.status === 404 && !isEndpointMissing(error)) {
+        if (
+          error instanceof ApiError &&
+          error.status === 404 &&
+          !isEndpointMissing(error)
+        ) {
           return emptyPage<CatalogBook>(page, pageSize);
         }
         throw error;
@@ -753,9 +799,12 @@ export async function browseCatalog({
         page,
         pageSize,
         totalCount,
-        totalPages: totalCount == null ? null : Math.ceil(totalCount / pageSize),
+        totalPages:
+          totalCount == null ? null : Math.ceil(totalCount / pageSize),
         hasNextPage:
-          totalCount == null ? rows.length === pageSize : page * pageSize < totalCount,
+          totalCount == null
+            ? rows.length === pageSize
+            : page * pageSize < totalCount,
         hasPreviousPage: page > 1,
       };
     },
@@ -832,19 +881,27 @@ export async function getCollectionBooks({
       totalPages: payload?.totalPages ?? null,
       hasNextPage: payload?.hasNextPage ?? false,
       hasPreviousPage: payload?.hasPreviousPage ?? page > 1,
-      collection: payload?.collection ? toCollectionInfo(payload.collection) : null,
+      collection: payload?.collection
+        ? toCollectionInfo(payload.collection)
+        : null,
     };
   } catch (error) {
     // A collection that has been unpublished or renamed is an empty shelf, not
     // a failure. A missing *function* is still a fault and passes through.
-    if (error instanceof ApiError && error.status === 404 && !isEndpointMissing(error)) {
+    if (
+      error instanceof ApiError &&
+      error.status === 404 &&
+      !isEndpointMissing(error)
+    ) {
       return { ...emptyPage<CatalogBook>(page, pageSize), collection: null };
     }
     throw error;
   }
 }
 
-export async function getCategories(signal?: AbortSignal): Promise<CatalogCategory[]> {
+export async function getCategories(
+  signal?: AbortSignal,
+): Promise<CatalogCategory[]> {
   return withEndpoint(
     ENDPOINTS.categoriesList,
     async () => {
@@ -870,7 +927,8 @@ export async function getCategories(signal?: AbortSignal): Promise<CatalogCatego
 export async function getPlans(signal?: AbortSignal): Promise<PlanRow[]> {
   return withEndpoint(
     ENDPOINTS.plansList,
-    async () => (await requestData<PlanRow[]>(ENDPOINTS.plansList, { signal })) ?? [],
+    async () =>
+      (await requestData<PlanRow[]>(ENDPOINTS.plansList, { signal })) ?? [],
     async () => {
       const result = await supabase
         .from('plans')
@@ -902,7 +960,11 @@ export async function getBook(
         // A missing or unpublished book is an empty state, not a failure — but
         // an undeployed function is a 404 too, so that one has to pass through
         // to the fallback rather than being swallowed here as "no such book".
-        if (error instanceof ApiError && error.status === 404 && !isEndpointMissing(error)) {
+        if (
+          error instanceof ApiError &&
+          error.status === 404 &&
+          !isEndpointMissing(error)
+        ) {
           return null;
         }
         throw error;

@@ -18,7 +18,9 @@ function AppShell({ children }: PropsWithChildren) {
   const { colors, isDark } = useTheme();
 
   return (
-    <GestureHandlerRootView style={[styles.root, { backgroundColor: colors.background }]}>
+    <GestureHandlerRootView
+      style={[styles.root, { backgroundColor: colors.background }]}
+    >
       <SafeAreaProvider initialMetrics={initialWindowMetrics}>
         <StatusBar
           barStyle={isDark ? 'light-content' : 'dark-content'}

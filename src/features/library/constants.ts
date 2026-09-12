@@ -8,7 +8,9 @@ export function getLibraryPressHighlight(isDark: boolean) {
   return isDark ? theme.dark.fill : theme.light.fill;
 }
 
-export function getLibraryRipple(isDark: boolean): PressableAndroidRippleConfig | undefined {
+export function getLibraryRipple(
+  isDark: boolean,
+): PressableAndroidRippleConfig | undefined {
   if (Platform.OS !== 'android') {
     return undefined;
   }

@@ -6,7 +6,13 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Bookmark, ChevronLeft, MoreVertical, Play } from 'lucide-react-native';
 
 import type { RootStackParamList } from '@/app/navigation/types';
-import { AccessLabel, accessFor, BookCard, BookRail, type BookSummary } from '@/components/books';
+import {
+  AccessLabel,
+  accessFor,
+  BookCard,
+  BookRail,
+  type BookSummary,
+} from '@/components/books';
 import { Screen } from '@/components/layout';
 import { BookDetailSkeleton } from '@/components/skeletons/CatalogSkeletons';
 import {
@@ -21,7 +27,10 @@ import {
 } from '@/components/ui';
 import { ROUTES } from '@/constants/routes';
 import { CoverBackdrop } from '@/features/book-detail/components/CoverBackdrop';
-import { StatStrip, type Stat } from '@/features/book-detail/components/StatStrip';
+import {
+  StatStrip,
+  type Stat,
+} from '@/features/book-detail/components/StatStrip';
 import { useWishlistMutation, useWishlistStatus } from '@/hooks/useAccount';
 import { useBook, useHomeCatalog } from '@/hooks/useCatalog';
 import { useAccess } from '@/lib/access';
@@ -35,7 +44,10 @@ import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
 
 type BookDetailRouteProp = RouteProp<RootStackParamList, 'BookDetail'>;
-type BookDetailNavigationProp = NativeStackNavigationProp<RootStackParamList, 'BookDetail'>;
+type BookDetailNavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  'BookDetail'
+>;
 
 const DESCRIPTION_LINES = 3;
 
@@ -62,7 +74,8 @@ export function BookDetailScreen() {
   const { data: home } = useHomeCatalog();
   const { data: saved } = useWishlistStatus(bookId);
   const wishlistMutation = useWishlistMutation(bookId);
-  const { isAuthenticated, canOpenBooks, isSubscriptionLoading, reason } = useAccess();
+  const { isAuthenticated, canOpenBooks, isSubscriptionLoading, reason } =
+    useAccess();
 
   const [expanded, setExpanded] = useState(false);
 
@@ -122,7 +135,10 @@ export function BookDetailScreen() {
 
   const handleMore = useCallback(() => {
     Alert.alert(book?.title ?? 'Book', undefined, [
-      { text: saved ? 'Remove from library' : 'Save to library', onPress: handleWishlist },
+      {
+        text: saved ? 'Remove from library' : 'Save to library',
+        onPress: handleWishlist,
+      },
       { text: 'Cancel', style: 'cancel' },
     ]);
   }, [book?.title, handleWishlist, saved]);
@@ -155,7 +171,8 @@ export function BookDetailScreen() {
 
   // "Readers also loved" — trending titles other than this one.
   const alsoLoved = useMemo(
-    () => (home?.trending ?? []).filter(other => other.id !== bookId).slice(0, 6),
+    () =>
+      (home?.trending ?? []).filter(other => other.id !== bookId).slice(0, 6),
     [bookId, home?.trending],
   );
 
@@ -182,14 +199,18 @@ export function BookDetailScreen() {
     );
   }
 
-  const coverColor = (isDark ? book.coverColorDark : book.coverColor) ?? undefined;
+  const coverColor =
+    (isDark ? book.coverColorDark : book.coverColor) ?? undefined;
   const access = accessFor(book);
   const isUrdu = isUrduTitle(book.title);
 
   return (
     <Screen
       gap={18}
-      backdrop={<CoverBackdrop coverUrl={book.coverUrl} coverColor={coverColor} />}>
+      backdrop={
+        <CoverBackdrop coverUrl={book.coverUrl} coverColor={coverColor} />
+      }
+    >
       <View style={styles.chrome}>
         <IconButton
           icon={ChevronLeft}
@@ -202,7 +223,9 @@ export function BookDetailScreen() {
             icon={Bookmark}
             onPress={handleWishlist}
             variant={saved ? 'ghost' : 'plain'}
-            accessibilityLabel={saved ? 'Remove from library' : 'Save to library'}
+            accessibilityLabel={
+              saved ? 'Remove from library' : 'Save to library'
+            }
           />
           <IconButton
             icon={MoreVertical}
@@ -249,11 +272,16 @@ export function BookDetailScreen() {
           size={fontSize.bodySmall}
           leading={1.7}
           tone="soft"
-          numberOfLines={expanded ? undefined : DESCRIPTION_LINES}>
+          numberOfLines={expanded ? undefined : DESCRIPTION_LINES}
+        >
           {book.description}
         </Text>
         {!expanded ? (
-          <TextButton label="Read more" onPress={() => setExpanded(true)} style={styles.readMore} />
+          <TextButton
+            label="Read more"
+            onPress={() => setExpanded(true)}
+            style={styles.readMore}
+          />
         ) : null}
       </View>
 

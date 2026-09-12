@@ -53,7 +53,13 @@ export const AccessLabel = memo(function AccessLabel({
       : 'IN YOUR LIBRARY';
 
   if (variant === 'badge') {
-    return <Badge label={label} tone={access.kind === 'membership' ? 'gold' : 'primary'} bordered />;
+    return (
+      <Badge
+        label={label}
+        tone={access.kind === 'membership' ? 'gold' : 'primary'}
+        bordered
+      />
+    );
   }
 
   return (
@@ -61,7 +67,8 @@ export const AccessLabel = memo(function AccessLabel({
       size={fontSize.labelSmall}
       leading={1}
       weight="600"
-      tone={access.kind === 'membership' ? 'gold' : 'primary'}>
+      tone={access.kind === 'membership' ? 'gold' : 'primary'}
+    >
       {label}
     </Text>
   );

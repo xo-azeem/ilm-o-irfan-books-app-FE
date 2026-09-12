@@ -1,7 +1,16 @@
 import { memo, useCallback } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { Button, Chip, ChipWrap, Label, Sheet, Text, TextButton, Toggle } from '@/components/ui';
+import {
+  Button,
+  Chip,
+  ChipWrap,
+  Label,
+  Sheet,
+  Text,
+  TextButton,
+  Toggle,
+} from '@/components/ui';
 import {
   LANGUAGE_LABELS,
   LANGUAGES,
@@ -63,7 +72,10 @@ export const FilterSheet = memo(function FilterSheet({
   onSortChange,
   searching,
 }: FilterSheetProps) {
-  const clearCategory = useCallback(() => onCategoryChange(null), [onCategoryChange]);
+  const clearCategory = useCallback(
+    () => onCategoryChange(null),
+    [onCategoryChange],
+  );
   const clearSort = useCallback(() => onSortChange(null), [onSortChange]);
 
   return (
@@ -75,12 +87,15 @@ export const FilterSheet = memo(function FilterSheet({
       footer={
         <Button
           label={
-            resultCount === 1 ? 'Show 1 book' : `Show ${resultCount.toLocaleString('en-US')} books`
+            resultCount === 1
+              ? 'Show 1 book'
+              : `Show ${resultCount.toLocaleString('en-US')} books`
           }
           onPress={onClose}
           size="md"
         />
-      }>
+      }
+    >
       {categories.length > 0 ? (
         <View style={styles.group}>
           <Label>Subject</Label>
@@ -136,7 +151,12 @@ export const FilterSheet = memo(function FilterSheet({
       <View style={styles.access}>
         <Label>Access</Label>
         <View style={styles.toggleRow}>
-          <Text size={fontSize.body} leading={1.2} tone="soft" style={styles.grow}>
+          <Text
+            size={fontSize.body}
+            leading={1.2}
+            tone="soft"
+            style={styles.grow}
+          >
             Only books in my membership
           </Text>
           <Toggle
@@ -146,7 +166,12 @@ export const FilterSheet = memo(function FilterSheet({
           />
         </View>
         <View style={styles.toggleRow}>
-          <Text size={fontSize.body} leading={1.2} tone="soft" style={styles.grow}>
+          <Text
+            size={fontSize.body}
+            leading={1.2}
+            tone="soft"
+            style={styles.grow}
+          >
             Downloaded only
           </Text>
           <Toggle
@@ -156,7 +181,12 @@ export const FilterSheet = memo(function FilterSheet({
           />
         </View>
         <View style={styles.toggleRow}>
-          <Text size={fontSize.body} leading={1.2} tone="soft" style={styles.grow}>
+          <Text
+            size={fontSize.body}
+            leading={1.2}
+            tone="soft"
+            style={styles.grow}
+          >
             Rated 4★ and up
           </Text>
           <Toggle
@@ -219,7 +249,13 @@ const LanguageChip = memo(function LanguageChip({
   onToggle: (value: LanguageFilter) => void;
 }) {
   const handlePress = useCallback(() => onToggle(value), [onToggle, value]);
-  return <Chip label={LANGUAGE_LABELS[value]} selected={selected} onPress={handlePress} />;
+  return (
+    <Chip
+      label={LANGUAGE_LABELS[value]}
+      selected={selected}
+      onPress={handlePress}
+    />
+  );
 });
 
 const LengthChip = memo(function LengthChip({
@@ -232,7 +268,13 @@ const LengthChip = memo(function LengthChip({
   onToggle: (value: LengthFilter) => void;
 }) {
   const handlePress = useCallback(() => onToggle(value), [onToggle, value]);
-  return <Chip label={LENGTH_LABELS[value]} selected={selected} onPress={handlePress} />;
+  return (
+    <Chip
+      label={LENGTH_LABELS[value]}
+      selected={selected}
+      onPress={handlePress}
+    />
+  );
 });
 
 /** Re-picking the active order returns to the server's default. */
@@ -249,7 +291,13 @@ const SortChip = memo(function SortChip({
     () => onToggle(selected ? null : value),
     [onToggle, selected, value],
   );
-  return <Chip label={SORT_LABELS[value]} selected={selected} onPress={handlePress} />;
+  return (
+    <Chip
+      label={SORT_LABELS[value]}
+      selected={selected}
+      onPress={handlePress}
+    />
+  );
 });
 
 const styles = StyleSheet.create({

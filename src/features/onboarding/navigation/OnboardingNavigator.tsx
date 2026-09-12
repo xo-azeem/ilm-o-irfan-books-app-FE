@@ -27,7 +27,8 @@ export function OnboardingNavigator() {
   return (
     <Stack.Navigator
       initialRouteName="OnboardingWelcome"
-      screenOptions={{ headerShown: false, contentStyle }}>
+      screenOptions={{ headerShown: false, contentStyle }}
+    >
       <Stack.Screen
         name="OnboardingWelcome"
         component={WelcomeScreen}

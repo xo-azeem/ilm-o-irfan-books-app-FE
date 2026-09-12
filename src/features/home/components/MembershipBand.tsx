@@ -31,7 +31,8 @@ export const MembershipBand = memo(function MembershipBand({
         styles.band,
         { borderColor: colors.goldBorder },
         pressed && styles.pressed,
-      ]}>
+      ]}
+    >
       <LinearGradient
         angle={135}
         stops={[
@@ -44,7 +45,8 @@ export const MembershipBand = memo(function MembershipBand({
         style={[
           styles.mark,
           { backgroundColor: colors.goldFill, borderColor: colors.goldBorder },
-        ]}>
+        ]}
+      >
         <Display size={17} tone="gold">
           ∞
         </Display>

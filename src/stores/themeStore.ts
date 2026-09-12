@@ -86,7 +86,9 @@ export function applyThemePreference(preference: ThemePreference) {
   try {
     // RN 0.82+ removed nullable support; 'unspecified' resets to the system
     // theme. Wrapped defensively so a native failure never crashes the app.
-    Appearance.setColorScheme(preference === 'system' ? 'unspecified' : preference);
+    Appearance.setColorScheme(
+      preference === 'system' ? 'unspecified' : preference,
+    );
   } catch (error) {
     if (__DEV__) {
       console.warn('[theme] Failed to apply color scheme', error);
@@ -96,10 +98,18 @@ export function applyThemePreference(preference: ThemePreference) {
 
 type ThemeSettings = Pick<
   ThemeState,
-  'themePreference' | 'fontScale' | 'pageTone' | 'readingMode' | 'keepScreenAwake'
+  | 'themePreference'
+  | 'fontScale'
+  | 'pageTone'
+  | 'readingMode'
+  | 'keepScreenAwake'
 >;
 
-function pick<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
+function pick<T extends string>(
+  value: unknown,
+  allowed: readonly T[],
+  fallback: T,
+): T {
   return allowed.includes(value as T) ? (value as T) : fallback;
 }
 
@@ -165,7 +175,10 @@ export const useThemeStore = create<ThemeState>()(
       // wrong on any launch — hand-edited storage, a downgrade, a half-written
       // record. `merge` runs on every hydration, so validation lives here and
       // the version stays free for real schema moves.
-      merge: (persisted, current) => ({ ...current, ...sanitizeSettings(persisted) }),
+      merge: (persisted, current) => ({
+        ...current,
+        ...sanitizeSettings(persisted),
+      }),
 
       // Runs synchronously with MMKV, so the saved theme is applied to the
       // native Appearance before the first frame paints.

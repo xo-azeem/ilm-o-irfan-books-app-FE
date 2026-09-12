@@ -18,7 +18,12 @@ export class ApiError extends Error {
    */
   readonly fromGateway: boolean;
 
-  constructor(message: string, status: number, code?: string, fromGateway = false) {
+  constructor(
+    message: string,
+    status: number,
+    code?: string,
+    fromGateway = false,
+  ) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
@@ -45,13 +50,19 @@ export function readError(payload: unknown, status: number): ApiError {
   const raw = body.error;
 
   if (typeof raw === 'string') {
-    return new ApiError(raw, status, typeof body.code === 'string' ? body.code : undefined);
+    return new ApiError(
+      raw,
+      status,
+      typeof body.code === 'string' ? body.code : undefined,
+    );
   }
 
   if (raw && typeof raw === 'object') {
     const shaped = raw as { code?: unknown; message?: unknown };
     return new ApiError(
-      typeof shaped.message === 'string' ? shaped.message : `Request failed (${status}).`,
+      typeof shaped.message === 'string'
+        ? shaped.message
+        : `Request failed (${status}).`,
       status,
       typeof shaped.code === 'string'
         ? shaped.code

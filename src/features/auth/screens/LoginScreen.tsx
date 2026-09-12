@@ -20,7 +20,8 @@ function isValidEmail(email: string): boolean {
 }
 
 export function LoginScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'Login'>>();
   const returnTo = route.params?.returnTo;
 
@@ -48,7 +49,10 @@ export function LoginScreen() {
       }
       resumeAfterAuth(navigation, returnTo);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to sign in. Try again.';
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Unable to sign in. Try again.';
       Alert.alert('Sign in failed', message);
     } finally {
       setIsSubmitting(false);
@@ -69,7 +73,8 @@ export function LoginScreen() {
   }, [navigation]);
 
   const goToSignUp = useCallback(
-    () => navigation.navigate(ROUTES.SIGN_UP, returnTo ? { returnTo } : undefined),
+    () =>
+      navigation.navigate(ROUTES.SIGN_UP, returnTo ? { returnTo } : undefined),
     [navigation, returnTo],
   );
 
@@ -90,9 +95,14 @@ export function LoginScreen() {
           <Text size={fontSize.bodySmall} leading={1} tone="muted">
             New here?
           </Text>
-          <TextButton label="Create an account" onPress={goToSignUp} size={fontSize.bodySmall} />
+          <TextButton
+            label="Create an account"
+            onPress={goToSignUp}
+            size={fontSize.bodySmall}
+          />
         </View>
-      }>
+      }
+    >
       <View style={styles.fields}>
         <AuthField
           label="Email"

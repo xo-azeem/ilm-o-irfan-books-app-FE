@@ -37,7 +37,11 @@ export const CoverBackdrop = memo(function CoverBackdrop({
           />
           {/* iOS gets the real blur; Android uses Image's own cheaper blurRadius. */}
           {Platform.OS === 'ios' ? (
-            <BlurView style={StyleSheet.absoluteFill} blurType="dark" blurAmount={26} />
+            <BlurView
+              style={StyleSheet.absoluteFill}
+              blurType="dark"
+              blurAmount={26}
+            />
           ) : null}
         </>
       ) : (

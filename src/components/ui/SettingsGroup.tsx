@@ -1,8 +1,25 @@
-import { Children, Fragment, isValidElement, memo, type ReactNode } from 'react';
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  Children,
+  Fragment,
+  isValidElement,
+  memo,
+  type ReactNode,
+} from 'react';
+import {
+  Pressable,
+  StyleSheet,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
 
-import { Icon, IconTile, type IconTileTone, type LucideIcon } from '@/components/ui/Icon';
+import {
+  Icon,
+  IconTile,
+  type IconTileTone,
+  type LucideIcon,
+} from '@/components/ui/Icon';
 import { Divider } from '@/components/ui/Surface';
 import { Label, Text } from '@/components/ui/Text';
 import { RadioDot, Toggle } from '@/components/ui/Toggle';
@@ -30,12 +47,17 @@ export const SettingsGroup = memo(function SettingsGroup({
 
   return (
     <View style={[styles.group, style]}>
-      {title ? <Label size={fontSize.labelSmall + 0.5} tracking={1.5}>{title}</Label> : null}
+      {title ? (
+        <Label size={fontSize.labelSmall + 0.5} tracking={1.5}>
+          {title}
+        </Label>
+      ) : null}
       <View
         style={[
           styles.card,
           { backgroundColor: colors.surface, borderColor: colors.border },
-        ]}>
+        ]}
+      >
         {rows.map((row, index) => (
           <Fragment key={row.key ?? index}>
             {index > 0 ? <Divider /> : null}
@@ -88,13 +110,16 @@ export const SettingsRow = memo(function SettingsRow({
 
   const content = (
     <>
-      {icon ? <IconTile icon={icon} tileTone={danger ? 'danger' : iconTone} /> : null}
+      {icon ? (
+        <IconTile icon={icon} tileTone={danger ? 'danger' : iconTone} />
+      ) : null}
       <View style={styles.rowBody}>
         <Text
           size={dense ? fontSize.bodySmall : fontSize.body}
           leading={subtitle ? 1.2 : 1}
           tone={danger ? 'danger' : 'ink'}
-          weight={danger ? '500' : '400'}>
+          weight={danger ? '500' : '400'}
+        >
           {title}
         </Text>
         {subtitle ? (
@@ -117,7 +142,9 @@ export const SettingsRow = memo(function SettingsRow({
       ) : null}
       {selected !== undefined ? <RadioDot selected={selected} /> : null}
       {trailing}
-      {showChevron ? <Icon icon={ChevronRight} size={15} color={colors.dim} /> : null}
+      {showChevron ? (
+        <Icon icon={ChevronRight} size={15} color={colors.dim} />
+      ) : null}
     </>
   );
 
@@ -125,7 +152,8 @@ export const SettingsRow = memo(function SettingsRow({
 
   // Toggling from anywhere on the row is the expected behaviour; a row that
   // only holds a switch still needs the whole strip to be tappable.
-  const handlePress = onPress ?? (toggle ? () => toggle.onValueChange(!toggle.value) : undefined);
+  const handlePress =
+    onPress ?? (toggle ? () => toggle.onValueChange(!toggle.value) : undefined);
 
   if (!handlePress) {
     return <View style={rowStyle}>{content}</View>;
@@ -133,15 +161,22 @@ export const SettingsRow = memo(function SettingsRow({
 
   return (
     <Pressable
-      accessibilityRole={toggle ? 'switch' : selected !== undefined ? 'radio' : 'button'}
+      accessibilityRole={
+        toggle ? 'switch' : selected !== undefined ? 'radio' : 'button'
+      }
       accessibilityState={
-        toggle ? { checked: toggle.value } : selected !== undefined ? { selected } : undefined
+        toggle
+          ? { checked: toggle.value }
+          : selected !== undefined
+            ? { selected }
+            : undefined
       }
       onPress={handlePress}
       style={({ pressed }) => [
         ...rowStyle,
         pressed && { backgroundColor: colors.primaryFillSoft },
-      ]}>
+      ]}
+    >
       {content}
     </Pressable>
   );

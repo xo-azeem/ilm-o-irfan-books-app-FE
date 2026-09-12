@@ -1,7 +1,12 @@
 import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { SkeletonBone, SkeletonCover, SkeletonPulse, SkeletonRail } from '@/components/ui';
+import {
+  SkeletonBone,
+  SkeletonCover,
+  SkeletonPulse,
+  SkeletonRail,
+} from '@/components/ui';
 import { layout, radius } from '@/theme/palette';
 import { useTheme } from '@/theme/ThemeContext';
 
@@ -30,7 +35,8 @@ export const HomeCatalogSkeleton = memo(function HomeCatalogSkeleton() {
           style={[
             styles.hero,
             { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
-          ]}>
+          ]}
+        >
           <View style={styles.heroTop}>
             <SkeletonCover width={112} shimmer />
             <View style={styles.heroText}>
@@ -101,7 +107,12 @@ export const ListSkeleton = memo(function ListSkeleton({
           <View key={index} style={styles.listRow}>
             <SkeletonCover width={coverWidth} shimmer={index === 0} />
             <View style={styles.listBody}>
-              <SkeletonBone width="72%" height={15} radius={7} shimmer={index === 0} />
+              <SkeletonBone
+                width="72%"
+                height={15}
+                radius={7}
+                shimmer={index === 0}
+              />
               <SkeletonBone width="46%" height={11} radius={6} />
               <SkeletonBone width={90} height={10} radius={5} />
             </View>
@@ -140,16 +151,18 @@ export const LibraryFinishedSkeleton = memo(function LibraryFinishedSkeleton() {
   return <ListSkeleton count={4} coverWidth={48} />;
 });
 
-export const DownloadsCatalogSkeleton = memo(function DownloadsCatalogSkeleton() {
-  return (
-    <SkeletonPulse>
-      <View style={styles.root}>
-        <SkeletonBone height={96} radius={radius.card} shimmer />
-        <ListSkeleton count={4} coverWidth={48} />
-      </View>
-    </SkeletonPulse>
-  );
-});
+export const DownloadsCatalogSkeleton = memo(
+  function DownloadsCatalogSkeleton() {
+    return (
+      <SkeletonPulse>
+        <View style={styles.root}>
+          <SkeletonBone height={96} radius={radius.card} shimmer />
+          <ListSkeleton count={4} coverWidth={48} />
+        </View>
+      </SkeletonPulse>
+    );
+  },
+);
 
 /** The book detail hero: a centred cover, title block and stat strip. */
 export const BookDetailSkeleton = memo(function BookDetailSkeleton() {
@@ -180,12 +193,23 @@ export const AdminStatsSkeleton = memo(function AdminStatsSkeleton() {
         <SkeletonBone height={62} radius={radius.button} shimmer />
         <View style={styles.tileRow}>
           {Array.from({ length: 3 }, (_, index) => (
-            <SkeletonBone key={index} height={70} radius={14} style={styles.grow} shimmer={index === 0} />
+            <SkeletonBone
+              key={index}
+              height={70}
+              radius={14}
+              style={styles.grow}
+              shimmer={index === 0}
+            />
           ))}
         </View>
         <View style={styles.tileRow}>
           {Array.from({ length: 4 }, (_, index) => (
-            <SkeletonBone key={index} height={62} radius={14} style={styles.grow} />
+            <SkeletonBone
+              key={index}
+              height={62}
+              radius={14}
+              style={styles.grow}
+            />
           ))}
         </View>
         <SkeletonBone height={140} radius={radius.button} />
@@ -206,7 +230,12 @@ export const ListRowsSkeleton = memo(function ListRowsSkeleton({
     <SkeletonPulse>
       <View style={styles.rows}>
         {Array.from({ length: count }, (_, index) => (
-          <SkeletonBone key={index} height={height} radius={14} shimmer={index === 0} />
+          <SkeletonBone
+            key={index}
+            height={height}
+            radius={14}
+            shimmer={index === 0}
+          />
         ))}
       </View>
     </SkeletonPulse>

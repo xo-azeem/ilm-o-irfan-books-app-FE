@@ -63,7 +63,11 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
 
       if (!session) {
         if (mounted && my === seq) {
-          setAccessRole({ isAdmin: false, roleResolved: true, accessCheckedFor: null });
+          setAccessRole({
+            isAdmin: false,
+            roleResolved: true,
+            accessCheckedFor: null,
+          });
         }
         return;
       }

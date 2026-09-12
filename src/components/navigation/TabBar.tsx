@@ -61,7 +61,8 @@ export const TabBar = memo(function TabBar({
           paddingBottom: Math.max(insets.bottom, 8) + metrics.gap,
           paddingHorizontal: metrics.inset,
         },
-      ]}>
+      ]}
+    >
       <View
         style={[
           styles.bar,
@@ -71,7 +72,8 @@ export const TabBar = memo(function TabBar({
             backgroundColor: colors.tabBarSurface,
             borderColor: colors.tabBarBorder,
           },
-        ]}>
+        ]}
+      >
         {tabs.map(route => (
           <Tab
             key={route.key}
@@ -134,7 +136,9 @@ const Tab = memo(function Tab({
   }, [pill, showPill]);
 
   const pressStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: withTiming(pressed.value === 1 ? 0.9 : 1, PRESS_TIMING) }],
+    transform: [
+      { scale: withTiming(pressed.value === 1 ? 0.9 : 1, PRESS_TIMING) },
+    ],
   }));
 
   // The pill fades up and grows the last little way into place rather than
@@ -172,15 +176,24 @@ const Tab = memo(function Tab({
       style={styles.tab}
       accessibilityRole="button"
       accessibilityState={{ selected: isFocused }}
-      accessibilityLabel={label}>
+      accessibilityLabel={label}
+    >
       <Animated.View
-        style={[styles.tabInner, variant === 'admin' && styles.tabInnerAdmin, pressStyle]}>
+        style={[
+          styles.tabInner,
+          variant === 'admin' && styles.tabInnerAdmin,
+          pressStyle,
+        ]}
+      >
         {variant === 'reader' ? (
           <Animated.View
             pointerEvents="none"
             style={[
               styles.pill,
-              { backgroundColor: colors.tabSelection, borderColor: colors.tabSelectionRim },
+              {
+                backgroundColor: colors.tabSelection,
+                borderColor: colors.tabSelectionRim,
+              },
               pillStyle,
             ]}
           />
@@ -195,11 +208,20 @@ const Tab = memo(function Tab({
         <Text
           size={variant === 'admin' ? 10 : 9.5}
           leading={1}
-          weight={variant === 'admin' ? (isFocused ? '500' : '400') : isFocused ? '600' : '500'}
+          weight={
+            variant === 'admin'
+              ? isFocused
+                ? '500'
+                : '400'
+              : isFocused
+                ? '600'
+                : '500'
+          }
           tracking={variant === 'admin' ? 0 : 0.4}
           tone="inherit"
           numberOfLines={1}
-          style={{ color: isFocused ? colors.tabActive : colors.tabInactive }}>
+          style={{ color: isFocused ? colors.tabActive : colors.tabInactive }}
+        >
           {label}
         </Text>
       </Animated.View>

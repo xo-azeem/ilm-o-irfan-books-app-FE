@@ -73,7 +73,8 @@ export function AdminAnalyticsScreen() {
   return (
     <SafeAreaView
       style={[styles.root, { backgroundColor: colors.background }]}
-      edges={['top', 'left', 'right']}>
+      edges={['top', 'left', 'right']}
+    >
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <AdminBackLink label="System" />
       </View>
@@ -86,10 +87,16 @@ export function AdminAnalyticsScreen() {
           paddingBottom: scrollEndPadding + 20,
           gap: 16,
         }}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.titleBlock}>
           <AdminScreenTitle title="Analytics" />
-          <AdminSegmented options={RANGE_OPTIONS} value={range} onChange={setRange} compact />
+          <AdminSegmented
+            options={RANGE_OPTIONS}
+            value={range}
+            onChange={setRange}
+            compact
+          />
         </View>
 
         {isLoading ? (
@@ -121,7 +128,9 @@ export function AdminAnalyticsScreen() {
               <AdminStat
                 label="New readers"
                 value={data.audience.new_in_period}
-                hint={signupsDelta === null ? undefined : formatDelta(signupsDelta)}
+                hint={
+                  signupsDelta === null ? undefined : formatDelta(signupsDelta)
+                }
                 tone="success"
               />
               <AdminStat label="Downloads" value={sum(data.downloads)} />
@@ -179,14 +188,24 @@ export function AdminAnalyticsScreen() {
             </View>
 
             <AdminStatRow>
-              <AdminStat label="Published" value={data.catalog.published} tone="success" />
+              <AdminStat
+                label="Published"
+                value={data.catalog.published}
+                tone="success"
+              />
               <AdminStat label="Drafts" value={data.catalog.draft} />
-              <AdminStat label="Premium" value={data.catalog.premium} tone="accent" />
+              <AdminStat
+                label="Premium"
+                value={data.catalog.premium}
+                tone="accent"
+              />
               <AdminStat
                 label="Missing files"
                 value={data.catalog.missing_pdf + data.catalog.missing_cover}
                 tone={
-                  data.catalog.missing_pdf + data.catalog.missing_cover > 0 ? 'warning' : undefined
+                  data.catalog.missing_pdf + data.catalog.missing_cover > 0
+                    ? 'warning'
+                    : undefined
                 }
               />
             </AdminStatRow>
@@ -205,7 +224,10 @@ function sum(points: TimeSeriesPoint[] | undefined): number {
  * The percentage change between this window and the one before it, read off a
  * series twice as long. Returns null when there is nothing to compare against.
  */
-function useDelta(doubled: TimeSeriesPoint[] | undefined, days: number): number | null {
+function useDelta(
+  doubled: TimeSeriesPoint[] | undefined,
+  days: number,
+): number | null {
   return useMemo(() => {
     const series = doubled ?? [];
     if (series.length < days * 2) {

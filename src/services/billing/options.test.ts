@@ -49,14 +49,26 @@ const plans: PlanLike[] = [
 
 describe('matching a store package to a plan', () => {
   it('matches on revenuecat_product_id, as the webhook does', () => {
-    assert.equal(planForPackage(yearly, plans, DEFAULT_CODE)?.code, 'premium_yearly');
-    assert.equal(planForPackage(monthly, plans, DEFAULT_CODE)?.code, DEFAULT_CODE);
+    assert.equal(
+      planForPackage(yearly, plans, DEFAULT_CODE)?.code,
+      'premium_yearly',
+    );
+    assert.equal(
+      planForPackage(monthly, plans, DEFAULT_CODE)?.code,
+      DEFAULT_CODE,
+    );
   });
 
   it('falls back to the default plan code, mirroring the webhook', () => {
-    const unknown: PackageLike = { ...monthly, productId: 'ilm_something_else' };
+    const unknown: PackageLike = {
+      ...monthly,
+      productId: 'ilm_something_else',
+    };
 
-    assert.equal(planForPackage(unknown, plans, DEFAULT_CODE)?.code, DEFAULT_CODE);
+    assert.equal(
+      planForPackage(unknown, plans, DEFAULT_CODE)?.code,
+      DEFAULT_CODE,
+    );
   });
 
   it('answers undefined when there are no plans at all', () => {
@@ -67,12 +79,19 @@ describe('matching a store package to a plan', () => {
 
 describe('building the paywall rows', () => {
   it('pairs the admin copy with the store price', () => {
-    const [first, second] = buildMembershipRows([yearly, monthly], plans, DEFAULT_CODE);
+    const [first, second] = buildMembershipRows(
+      [yearly, monthly],
+      plans,
+      DEFAULT_CODE,
+    );
 
     assert.equal(first.name, 'Yearly');
     assert.equal(first.priceString, 'Rs 3,900.00');
     assert.equal(first.interval, 'year');
-    assert.deepEqual(first.features, ['Every book, unlimited', 'Offline downloads']);
+    assert.deepEqual(first.features, [
+      'Every book, unlimited',
+      'Offline downloads',
+    ]);
 
     assert.equal(second.name, 'Monthly');
     assert.equal(second.priceString, 'Rs 490.00');
@@ -121,7 +140,10 @@ describe('building the paywall rows', () => {
 
   it('drops empty feature strings rather than drawing blank bullets', () => {
     const sparse: PlanLike[] = [
-      { ...plans[1], features: ['Every book, unlimited', '', null as unknown as string] },
+      {
+        ...plans[1],
+        features: ['Every book, unlimited', '', null as unknown as string],
+      },
     ];
     const [row] = buildMembershipRows([monthly], sparse, DEFAULT_CODE);
 
@@ -143,7 +165,9 @@ describe('the "from …" price', () => {
 
 describe('the default pitch bullets', () => {
   it('prefers the default plan', () => {
-    assert.deepEqual(defaultFeatures(plans, DEFAULT_CODE), ['Every book, unlimited']);
+    assert.deepEqual(defaultFeatures(plans, DEFAULT_CODE), [
+      'Every book, unlimited',
+    ]);
   });
 
   it('falls back to the first plan when the default is absent', () => {

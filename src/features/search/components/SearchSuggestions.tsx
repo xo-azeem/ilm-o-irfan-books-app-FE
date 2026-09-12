@@ -7,8 +7,7 @@ import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
 
 export type Suggestion =
-  | { kind: 'query'; value: string }
-  | { kind: 'author'; value: string };
+  { kind: 'query'; value: string } | { kind: 'author'; value: string };
 
 /**
  * Query completions and author matches, shown above the results while the
@@ -55,20 +54,26 @@ const SuggestionRow = memo(function SuggestionRow({
   onSelect: (suggestion: Suggestion) => void;
 }) {
   const { colors } = useTheme();
-  const handlePress = useCallback(() => onSelect(suggestion), [onSelect, suggestion]);
+  const handlePress = useCallback(
+    () => onSelect(suggestion),
+    [onSelect, suggestion],
+  );
 
   // The typed portion stays bright; the completion recedes, so the reader can
   // see at a glance what tapping would add.
   const typed = suggestion.value.slice(0, query.length);
   const rest = suggestion.value.slice(query.length);
-  const matchesPrefix = suggestion.value.toLowerCase().startsWith(query.toLowerCase());
+  const matchesPrefix = suggestion.value
+    .toLowerCase()
+    .startsWith(query.toLowerCase());
 
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={suggestion.value}
       onPress={handlePress}
-      style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
+      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+    >
       {suggestion.kind === 'author' ? (
         <View style={[styles.authorMark, { backgroundColor: colors.goldFill }]}>
           <Text size={9} leading={1} weight="600" tone="gold">
@@ -79,7 +84,12 @@ const SuggestionRow = memo(function SuggestionRow({
         <Icon icon={Search} size={16} tone="faint" strokeWidth={1.8} />
       )}
 
-      <Text size={fontSize.body} leading={1.2} numberOfLines={1} style={styles.grow}>
+      <Text
+        size={fontSize.body}
+        leading={1.2}
+        numberOfLines={1}
+        style={styles.grow}
+      >
         {matchesPrefix ? typed : suggestion.value}
         {matchesPrefix ? (
           <Text size={fontSize.body} leading={1.2} tone="muted">

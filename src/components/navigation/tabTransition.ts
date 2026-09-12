@@ -1,7 +1,9 @@
 import { Easing } from 'react-native';
 import type { BottomTabNavigationOptions } from '@react-navigation/bottom-tabs';
 
-type SceneInterpolator = NonNullable<BottomTabNavigationOptions['sceneStyleInterpolator']>;
+type SceneInterpolator = NonNullable<
+  BottomTabNavigationOptions['sceneStyleInterpolator']
+>;
 
 /**
  * How far a scene drifts on its way in or out, in points.

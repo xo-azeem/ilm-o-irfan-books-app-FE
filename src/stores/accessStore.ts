@@ -134,8 +134,12 @@ export const useAccessStore = create<AccessStore>()((set, get) => {
     // The server's clock is the reference. A reply with no `serverTime` — an
     // older deployment — leaves the offset where it was rather than resetting
     // it to zero and quietly trusting the device again.
-    const serverMs = state.serverTime ? Date.parse(state.serverTime) : Number.NaN;
-    const clockOffsetMs = Number.isFinite(serverMs) ? serverMs - now : get().clockOffsetMs;
+    const serverMs = state.serverTime
+      ? Date.parse(state.serverTime)
+      : Number.NaN;
+    const clockOffsetMs = Number.isFinite(serverMs)
+      ? serverMs - now
+      : get().clockOffsetMs;
 
     const highWaterMs = Math.max(get().highWaterMs, now + clockOffsetMs);
 

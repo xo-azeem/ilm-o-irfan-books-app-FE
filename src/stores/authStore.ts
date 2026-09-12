@@ -28,7 +28,9 @@ type AuthState = {
   signOut: () => Promise<void>;
 };
 
-function userFromSession(session: Session | null): Pick<User, 'id' | 'email'> | null {
+function userFromSession(
+  session: Session | null,
+): Pick<User, 'id' | 'email'> | null {
   if (!session?.user) {
     return null;
   }

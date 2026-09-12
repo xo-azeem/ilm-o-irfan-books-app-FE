@@ -58,7 +58,9 @@ export async function listAdminUsers(
   };
 }
 
-export async function getAdminUserDetail(userId: string): Promise<AdminUserDetail> {
+export async function getAdminUserDetail(
+  userId: string,
+): Promise<AdminUserDetail> {
   const data = unwrap(
     await supabase.rpc('admin_user_detail', { p_user_id: userId }),
   ) as AdminUserDetail;
@@ -74,7 +76,12 @@ export async function getAdminUserDetail(userId: string): Promise<AdminUserDetai
 }
 
 export async function setAdminUserRole(userId: string, role: 'user' | 'admin') {
-  assertOk(await supabase.rpc('admin_set_user_role', { target_id: userId, new_role: role }));
+  assertOk(
+    await supabase.rpc('admin_set_user_role', {
+      target_id: userId,
+      new_role: role,
+    }),
+  );
 }
 
 export type EntitlementInput = {

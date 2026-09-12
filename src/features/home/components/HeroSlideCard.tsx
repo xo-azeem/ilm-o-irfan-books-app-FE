@@ -84,7 +84,8 @@ export const HeroSlideCard = memo(function HeroSlideCard({
       style={[
         styles.card,
         { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
-      ]}>
+      ]}
+    >
       {/* A static radial wash rather than a blur pass — free on Android. The
           accent is the admin's, falling back to the book's own cover colour
           server-side, so there is nothing left to resolve here. */}
@@ -124,14 +125,24 @@ export const HeroSlideCard = memo(function HeroSlideCard({
           )}
 
           {slide.author ? (
-            <Text size={fontSize.caption} leading={1.4} tone="muted" numberOfLines={2}>
+            <Text
+              size={fontSize.caption}
+              leading={1.4}
+              tone="muted"
+              numberOfLines={2}
+            >
               {slide.author}
             </Text>
           ) : null}
 
           {slide.rating != null ? (
             <View style={styles.rating}>
-              <Text size={fontSize.caption} leading={1} weight="600" tone="gold">
+              <Text
+                size={fontSize.caption}
+                leading={1}
+                weight="600"
+                tone="gold"
+              >
                 {slide.rating.toFixed(1)}
               </Text>
             </View>

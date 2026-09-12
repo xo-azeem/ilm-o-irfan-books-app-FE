@@ -1,7 +1,14 @@
 import { useCallback, useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 
-import { Callout, Card, SettingsGroup, SettingsRow, Text, TextButton } from '@/components/ui';
+import {
+  Callout,
+  Card,
+  SettingsGroup,
+  SettingsRow,
+  Text,
+  TextButton,
+} from '@/components/ui';
 import { ProfileSubScreenLayout } from '@/features/profile/components/ProfileSubScreenLayout';
 import {
   notificationGroups,
@@ -42,7 +49,8 @@ export function NotificationsScreen() {
   return (
     <ProfileSubScreenLayout
       title="Notifications"
-      subtitle="Choose what you want to be notified about.">
+      subtitle="Choose what you want to be notified about."
+    >
       {notificationGroups.map(group => (
         <SettingsGroup key={group.id} title={group.title}>
           {group.toggles.map(toggle => (
@@ -64,7 +72,9 @@ export function NotificationsScreen() {
           <SettingsRow
             title="No reminders"
             subtitle={`${quietHoursDefault.from} – ${quietHoursDefault.to}`}
-            trailing={<TextButton label="Change" onPress={openSystemSettings} />}
+            trailing={
+              <TextButton label="Change" onPress={openSystemSettings} />
+            }
             chevron={false}
           />
         </SettingsGroup>
@@ -75,7 +85,9 @@ export function NotificationsScreen() {
           tone="warning"
           title="System notifications are off for Ilm o Irfan."
           message="Reminders will not appear until you turn them on for this app."
-          action={<TextButton label="Open" tone="gold" onPress={openSystemSettings} />}
+          action={
+            <TextButton label="Open" tone="gold" onPress={openSystemSettings} />
+          }
         />
       ) : (
         <Card tone="alt" padded={15}>

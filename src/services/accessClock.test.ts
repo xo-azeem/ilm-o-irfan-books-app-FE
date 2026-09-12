@@ -36,7 +36,10 @@ describe('membership clock', () => {
     const highWater = Date.parse('2026-09-11T12:00:00Z');
     const deviceNow = Date.parse('2026-07-01T00:00:00Z');
 
-    assert.equal(hasExpired(deadline, correctedNow(0, highWater, deviceNow)), true);
+    assert.equal(
+      hasExpired(deadline, correctedNow(0, highWater, deviceNow)),
+      true,
+    );
   });
 
   it('treats a null expiry as never expiring, not as expired', () => {

@@ -50,7 +50,10 @@ export function useRecentSearches() {
   const rememberTerm = useRecentSearchStore(state => state.remember);
   const clearAll = useRecentSearchStore(state => state.clear);
 
-  const remember = useCallback((term: string) => rememberTerm(term), [rememberTerm]);
+  const remember = useCallback(
+    (term: string) => rememberTerm(term),
+    [rememberTerm],
+  );
   const clear = useCallback(() => clearAll(), [clearAll]);
 
   return { recents, remember, clear };

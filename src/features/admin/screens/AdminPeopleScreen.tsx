@@ -1,14 +1,31 @@
 import { memo, useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import {
+  useNavigation,
+  useRoute,
+  type RouteProp,
+} from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronRight } from 'lucide-react-native';
 
 import { Icon, Label, Text } from '@/components/ui';
 import { ADMIN_ROUTES } from '@/constants/routes';
-import { AdminChipRow, AdminSearchBar } from '@/features/admin/components/AdminControls';
-import { AdminMenuSkeleton, AdminRowsSkeleton } from '@/features/admin/components/AdminSkeletons';
+import {
+  AdminChipRow,
+  AdminSearchBar,
+} from '@/features/admin/components/AdminControls';
+import {
+  AdminMenuSkeleton,
+  AdminRowsSkeleton,
+} from '@/features/admin/components/AdminSkeletons';
 import { errorMessage } from '@/features/admin/components/AdminToast';
 import {
   ADMIN_GUTTER,
@@ -27,10 +44,17 @@ import { formatDate, formatMoney } from '@/features/admin/utils/format';
 import { useAppInsets } from '@/hooks/useAppInsets';
 import { useAdminPlans, useAdminStats, useAdminUsers } from '@/hooks/useAdmin';
 import { useAuthStore } from '@/stores/authStore';
-import type { AdminPlan, AdminUserFilters, AdminUserRow } from '@/services/admin';
+import type {
+  AdminPlan,
+  AdminUserFilters,
+  AdminUserRow,
+} from '@/services/admin';
 import { useTheme } from '@/theme/ThemeContext';
 
-import type { AdminPeopleStackParamList, PeopleSegment } from '../navigation/types';
+import type {
+  AdminPeopleStackParamList,
+  PeopleSegment,
+} from '../navigation/types';
 
 const SEGMENTS: ReadonlyArray<{ value: PeopleSegment; label: string }> = [
   { value: 'readers', label: 'Readers' },
@@ -59,13 +83,17 @@ const EXPIRING_WINDOW_DAYS = 14;
  * the reason support opened the list.
  */
 export function AdminPeopleScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<AdminPeopleStackParamList>>();
-  const route = useRoute<RouteProp<AdminPeopleStackParamList, 'AdminPeopleHome'>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<AdminPeopleStackParamList>>();
+  const route =
+    useRoute<RouteProp<AdminPeopleStackParamList, 'AdminPeopleHome'>>();
   const { colors } = useTheme();
   const { scrollEndPadding } = useAppInsets();
   const currentUserId = useAuthStore(state => state.userId);
 
-  const [segment, setSegment] = useState<PeopleSegment>(route.params?.segment ?? 'readers');
+  const [segment, setSegment] = useState<PeopleSegment>(
+    route.params?.segment ?? 'readers',
+  );
   const [query, setQuery] = useState('');
   const [audience, setAudience] = useState<AudienceFilter>('everyone');
 
@@ -75,7 +103,10 @@ export function AdminPeopleScreen() {
     () => ({
       query: debounced,
       role: audience === 'admins' ? 'admin' : 'all',
-      access: audience === 'subscribers' || audience === 'expiring' ? 'subscriber' : 'all',
+      access:
+        audience === 'subscribers' || audience === 'expiring'
+          ? 'subscriber'
+          : 'all',
     }),
     [audience, debounced],
   );
@@ -112,7 +143,9 @@ export function AdminPeopleScreen() {
       <PersonRow
         user={item}
         isSelf={item.id === currentUserId}
-        onPress={userId => navigation.navigate(ADMIN_ROUTES.USER_DETAIL, { userId })}
+        onPress={userId =>
+          navigation.navigate(ADMIN_ROUTES.USER_DETAIL, { userId })
+        }
       />
     ),
     [currentUserId, navigation],
@@ -121,19 +154,28 @@ export function AdminPeopleScreen() {
   return (
     <SafeAreaView
       style={[styles.root, { backgroundColor: colors.background }]}
-      edges={['top', 'left', 'right']}>
+      edges={['top', 'left', 'right']}
+    >
       <View style={styles.header}>
         <AdminPageTitle
           title="People"
           subtitle={subtitle}
           action={
             segment === 'plans' ? (
-              <AdminNewButton onPress={() => navigation.navigate(ADMIN_ROUTES.PLAN_EDITOR, {})} />
+              <AdminNewButton
+                onPress={() =>
+                  navigation.navigate(ADMIN_ROUTES.PLAN_EDITOR, {})
+                }
+              />
             ) : undefined
           }
         />
 
-        <AdminSegments options={SEGMENTS} value={segment} onChange={setSegment} />
+        <AdminSegments
+          options={SEGMENTS}
+          value={segment}
+          onChange={setSegment}
+        />
 
         {segment === 'readers' ? (
           <>
@@ -142,7 +184,11 @@ export function AdminPeopleScreen() {
               onChangeText={setQuery}
               placeholder="Search by name, email or phone"
             />
-            <AdminChipRow options={AUDIENCE_OPTIONS} value={audience} onChange={setAudience} />
+            <AdminChipRow
+              options={AUDIENCE_OPTIONS}
+              value={audience}
+              onChange={setAudience}
+            />
           </>
         ) : null}
       </View>
@@ -180,7 +226,11 @@ export function AdminPeopleScreen() {
             }}
             ListEmptyComponent={
               <AdminEmpty
-                title={audience === 'expiring' ? 'Nothing expiring' : 'No accounts match'}
+                title={
+                  audience === 'expiring'
+                    ? 'Nothing expiring'
+                    : 'No accounts match'
+                }
                 message={
                   audience === 'expiring'
                     ? `No subscription in the loaded list ends within ${EXPIRING_WINDOW_DAYS} days or is in billing trouble.`
@@ -190,7 +240,10 @@ export function AdminPeopleScreen() {
             }
             ListFooterComponent={
               users.isFetchingNextPage ? (
-                <ActivityIndicator style={styles.footer} color={colors.primary} />
+                <ActivityIndicator
+                  style={styles.footer}
+                  color={colors.primary}
+                />
               ) : null
             }
             style={styles.grow}
@@ -211,8 +264,12 @@ export function AdminPeopleScreen() {
       ) : (
         <ScrollView
           style={styles.grow}
-          contentContainerStyle={[styles.planList, { paddingBottom: scrollEndPadding + 20 }]}
-          showsVerticalScrollIndicator={false}>
+          contentContainerStyle={[
+            styles.planList,
+            { paddingBottom: scrollEndPadding + 20 },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
           {(plans.data ?? []).length === 0 ? (
             <AdminEmpty
               title="No plans yet"
@@ -226,7 +283,11 @@ export function AdminPeopleScreen() {
                 key={plan.id}
                 plan={plan}
                 lead={index === 0 && plan.is_active}
-                onPress={() => navigation.navigate(ADMIN_ROUTES.PLAN_EDITOR, { planId: plan.id })}
+                onPress={() =>
+                  navigation.navigate(ADMIN_ROUTES.PLAN_EDITOR, {
+                    planId: plan.id,
+                  })
+                }
               />
             ))
           )}
@@ -253,7 +314,10 @@ function isExpiring(user: AdminUserRow): boolean {
 }
 
 /** The one line under a name that says where this account stands. */
-function describe(user: AdminUserRow, isSelf: boolean): { text: string; warn: boolean } {
+function describe(
+  user: AdminUserRow,
+  isSelf: boolean,
+): { text: string; warn: boolean } {
   if (user.entitlement_status === 'billing_issue') {
     return {
       text: user.expires_at
@@ -266,9 +330,15 @@ function describe(user: AdminUserRow, isSelf: boolean): { text: string; warn: bo
     return { text: `${user.email ?? 'No email'} · that's you`, warn: false };
   }
   if (user.is_subscriber && user.expires_at) {
-    return { text: `${user.email ?? 'No email'} · renews ${formatDate(user.expires_at)}`, warn: false };
+    return {
+      text: `${user.email ?? 'No email'} · renews ${formatDate(user.expires_at)}`,
+      warn: false,
+    };
   }
-  return { text: `${user.email ?? 'No email'} · joined ${formatDate(user.created_at)}`, warn: false };
+  return {
+    text: `${user.email ?? 'No email'} · joined ${formatDate(user.created_at)}`,
+    warn: false,
+  };
 }
 
 const PersonRow = memo(function PersonRow({
@@ -299,16 +369,29 @@ const PersonRow = memo(function PersonRow({
           borderColor: trouble ? colors.warningBorder : colors.border,
         },
         pressed && styles.pressed,
-      ]}>
+      ]}
+    >
       <AdminAvatar
         name={user.full_name ?? user.email ?? '?'}
         size={38}
-        tone={trouble ? 'warning' : isAdmin || user.is_subscriber ? 'primary' : 'neutral'}
+        tone={
+          trouble
+            ? 'warning'
+            : isAdmin || user.is_subscriber
+              ? 'primary'
+              : 'neutral'
+        }
       />
 
       <View style={styles.personBody}>
         <View style={styles.nameRow}>
-          <Text size={14} leading={1.2} weight="500" numberOfLines={1} style={styles.shrink}>
+          <Text
+            size={14}
+            leading={1.2}
+            weight="500"
+            numberOfLines={1}
+            style={styles.shrink}
+          >
             {user.full_name || user.email || 'Unnamed reader'}
           </Text>
           {isAdmin ? (
@@ -316,13 +399,22 @@ const PersonRow = memo(function PersonRow({
           ) : trouble ? (
             <AdminTag label="BILLING" tone="warning" small />
           ) : user.is_subscriber ? (
-            <AdminTag label={(user.plan_name ?? 'Premium').toUpperCase()} tone="premium" small />
+            <AdminTag
+              label={(user.plan_name ?? 'Premium').toUpperCase()}
+              tone="premium"
+              small
+            />
           ) : (
             <AdminTag label="FREE" tone="neutral" small />
           )}
         </View>
 
-        <Text size={11} leading={1.2} tone={line.warn ? 'warning' : 'faint'} numberOfLines={1}>
+        <Text
+          size={11}
+          leading={1.2}
+          tone={line.warn ? 'warning' : 'faint'}
+          numberOfLines={1}
+        >
           {line.text}
         </Text>
       </View>
@@ -363,14 +455,23 @@ const PlanCard = memo(function PlanCard({
         },
         !plan.is_active && styles.dimmed,
         pressed && styles.pressed,
-      ]}>
+      ]}
+    >
       <View style={styles.planHeader}>
         <View style={styles.grow}>
           <View style={styles.nameRow}>
-            <Text size={17} leading={1.2} weight="500" numberOfLines={1} style={styles.shrink}>
+            <Text
+              size={17}
+              leading={1.2}
+              weight="500"
+              numberOfLines={1}
+              style={styles.shrink}
+            >
               {plan.name}
             </Text>
-            {!plan.is_active ? <AdminTag label="OFF SALE" tone="neutral" small /> : null}
+            {!plan.is_active ? (
+              <AdminTag label="OFF SALE" tone="neutral" small />
+            ) : null}
           </View>
           <Label
             size={11}
@@ -379,8 +480,11 @@ const PlanCard = memo(function PlanCard({
             tracking={0}
             uppercase={false}
             tone="faint"
-            numberOfLines={1}>
-            {[plan.code, plan.revenuecat_product_id].filter(Boolean).join(' · ')}
+            numberOfLines={1}
+          >
+            {[plan.code, plan.revenuecat_product_id]
+              .filter(Boolean)
+              .join(' · ')}
           </Label>
         </View>
 
@@ -397,7 +501,10 @@ const PlanCard = memo(function PlanCard({
       {plan.features.length > 0 ? (
         <View style={styles.features}>
           {plan.features.map(feature => (
-            <View key={feature} style={[styles.feature, { backgroundColor: colors.control }]}>
+            <View
+              key={feature}
+              style={[styles.feature, { backgroundColor: colors.control }]}
+            >
               <Text size={11} leading={1} tone="soft">
                 {feature}
               </Text>
@@ -413,7 +520,12 @@ const PlanCard = memo(function PlanCard({
       <AdminDivider />
 
       <View style={styles.planFooter}>
-        <Text size={11.5} leading={1.4} tone={plan.is_active ? 'action' : 'muted'} style={styles.shrink}>
+        <Text
+          size={11.5}
+          leading={1.4}
+          tone={plan.is_active ? 'action' : 'muted'}
+          style={styles.shrink}
+        >
           {plan.is_active
             ? 'Offered on the paywall'
             : 'Hidden from the paywall. Existing holders keep their access.'}

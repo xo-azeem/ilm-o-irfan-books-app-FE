@@ -1,12 +1,19 @@
 import { assertOk, supabase, unwrap } from './client';
-import type { AdminAnalytics, AdminDashboardStats, AdminSettings, AuditEntry, StorageAudit } from './types';
+import type {
+  AdminAnalytics,
+  AdminDashboardStats,
+  AdminSettings,
+  AuditEntry,
+  StorageAudit,
+} from './types';
 
 const SETTINGS_COLUMNS =
   'maintenance_mode,maintenance_message,signup_enabled,' +
   'min_supported_version,support_email,featured_collection_id,updated_at';
 
 export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
-  const row = (unwrap(await supabase.rpc('admin_dashboard_stats')) ?? {}) as Record<string, unknown>;
+  const row = (unwrap(await supabase.rpc('admin_dashboard_stats')) ??
+    {}) as Record<string, unknown>;
   const read = (key: string) => Number(row[key] ?? 0);
 
   return {
@@ -31,7 +38,11 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
 
 export async function getAdminSettings(): Promise<AdminSettings> {
   return unwrap(
-    await supabase.from('app_settings').select(SETTINGS_COLUMNS).eq('id', 1).single(),
+    await supabase
+      .from('app_settings')
+      .select(SETTINGS_COLUMNS)
+      .eq('id', 1)
+      .single(),
   ) as AdminSettings;
 }
 
@@ -65,7 +76,9 @@ export async function updateAdminSettings(patch: Partial<AdminSettings>) {
 }
 
 export async function getAdminAnalytics(days = 30): Promise<AdminAnalytics> {
-  return unwrap(await supabase.rpc('admin_analytics', { p_days: days })) as AdminAnalytics;
+  return unwrap(
+    await supabase.rpc('admin_analytics', { p_days: days }),
+  ) as AdminAnalytics;
 }
 
 export const AUDIT_PAGE_SIZE = 30;
@@ -75,12 +88,17 @@ export type AuditPage = {
   nextPage: number | null;
 };
 
-export async function listAuditLog(entityType: string | null, page = 0): Promise<AuditPage> {
+export async function listAuditLog(
+  entityType: string | null,
+  page = 0,
+): Promise<AuditPage> {
   const from = page * AUDIT_PAGE_SIZE;
 
   let builder = supabase
     .from('admin_audit_log')
-    .select('id,actor_id,actor_email,action,entity_type,entity_id,entity_label,changes,created_at')
+    .select(
+      'id,actor_id,actor_email,action,entity_type,entity_id,entity_label,changes,created_at',
+    )
     .order('created_at', { ascending: false })
     .range(from, from + AUDIT_PAGE_SIZE - 1);
 
@@ -93,7 +111,9 @@ export async function listAuditLog(entityType: string | null, page = 0): Promise
 }
 
 export async function getStorageAudit(): Promise<StorageAudit> {
-  const data = unwrap(await supabase.rpc('admin_storage_audit')) as StorageAudit;
+  const data = unwrap(
+    await supabase.rpc('admin_storage_audit'),
+  ) as StorageAudit;
   return {
     orphans: data.orphans ?? [],
     broken: data.broken ?? [],
@@ -106,7 +126,15 @@ export async function getStorageAudit(): Promise<StorageAudit> {
   };
 }
 
-export async function deleteStorageObject(bucket: 'covers' | 'pdfs', name: string) {
-  assertOk(await supabase.rpc('admin_delete_storage_object', { p_bucket: bucket, p_name: name }));
+export async function deleteStorageObject(
+  bucket: 'covers' | 'pdfs',
+  name: string,
+) {
+  assertOk(
+    await supabase.rpc('admin_delete_storage_object', {
+      p_bucket: bucket,
+      p_name: name,
+    }),
+  );
   await supabase.storage.from(bucket).remove([name]);
 }

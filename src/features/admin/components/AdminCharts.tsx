@@ -46,11 +46,19 @@ export const AdminBarChart = memo(function AdminBarChart({
   const { colors } = useTheme();
 
   const bars = useMemo(() => points.slice(-MAX_BARS), [points]);
-  const max = useMemo(() => bars.reduce((peak, point) => Math.max(peak, point.value), 0), [bars]);
+  const max = useMemo(
+    () => bars.reduce((peak, point) => Math.max(peak, point.value), 0),
+    [bars],
+  );
   const showWeekdays = bars.length <= 7;
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View
+      style={[
+        styles.card,
+        { backgroundColor: colors.surface, borderColor: colors.border },
+      ]}
+    >
       <View style={styles.header}>
         <View style={styles.headerBody}>
           <AdminEyebrow>{title}</AdminEyebrow>
@@ -59,7 +67,12 @@ export const AdminBarChart = memo(function AdminBarChart({
           </Text>
         </View>
         {delta ? (
-          <Text size={12} leading={1} weight="500" tone={delta.up ? 'action' : 'muted'}>
+          <Text
+            size={12}
+            leading={1}
+            weight="500"
+            tone={delta.up ? 'action' : 'muted'}
+          >
             {delta.label}
           </Text>
         ) : null}
@@ -80,7 +93,10 @@ export const AdminBarChart = memo(function AdminBarChart({
                   {
                     // A zero day still draws a sliver, so a gap in the data is
                     // visibly a zero rather than a missing bar.
-                    height: Math.max(2, (point.value / (max || 1)) * BAR_HEIGHT),
+                    height: Math.max(
+                      2,
+                      (point.value / (max || 1)) * BAR_HEIGHT,
+                    ),
                     backgroundColor: barColor(point.value, max),
                   },
                 ]}
@@ -91,16 +107,35 @@ export const AdminBarChart = memo(function AdminBarChart({
           <View style={styles.axis}>
             {showWeekdays ? (
               bars.map(point => (
-                <Label key={point.date} size={10} leading={1} weight="400" tracking={0} tone="dim">
+                <Label
+                  key={point.date}
+                  size={10}
+                  leading={1}
+                  weight="400"
+                  tracking={0}
+                  tone="dim"
+                >
                   {WEEKDAYS[new Date(point.date).getDay()] ?? ''}
                 </Label>
               ))
             ) : (
               <>
-                <Label size={10} leading={1} weight="400" tracking={0} tone="dim">
+                <Label
+                  size={10}
+                  leading={1}
+                  weight="400"
+                  tracking={0}
+                  tone="dim"
+                >
                   {shortDate(bars[0]?.date)}
                 </Label>
-                <Label size={10} leading={1} weight="400" tracking={0} tone="dim">
+                <Label
+                  size={10}
+                  leading={1}
+                  weight="400"
+                  tracking={0}
+                  tone="dim"
+                >
                   {shortDate(bars[bars.length - 1]?.date)}
                 </Label>
               </>
@@ -116,7 +151,9 @@ function shortDate(value?: string): string {
   if (!value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }).toUpperCase();
+  return date
+    .toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
+    .toUpperCase();
 }
 
 export type ShareRow = { id: string; label: string; value: number };
@@ -136,7 +173,12 @@ export const AdminShareBars = memo(function AdminShareBars({
   const total = rows.reduce((sum, row) => sum + row.value, 0);
 
   return (
-    <View style={[styles.panel, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View
+      style={[
+        styles.panel,
+        { backgroundColor: colors.surface, borderColor: colors.border },
+      ]}
+    >
       {rows.length === 0 || total === 0 ? (
         <Text size={12.5} leading={1.45} tone="muted">
           {emptyLabel}
@@ -147,7 +189,12 @@ export const AdminShareBars = memo(function AdminShareBars({
           return (
             <View key={row.id} style={styles.shareRow}>
               <View style={styles.shareHeader}>
-                <Text size={12} leading={1} numberOfLines={1} style={styles.grow}>
+                <Text
+                  size={12}
+                  leading={1}
+                  numberOfLines={1}
+                  style={styles.grow}
+                >
                   {row.label}
                 </Text>
                 <Text size={12} leading={1} tone="muted">
@@ -179,10 +226,22 @@ export const AdminRankRow = memo(function AdminRankRow({
 
   return (
     <View style={styles.rankRow}>
-      <Label size={12} leading={1} weight="700" tracking={0} tone="dim" style={styles.rank}>
+      <Label
+        size={12}
+        leading={1}
+        weight="700"
+        tracking={0}
+        tone="dim"
+        style={styles.rank}
+      >
         {String(rank)}
       </Label>
-      <View style={[styles.rankCover, { backgroundColor: accent ?? colors.coverBase }]} />
+      <View
+        style={[
+          styles.rankCover,
+          { backgroundColor: accent ?? colors.coverBase },
+        ]}
+      />
       <View style={styles.grow}>
         <Text size={13} leading={1.2} numberOfLines={1}>
           {label}

@@ -155,18 +155,25 @@ export function foldFrame(
   const ox = w;
   const oy = cy;
 
-  if (w <= 0 || h <= 0 || (Math.abs(fx - ox) < 1.5 && Math.abs(fy - oy) < 1.5)) {
+  if (
+    w <= 0 ||
+    h <= 0 ||
+    (Math.abs(fx - ox) < 1.5 && Math.abs(fy - oy) < 1.5)
+  ) {
     // Nothing has folded, so the whole sheet is still lying flat — and that
     // matters far more than it looks. A turn both starts and ends in this
     // state, and the flat sheet covering the page outright is what the stage
     // changes the document view underneath.
     return {
-      flat: w > 0 && h > 0 ? polyPath([
-        { x: 0, y: 0 },
-        { x: w, y: 0 },
-        { x: w, y: h },
-        { x: 0, y: h },
-      ]) : NOTHING,
+      flat:
+        w > 0 && h > 0
+          ? polyPath([
+              { x: 0, y: 0 },
+              { x: w, y: 0 },
+              { x: w, y: h },
+              { x: 0, y: h },
+            ])
+          : NOTHING,
       land: NOTHING,
       matrix: NO_FOLD,
       cast: NO_AXIS,
@@ -304,7 +311,13 @@ export type Xf = (
  * normal — which is what lets a shadow measured from the crease be drawn as a
  * plain horizontal gradient inside it, with no transform of its own.
  */
-export function clipperXf(mx: number, my: number, th: number, side: 1 | -1, size: number): Xf {
+export function clipperXf(
+  mx: number,
+  my: number,
+  th: number,
+  side: 1 | -1,
+  size: number,
+): Xf {
   'worklet';
   return [
     { translateX: mx },
@@ -316,7 +329,13 @@ export function clipperXf(mx: number, my: number, th: number, side: 1 | -1, size
 }
 
 /** The inverse of `clipperXf`: what its contents wear to stay put on the page. */
-export function contentXf(mx: number, my: number, th: number, side: 1 | -1, size: number): Xf {
+export function contentXf(
+  mx: number,
+  my: number,
+  th: number,
+  side: 1 | -1,
+  size: number,
+): Xf {
   'worklet';
   return [
     { translateX: side === 1 ? 0 : size },
@@ -346,7 +365,13 @@ export function reflectXf(mx: number, my: number, th: number): Xf {
  * left edge `from` points along the normal from the crease, running along the
  * normal from there, and tall enough to cross the whole page.
  */
-export function bandXf(mx: number, my: number, th: number, from: number, size: number): Xf {
+export function bandXf(
+  mx: number,
+  my: number,
+  th: number,
+  from: number,
+  size: number,
+): Xf {
   'worklet';
   return [
     { translateX: mx },
@@ -366,11 +391,18 @@ export type Crease = {
 };
 
 /** The crease of the fold at `fx`,`fy`, or null while nothing has folded. */
-export function creaseOf(w: number, h: number, cy: number, fx: number, fy: number): Crease | null {
+export function creaseOf(
+  w: number,
+  h: number,
+  cy: number,
+  fx: number,
+  fy: number,
+): Crease | null {
   'worklet';
   const ox = w;
   const oy = cy;
-  if (w <= 0 || h <= 0 || (Math.abs(fx - ox) < 1.5 && Math.abs(fy - oy) < 1.5)) return null;
+  if (w <= 0 || h <= 0 || (Math.abs(fx - ox) < 1.5 && Math.abs(fy - oy) < 1.5))
+    return null;
   const nx = ox - fx;
   const ny = oy - fy;
   return { mx: (ox + fx) / 2, my: (oy + fy) / 2, th: Math.atan2(ny, nx) };

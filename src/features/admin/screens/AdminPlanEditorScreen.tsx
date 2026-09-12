@@ -1,11 +1,24 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import {
+  useNavigation,
+  useRoute,
+  type RouteProp,
+} from '@react-navigation/native';
 import { Plus } from 'lucide-react-native';
 
 import { Icon, Text } from '@/components/ui';
-import { AdminConfirmSheet, AdminSegmented } from '@/features/admin/components/AdminControls';
+import {
+  AdminConfirmSheet,
+  AdminSegmented,
+} from '@/features/admin/components/AdminControls';
 import { AdminOrderableList } from '@/features/admin/components/AdminOrderableList';
 import { errorMessage, useToast } from '@/features/admin/components/AdminToast';
 import {
@@ -22,10 +35,17 @@ import {
   AdminTextAction,
   AdminToggleRow,
 } from '@/features/admin/components/AdminUi';
-import { useDirtyTracker, useUnsavedGuard } from '@/features/admin/hooks/useAdminForm';
+import {
+  useDirtyTracker,
+  useUnsavedGuard,
+} from '@/features/admin/hooks/useAdminForm';
 import { formatMoney } from '@/features/admin/utils/format';
 import { useAppInsets } from '@/hooks/useAppInsets';
-import { useAdminPlans, useDeleteAdminPlan, useSaveAdminPlan } from '@/hooks/useAdmin';
+import {
+  useAdminPlans,
+  useDeleteAdminPlan,
+  useSaveAdminPlan,
+} from '@/hooks/useAdmin';
 import { PLAN_INTERVALS, slugify, type AdminPlan } from '@/services/admin';
 import { radius } from '@/theme/palette';
 import { sansFamily } from '@/theme/typography';
@@ -35,7 +55,8 @@ import type { AdminPeopleStackParamList } from '../navigation/types';
 
 const INTERVAL_OPTIONS = PLAN_INTERVALS.map(interval => ({
   value: interval,
-  label: interval === 'lifetime' ? 'Once' : interval === 'year' ? 'Year' : 'Month',
+  label:
+    interval === 'lifetime' ? 'Once' : interval === 'year' ? 'Year' : 'Month',
 }));
 
 const CURRENCIES = ['PKR', 'USD', 'GBP', 'EUR'];
@@ -50,7 +71,8 @@ const CURRENCIES = ['PKR', 'USD', 'GBP', 'EUR'];
  */
 export function AdminPlanEditorScreen() {
   const navigation = useNavigation();
-  const route = useRoute<RouteProp<AdminPeopleStackParamList, 'AdminPlanEditor'>>();
+  const route =
+    useRoute<RouteProp<AdminPeopleStackParamList, 'AdminPlanEditor'>>();
   const planId = route.params?.planId;
   const { colors } = useTheme();
   const { scrollEndPadding } = useAppInsets();
@@ -108,8 +130,15 @@ export function AdminPlanEditorScreen() {
   const addFeature = () => {
     const value = draftFeature.trim();
     if (!value) return;
-    if (!form.features.some(feature => feature.toLowerCase() === value.toLowerCase())) {
-      setForm(current => ({ ...current, features: [...current.features, value] }));
+    if (
+      !form.features.some(
+        feature => feature.toLowerCase() === value.toLowerCase(),
+      )
+    ) {
+      setForm(current => ({
+        ...current,
+        features: [...current.features, value],
+      }));
     }
     setDraftFeature('');
   };
@@ -151,7 +180,8 @@ export function AdminPlanEditorScreen() {
   return (
     <SafeAreaView
       style={[styles.root, { backgroundColor: colors.background }]}
-      edges={['top', 'left', 'right']}>
+      edges={['top', 'left', 'right']}
+    >
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <AdminBackLink
           label="Plans"
@@ -176,7 +206,8 @@ export function AdminPlanEditorScreen() {
           gap: 15,
         }}
         keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+      >
         <AdminScreenTitle
           title={form.name || (planId ? 'Edit plan' : 'New plan')}
           subtitle="Shown on the paywall and matched to a store product."
@@ -187,9 +218,18 @@ export function AdminPlanEditorScreen() {
           <View
             style={[
               styles.note,
-              { backgroundColor: colors.warningFill, borderColor: colors.warningBorder },
-            ]}>
-            <Text size={12} leading={1.5} tone="inherit" style={{ color: colors.warningInk }}>
+              {
+                backgroundColor: colors.warningFill,
+                borderColor: colors.warningBorder,
+              },
+            ]}
+          >
+            <Text
+              size={12}
+              leading={1.5}
+              tone="inherit"
+              style={{ color: colors.warningInk }}
+            >
               {`Price changes apply to new subscribers only. Everyone already on this plan keeps ${formatMoney(
                 existing.price_cents,
                 existing.currency,
@@ -201,7 +241,9 @@ export function AdminPlanEditorScreen() {
         <AdminField
           label="Name readers see"
           value={form.name}
-          onChangeText={value => setForm(current => ({ ...current, name: value }))}
+          onChangeText={value =>
+            setForm(current => ({ ...current, name: value }))
+          }
           placeholder="Annual"
           maxLength={60}
         />
@@ -212,7 +254,10 @@ export function AdminPlanEditorScreen() {
               label="Price"
               value={form.price}
               onChangeText={value =>
-                setForm(current => ({ ...current, price: value.replace(/[^0-9.]/g, '') }))
+                setForm(current => ({
+                  ...current,
+                  price: value.replace(/[^0-9.]/g, ''),
+                }))
               }
               keyboardType="decimal-pad"
               suffix={form.currency}
@@ -227,7 +272,9 @@ export function AdminPlanEditorScreen() {
                   label={code}
                   compact
                   selected={form.currency === code}
-                  onPress={() => setForm(current => ({ ...current, currency: code }))}
+                  onPress={() =>
+                    setForm(current => ({ ...current, currency: code }))
+                  }
                 />
               ))}
             </View>
@@ -239,14 +286,18 @@ export function AdminPlanEditorScreen() {
           <AdminSegmented
             options={INTERVAL_OPTIONS}
             value={form.interval}
-            onChange={interval => setForm(current => ({ ...current, interval }))}
+            onChange={interval =>
+              setForm(current => ({ ...current, interval }))
+            }
           />
         </View>
 
         <AdminField
           label="Store product id"
           value={form.productId}
-          onChangeText={value => setForm(current => ({ ...current, productId: value }))}
+          onChangeText={value =>
+            setForm(current => ({ ...current, productId: value }))
+          }
           placeholder="rc_annual_pk"
           autoCapitalize="none"
           mono
@@ -261,7 +312,9 @@ export function AdminPlanEditorScreen() {
         <AdminField
           label="Plan code"
           value={form.code}
-          onChangeText={value => setForm(current => ({ ...current, code: value }))}
+          onChangeText={value =>
+            setForm(current => ({ ...current, code: value }))
+          }
           placeholder={slugify(form.name) || 'annual-v2'}
           autoCapitalize="none"
           mono
@@ -271,14 +324,24 @@ export function AdminPlanEditorScreen() {
         <View style={styles.block}>
           <AdminSectionHeader
             title="What it includes"
-            action={<AdminTextAction label="Add line" size={11.5} onPress={addFeature} />}
+            action={
+              <AdminTextAction
+                label="Add line"
+                size={11.5}
+                onPress={addFeature}
+              />
+            }
           />
 
           <View
             style={[
               styles.featureInput,
-              { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
-            ]}>
+              {
+                backgroundColor: colors.surfaceAlt,
+                borderColor: colors.border,
+              },
+            ]}
+          >
             <TextInput
               value={draftFeature}
               onChangeText={setDraftFeature}
@@ -287,14 +350,18 @@ export function AdminPlanEditorScreen() {
               returnKeyType="done"
               placeholder="All premium titles"
               placeholderTextColor={colors.faint}
-              style={[styles.featureText, { color: colors.ink, fontFamily: sansFamily('400') }]}
+              style={[
+                styles.featureText,
+                { color: colors.ink, fontFamily: sansFamily('400') },
+              ]}
             />
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Add benefit"
               onPress={addFeature}
               hitSlop={10}
-              disabled={!draftFeature.trim()}>
+              disabled={!draftFeature.trim()}
+            >
               <Icon
                 icon={Plus}
                 size={18}
@@ -308,7 +375,10 @@ export function AdminPlanEditorScreen() {
             items={featureItems}
             emptyLabel="No benefits yet — the paywall will show an empty card."
             onChange={next =>
-              setForm(current => ({ ...current, features: next.map(item => item.label) }))
+              setForm(current => ({
+                ...current,
+                features: next.map(item => item.label),
+              }))
             }
           />
         </View>
@@ -318,7 +388,9 @@ export function AdminPlanEditorScreen() {
             label="Offer on the paywall"
             description="Turning this off keeps existing subscribers and hides the plan from everyone else."
             value={form.isActive}
-            onValueChange={value => setForm(current => ({ ...current, isActive: value }))}
+            onValueChange={value =>
+              setForm(current => ({ ...current, isActive: value }))
+            }
           />
         </AdminCard>
 
@@ -340,8 +412,12 @@ export function AdminPlanEditorScreen() {
       <View
         style={[
           styles.footer,
-          { backgroundColor: colors.chrome, borderTopColor: colors.chromeBorder },
-        ]}>
+          {
+            backgroundColor: colors.chrome,
+            borderTopColor: colors.chromeBorder,
+          },
+        ]}
+      >
         <AdminButton
           label={planId ? 'Save plan' : 'Create plan'}
           loading={save.isPending}

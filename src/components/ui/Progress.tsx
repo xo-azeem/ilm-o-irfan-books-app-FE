@@ -47,7 +47,11 @@ export const ProgressBar = memo(function ProgressBar({
   return (
     <View
       accessibilityRole="progressbar"
-      accessibilityValue={{ min: 0, max: 100, now: Math.round(clamp(value) * 100) }}
+      accessibilityValue={{
+        min: 0,
+        max: 100,
+        now: Math.round(clamp(value) * 100),
+      }}
       style={[
         styles.track,
         {
@@ -56,10 +60,18 @@ export const ProgressBar = memo(function ProgressBar({
           backgroundColor: trackColor ?? colors.primaryFillSoft,
         },
         style,
-      ]}>
-      <View style={{ width: `${clamp(value) * 100}%`, backgroundColor: fill }} />
+      ]}
+    >
+      <View
+        style={{ width: `${clamp(value) * 100}%`, backgroundColor: fill }}
+      />
       {secondary ? (
-        <View style={{ width: `${clamp(secondary) * 100}%`, backgroundColor: fill, opacity: 0.45 }} />
+        <View
+          style={[
+            styles.secondaryFill,
+            { width: `${clamp(secondary) * 100}%`, backgroundColor: fill },
+          ]}
+        />
       ) : null}
     </View>
   );
@@ -79,9 +91,24 @@ export const CoverProgress = memo(function CoverProgress({
   const { colors } = useTheme();
 
   return (
-    <View style={[styles.coverProgress, { backgroundColor: finished ? colors.primaryBright : 'rgba(0,0,0,0.4)' }]}>
+    <View
+      style={[
+        styles.coverProgress,
+        finished
+          ? { backgroundColor: colors.primaryBright }
+          : styles.coverProgressIdle,
+      ]}
+    >
       {!finished ? (
-        <View style={{ width: `${clamp(value) * 100}%`, height: '100%', backgroundColor: colors.primaryBright }} />
+        <View
+          style={[
+            styles.fullHeight,
+            {
+              width: `${clamp(value) * 100}%`,
+              backgroundColor: colors.primaryBright,
+            },
+          ]}
+        />
       ) : null}
     </View>
   );
@@ -103,8 +130,18 @@ export const SliderTrack = memo(function SliderTrack({
 
   return (
     <View style={[styles.sliderRoot, style]}>
-      <View style={[styles.sliderTrack, { backgroundColor: colors.primaryFillSoft }]}>
-        <View style={{ width: `${pct * 100}%`, height: '100%', backgroundColor: colors.primaryBright }} />
+      <View
+        style={[
+          styles.sliderTrack,
+          { backgroundColor: colors.primaryFillSoft },
+        ]}
+      >
+        <View
+          style={[
+            styles.fullHeight,
+            { width: `${pct * 100}%`, backgroundColor: colors.primaryBright },
+          ]}
+        />
       </View>
       <View
         style={[
@@ -139,13 +176,24 @@ export const StatTile = memo(function StatTile({
   style,
 }: StatTileProps) {
   return (
-    <Card tone="surface" rounded={radius.button} padded={variant === 'display' ? 15 : 13} gap={6} style={[styles.statTile, style]}>
+    <Card
+      tone="surface"
+      rounded={radius.button}
+      padded={variant === 'display' ? 15 : 13}
+      gap={6}
+      style={[styles.statTile, style]}
+    >
       {variant === 'display' ? (
         <Display size={24} tone={tone === 'ink' ? 'ink' : tone}>
           {value}
         </Display>
       ) : (
-        <Text size={20} leading={1} weight="700" tone={tone === 'ink' ? 'ink' : tone}>
+        <Text
+          size={20}
+          leading={1}
+          weight="700"
+          tone={tone === 'ink' ? 'ink' : tone}
+        >
           {value}
         </Text>
       )}
@@ -182,14 +230,16 @@ export const StreakBars = memo(function StreakBars({
       {days.map((day, index) => (
         <View
           key={index}
-          style={{
-            width: 7,
-            height: Math.max(10, clamp(day) * height),
-            borderRadius: 3,
-            backgroundColor: colors.goldBright,
-            // Older days recede; today is fully saturated.
-            opacity: index === last ? 1 : 0.35 + (index / Math.max(1, last)) * 0.45,
-          }}
+          style={[
+            styles.streakBar,
+            {
+              height: Math.max(10, clamp(day) * height),
+              backgroundColor: colors.goldBright,
+              // Older days recede; today is fully saturated.
+              opacity:
+                index === last ? 1 : 0.35 + (index / Math.max(1, last)) * 0.45,
+            },
+          ]}
         />
       ))}
     </View>
@@ -201,6 +251,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     overflow: 'hidden',
     width: '100%',
+  },
+  secondaryFill: {
+    opacity: 0.45,
+  },
+  fullHeight: {
+    height: '100%',
+  },
+  coverProgressIdle: {
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  streakBar: {
+    width: 7,
+    borderRadius: 3,
   },
   coverProgress: {
     position: 'absolute',

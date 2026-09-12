@@ -5,7 +5,13 @@ import {
   View,
   type LayoutChangeEvent,
 } from 'react-native';
-import { Bookmark, CornerDownLeft, Download, ZoomIn, ZoomOut } from 'lucide-react-native';
+import {
+  Bookmark,
+  CornerDownLeft,
+  Download,
+  ZoomIn,
+  ZoomOut,
+} from 'lucide-react-native';
 
 import {
   Divider,
@@ -19,7 +25,11 @@ import {
   TextField,
   type LucideIcon,
 } from '@/components/ui';
-import { READING_MODE_TAGS, READING_MODES, type ReadingMode } from '@/stores/themeStore';
+import {
+  READING_MODE_TAGS,
+  READING_MODES,
+  type ReadingMode,
+} from '@/stores/themeStore';
 import { readerTones, type ReaderTone } from '@/theme/palette';
 import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
@@ -121,7 +131,10 @@ export const ReaderSettingsSheet = memo(function ReaderSettingsSheet({
       <View style={styles.group}>
         <View style={styles.groupHeader}>
           <Label>Brightness</Label>
-          <Label tone="primary" tracking={0.8}>{`${Math.round(brightness * 100)}%`}</Label>
+          <Label
+            tone="primary"
+            tracking={0.8}
+          >{`${Math.round(brightness * 100)}%`}</Label>
         </View>
         <BrightnessControl value={brightness} onChange={onBrightnessChange} />
       </View>
@@ -132,8 +145,18 @@ export const ReaderSettingsSheet = memo(function ReaderSettingsSheet({
           <Label tone="primary" tracking={0.8}>{`${zoomPercent}%`}</Label>
         </View>
         <View style={styles.row}>
-          <ZoomButton icon={ZoomOut} label="Zoom out" disabled={!canZoomOut} onPress={onZoomOut} />
-          <ZoomButton icon={ZoomIn} label="Zoom in" disabled={!canZoomIn} onPress={onZoomIn} />
+          <ZoomButton
+            icon={ZoomOut}
+            label="Zoom out"
+            disabled={!canZoomOut}
+            onPress={onZoomOut}
+          />
+          <ZoomButton
+            icon={ZoomIn}
+            label="Zoom in"
+            disabled={!canZoomIn}
+            onPress={onZoomIn}
+          />
         </View>
       </View>
 
@@ -144,7 +167,12 @@ export const ReaderSettingsSheet = memo(function ReaderSettingsSheet({
             <Label tone="primary" tracking={0.8}>{`1 – ${totalPages}`}</Label>
           ) : null}
         </View>
-        <PageJump page={page} totalPages={totalPages} onGoToPage={onGoToPage} visible={visible} />
+        <PageJump
+          page={page}
+          totalPages={totalPages}
+          onGoToPage={onGoToPage}
+          visible={visible}
+        />
       </View>
 
       <Divider />
@@ -199,13 +227,15 @@ const ToneSwatch = memo(function ToneSwatch({
           borderWidth: 2,
         },
         pressed && styles.pressed,
-      ]}>
+      ]}
+    >
       <Text
         size={fontSize.captionSmall}
         leading={1}
         weight="500"
         tone="inherit"
-        style={{ color: preview.ink }}>
+        style={{ color: preview.ink }}
+      >
         {label}
       </Text>
     </Pressable>
@@ -316,7 +346,8 @@ const BrightnessControl = memo(function BrightnessControl({
       onMoveShouldSetResponder={() => true}
       onResponderGrant={event => setFromX(event.nativeEvent.locationX)}
       onResponderMove={event => setFromX(event.nativeEvent.locationX)}
-      style={styles.brightness}>
+      style={styles.brightness}
+    >
       <SliderTrack value={value} />
     </View>
   );
@@ -349,9 +380,15 @@ const ZoomButton = memo(function ZoomButton({
         { backgroundColor: colors.controlAlt, borderColor: colors.border },
         disabled && styles.disabled,
         pressed && styles.pressed,
-      ]}>
+      ]}
+    >
       <Icon icon={icon} size={16} tone={disabled ? 'faint' : 'soft'} />
-      <Text size={fontSize.caption} leading={1} weight="500" tone={disabled ? 'faint' : 'soft'}>
+      <Text
+        size={fontSize.caption}
+        leading={1}
+        weight="500"
+        tone={disabled ? 'faint' : 'soft'}
+      >
         {label}
       </Text>
     </Pressable>
@@ -378,8 +415,15 @@ const SheetAction = memo(function SheetAction({
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [styles.action, disabled && styles.disabled, pressed && styles.pressed]}>
-      <View style={[styles.actionIcon, { backgroundColor: colors.primaryFillSoft }]}>
+      style={({ pressed }) => [
+        styles.action,
+        disabled && styles.disabled,
+        pressed && styles.pressed,
+      ]}
+    >
+      <View
+        style={[styles.actionIcon, { backgroundColor: colors.primaryFillSoft }]}
+      >
         <Icon icon={icon} size={16} tone="soft" strokeWidth={1.7} />
       </View>
       <Text size={11} leading={1} tone="muted">

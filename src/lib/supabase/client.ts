@@ -19,7 +19,9 @@ function fetchWithTimeout(
     if (parentSignal.aborted) {
       controller.abort();
     } else {
-      parentSignal.addEventListener('abort', () => controller.abort(), { once: true });
+      parentSignal.addEventListener('abort', () => controller.abort(), {
+        once: true,
+      });
     }
   }
 

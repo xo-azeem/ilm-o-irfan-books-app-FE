@@ -75,7 +75,9 @@ describe('access state from entitlements-status', () => {
 
   it('keeps a null expiry as "never expires", not as expired', () => {
     // Lifetime comps and admins: there is no deadline to schedule.
-    const state = parseAccessState(statusBody({ expiresAt: null, secondsRemaining: null }));
+    const state = parseAccessState(
+      statusBody({ expiresAt: null, secondsRemaining: null }),
+    );
 
     assert.equal(state.expiresAt, null);
     assert.equal(state.canAccessPremium, true);
@@ -104,7 +106,10 @@ describe('access state from an access_events row', () => {
 
   it('carries the channel forward — a delivered row does not restate it', () => {
     const previous = parseAccessState(statusBody());
-    const next = parseAccessState(eventRow({ can_access_premium: false }), previous);
+    const next = parseAccessState(
+      eventRow({ can_access_premium: false }),
+      previous,
+    );
 
     assert.equal(next.canAccessPremium, false);
     assert.equal(next.realtime?.channel, 'access:abc');
@@ -141,7 +146,10 @@ describe('access state from an access_events row', () => {
   it('does not let a false verdict fall through to the isActive fallback', () => {
     // `false` is an answer, not a missing field. Reading it as absent would hand
     // the decision to `isActive || isAdmin` and could unlock a revoked reader.
-    const state = parseAccessState({ can_access_premium: false, is_admin: true });
+    const state = parseAccessState({
+      can_access_premium: false,
+      is_admin: true,
+    });
 
     assert.equal(state.canAccessPremium, false);
   });
@@ -149,7 +157,11 @@ describe('access state from an access_events row', () => {
   it('locks on a revoke arriving over the feed', () => {
     const previous = parseAccessState(statusBody());
     const next = parseAccessState(
-      eventRow({ can_access_premium: false, is_active: false, reason: 'expired' }),
+      eventRow({
+        can_access_premium: false,
+        is_active: false,
+        reason: 'expired',
+      }),
       previous,
     );
 
@@ -173,7 +185,11 @@ describe('status is never the decision', () => {
   it('refuses access with status "active" if the server says it is gone', () => {
     // The inverse, and just as important: the flag decides, not the word.
     const state = parseAccessState(
-      statusBody({ status: 'active', isActive: false, canAccessPremium: false }),
+      statusBody({
+        status: 'active',
+        isActive: false,
+        canAccessPremium: false,
+      }),
     );
 
     assert.equal(state.canAccessPremium, false);

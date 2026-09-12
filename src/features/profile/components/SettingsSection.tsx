@@ -14,7 +14,10 @@ import { useLibrary, useSubscription } from '@/hooks/useAccount';
 import { useAuthStore } from '@/stores/authStore';
 import { THEME_PREFERENCE_LABELS, useThemeStore } from '@/stores/themeStore';
 
-type ProfileNavigation = NativeStackNavigationProp<ProfileStackParamList, 'ProfileMain'>;
+type ProfileNavigation = NativeStackNavigationProp<
+  ProfileStackParamList,
+  'ProfileMain'
+>;
 
 /**
  * The settings menu, inlined beneath the reading record.
@@ -45,7 +48,9 @@ export const SettingsSection = memo(function SettingsSection() {
     [navigation],
   );
 
-  const planName = subscription?.active ? subscription.plan?.name ?? 'Premium' : 'Free';
+  const planName = subscription?.active
+    ? (subscription.plan?.name ?? 'Premium')
+    : 'Free';
 
   // Live values are resolved here rather than baked into the static content, so
   // the menu can never show a stale plan or download count.

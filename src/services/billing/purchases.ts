@@ -46,7 +46,10 @@ export const PREMIUM_PLAN_CODE = 'premium_monthly';
  * false on any platform but iOS and Android, neither of which has a store.
  */
 export function isBillingAvailable(): boolean {
-  return Boolean(env.revenueCatKey) && (Platform.OS === 'ios' || Platform.OS === 'android');
+  return (
+    Boolean(env.revenueCatKey) &&
+    (Platform.OS === 'ios' || Platform.OS === 'android')
+  );
 }
 
 let configured = false;
@@ -119,7 +122,10 @@ export async function forgetPurchaser(): Promise<void> {
     await Purchases.logOut();
   } catch (error) {
     // Already anonymous. The SDK treats that as an error; nothing is wrong.
-    if (__DEV__ && readErrorCode(error) !== PURCHASES_ERROR_CODE.LOG_OUT_ANONYMOUS_USER_ERROR) {
+    if (
+      __DEV__ &&
+      readErrorCode(error) !== PURCHASES_ERROR_CODE.LOG_OUT_ANONYMOUS_USER_ERROR
+    ) {
       console.warn('[billing] could not clear the purchaser', error);
     }
   }
@@ -216,14 +222,17 @@ function readErrorCode(error: unknown): string | undefined {
 /** True when the reader backed out of the sheet. */
 function isCancelled(error: unknown): boolean {
   return (
-    readErrorCode(error) === String(PURCHASES_ERROR_CODE.PURCHASE_CANCELLED_ERROR) ||
+    readErrorCode(error) ===
+      String(PURCHASES_ERROR_CODE.PURCHASE_CANCELLED_ERROR) ||
     Boolean((error as { userCancelled?: boolean } | undefined)?.userCancelled)
   );
 }
 
 /** True when the store has taken the order but not yet the money. */
 function isPending(error: unknown): boolean {
-  return readErrorCode(error) === String(PURCHASES_ERROR_CODE.PAYMENT_PENDING_ERROR);
+  return (
+    readErrorCode(error) === String(PURCHASES_ERROR_CODE.PAYMENT_PENDING_ERROR)
+  );
 }
 
 /**
@@ -237,7 +246,9 @@ function isPending(error: unknown): boolean {
  * `entitlements-status`; the webhook is what writes the entitlement, and the
  * backend is what `get-signed-pdf` will ask.
  */
-export async function purchaseMembership(item: BillingPackage): Promise<PurchaseOutcome> {
+export async function purchaseMembership(
+  item: BillingPackage,
+): Promise<PurchaseOutcome> {
   if (!configureBilling()) {
     throw new Error('Membership cannot be purchased in this build.');
   }
@@ -281,7 +292,9 @@ export async function restoreMembership(): Promise<{ restored: boolean }> {
 }
 
 /** Whether RevenueCat currently considers `premium` active for this id. */
-export function hasPremiumEntitlement(customerInfo: CustomerInfo | null | undefined): boolean {
+export function hasPremiumEntitlement(
+  customerInfo: CustomerInfo | null | undefined,
+): boolean {
   return Boolean(customerInfo?.entitlements.active[PREMIUM_ENTITLEMENT]);
 }
 

@@ -141,7 +141,10 @@ async function uploadTask(
   if (status < 200 || status >= 300) {
     let message = `Could not upload the photo (${status}).`;
     try {
-      const parsed = JSON.parse(response.data) as { message?: string; error?: string };
+      const parsed = JSON.parse(response.data) as {
+        message?: string;
+        error?: string;
+      };
       message = parsed.message ?? parsed.error ?? message;
     } catch {
       // A non-JSON body says nothing the status has not said already.
@@ -220,11 +223,14 @@ export async function uploadAvatar(
   mime = 'image/jpeg',
   onProgress?: (fraction: number) => void,
 ): Promise<AvatarUploadResult> {
-  const ticket = await requestData<AvatarUploadTicket>(ENDPOINTS.avatarUploadUrl, {
-    method: 'POST',
-    auth: true,
-    body: { contentType: mime, extension: extensionFor(mime) },
-  });
+  const ticket = await requestData<AvatarUploadTicket>(
+    ENDPOINTS.avatarUploadUrl,
+    {
+      method: 'POST',
+      auth: true,
+      body: { contentType: mime, extension: extensionFor(mime) },
+    },
+  );
 
   const bucket = ticket?.bucket || BUCKET;
   const path = ticket?.path?.trim();
@@ -238,11 +244,23 @@ export async function uploadAvatar(
 
   const uploadUrl = resolveUploadUrl(ticket);
   if (uploadUrl) {
-    await putSigned(uploadUrl, ticket.token ?? null, localUri, mime, onProgress);
+    await putSigned(
+      uploadUrl,
+      ticket.token ?? null,
+      localUri,
+      mime,
+      onProgress,
+    );
   } else {
     // A ticket with no URL issued only a path, leaving the write to the
     // authenticated Storage API — which RLS scopes to this reader's folder.
-    await putAuthenticated(bucket, objectKey(path, bucket), localUri, mime, onProgress);
+    await putAuthenticated(
+      bucket,
+      objectKey(path, bucket),
+      localUri,
+      mime,
+      onProgress,
+    );
   }
 
   // Only now does the photo exist as far as the app is concerned. `avatar_path`
@@ -278,5 +296,5 @@ export async function getAvatarUrl(
     .from(BUCKET)
     .createSignedUrl(objectKey(path, BUCKET), ttlSeconds);
 
-  return error ? null : data?.signedUrl ?? null;
+  return error ? null : (data?.signedUrl ?? null);
 }

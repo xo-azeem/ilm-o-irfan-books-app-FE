@@ -41,7 +41,12 @@ export const ShelfGrid = memo(function ShelfGrid({
   return (
     <View style={[styles.grid, { gap }]}>
       {books.map(book => (
-        <ShelfItem key={book.id} book={book} width={itemWidth} onPress={onBookPress} />
+        <ShelfItem
+          key={book.id}
+          book={book}
+          width={itemWidth}
+          onPress={onBookPress}
+        />
       ))}
       {onNewCollection ? (
         <NewCollectionTile width={itemWidth} onPress={onNewCollection} />
@@ -67,11 +72,14 @@ const ShelfItem = memo(function ShelfItem({
       accessibilityRole="button"
       accessibilityLabel={book.title}
       onPress={handlePress}
-      style={({ pressed }) => [{ width, gap: 8 }, pressed && styles.pressed]}>
+      style={({ pressed }) => [{ width, gap: 8 }, pressed && styles.pressed]}
+    >
       <BookCover
         width={width}
         coverUrl={book.coverUrl}
-        coverColor={(isDark ? book.coverColorDark : book.coverColor) ?? undefined}
+        coverColor={
+          (isDark ? book.coverColorDark : book.coverColor) ?? undefined
+        }
         progress={book.progress}
         finished={book.finished}
         overlay={
@@ -87,7 +95,13 @@ const ShelfItem = memo(function ShelfItem({
           {book.title}
         </UrduText>
       ) : (
-        <Text size={12.5} leading={1.25} weight="500" tone="soft" numberOfLines={2}>
+        <Text
+          size={12.5}
+          leading={1.25}
+          weight="500"
+          tone="soft"
+          numberOfLines={2}
+        >
           {book.title}
         </Text>
       )}

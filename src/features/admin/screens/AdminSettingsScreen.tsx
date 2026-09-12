@@ -20,7 +20,11 @@ import {
   AdminToggleRow,
 } from '@/features/admin/components/AdminUi';
 import { useAppInsets } from '@/hooks/useAppInsets';
-import { useAdminCollections, useAdminSettings, useUpdateAdminSettings } from '@/hooks/useAdmin';
+import {
+  useAdminCollections,
+  useAdminSettings,
+  useUpdateAdminSettings,
+} from '@/hooks/useAdmin';
 import { useTheme } from '@/theme/ThemeContext';
 
 /**
@@ -74,7 +78,9 @@ export function AdminSettingsScreen() {
     );
   }, [data, form]);
 
-  const featured = collections.find(item => item.id === form.featuredCollectionId);
+  const featured = collections.find(
+    item => item.id === form.featuredCollectionId,
+  );
 
   const handleSave = () => {
     update.mutate(
@@ -117,11 +123,14 @@ export function AdminSettingsScreen() {
   return (
     <SafeAreaView
       style={[styles.root, { backgroundColor: colors.background }]}
-      edges={['top', 'left', 'right']}>
+      edges={['top', 'left', 'right']}
+    >
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <AdminBackLink
           label="System"
-          action={dirty ? <AdminTag label="UNSAVED" tone="warning" /> : undefined}
+          action={
+            dirty ? <AdminTag label="UNSAVED" tone="warning" /> : undefined
+          }
         />
       </View>
 
@@ -134,7 +143,8 @@ export function AdminSettingsScreen() {
           gap: 16,
         }}
         keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+      >
         <AdminScreenTitle title="App settings" />
 
         <AdminRowGroup title="Availability">
@@ -147,7 +157,9 @@ export function AdminSettingsScreen() {
                   : 'Off — the app opens normally for everyone.'
               }
               value={form.maintenanceMode}
-              onValueChange={value => setForm(current => ({ ...current, maintenanceMode: value }))}
+              onValueChange={value =>
+                setForm(current => ({ ...current, maintenanceMode: value }))
+              }
             />
           </View>
           <View style={styles.settingRow}>
@@ -159,7 +171,9 @@ export function AdminSettingsScreen() {
                   : 'Closed — the sign-up form is hidden and existing accounts still work.'
               }
               value={form.signupEnabled}
-              onValueChange={value => setForm(current => ({ ...current, signupEnabled: value }))}
+              onValueChange={value =>
+                setForm(current => ({ ...current, signupEnabled: value }))
+              }
             />
           </View>
         </AdminRowGroup>
@@ -167,7 +181,9 @@ export function AdminSettingsScreen() {
         <AdminField
           label="Notice shown during maintenance"
           value={form.maintenanceMessage}
-          onChangeText={value => setForm(current => ({ ...current, maintenanceMessage: value }))}
+          onChangeText={value =>
+            setForm(current => ({ ...current, maintenanceMessage: value }))
+          }
           multiline
           maxLength={240}
           placeholder="We're adding new titles. The library will be back within the hour."
@@ -186,7 +202,9 @@ export function AdminSettingsScreen() {
           <AdminField
             label="Support email"
             value={form.supportEmail}
-            onChangeText={value => setForm(current => ({ ...current, supportEmail: value }))}
+            onChangeText={value =>
+              setForm(current => ({ ...current, supportEmail: value }))
+            }
             placeholder="help@ilmoirfan.pk"
             autoCapitalize="none"
             keyboardType="email-address"
@@ -195,7 +213,9 @@ export function AdminSettingsScreen() {
           <AdminField
             label="Oldest allowed app version"
             value={form.minVersion}
-            onChangeText={value => setForm(current => ({ ...current, minVersion: value }))}
+            onChangeText={value =>
+              setForm(current => ({ ...current, minVersion: value }))
+            }
             placeholder="1.2.0"
             autoCapitalize="none"
             mono
@@ -203,23 +223,31 @@ export function AdminSettingsScreen() {
           />
         </View>
 
-        <View style={[styles.note, { backgroundColor: colors.primaryFillSoft }]}>
+        <View
+          style={[styles.note, { backgroundColor: colors.primaryFillSoft }]}
+        >
           <Text size={11.5} leading={1.5} tone="muted">
-            PDF access is decided by the reader's subscription at the moment they ask for a file.
-            There is deliberately no switch here that could open the whole library by accident.
+            PDF access is decided by the reader's subscription at the moment
+            they ask for a file. There is deliberately no switch here that could
+            open the whole library by accident.
           </Text>
         </View>
 
         <Text size={11.5} leading={1.45} tone="faint">
-          Every change here is written to the change history with your account and a timestamp.
+          Every change here is written to the change history with your account
+          and a timestamp.
         </Text>
       </ScrollView>
 
       <View
         style={[
           styles.footer,
-          { backgroundColor: colors.chrome, borderTopColor: colors.chromeBorder },
-        ]}>
+          {
+            backgroundColor: colors.chrome,
+            borderTopColor: colors.chromeBorder,
+          },
+        ]}
+      >
         <AdminButton
           label="Save settings"
           loading={update.isPending}
@@ -240,10 +268,15 @@ export function AdminSettingsScreen() {
             accent: collection.accent,
           })),
         ]}
-        selected={form.featuredCollectionId ? [form.featuredCollectionId] : ['']}
+        selected={
+          form.featuredCollectionId ? [form.featuredCollectionId] : ['']
+        }
         onClose={() => setShowCollectionPicker(false)}
         onChange={next =>
-          setForm(current => ({ ...current, featuredCollectionId: next[0] || null }))
+          setForm(current => ({
+            ...current,
+            featuredCollectionId: next[0] || null,
+          }))
         }
       />
     </SafeAreaView>
@@ -257,7 +290,8 @@ function Shell({ children }: { children: React.ReactNode }) {
   return (
     <SafeAreaView
       style={[styles.root, { backgroundColor: colors.background }]}
-      edges={['top', 'left', 'right']}>
+      edges={['top', 'left', 'right']}
+    >
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <AdminBackLink label="System" />
       </View>

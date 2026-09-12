@@ -31,7 +31,10 @@ export function sharedMMKV(id: string): MMKV | null {
     instance = createMMKV({ id });
   } catch (error) {
     if (__DEV__) {
-      console.warn(`[storage] MMKV "${id}" unavailable; using in-memory storage`, error);
+      console.warn(
+        `[storage] MMKV "${id}" unavailable; using in-memory storage`,
+        error,
+      );
     }
   }
 
@@ -50,7 +53,9 @@ export function createStateStorage(id: string): StateStorage {
     getItem: name => {
       try {
         const mmkv = sharedMMKV(id);
-        return mmkv ? mmkv.getString(name) ?? null : fallback.get(name) ?? null;
+        return mmkv
+          ? (mmkv.getString(name) ?? null)
+          : (fallback.get(name) ?? null);
       } catch {
         return fallback.get(name) ?? null;
       }

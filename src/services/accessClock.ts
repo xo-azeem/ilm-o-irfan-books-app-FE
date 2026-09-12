@@ -31,12 +31,18 @@ export const MAX_TIMEOUT_MS = 6 * 60 * 60_000;
  *     and the corrected time falls with it — so time is never allowed to run
  *     backwards. Once a moment has been seen, it has happened.
  */
-export function correctedNow(offsetMs: number, highWaterMs: number, now = Date.now()): number {
+export function correctedNow(
+  offsetMs: number,
+  highWaterMs: number,
+  now = Date.now(),
+): number {
   return Math.max(now + offsetMs, highWaterMs);
 }
 
 /** `expiresAt` as epoch ms. `null` is "never expires", not "expired". */
-export function deadlineMs(expiresAt: string | null | undefined): number | null {
+export function deadlineMs(
+  expiresAt: string | null | undefined,
+): number | null {
   if (!expiresAt) {
     return null;
   }
@@ -45,7 +51,10 @@ export function deadlineMs(expiresAt: string | null | undefined): number | null 
 }
 
 /** Whether the membership has run out, as of the corrected clock. */
-export function hasExpired(deadline: number | null, correctedNowMs: number): boolean {
+export function hasExpired(
+  deadline: number | null,
+  correctedNowMs: number,
+): boolean {
   return deadline != null && correctedNowMs >= deadline;
 }
 
@@ -72,7 +81,10 @@ export function nextDelayMs(
 }
 
 /** Whole seconds left, for a countdown label. Never negative. */
-export function secondsRemaining(deadline: number | null, correctedNowMs: number): number | null {
+export function secondsRemaining(
+  deadline: number | null,
+  correctedNowMs: number,
+): number | null {
   if (deadline == null) {
     return null;
   }

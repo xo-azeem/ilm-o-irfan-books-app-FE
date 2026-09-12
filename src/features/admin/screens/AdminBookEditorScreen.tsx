@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import {
+  useNavigation,
+  useRoute,
+  type RouteProp,
+} from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { launchImageLibrary } from 'react-native-image-picker';
 import {
@@ -131,8 +135,10 @@ const EMPTY: FormState = {
  * learn a PDF is missing by trying to publish and failing.
  */
 export function AdminBookEditorScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<AdminLibraryStackParamList>>();
-  const route = useRoute<RouteProp<AdminLibraryStackParamList, 'AdminBookEditor'>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<AdminLibraryStackParamList>>();
+  const route =
+    useRoute<RouteProp<AdminLibraryStackParamList, 'AdminBookEditor'>>();
   const bookId = route.params?.bookId;
   const { colors } = useTheme();
   const { scrollEndPadding } = useAppInsets();
@@ -177,11 +183,14 @@ export function AdminBookEditorScreen() {
       tag: existing.tag ?? '',
       tags: existing.tags,
       coverColor: existing.cover_color ?? palette.green,
-      coverColorDark: existing.cover_color_dark ?? existing.cover_color ?? palette.green,
+      coverColorDark:
+        existing.cover_color_dark ?? existing.cover_color ?? palette.green,
       coverPath: existing.cover_path,
       pdfPath: existing.pdf_path,
       fileSizeBytes: existing.file_size_bytes,
-      readTime: existing.read_time_minutes ? String(existing.read_time_minutes) : '',
+      readTime: existing.read_time_minutes
+        ? String(existing.read_time_minutes)
+        : '',
       price: String((existing.price_cents ?? 0) / 100),
       currency: existing.currency,
       format: existing.format,
@@ -240,7 +249,10 @@ export function AdminBookEditorScreen() {
   const hasErrors = Object.values(errors).some(Boolean);
 
   const handleCover = async () => {
-    const result = await launchImageLibrary({ mediaType: 'photo', selectionLimit: 1 });
+    const result = await launchImageLibrary({
+      mediaType: 'photo',
+      selectionLimit: 1,
+    });
     const asset = result.assets?.[0];
     if (!asset?.uri) return;
 
@@ -269,7 +281,10 @@ export function AdminBookEditorScreen() {
 
   const handlePdf = async () => {
     try {
-      const [file] = await pick({ type: [types.pdf], allowMultiSelection: false });
+      const [file] = await pick({
+        type: [types.pdf],
+        allowMultiSelection: false,
+      });
 
       const sizeError = validatePdfSize(file.size);
       if (sizeError) {
@@ -279,7 +294,12 @@ export function AdminBookEditorScreen() {
 
       setPdfProgress(0);
       const [local] = await keepLocalCopy({
-        files: [{ uri: file.uri, fileName: file.name ?? `${resolvedSlug || 'book'}.pdf` }],
+        files: [
+          {
+            uri: file.uri,
+            fileName: file.name ?? `${resolvedSlug || 'book'}.pdf`,
+          },
+        ],
         destination: 'cachesDirectory',
       });
       if (local.status !== 'success') {
@@ -295,7 +315,10 @@ export function AdminBookEditorScreen() {
       patch({ pdfPath: uploaded.path, fileSizeBytes: uploaded.sizeBytes });
       toast.success('PDF uploaded.');
     } catch (caught) {
-      if (isErrorWithCode(caught) && caught.code === errorCodes.OPERATION_CANCELED) {
+      if (
+        isErrorWithCode(caught) &&
+        caught.code === errorCodes.OPERATION_CANCELED
+      ) {
         return;
       }
       toast.error(errorMessage(caught, 'Could not upload the PDF.'));
@@ -330,7 +353,12 @@ export function AdminBookEditorScreen() {
   const save = (isPublished: boolean, successMessage: string) => {
     setTouched(true);
     if (hasErrors) {
-      toast.error(errors.title ?? errors.author ?? errors.slug ?? 'Fix the highlighted fields.');
+      toast.error(
+        errors.title ??
+          errors.author ??
+          errors.slug ??
+          'Fix the highlighted fields.',
+      );
       return;
     }
 
@@ -358,7 +386,11 @@ export function AdminBookEditorScreen() {
       actionLabel: 'Add',
       onAction: () => setShowAuthorPicker(true),
     },
-    { id: 'description', label: 'Description', done: form.description.trim().length > 0 },
+    {
+      id: 'description',
+      label: 'Description',
+      done: form.description.trim().length > 0,
+    },
     {
       id: 'category',
       label: 'At least one category',
@@ -387,13 +419,18 @@ export function AdminBookEditorScreen() {
     },
   ];
 
-  const publishBlocker = !form.pdfPath ? 'needs a PDF' : hasErrors ? 'fix the fields above' : null;
+  const publishBlocker = !form.pdfPath
+    ? 'needs a PDF'
+    : hasErrors
+      ? 'fix the fields above'
+      : null;
   const pdfName = form.pdfPath ? form.pdfPath.split('/').pop() : null;
 
   return (
     <SafeAreaView
       style={[styles.root, { backgroundColor: colors.background }]}
-      edges={['top', 'left', 'right']}>
+      edges={['top', 'left', 'right']}
+    >
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <AdminBackLink
           label="Library"
@@ -409,7 +446,13 @@ export function AdminBookEditorScreen() {
         />
 
         <View style={styles.titleRow}>
-          <Display size={24} weight="500" tracking={-0.4} numberOfLines={2} style={styles.grow}>
+          <Display
+            size={24}
+            weight="500"
+            tracking={-0.4}
+            numberOfLines={2}
+            style={styles.grow}
+          >
             {bookId ? form.title || 'Edit book' : 'New book'}
           </Display>
 
@@ -422,7 +465,9 @@ export function AdminBookEditorScreen() {
                   duplicateBook.mutate(bookId, {
                     onSuccess: newId => {
                       toast.success('Draft copy created.');
-                      navigation.replace(ADMIN_ROUTES.BOOK_EDITOR, { bookId: newId });
+                      navigation.replace(ADMIN_ROUTES.BOOK_EDITOR, {
+                        bookId: newId,
+                      });
                     },
                     onError: caught => toast.error(errorMessage(caught)),
                   })
@@ -448,15 +493,26 @@ export function AdminBookEditorScreen() {
           gap: 20,
         }}
         keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+      >
         {isLoading && bookId ? (
-          <Text size={14} leading={1.5} align="center" tone="muted" style={styles.loading}>
+          <Text
+            size={14}
+            leading={1.5}
+            align="center"
+            tone="muted"
+            style={styles.loading}
+          >
             Loading…
           </Text>
         ) : (
           <>
             <AdminChecklist
-              title={form.isPublished ? 'This title is live' : 'Before this can go live'}
+              title={
+                form.isPublished
+                  ? 'This title is live'
+                  : 'Before this can go live'
+              }
               items={checklist}
             />
 
@@ -547,7 +603,8 @@ export function AdminBookEditorScreen() {
                     Cover image
                   </Text>
                   <Text size={12} leading={1.5} tone="muted">
-                    JPG, PNG or WebP up to 5 MB. Portrait art works best — readers see it at 2:3.
+                    JPG, PNG or WebP up to 5 MB. Portrait art works best —
+                    readers see it at 2:3.
                   </Text>
 
                   {coverProgress !== null ? (
@@ -571,7 +628,9 @@ export function AdminBookEditorScreen() {
                   <AdminEyebrow tone="faint">Or pick a colour</AdminEyebrow>
                   <View style={styles.swatches}>
                     {Object.values(COVER_RAMP).map(entry => {
-                      const picked = form.coverColor.toLowerCase() === entry.light.toLowerCase();
+                      const picked =
+                        form.coverColor.toLowerCase() ===
+                        entry.light.toLowerCase();
                       return (
                         <Pressable
                           key={entry.light}
@@ -579,13 +638,22 @@ export function AdminBookEditorScreen() {
                           accessibilityState={{ selected: picked }}
                           accessibilityLabel={`Cover colour ${entry.light}`}
                           onPress={() =>
-                            patch({ coverColor: entry.light, coverColorDark: entry.dark })
+                            patch({
+                              coverColor: entry.light,
+                              coverColorDark: entry.dark,
+                            })
                           }
                           style={[
                             styles.swatchRing,
                             picked && { borderColor: colors.actionInk },
-                          ]}>
-                          <View style={[styles.swatch, { backgroundColor: entry.light }]} />
+                          ]}
+                        >
+                          <View
+                            style={[
+                              styles.swatch,
+                              { backgroundColor: entry.light },
+                            ]}
+                          />
                         </Pressable>
                       );
                     })}
@@ -628,8 +696,8 @@ export function AdminBookEditorScreen() {
                 <AdminDivider />
 
                 <AdminHelper>
-                  Up to 100 MB. Stored privately — readers only ever get a short-lived signed link,
-                  never the file itself.
+                  Up to 100 MB. Stored privately — readers only ever get a
+                  short-lived signed link, never the file itself.
                 </AdminHelper>
               </AdminCard>
 
@@ -639,8 +707,19 @@ export function AdminBookEditorScreen() {
                     Currently live file
                   </Text>
                   <View style={styles.fileRow}>
-                    <View style={[styles.fileChip, { backgroundColor: colors.controlActive }]}>
-                      <Label size={8} leading={1} weight="700" tracking={0.4} tone="action">
+                    <View
+                      style={[
+                        styles.fileChip,
+                        { backgroundColor: colors.controlActive },
+                      ]}
+                    >
+                      <Label
+                        size={8}
+                        leading={1}
+                        weight="700"
+                        tracking={0.4}
+                        tone="action"
+                      >
                         PDF
                       </Label>
                     </View>
@@ -652,10 +731,16 @@ export function AdminBookEditorScreen() {
                         tracking={0}
                         uppercase={false}
                         tone="soft"
-                        numberOfLines={1}>
+                        numberOfLines={1}
+                      >
                         {pdfName ?? 'book.pdf'}
                       </Label>
-                      <Text size={11} leading={1.2} tone="faint" numberOfLines={1}>
+                      <Text
+                        size={11}
+                        leading={1.2}
+                        tone="faint"
+                        numberOfLines={1}
+                      >
                         {`${formatBytes(form.fileSizeBytes)} · added ${formatDate(
                           existing?.updated_at,
                         )}`}
@@ -695,18 +780,26 @@ export function AdminBookEditorScreen() {
                   />
                   {form.categoryIds.length === 0 ? (
                     <AdminHelper tone="warning">
-                      Not in any category yet — readers will not find it on Explore.
+                      Not in any category yet — readers will not find it on
+                      Explore.
                     </AdminHelper>
                   ) : (
                     <View style={styles.wrap}>
                       {form.categoryIds.map(id => (
                         <AdminChip
                           key={id}
-                          label={categories.find(item => item.id === id)?.label ?? 'Unknown'}
+                          label={
+                            categories.find(item => item.id === id)?.label ??
+                            'Unknown'
+                          }
                           selected
                           compact
                           onPress={() =>
-                            patch({ categoryIds: form.categoryIds.filter(item => item !== id) })
+                            patch({
+                              categoryIds: form.categoryIds.filter(
+                                item => item !== id,
+                              ),
+                            })
                           }
                         />
                       ))}
@@ -732,12 +825,17 @@ export function AdminBookEditorScreen() {
                       {form.collectionIds.map(id => (
                         <AdminChip
                           key={id}
-                          label={collections.find(item => item.id === id)?.title ?? 'Unknown'}
+                          label={
+                            collections.find(item => item.id === id)?.title ??
+                            'Unknown'
+                          }
                           selected
                           compact
                           onPress={() =>
                             patch({
-                              collectionIds: form.collectionIds.filter(item => item !== id),
+                              collectionIds: form.collectionIds.filter(
+                                item => item !== id,
+                              ),
                             })
                           }
                         />
@@ -797,7 +895,9 @@ export function AdminBookEditorScreen() {
                     <AdminField
                       label="Read time"
                       value={form.readTime}
-                      onChangeText={value => patch({ readTime: value.replace(/[^0-9]/g, '') })}
+                      onChangeText={value =>
+                        patch({ readTime: value.replace(/[^0-9]/g, '') })
+                      }
                       keyboardType="number-pad"
                       suffix="min"
                       error={errors.readTime}
@@ -818,7 +918,9 @@ export function AdminBookEditorScreen() {
                     <AdminField
                       label="Price"
                       value={form.price}
-                      onChangeText={value => patch({ price: value.replace(/[^0-9.]/g, '') })}
+                      onChangeText={value =>
+                        patch({ price: value.replace(/[^0-9.]/g, '') })
+                      }
                       keyboardType="decimal-pad"
                       error={errors.price}
                       helper="0 for titles included in a subscription."
@@ -872,8 +974,12 @@ export function AdminBookEditorScreen() {
       <View
         style={[
           styles.footer,
-          { backgroundColor: colors.chrome, borderTopColor: colors.chromeBorder },
-        ]}>
+          {
+            backgroundColor: colors.chrome,
+            borderTopColor: colors.chromeBorder,
+          },
+        ]}
+      >
         {form.isPublished ? (
           <>
             <View style={styles.grow}>
@@ -901,7 +1007,9 @@ export function AdminBookEditorScreen() {
                 variant="secondary"
                 loading={saveBook.isPending}
                 disabled={uploading}
-                onPress={() => save(false, bookId ? 'Draft saved.' : 'Draft created.')}
+                onPress={() =>
+                  save(false, bookId ? 'Draft saved.' : 'Draft created.')
+                }
               />
             </View>
             <View style={styles.grow}>
@@ -1034,10 +1142,18 @@ function IconAction({
       hitSlop={6}
       style={({ pressed }) => [
         styles.iconAction,
-        { backgroundColor: danger ? colors.dangerFill : colors.primaryFillSoft },
+        {
+          backgroundColor: danger ? colors.dangerFill : colors.primaryFillSoft,
+        },
         pressed && styles.pressed,
-      ]}>
-      <Icon icon={icon} size={14} tone={danger ? 'danger' : 'action'} strokeWidth={1.9} />
+      ]}
+    >
+      <Icon
+        icon={icon}
+        size={14}
+        tone={danger ? 'danger' : 'action'}
+        strokeWidth={1.9}
+      />
     </Pressable>
   );
 }

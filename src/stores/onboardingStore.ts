@@ -7,7 +7,8 @@ import { mmkvStorage } from '@/stores/storage';
 export type ReadingLanguage = 'both' | 'urdu' | 'english';
 
 /** Sets the daily goal and when the app nudges. */
-export type ReadingRhythm = 'casual' | 'daily' | 'night-owl' | 'weekend' | 'scholar';
+export type ReadingRhythm =
+  'casual' | 'daily' | 'night-owl' | 'weekend' | 'scholar';
 
 type OnboardingState = {
   /** True once the reader has been through — or skipped — the first-run flow. */

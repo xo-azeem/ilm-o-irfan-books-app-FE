@@ -15,7 +15,9 @@ export const queryClient = new QueryClient({
       gcTime: 10 * 60_000,
       retry: (failureCount, error: unknown) => {
         const status = (error as { status?: number })?.status;
-        return failureCount < 2 && status !== 401 && status !== 403 && status !== 404;
+        return (
+          failureCount < 2 && status !== 401 && status !== 403 && status !== 404
+        );
       },
       refetchOnMount: false,
       refetchOnWindowFocus: true,

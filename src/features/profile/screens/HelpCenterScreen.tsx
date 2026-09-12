@@ -37,7 +37,9 @@ export function HelpCenterScreen() {
   const { data: home } = useHomeCatalog();
   const supportEmail = home?.supportEmail || supportContact.email;
   const [query, setQuery] = useState('');
-  const [openTopic, setOpenTopic] = useState<string | null>(helpTopics[0]?.id ?? null);
+  const [openTopic, setOpenTopic] = useState<string | null>(
+    helpTopics[0]?.id ?? null,
+  );
 
   const term = query.trim().toLowerCase();
   const topics = term
@@ -55,12 +57,17 @@ export function HelpCenterScreen() {
   const emailSupport = useCallback(() => {
     void Linking.openURL(
       `mailto:${supportEmail}?subject=${encodeURIComponent('Ilm o Irfan support')}`,
-    ).catch(() => Alert.alert('No mail app', `Write to us at ${supportEmail}.`));
+    ).catch(() =>
+      Alert.alert('No mail app', `Write to us at ${supportEmail}.`),
+    );
   }, [supportEmail]);
 
   const rateApp = useCallback(() => {
     void Linking.openURL(STORE_REVIEW_URL).catch(() =>
-      Alert.alert('Could not open the store', 'Please search for Ilm o Irfan in your app store.'),
+      Alert.alert(
+        'Could not open the store',
+        'Please search for Ilm o Irfan in your app store.',
+      ),
     );
   }, []);
 
@@ -76,7 +83,8 @@ export function HelpCenterScreen() {
       {topics.length === 0 ? (
         <Card tone="alt" padded={16}>
           <Text size={fontSize.caption} leading={1.6} tone="muted">
-            Nothing matched “{query.trim()}”. Try a different word, or email us below.
+            Nothing matched “{query.trim()}”. Try a different word, or email us
+            below.
           </Text>
         </Card>
       ) : (
@@ -102,7 +110,8 @@ export function HelpCenterScreen() {
           styles.support,
           { borderColor: colors.border },
           pressed && styles.pressed,
-        ]}>
+        ]}
+      >
         <LinearGradient
           angle={135}
           stops={[
@@ -118,8 +127,15 @@ export function HelpCenterScreen() {
             {`${supportEmail} · ${supportContact.replyTime}`}
           </Text>
         </View>
-        <View style={[styles.supportAction, { backgroundColor: colors.primary }]}>
-          <Text size={fontSize.caption} leading={1} weight="600" tone="onPrimary">
+        <View
+          style={[styles.supportAction, { backgroundColor: colors.primary }]}
+        >
+          <Text
+            size={fontSize.caption}
+            leading={1}
+            weight="600"
+            tone="onPrimary"
+          >
             Email us
           </Text>
         </View>
@@ -127,7 +143,13 @@ export function HelpCenterScreen() {
 
       <SettingsGroup title="About">
         {aboutDetails.map(detail => (
-          <SettingsRow key={detail.id} title={detail.label} value={detail.value} chevron={false} dense />
+          <SettingsRow
+            key={detail.id}
+            title={detail.label}
+            value={detail.value}
+            chevron={false}
+            dense
+          />
         ))}
         <SettingsRow
           title="Rate the app"
@@ -170,7 +192,8 @@ const HelpTopic = memo(function HelpTopic({
           borderColor: open ? colors.selectedBorder : colors.border,
         },
         pressed && styles.pressed,
-      ]}>
+      ]}
+    >
       <View style={styles.topicHeader}>
         <Text size={14.5} leading={1.35} weight="500" style={styles.grow}>
           {question}

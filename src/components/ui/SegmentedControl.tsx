@@ -1,5 +1,11 @@
 import { memo, useCallback } from 'react';
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 
 import { Text } from '@/components/ui/Text';
 import { radius } from '@/theme/palette';
@@ -44,7 +50,8 @@ function SegmentedControlInner<T extends string>({
         styles.root,
         { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
         style,
-      ]}>
+      ]}
+    >
       {options.map(option => {
         const active = option.value === value;
         return (
@@ -72,9 +79,17 @@ type SegmentProps<T extends string> = {
  * Split out so each segment keeps a stable press handler — the parent map would
  * otherwise allocate a new closure per option on every render.
  */
-function SegmentInner<T extends string>({ option, active, variant, onChange }: SegmentProps<T>) {
+function SegmentInner<T extends string>({
+  option,
+  active,
+  variant,
+  onChange,
+}: SegmentProps<T>) {
   const { colors } = useTheme();
-  const handlePress = useCallback(() => onChange(option.value), [onChange, option.value]);
+  const handlePress = useCallback(
+    () => onChange(option.value),
+    [onChange, option.value],
+  );
 
   return (
     <Pressable
@@ -84,15 +99,20 @@ function SegmentInner<T extends string>({ option, active, variant, onChange }: S
       style={({ pressed }) => [
         styles.segment,
         active && {
-          backgroundColor: variant === 'solid' ? colors.primary : colors.primaryFill,
+          backgroundColor:
+            variant === 'solid' ? colors.primary : colors.primaryFill,
         },
         pressed && !active && styles.pressed,
-      ]}>
+      ]}
+    >
       <Text
         size={fontSize.captionSmall}
         leading={1}
         weight={active ? '600' : '500'}
-        tone={active ? (variant === 'solid' ? 'onPrimary' : 'primary') : 'muted'}>
+        tone={
+          active ? (variant === 'solid' ? 'onPrimary' : 'primary') : 'muted'
+        }
+      >
         {option.label}
       </Text>
     </Pressable>
@@ -101,7 +121,9 @@ function SegmentInner<T extends string>({ option, active, variant, onChange }: S
 
 const Segment = memo(SegmentInner) as typeof SegmentInner;
 
-export const SegmentedControl = memo(SegmentedControlInner) as typeof SegmentedControlInner;
+export const SegmentedControl = memo(
+  SegmentedControlInner,
+) as typeof SegmentedControlInner;
 
 const styles = StyleSheet.create({
   root: {

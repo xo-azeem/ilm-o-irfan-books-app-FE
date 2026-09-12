@@ -1,6 +1,11 @@
 import { supabase } from '@/lib/supabase';
 import { ENDPOINTS } from '@/services/api/endpoints';
-import { requestData, requestList, requestPage, withEndpoint } from '@/services/api/client';
+import {
+  requestData,
+  requestList,
+  requestPage,
+  withEndpoint,
+} from '@/services/api/client';
 import type {
   DownloadListRow,
   DownloadRow,
@@ -18,8 +23,17 @@ import type {
   WishlistItemRow,
   WishlistToggleResult,
 } from '@/services/api/types';
-import { authorName, isEntitlementActive, mapCatalogBook } from '@/services/mappers';
-import { coverUrlFor, getPlans, publicCoverUrl, type CatalogBook } from '@/services/catalog';
+import {
+  authorName,
+  isEntitlementActive,
+  mapCatalogBook,
+} from '@/services/mappers';
+import {
+  coverUrlFor,
+  getPlans,
+  publicCoverUrl,
+  type CatalogBook,
+} from '@/services/catalog';
 
 /**
  * Per-user reads and writes.
@@ -89,7 +103,10 @@ export type ProfileDetails = {
  * The avatar is not a form field: it is written by its own upload flow, which
  * records the path as soon as the bytes land rather than waiting for a Save.
  */
-export type ProfileForm = Omit<ProfileDetails, 'memberSince' | 'streak' | 'avatarPath'>;
+export type ProfileForm = Omit<
+  ProfileDetails,
+  'memberSince' | 'streak' | 'avatarPath'
+>;
 
 /**
  * A book joined onto a per-user row. The author relation is selected without
@@ -105,7 +122,10 @@ type NestedBook = {
   authors: { name: string } | { name: string }[] | null;
 };
 
-function check<T>(result: { data: T | null; error: { message: string } | null }): T {
+function check<T>(result: {
+  data: T | null;
+  error: { message: string } | null;
+}): T {
   if (result.error) {
     throw new Error(result.error.message);
   }
@@ -116,7 +136,10 @@ function check<T>(result: { data: T | null; error: { message: string } | null })
 }
 
 /** `check`, for a `maybeSingle` read where no row is a real answer. */
-function checkMaybe<T>(result: { data: T | null; error: { message: string } | null }): T | null {
+function checkMaybe<T>(result: {
+  data: T | null;
+  error: { message: string } | null;
+}): T | null {
   if (result.error) {
     throw new Error(result.error.message);
   }
@@ -228,7 +251,11 @@ export async function getProfile(): Promise<ProfileDetails> {
     () => requestData<ProfileRow | null>(ENDPOINTS.profileRead, { auth: true }),
     async () => {
       const id = await userId();
-      const result = await supabase.from('profiles').select('*').eq('id', id).maybeSingle();
+      const result = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
       if (result.error) {
         throw new Error(result.error.message);
       }
@@ -299,15 +326,20 @@ export async function getSubscription() {
     payload && typeof payload === 'object' && 'entitlement' in payload
       ? (payload as EntitlementStatus)
       : null;
-  const entitlement = wrapped ? wrapped.entitlement : (payload as EntitlementRow | null);
+  const entitlement = wrapped
+    ? wrapped.entitlement
+    : (payload as EntitlementRow | null);
 
   // `plan` is the current alias, `plans` the previous one.
-  const entitledPlan = firstOf<PlanRow>(entitlement?.plan ?? entitlement?.plans ?? null);
+  const entitledPlan = firstOf<PlanRow>(
+    entitlement?.plan ?? entitlement?.plans ?? null,
+  );
   const plan = entitledPlan ?? (await getPlans())[0] ?? null;
 
   // Trust the server's own verdict when it sends one; otherwise derive it.
   const active =
-    wrapped?.isActive ?? isEntitlementActive(entitlement?.status, entitlement?.expires_at);
+    wrapped?.isActive ??
+    isEntitlementActive(entitlement?.status, entitlement?.expires_at);
 
   return {
     /** The subscription itself — what the membership badge and paywall read. */
@@ -384,7 +416,12 @@ export async function updateProfile(profile: ProfileForm) {
     async () => {
       const id = await userId();
       return check(
-        await supabase.from('profiles').update(patch).eq('id', id).select().single(),
+        await supabase
+          .from('profiles')
+          .update(patch)
+          .eq('id', id)
+          .select()
+          .single(),
       ) as ProfileRow;
     },
   );
@@ -459,7 +496,10 @@ function toDownloadBook(row: DownloadListRow): LibraryDownloadBook | null {
   if (!row.book) {
     return null;
   }
-  return { ...cardToBook(row.book), sizeBytes: Number(row.file_size_bytes ?? 0) };
+  return {
+    ...cardToBook(row.book),
+    sizeBytes: Number(row.file_size_bytes ?? 0),
+  };
 }
 
 function compact<T>(rows: Array<T | null>): T[] {
@@ -481,21 +521,28 @@ function compact<T>(rows: Array<T | null>): T[] {
  * Each shelf is capped at `limit`; `wishlist-list`, `downloads-list` and
  * `reading-progress` page the full lists when a screen needs them.
  */
-export async function getLibrary(limit = LIBRARY_SHELF_LIMIT): Promise<LibrarySummary> {
+export async function getLibrary(
+  limit = LIBRARY_SHELF_LIMIT,
+): Promise<LibrarySummary> {
   return withEndpoint(
     ENDPOINTS.libraryOverview,
     async () => {
-      const payload = await requestData<LibraryOverviewPayload>(ENDPOINTS.libraryOverview, {
-        auth: true,
-        query: { limit },
-      });
+      const payload = await requestData<LibraryOverviewPayload>(
+        ENDPOINTS.libraryOverview,
+        {
+          auth: true,
+          query: { limit },
+        },
+      );
 
       const reading = payload?.readingProgress?.items ?? [];
       const finished = payload?.finished?.items ?? [];
       const downloads = payload?.downloads?.items ?? [];
       const saved = payload?.wishlist?.items ?? [];
 
-      const cards = [...reading, ...finished, ...downloads, ...saved].map(row => row.book);
+      const cards = [...reading, ...finished, ...downloads, ...saved].map(
+        row => row.book,
+      );
       if (!hasAuthor(cards)) {
         return libraryFromTables();
       }
@@ -509,7 +556,9 @@ export async function getLibrary(limit = LIBRARY_SHELF_LIMIT): Promise<LibrarySu
       return {
         reading: compact(reading.map(toProgressBook)),
         finished: compact(finished.map(toProgressBook)),
-        saved: compact(saved.map(row => (row.book ? cardToBook(row.book) : null))),
+        saved: compact(
+          saved.map(row => (row.book ? cardToBook(row.book) : null)),
+        ),
         downloads: offline,
         readingCount: payload?.readingProgress?.totalCount ?? reading.length,
         finishedCount: payload?.finished?.totalCount ?? finished.length,
@@ -532,28 +581,40 @@ export async function getLibrary(limit = LIBRARY_SHELF_LIMIT): Promise<LibrarySu
 /** The pre-`library-overview` path: five reads, kept as the fallback. */
 async function libraryFromTables(): Promise<LibrarySummary> {
   const id = await userId();
-  const [progress, wishlist, downloads, highlights, streak] = await Promise.all([
-    supabase
-      .from('reading_progress')
-      .select(
-        'book_id,progress,chapter_label,current_page,total_pages,last_read_at,books!inner(id,title,cover_path,cover_color,cover_color_dark,authors(name))',
-      )
-      .eq('user_id', id)
-      .order('last_read_at', { ascending: false }),
-    supabase.from('wishlist').select('book_id').eq('user_id', id),
-    supabase
-      .from('downloads')
-      .select(
-        'book_id,status,file_size_bytes,downloaded_at,books!inner(id,title,cover_path,cover_color,cover_color_dark,authors(name))',
-      )
-      .eq('user_id', id)
-      .eq('status', 'completed')
-      .order('downloaded_at', { ascending: false }),
-    supabase.from('highlights').select('id').eq('user_id', id),
-    supabase.from('reading_streaks').select('current_streak').eq('user_id', id).maybeSingle(),
-  ]);
+  const [progress, wishlist, downloads, highlights, streak] = await Promise.all(
+    [
+      supabase
+        .from('reading_progress')
+        .select(
+          'book_id,progress,chapter_label,current_page,total_pages,last_read_at,books!inner(id,title,cover_path,cover_color,cover_color_dark,authors(name))',
+        )
+        .eq('user_id', id)
+        .order('last_read_at', { ascending: false }),
+      supabase.from('wishlist').select('book_id').eq('user_id', id),
+      supabase
+        .from('downloads')
+        .select(
+          'book_id,status,file_size_bytes,downloaded_at,books!inner(id,title,cover_path,cover_color,cover_color_dark,authors(name))',
+        )
+        .eq('user_id', id)
+        .eq('status', 'completed')
+        .order('downloaded_at', { ascending: false }),
+      supabase.from('highlights').select('id').eq('user_id', id),
+      supabase
+        .from('reading_streaks')
+        .select('current_streak')
+        .eq('user_id', id)
+        .maybeSingle(),
+    ],
+  );
 
-  if (progress.error || wishlist.error || downloads.error || highlights.error || streak.error) {
+  if (
+    progress.error ||
+    wishlist.error ||
+    downloads.error ||
+    highlights.error ||
+    streak.error
+  ) {
     throw new Error(
       progress.error?.message ??
         wishlist.error?.message ??
@@ -608,7 +669,9 @@ async function libraryFromTables(): Promise<LibrarySummary> {
  * also carries `is_premium`, so a saved premium title finally wears its badge
  * on the shelf.
  */
-export async function getWishlist(pageSize = LIBRARY_SHELF_LIMIT): Promise<CatalogBook[]> {
+export async function getWishlist(
+  pageSize = LIBRARY_SHELF_LIMIT,
+): Promise<CatalogBook[]> {
   return withEndpoint(
     ENDPOINTS.wishlistList,
     async () => {
@@ -665,11 +728,14 @@ export async function toggleWishlist(bookId: string): Promise<boolean> {
   return withEndpoint(
     ENDPOINTS.wishlistToggle,
     async () => {
-      const result = await requestData<WishlistToggleResult>(ENDPOINTS.wishlistToggle, {
-        method: 'POST',
-        auth: true,
-        body: { book_id: bookId },
-      });
+      const result = await requestData<WishlistToggleResult>(
+        ENDPOINTS.wishlistToggle,
+        {
+          method: 'POST',
+          auth: true,
+          body: { book_id: bookId },
+        },
+      );
       // `wishlisted` is the endpoint's answer for the resulting state;
       // `added` is the older field and still sent alongside it.
       return Boolean(result?.wishlisted ?? result?.added);
@@ -720,7 +786,9 @@ export async function getHighlights(bookId: string): Promise<HighlightRow[]> {
       const id = await userId();
       const result = await supabase
         .from('highlights')
-        .select('id,user_id,book_id,page_number,text_excerpt,note,color,created_at')
+        .select(
+          'id,user_id,book_id,page_number,text_excerpt,note,color,created_at',
+        )
         .eq('user_id', id)
         .eq('book_id', bookId);
       return check(result) as HighlightRow[];
@@ -737,7 +805,11 @@ export async function getHighlights(bookId: string): Promise<HighlightRow[]> {
     );
 }
 
-export async function addHighlight(bookId: string, pageNumber: number, note?: string) {
+export async function addHighlight(
+  bookId: string,
+  pageNumber: number,
+  note?: string,
+) {
   const row = {
     book_id: bookId,
     page_number: pageNumber,
@@ -833,7 +905,10 @@ export async function toggleHighlight(
       ) as { id: string } | null;
 
       if (existing) {
-        const { error } = await supabase.from('highlights').delete().eq('id', existing.id);
+        const { error } = await supabase
+          .from('highlights')
+          .delete()
+          .eq('id', existing.id);
         if (error) {
           throw new Error(error.message);
         }
@@ -862,7 +937,9 @@ const PROGRESS_COLUMNS =
  * A single keyed lookup on the server, no book embed — this is on the path to
  * the first page, so it carries nothing the page does not need.
  */
-export async function getReadingProgress(bookId: string): Promise<ReadingProgressRow | null> {
+export async function getReadingProgress(
+  bookId: string,
+): Promise<ReadingProgressRow | null> {
   return withEndpoint(
     ENDPOINTS.readingProgress,
     async () =>
@@ -897,11 +974,14 @@ export async function listReadingProgress(): Promise<ReadingProgressRow[]> {
     async () => {
       const rows: ReadingProgressRow[] = [];
       for (let page = 1; page <= 10; page += 1) {
-        const result = await requestPage<ReadingProgressRow>(ENDPOINTS.readingProgress, {
-          auth: true,
-          page,
-          pageSize: 200,
-        });
+        const result = await requestPage<ReadingProgressRow>(
+          ENDPOINTS.readingProgress,
+          {
+            auth: true,
+            page,
+            pageSize: 200,
+          },
+        );
         rows.push(...result.data);
         if (!result.hasNextPage) {
           break;
@@ -942,7 +1022,10 @@ export async function saveReadingProgress(
   // reader can briefly report a page past the end while a document is still
   // settling — so the page is clamped to the book rather than sent as-is.
   const pages = totalPages > 0 ? Math.round(totalPages) : null;
-  const page = Math.max(1, Math.min(Math.round(currentPage), pages ?? Number.MAX_SAFE_INTEGER));
+  const page = Math.max(
+    1,
+    Math.min(Math.round(currentPage), pages ?? Number.MAX_SAFE_INTEGER),
+  );
   // `progress` is strictly 0–1; anything outside that range is a 400, and
   // `progress_percent` is the separate field for a 0–100 value.
   const progress = pages ? Math.max(0, Math.min(page / pages, 1)) : 0;

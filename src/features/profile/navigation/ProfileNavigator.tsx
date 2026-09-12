@@ -32,16 +32,23 @@ export function ProfileNavigator() {
           animation: 'slide_from_right',
           contentStyle,
           freezeOnBlur: true,
-        }}>
+        }}
+      >
         <Stack.Screen name="ProfileMain" component={ProfileScreen} />
-        <Stack.Screen name="PersonalDetails" component={PersonalDetailsScreen} />
+        <Stack.Screen
+          name="PersonalDetails"
+          component={PersonalDetailsScreen}
+        />
         <Stack.Screen name="Subscription" component={SubscriptionScreen} />
         <Stack.Screen name="Downloads" component={DownloadsScreen} />
         <Stack.Screen name="Notifications" component={NotificationsScreen} />
         <Stack.Screen name="Appearance" component={AppearanceScreen} />
         <Stack.Screen name="Language" component={LanguageScreen} />
         <Stack.Screen name="HelpCenter" component={HelpCenterScreen} />
-        <Stack.Screen name="PrivacySecurity" component={PrivacySecurityScreen} />
+        <Stack.Screen
+          name="PrivacySecurity"
+          component={PrivacySecurityScreen}
+        />
       </Stack.Navigator>
     </View>
   );

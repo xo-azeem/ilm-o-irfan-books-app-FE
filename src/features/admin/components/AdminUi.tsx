@@ -6,11 +6,31 @@ import {
   type PropsWithChildren,
   type ReactNode,
 } from 'react';
-import { Image, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
+import {
+  Image,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Check, ChevronLeft, ChevronRight, Plus, type LucideIcon } from 'lucide-react-native';
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  type LucideIcon,
+} from 'lucide-react-native';
 
-import { Display, Divider, Icon, Label, Text, TextField, Toggle } from '@/components/ui';
+import {
+  Display,
+  Divider,
+  Icon,
+  Label,
+  Text,
+  TextField,
+  Toggle,
+} from '@/components/ui';
 import { radius } from '@/theme/palette';
 import { useTheme, type AppColors } from '@/theme/ThemeContext';
 
@@ -56,8 +76,14 @@ export const AdminBackLink = memo(function AdminBackLink({
         accessibilityRole="button"
         accessibilityLabel={`Back to ${label}`}
         hitSlop={10}
-        style={({ pressed }) => [styles.backLink, pressed && styles.pressed]}>
-        <Icon icon={ChevronLeft} size={15} color={colors.actionIcon} strokeWidth={2.2} />
+        style={({ pressed }) => [styles.backLink, pressed && styles.pressed]}
+      >
+        <Icon
+          icon={ChevronLeft}
+          size={15}
+          color={colors.actionIcon}
+          strokeWidth={2.2}
+        />
         <Text size={12.5} leading={1} weight="500" tone="action">
           {label}
         </Text>
@@ -108,7 +134,13 @@ export const AdminScreenTitle = memo(function AdminScreenTitle({
 }) {
   return (
     <View style={styles.screenTitle}>
-      <Display size={24} weight="500" leading={1.15} tracking={-0.4} numberOfLines={2}>
+      <Display
+        size={24}
+        weight="500"
+        leading={1.15}
+        tracking={-0.4}
+        numberOfLines={2}
+      >
         {title}
       </Display>
       {subtitle ? (
@@ -139,7 +171,8 @@ export const AdminNewButton = memo(function AdminNewButton({
         styles.newButton,
         { backgroundColor: colors.primary },
         pressed && styles.pressed,
-      ]}>
+      ]}
+    >
       <Icon icon={Plus} size={14} color={colors.onPrimary} strokeWidth={2.4} />
       <Text size={13} leading={1} weight="500" tone="onPrimary">
         {label}
@@ -174,7 +207,8 @@ function AdminSegmentsInner<T extends string>({
       style={[
         styles.segments,
         { backgroundColor: colors.control, borderRadius: compact ? 13 : 14 },
-      ]}>
+      ]}
+    >
       {options.map(option => {
         const selected = option.value === value;
         return (
@@ -189,13 +223,15 @@ function AdminSegmentsInner<T extends string>({
               compact ? styles.segmentCompact : null,
               selected && { backgroundColor: colors.controlActive },
               pressed && !selected && styles.pressed,
-            ]}>
+            ]}
+          >
             <Text
               size={compact ? 12 : 12.5}
               leading={1}
               weight={selected ? '500' : '400'}
               tone={selected ? 'ink' : 'muted'}
-              numberOfLines={1}>
+              numberOfLines={1}
+            >
               {option.label}
             </Text>
           </Pressable>
@@ -205,7 +241,9 @@ function AdminSegmentsInner<T extends string>({
   );
 }
 
-export const AdminSegments = memo(AdminSegmentsInner) as typeof AdminSegmentsInner;
+export const AdminSegments = memo(
+  AdminSegmentsInner,
+) as typeof AdminSegmentsInner;
 
 export type AdminEyebrowTone = 'faint' | 'muted' | 'warning' | 'dim' | 'action';
 
@@ -256,7 +294,11 @@ export const AdminTextAction = memo(function AdminTextAction({
   tone?: 'action' | 'warning' | 'danger' | 'muted';
   size?: number;
 }) {
-  const resolved = disabled ? 'dim' : destructive ? 'danger' : tone ?? 'action';
+  const resolved = disabled
+    ? 'dim'
+    : destructive
+      ? 'danger'
+      : (tone ?? 'action');
 
   return (
     <Pressable
@@ -265,7 +307,8 @@ export const AdminTextAction = memo(function AdminTextAction({
       disabled={disabled}
       hitSlop={10}
       onPress={onPress}
-      style={({ pressed }) => (pressed ? styles.pressed : undefined)}>
+      style={({ pressed }) => (pressed ? styles.pressed : undefined)}
+    >
       <Text size={size} leading={1} weight="500" tone={resolved}>
         {label}
       </Text>
@@ -275,7 +318,8 @@ export const AdminTextAction = memo(function AdminTextAction({
 
 // ------------------------------------------------------------------- status
 
-export type AdminTagTone = 'neutral' | 'success' | 'warning' | 'danger' | 'premium';
+export type AdminTagTone =
+  'neutral' | 'success' | 'warning' | 'danger' | 'premium';
 
 /** Kept as the historic name for the same five tones. */
 export type BadgeTone = 'neutral' | 'success' | 'warning' | 'danger' | 'accent';
@@ -317,14 +361,16 @@ export const AdminTag = memo(function AdminTag({
       style={[
         small ? styles.tagSmall : styles.tag,
         { backgroundColor: tag.fill },
-      ]}>
+      ]}
+    >
       <Label
         size={small ? 8.5 : 9}
         leading={1}
         weight="700"
         tracking={0.8}
         tone="inherit"
-        style={{ color: tag.ink }}>
+        style={{ color: tag.ink }}
+      >
         {label}
       </Label>
     </View>
@@ -368,10 +414,14 @@ export const AdminAvatar = memo(function AdminAvatar({
     tone === 'warning'
       ? colors.warningTint
       : tone === 'neutral'
-      ? colors.borderSoft
-      : colors.primaryFill;
+        ? colors.borderSoft
+        : colors.primaryFill;
   const ink =
-    tone === 'warning' ? colors.warning : tone === 'neutral' ? colors.muted : colors.actionInk;
+    tone === 'warning'
+      ? colors.warning
+      : tone === 'neutral'
+        ? colors.muted
+        : colors.actionInk;
 
   const initials = (name ?? '')
     .split(/\s+/)
@@ -384,12 +434,23 @@ export const AdminAvatar = memo(function AdminAvatar({
     <View
       style={[
         styles.avatar,
-        { width: size, height: size, borderRadius: size / 2, backgroundColor: fill },
-      ]}>
+        {
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: fill,
+        },
+      ]}
+    >
       {imageUrl ? (
         <Image source={{ uri: imageUrl }} style={styles.avatarImage} />
       ) : (
-        <Display size={Math.round(size * 0.34)} weight="500" tone="inherit" style={{ color: ink }}>
+        <Display
+          size={Math.round(size * 0.34)}
+          weight="500"
+          tone="inherit"
+          style={{ color: ink }}
+        >
           {initials || '·'}
         </Display>
       )}
@@ -417,17 +478,21 @@ export const AdminCard = memo(function AdminCard({
 
   return (
     <View style={styles.block}>
-      {title || action ? <AdminSectionHeader title={title ?? ''} action={action} /> : null}
+      {title || action ? (
+        <AdminSectionHeader title={title ?? ''} action={action} />
+      ) : null}
       <View
         style={[
           styles.card,
           {
-            backgroundColor: tone === 'alt' ? colors.surfaceAlt : colors.surface,
+            backgroundColor:
+              tone === 'alt' ? colors.surfaceAlt : colors.surface,
             borderColor: colors.border,
             padding: padded ? 15 : 0,
             gap: padded ? 12 : 0,
           },
-        ]}>
+        ]}
+      >
         {children}
       </View>
     </View>
@@ -443,7 +508,11 @@ export const AdminRowGroup = memo(function AdminRowGroup({
   action,
   tone,
   children,
-}: PropsWithChildren<{ title?: string; action?: ReactNode; tone?: AdminEyebrowTone }>) {
+}: PropsWithChildren<{
+  title?: string;
+  action?: ReactNode;
+  tone?: AdminEyebrowTone;
+}>) {
   const { colors } = useTheme();
   const rows = Children.toArray(children).filter(isValidElement);
 
@@ -453,7 +522,11 @@ export const AdminRowGroup = memo(function AdminRowGroup({
         <AdminSectionHeader title={title ?? ''} tone={tone} action={action} />
       ) : null}
       <View
-        style={[styles.rowGroup, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        style={[
+          styles.rowGroup,
+          { backgroundColor: colors.surface, borderColor: colors.border },
+        ]}
+      >
         {rows.map((row, index) => (
           <Fragment key={row.key ?? index}>
             {index > 0 ? <Divider /> : null}
@@ -487,12 +560,21 @@ export const AdminAttentionGroup = memo(function AdminAttentionGroup({
       <View
         style={[
           styles.rowGroup,
-          { backgroundColor: colors.warningFill, borderColor: colors.warningBorder },
-        ]}>
+          {
+            backgroundColor: colors.warningFill,
+            borderColor: colors.warningBorder,
+          },
+        ]}
+      >
         {rows.map((row, index) => (
           <Fragment key={row.key ?? index}>
             {index > 0 ? (
-              <View style={[styles.hairline, { backgroundColor: colors.warningDivider }]} />
+              <View
+                style={[
+                  styles.hairline,
+                  { backgroundColor: colors.warningDivider },
+                ]}
+              />
             ) : null}
             {row}
           </Fragment>
@@ -523,15 +605,23 @@ export const AdminAttentionRow = memo(function AdminAttentionRow({
       accessibilityRole="button"
       accessibilityLabel={`${title}. ${actionLabel}`}
       onPress={onPress}
-      style={({ pressed }) => [styles.attentionRow, pressed && styles.pressed]}>
-      <View style={[styles.attentionTile, { backgroundColor: colors.warningTint }]}>
+      style={({ pressed }) => [styles.attentionRow, pressed && styles.pressed]}
+    >
+      <View
+        style={[styles.attentionTile, { backgroundColor: colors.warningTint }]}
+      >
         <Icon icon={icon} size={15} tone="warning" strokeWidth={2} />
       </View>
       <View style={styles.grow}>
         <Text size={13.5} leading={1.3} weight="500" numberOfLines={2}>
           {title}
         </Text>
-        <Text size={11.5} leading={1.3} tone="inherit" style={{ color: colors.warningInk }}>
+        <Text
+          size={11.5}
+          leading={1.3}
+          tone="inherit"
+          style={{ color: colors.warningInk }}
+        >
           {detail}
         </Text>
       </View>
@@ -583,14 +673,25 @@ export const AdminNavRow = memo(function AdminNavRow({
       style={({ pressed }) => [
         styles.navRow,
         pressed && { backgroundColor: colors.primaryFillSoft },
-      ]}>
+      ]}
+    >
       {leading ??
         (Glyph ? (
-          <Icon icon={Glyph} size={17} tone={danger ? 'danger' : 'action'} strokeWidth={1.9} />
+          <Icon
+            icon={Glyph}
+            size={17}
+            tone={danger ? 'danger' : 'action'}
+            strokeWidth={1.9}
+          />
         ) : null)}
 
       <View style={styles.grow}>
-        <Text size={14.5} leading={1.2} tone={danger ? 'danger' : 'ink'} numberOfLines={1}>
+        <Text
+          size={14.5}
+          leading={1.2}
+          tone={danger ? 'danger' : 'ink'}
+          numberOfLines={1}
+        >
           {label}
         </Text>
         {sublabel ? (
@@ -599,7 +700,8 @@ export const AdminNavRow = memo(function AdminNavRow({
             leading={1.2}
             tone={warn ? 'warning' : 'faint'}
             numberOfLines={1}
-            style={styles.sublabel}>
+            style={styles.sublabel}
+          >
             {sublabel}
           </Text>
         ) : null}
@@ -611,7 +713,14 @@ export const AdminNavRow = memo(function AdminNavRow({
         </Text>
       ) : null}
 
-      {trailing ?? <Icon icon={ChevronRight} size={15} color={colors.dim} strokeWidth={2} />}
+      {trailing ?? (
+        <Icon
+          icon={ChevronRight}
+          size={15}
+          color={colors.dim}
+          strokeWidth={2}
+        />
+      )}
     </Pressable>
   );
 });
@@ -635,9 +744,12 @@ export const AdminDetailRow = memo(function AdminDetailRow({
         size={13}
         leading={1}
         weight="500"
-        tone={tone === 'premium' ? 'lime' : tone === 'warning' ? 'warning' : 'ink'}
+        tone={
+          tone === 'premium' ? 'lime' : tone === 'warning' ? 'warning' : 'ink'
+        }
         numberOfLines={1}
-        style={styles.detailValue}>
+        style={styles.detailValue}
+      >
         {value}
       </Text>
     </View>
@@ -747,7 +859,14 @@ export const AdminField = memo(function AdminField({
       <View style={styles.fieldHeader}>
         <AdminLabel>{label}</AdminLabel>
         {maxLength ? (
-          <Label size={10.5} leading={1} weight="400" tracking={0} tone="dim" uppercase={false}>
+          <Label
+            size={10.5}
+            leading={1}
+            weight="400"
+            tracking={0}
+            tone="dim"
+            uppercase={false}
+          >
             {`${value.length} / ${maxLength}`}
           </Label>
         ) : null}
@@ -826,11 +945,12 @@ export const AdminPickerField = memo(function AdminPickerField({
             borderColor: error
               ? colors.dangerBorder
               : verified
-              ? colors.selectedBorder
-              : colors.border,
+                ? colors.selectedBorder
+                : colors.border,
           },
           pressed && styles.pressed,
-        ]}>
+        ]}
+      >
         {mono ? (
           <Label
             size={13}
@@ -840,7 +960,8 @@ export const AdminPickerField = memo(function AdminPickerField({
             uppercase={false}
             tone={value ? 'soft' : 'faint'}
             numberOfLines={1}
-            style={styles.grow}>
+            style={styles.grow}
+          >
             {value || placeholder}
           </Label>
         ) : (
@@ -849,7 +970,8 @@ export const AdminPickerField = memo(function AdminPickerField({
             leading={1}
             tone={value ? 'ink' : 'faint'}
             numberOfLines={1}
-            style={styles.grow}>
+            style={styles.grow}
+          >
             {value || placeholder}
           </Text>
         )}
@@ -909,29 +1031,29 @@ export const AdminButton = memo(function AdminButton({
     blocked || (disabled && variant === 'primary')
       ? colors.control
       : variant === 'primary'
-      ? colors.primary
-      : variant === 'destructive'
-      ? colors.danger
-      : outlined
-      ? 'transparent'
-      : colors.controlActive;
+        ? colors.primary
+        : variant === 'destructive'
+          ? colors.danger
+          : outlined
+            ? 'transparent'
+            : colors.controlActive;
 
   const ink =
     blocked || (disabled && variant === 'primary')
       ? 'dim'
       : variant === 'primary' || variant === 'destructive'
-      ? 'onPrimary'
-      : variant === 'ghostDanger'
-      ? 'danger'
-      : variant === 'ghost'
-      ? 'action'
-      : 'soft';
+        ? 'onPrimary'
+        : variant === 'ghostDanger'
+          ? 'danger'
+          : variant === 'ghost'
+            ? 'action'
+            : 'soft';
 
   const rim = blocked
     ? colors.borderStrong
     : variant === 'ghostDanger'
-    ? colors.dangerBorder
-    : colors.selectedBorder;
+      ? colors.dangerBorder
+      : colors.selectedBorder;
 
   return (
     <Pressable
@@ -952,7 +1074,8 @@ export const AdminButton = memo(function AdminButton({
         },
         fullWidth ? null : styles.buttonAuto,
         pressed && !inert && styles.pressed,
-      ]}>
+      ]}
+    >
       {Glyph ? (
         <Icon
           icon={Glyph}
@@ -961,10 +1084,10 @@ export const AdminButton = memo(function AdminButton({
             ink === 'onPrimary'
               ? colors.onPrimary
               : ink === 'danger'
-              ? colors.danger
-              : ink === 'action'
-              ? colors.actionIcon
-              : colors.inkSoft
+                ? colors.danger
+                : ink === 'action'
+                  ? colors.actionIcon
+                  : colors.inkSoft
           }
           strokeWidth={2}
         />
@@ -1015,12 +1138,14 @@ export const AdminChip = memo(function AdminChip({
           borderColor: colors.selectedBorder,
         },
         pressed && styles.pressed,
-      ]}>
+      ]}
+    >
       <Text
         size={compact ? 12 : 12.5}
         leading={1}
         weight={selected ? '500' : '400'}
-        tone={selected ? 'action' : 'soft'}>
+        tone={selected ? 'action' : 'soft'}
+      >
         {count === undefined ? label : `${label} ${count}`}
       </Text>
     </Pressable>
@@ -1052,16 +1177,22 @@ export const AdminStat = memo(function AdminStat({
     tone === 'success'
       ? colors.actionInk
       : tone === 'accent'
-      ? colors.lime
-      : tone === 'warning'
-      ? colors.warning
-      : tone === 'danger'
-      ? colors.danger
-      : colors.ink;
+        ? colors.lime
+        : tone === 'warning'
+          ? colors.warning
+          : tone === 'danger'
+            ? colors.danger
+            : colors.ink;
 
   const body = (
     <>
-      <Text size={21} leading={1} weight="700" tone="inherit" style={{ color: valueColor }}>
+      <Text
+        size={21}
+        leading={1}
+        weight="700"
+        tone="inherit"
+        style={{ color: valueColor }}
+      >
         {String(value)}
       </Text>
       <Text size={10.5} leading={1.2} tone="muted" numberOfLines={2}>
@@ -1086,7 +1217,8 @@ export const AdminStat = memo(function AdminStat({
         accessibilityRole="button"
         accessibilityLabel={`${label}: ${value}`}
         onPress={onPress}
-        style={({ pressed }) => [...surface, pressed && styles.pressed]}>
+        style={({ pressed }) => [...surface, pressed && styles.pressed]}
+      >
         {body}
       </Pressable>
     );
@@ -1096,7 +1228,9 @@ export const AdminStat = memo(function AdminStat({
 });
 
 /** A row of stat tiles that share the available width evenly. */
-export const AdminStatRow = memo(function AdminStatRow({ children }: PropsWithChildren) {
+export const AdminStatRow = memo(function AdminStatRow({
+  children,
+}: PropsWithChildren) {
   return <View style={styles.statRow}>{children}</View>;
 });
 
@@ -1115,12 +1249,18 @@ export const AdminMeter = memo(function AdminMeter({
   const clamped = Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
 
   return (
-    <View style={[styles.meter, { height, borderRadius: height / 2, backgroundColor: colors.border }]}>
+    <View
+      style={[
+        styles.meter,
+        { height, borderRadius: height / 2, backgroundColor: colors.border },
+      ]}
+    >
       <View
         style={{
           width: `${clamped * 100}%`,
           height: '100%',
-          backgroundColor: tone === 'warning' ? colors.warning : colors.primaryBright,
+          backgroundColor:
+            tone === 'warning' ? colors.warning : colors.primaryBright,
         }}
       />
     </View>
@@ -1164,9 +1304,12 @@ export const AdminChecklist = memo(function AdminChecklist({
           backgroundColor: colors.surface,
           borderColor: complete ? colors.selectedBorder : colors.warningBorder,
         },
-      ]}>
+      ]}
+    >
       <View style={styles.sectionHeader}>
-        <AdminEyebrow tone={complete ? 'action' : 'warning'}>{title}</AdminEyebrow>
+        <AdminEyebrow tone={complete ? 'action' : 'warning'}>
+          {title}
+        </AdminEyebrow>
         <Label size={10} leading={1} weight="700" tracking={0} tone="muted">
           {`${done} / ${required.length}`}
         </Label>
@@ -1186,7 +1329,9 @@ export const AdminChecklist = memo(function AdminChecklist({
               <View
                 style={[
                   styles.checklistDot,
-                  { borderColor: item.optional ? colors.faint : colors.warning },
+                  {
+                    borderColor: item.optional ? colors.faint : colors.warning,
+                  },
                 ]}
               />
             )}
@@ -1197,7 +1342,8 @@ export const AdminChecklist = memo(function AdminChecklist({
               weight={item.done || item.optional ? '400' : '500'}
               tone={item.done ? 'muted' : item.optional ? 'soft' : 'ink'}
               numberOfLines={1}
-              style={styles.grow}>
+              style={styles.grow}
+            >
               {item.label}
               {item.optional ? (
                 <Text size={12.5} leading={1.2} tone="faint">
@@ -1250,12 +1396,23 @@ export const AdminEmpty = memo(function AdminEmpty({
         <Display size={21} weight="500" leading={1.25} align="center">
           {title}
         </Display>
-        <Text size={13.5} leading={1.6} align="center" tone="muted" style={styles.emptyMessage}>
+        <Text
+          size={13.5}
+          leading={1.6}
+          align="center"
+          tone="muted"
+          style={styles.emptyMessage}
+        >
           {message}
         </Text>
       </View>
       {actionLabel && onAction ? (
-        <AdminButton label={actionLabel} Icon={Plus} onPress={onAction} fullWidth={false} />
+        <AdminButton
+          label={actionLabel}
+          Icon={Plus}
+          onPress={onAction}
+          fullWidth={false}
+        />
       ) : null}
       {footnote ? (
         <Text size={12.5} leading={1} tone="faint">
@@ -1293,8 +1450,12 @@ export const AdminErrorState = memo(function AdminErrorState({
       <View
         style={[
           styles.errorTile,
-          { backgroundColor: colors.dangerFill, borderColor: colors.dangerBorder },
-        ]}>
+          {
+            backgroundColor: colors.dangerFill,
+            borderColor: colors.dangerBorder,
+          },
+        ]}
+      >
         <Text size={24} leading={1} weight="700" tone="danger">
           !
         </Text>
@@ -1304,11 +1465,24 @@ export const AdminErrorState = memo(function AdminErrorState({
         <Display size={21} weight="500" leading={1.25} align="center">
           {title}
         </Display>
-        <Text size={13.5} leading={1.6} align="center" tone="muted" style={styles.emptyMessage}>
+        <Text
+          size={13.5}
+          leading={1.6}
+          align="center"
+          tone="muted"
+          style={styles.emptyMessage}
+        >
           {message}
         </Text>
         {detail ? (
-          <Label size={11} leading={1.4} weight="400" tracking={0} tone="dim" uppercase={false}>
+          <Label
+            size={11}
+            leading={1.4}
+            weight="400"
+            tracking={0}
+            tone="dim"
+            uppercase={false}
+          >
             {detail}
           </Label>
         ) : null}
@@ -1317,7 +1491,11 @@ export const AdminErrorState = memo(function AdminErrorState({
       <View style={styles.errorActions}>
         <AdminButton label="Try again" onPress={onRetry} />
         {secondaryLabel && onSecondary ? (
-          <AdminButton label={secondaryLabel} variant="secondary" onPress={onSecondary} />
+          <AdminButton
+            label={secondaryLabel}
+            variant="secondary"
+            onPress={onSecondary}
+          />
         ) : null}
       </View>
     </View>
@@ -1339,7 +1517,8 @@ export const AdminActionBar = memo(function AdminActionBar({
         styles.actionBar,
         column ? styles.actionBarColumn : null,
         { borderTopColor: colors.chromeBorder, backgroundColor: colors.chrome },
-      ]}>
+      ]}
+    >
       {children}
     </View>
   );
@@ -1360,7 +1539,14 @@ export const AdminUploadProgress = memo(function AdminUploadProgress({
   return (
     <View style={styles.upload}>
       <View style={styles.between}>
-        <Label size={11.5} leading={1} weight="400" tracking={0} uppercase={false} tone="muted">
+        <Label
+          size={11.5}
+          leading={1}
+          weight="400"
+          tracking={0}
+          uppercase={false}
+          tone="muted"
+        >
           {fileName}
         </Label>
         <Label size={11} leading={1} weight="700" tracking={0} tone="warning">
@@ -1372,10 +1558,23 @@ export const AdminUploadProgress = memo(function AdminUploadProgress({
 
       {detail || onCancel ? (
         <View style={styles.between}>
-          <Text size={11.5} leading={1.2} tone="faint" numberOfLines={1} style={styles.grow}>
+          <Text
+            size={11.5}
+            leading={1.2}
+            tone="faint"
+            numberOfLines={1}
+            style={styles.grow}
+          >
             {detail ?? ''}
           </Text>
-          {onCancel ? <AdminTextAction label="Cancel" onPress={onCancel} destructive size={11.5} /> : null}
+          {onCancel ? (
+            <AdminTextAction
+              label="Cancel"
+              onPress={onCancel}
+              destructive
+              size={11.5}
+            />
+          ) : null}
         </View>
       ) : null}
     </View>

@@ -135,12 +135,7 @@ export type AdminCollection = {
 };
 
 export type EntitlementStatus =
-  | 'active'
-  | 'expired'
-  | 'cancelled'
-  | 'grace'
-  | 'billing_issue'
-  | 'trial';
+  'active' | 'expired' | 'cancelled' | 'grace' | 'billing_issue' | 'trial';
 
 export type AdminUserRow = {
   id: string;
@@ -321,8 +316,16 @@ export const ADMIN_PAGE_SIZE = 24;
 export const COVER_MAX_BYTES = 5 * 1024 * 1024;
 export const PDF_MAX_BYTES = 100 * 1024 * 1024;
 
-export const COLLECTION_KINDS: AdminCollectionKind[] = ['hero', 'shelf', 'carousel'];
-export const PLAN_INTERVALS: AdminPlan['interval'][] = ['month', 'year', 'lifetime'];
+export const COLLECTION_KINDS: AdminCollectionKind[] = [
+  'hero',
+  'shelf',
+  'carousel',
+];
+export const PLAN_INTERVALS: AdminPlan['interval'][] = [
+  'month',
+  'year',
+  'lifetime',
+];
 export const ENTITLEMENT_STATUSES: EntitlementStatus[] = [
   'active',
   'trial',

@@ -48,13 +48,18 @@ function ChoiceCardInner<T extends string>({
           elevation: 4,
         },
         pressed && styles.pressed,
-      ]}>
+      ]}
+    >
       <View style={styles.body}>
         <Text size={16} leading={1} weight="500">
           {label}
         </Text>
         {detail ? (
-          <Text size={fontSize.caption} leading={1.2} tone={selected ? 'primary' : 'muted'}>
+          <Text
+            size={fontSize.caption}
+            leading={1.2}
+            tone={selected ? 'primary' : 'muted'}
+          >
             {detail}
           </Text>
         ) : null}

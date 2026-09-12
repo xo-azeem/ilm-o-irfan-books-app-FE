@@ -7,14 +7,32 @@ type PostgrestLike<T> = {
 };
 
 const FRIENDLY_ERRORS: Array<[RegExp, string]> = [
-  [/duplicate key value.*slug/i, 'That slug is already taken. Try a different one.'],
+  [
+    /duplicate key value.*slug/i,
+    'That slug is already taken. Try a different one.',
+  ],
   [/duplicate key value.*code/i, 'That plan code is already taken.'],
   [/books_published_needs_pdf/i, 'Upload a PDF before publishing this title.'],
-  [/violates foreign key.*author/i, 'This author still has books. Reassign or delete them first.'],
-  [/violates foreign key/i, 'Something still references this record. Remove those links first.'],
-  [/not allowed/i, 'Your session is not an admin session. Sign out and back in.'],
-  [/cannot demote the last admin/i, 'You cannot remove the last remaining admin.'],
-  [/row-level security/i, 'Your admin session has expired. Sign out and back in.'],
+  [
+    /violates foreign key.*author/i,
+    'This author still has books. Reassign or delete them first.',
+  ],
+  [
+    /violates foreign key/i,
+    'Something still references this record. Remove those links first.',
+  ],
+  [
+    /not allowed/i,
+    'Your session is not an admin session. Sign out and back in.',
+  ],
+  [
+    /cannot demote the last admin/i,
+    'You cannot remove the last remaining admin.',
+  ],
+  [
+    /row-level security/i,
+    'Your admin session has expired. Sign out and back in.',
+  ],
 ];
 
 export function toFriendlyError(message: string): string {
@@ -42,7 +60,9 @@ export function assertOk(result: { error: { message: string } | null }) {
   }
 }
 
-export function adminCoverUrl(path: string | null | undefined): string | undefined {
+export function adminCoverUrl(
+  path: string | null | undefined,
+): string | undefined {
   if (!path) {
     return undefined;
   }

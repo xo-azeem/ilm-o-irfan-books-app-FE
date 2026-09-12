@@ -1,5 +1,11 @@
 import { memo, useCallback } from 'react';
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 
 import { Display, LinearGradient, Text } from '@/components/ui';
 import { radius } from '@/theme/palette';
@@ -43,7 +49,8 @@ export const CollectionCard = memo(function CollectionCard({
         { width, height, borderColor: colors.border },
         pressed && styles.pressed,
         style,
-      ]}>
+      ]}
+    >
       <LinearGradient
         angle={140}
         stops={[
@@ -102,7 +109,8 @@ export const CategoryTile = memo(function CategoryTile({
         width != null ? { width, flex: undefined } : null,
         pressed && styles.pressed,
         style,
-      ]}>
+      ]}
+    >
       <LinearGradient
         angle={140}
         stops={[

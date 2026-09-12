@@ -65,7 +65,10 @@ async function uploadFile(
   if (status < 200 || status >= 300) {
     let message = `Upload failed (${status}).`;
     try {
-      const parsed = JSON.parse(response.data) as { message?: string; error?: string };
+      const parsed = JSON.parse(response.data) as {
+        message?: string;
+        error?: string;
+      };
       message = parsed.message ?? parsed.error ?? message;
     } catch {
       // Non-JSON error body; the status message is enough.
@@ -107,7 +110,13 @@ export async function uploadAdminPdf(
 ): Promise<{ path: string; sizeBytes: number | null }> {
   const name = slugify(slug) || 'book';
   const objectPath = `${name}-${Date.now()}.pdf`;
-  const path = await uploadFile('pdfs', objectPath, localUri, 'application/pdf', onProgress);
+  const path = await uploadFile(
+    'pdfs',
+    objectPath,
+    localUri,
+    'application/pdf',
+    onProgress,
+  );
 
   let resolvedSize = sizeBytes ?? null;
   if (resolvedSize == null) {
@@ -139,7 +148,9 @@ export function validateCoverSize(bytes: number | undefined): string | null {
   return null;
 }
 
-export function validatePdfSize(bytes: number | undefined | null): string | null {
+export function validatePdfSize(
+  bytes: number | undefined | null,
+): string | null {
   if (bytes && bytes > PDF_MAX_BYTES) {
     return `PDFs must be ${Math.round(PDF_MAX_BYTES / 1024 / 1024)} MB or smaller.`;
   }

@@ -102,14 +102,16 @@ export const ReaderStageSkeleton = memo(function ReaderStageSkeleton({
       style={[styles.wrap, { backgroundColor: surface.stage }, overlayStyle]}
       accessibilityRole="progressbar"
       accessibilityLabel="Loading book"
-      accessibilityState={{ busy: !ready }}>
+      accessibilityState={{ busy: !ready }}
+    >
       <View style={styles.center} pointerEvents="none">
         <CircularProgress
-          value={ready ? 100 : progress ?? 0}
+          value={ready ? 100 : (progress ?? 0)}
           size={60}
           thickness={4}
           trackColor={surface.muted}
-          labelColor={surface.ink}>
+          labelColor={surface.ink}
+        >
           <CircularProgressIndicator>
             <CircularProgressTrack />
             <CircularProgressRange />

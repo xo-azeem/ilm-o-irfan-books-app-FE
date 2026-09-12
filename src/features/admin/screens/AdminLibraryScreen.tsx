@@ -1,7 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  View,
+} from 'react-native';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
+import {
+  useNavigation,
+  useRoute,
+  type RouteProp,
+} from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { Display, Text } from '@/components/ui';
@@ -51,7 +64,10 @@ import type {
 } from '@/services/admin';
 import { useTheme } from '@/theme/ThemeContext';
 
-import type { AdminLibraryStackParamList, LibrarySegment } from '../navigation/types';
+import type {
+  AdminLibraryStackParamList,
+  LibrarySegment,
+} from '../navigation/types';
 
 const SEGMENTS: ReadonlyArray<{ value: LibrarySegment; label: string }> = [
   { value: 'books', label: 'Books' },
@@ -86,18 +102,24 @@ const SORT_OPTIONS: BookSort[] = ['updated_desc', 'title_asc', 'readers_desc'];
  * table a thing lives in before they can find it.
  */
 export function AdminLibraryScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<AdminLibraryStackParamList>>();
-  const route = useRoute<RouteProp<AdminLibraryStackParamList, 'AdminLibraryHome'>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<AdminLibraryStackParamList>>();
+  const route =
+    useRoute<RouteProp<AdminLibraryStackParamList, 'AdminLibraryHome'>>();
   const { colors } = useTheme();
   const { scrollEndPadding } = useAppInsets();
   const insets = useSafeAreaInsets();
   const toast = useToast();
 
-  const [segment, setSegment] = useState<LibrarySegment>(route.params?.segment ?? 'books');
+  const [segment, setSegment] = useState<LibrarySegment>(
+    route.params?.segment ?? 'books',
+  );
 
   // Books
   const [query, setQuery] = useState('');
-  const [status, setStatus] = useState<BookStatusFilter>(route.params?.status ?? 'all');
+  const [status, setStatus] = useState<BookStatusFilter>(
+    route.params?.status ?? 'all',
+  );
   const [access, setAccess] = useState<BookAccessFilter>('all');
   const [sort, setSort] = useState<BookSort>('updated_desc');
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -123,7 +145,14 @@ export function AdminLibraryScreen() {
   }, [routeStatus]);
 
   const filters = useMemo<AdminBookFilters>(
-    () => ({ query: debouncedQuery, status, access, authorId: null, categoryId: null, sort }),
+    () => ({
+      query: debouncedQuery,
+      status,
+      access,
+      authorId: null,
+      categoryId: null,
+      sort,
+    }),
     [access, debouncedQuery, sort, status],
   );
 
@@ -136,19 +165,29 @@ export function AdminLibraryScreen() {
   const bulkUpdate = useBulkUpdateBooks();
   const deleteBooks = useDeleteAdminBooks();
 
-  const rows = useMemo(() => books.data?.pages.flatMap(page => page.rows) ?? [], [books.data]);
+  const rows = useMemo(
+    () => books.data?.pages.flatMap(page => page.rows) ?? [],
+    [books.data],
+  );
   const shown = books.data?.pages[0]?.total ?? 0;
 
   const categoryById = useMemo(
-    () => new Map((categories.data ?? []).map(category => [category.id, category.label])),
+    () =>
+      new Map(
+        (categories.data ?? []).map(category => [category.id, category.label]),
+      ),
     [categories.data],
   );
 
-  const bookTotal = (stats?.book_published_count ?? 0) + (stats?.book_draft_count ?? 0);
+  const bookTotal =
+    (stats?.book_published_count ?? 0) + (stats?.book_draft_count ?? 0);
   // The board's own arithmetic: two titles without a PDF plus one without a
   // cover is "3 need attention". The breakdown line always says which is which.
-  const needsAttention = (stats?.missing_pdf_count ?? 0) + (stats?.missing_cover_count ?? 0);
-  const orphanAuthors = (authors.data ?? []).filter(author => author.book_count === 0).length;
+  const needsAttention =
+    (stats?.missing_pdf_count ?? 0) + (stats?.missing_cover_count ?? 0);
+  const orphanAuthors = (authors.data ?? []).filter(
+    author => author.book_count === 0,
+  ).length;
 
   const activeFilters = useMemo(() => {
     const list: Array<{ id: string; label: string; clear: () => void }> = [];
@@ -159,13 +198,17 @@ export function AdminLibraryScreen() {
           status === 'published'
             ? 'Live'
             : status === 'draft'
-            ? 'Draft'
-            : 'Needs attention',
+              ? 'Draft'
+              : 'Needs attention',
         clear: () => setStatus('all'),
       });
     }
     if (access !== 'all') {
-      list.push({ id: 'access', label: ACCESS_LABEL[access], clear: () => setAccess('all') });
+      list.push({
+        id: 'access',
+        label: ACCESS_LABEL[access],
+        clear: () => setAccess('all'),
+      });
     }
     return list;
   }, [access, status]);
@@ -178,7 +221,9 @@ export function AdminLibraryScreen() {
 
   const toggleSelected = useCallback((id: string) => {
     setSelected(current =>
-      current.includes(id) ? current.filter(item => item !== id) : [...current, id],
+      current.includes(id)
+        ? current.filter(item => item !== id)
+        : [...current, id],
     );
   }, []);
 
@@ -197,7 +242,9 @@ export function AdminLibraryScreen() {
   const startSelecting = useCallback((id?: string) => {
     setSelecting(true);
     if (id) {
-      setSelected(current => (current.includes(id) ? current : [...current, id]));
+      setSelected(current =>
+        current.includes(id) ? current : [...current, id],
+      );
     }
   }, []);
 
@@ -206,7 +253,10 @@ export function AdminLibraryScreen() {
     setSelected([]);
   }, []);
 
-  const runBulk = (changes: { is_published?: boolean; is_premium?: boolean }, label: string) => {
+  const runBulk = (
+    changes: { is_published?: boolean; is_premium?: boolean },
+    label: string,
+  ) => {
     bulkUpdate.mutate(
       { ids: selected, changes },
       {
@@ -241,12 +291,12 @@ export function AdminLibraryScreen() {
         ? `${bookTotal} books · ${needsAttention} need attention`
         : `${bookTotal} ${bookTotal === 1 ? 'book' : 'books'}`
       : segment === 'authors'
-      ? orphanAuthors > 0
-        ? `${authors.data?.length ?? 0} authors · ${orphanAuthors} with no books`
-        : `${authors.data?.length ?? 0} in the catalog`
-      : segment === 'categories'
-      ? `${categories.data?.length ?? 0} categories · the order readers browse`
-      : `${collections.data?.length ?? 0} shelves · top to bottom on Home`;
+        ? orphanAuthors > 0
+          ? `${authors.data?.length ?? 0} authors · ${orphanAuthors} with no books`
+          : `${authors.data?.length ?? 0} in the catalog`
+        : segment === 'categories'
+          ? `${categories.data?.length ?? 0} categories · the order readers browse`
+          : `${collections.data?.length ?? 0} shelves · top to bottom on Home`;
 
   const renderBook = useCallback(
     ({ item }: { item: AdminBookRow }) => (
@@ -255,7 +305,9 @@ export function AdminLibraryScreen() {
         selected={selected.includes(item.id)}
         selectionMode={selecting}
         categoryLabel={
-          item.category_ids.length > 0 ? categoryById.get(item.category_ids[0]) : undefined
+          item.category_ids.length > 0
+            ? categoryById.get(item.category_ids[0])
+            : undefined
         }
         onPress={() => openBook(item)}
         onLongPress={() => startSelecting(item.id)}
@@ -267,13 +319,16 @@ export function AdminLibraryScreen() {
   return (
     <SafeAreaView
       style={[styles.root, { backgroundColor: colors.background }]}
-      edges={['top', 'left', 'right']}>
+      edges={['top', 'left', 'right']}
+    >
       <View style={styles.header}>
         {selecting ? (
           <View style={styles.selectionHeader}>
             <View style={styles.grow}>
               <Display size={22} weight="500" tracking={-0.4}>
-                {selected.length === 0 ? 'Select titles' : `${selected.length} selected`}
+                {selected.length === 0
+                  ? 'Select titles'
+                  : `${selected.length} selected`}
               </Display>
               <Text size={12} leading={1.3} tone="muted">
                 Tap rows to add or remove
@@ -289,7 +344,11 @@ export function AdminLibraryScreen() {
               action={<AdminNewButton onPress={createForSegment} />}
             />
 
-            <AdminSegments options={SEGMENTS} value={segment} onChange={setSegment} />
+            <AdminSegments
+              options={SEGMENTS}
+              value={segment}
+              onChange={setSegment}
+            />
 
             {segment === 'books' ? (
               <>
@@ -320,7 +379,11 @@ export function AdminLibraryScreen() {
                   ) : null}
                   <View style={styles.grow} />
                   {rows.length > 0 ? (
-                    <AdminTextAction label="Select" size={11.5} onPress={() => startSelecting()} />
+                    <AdminTextAction
+                      label="Select"
+                      size={11.5}
+                      onPress={() => startSelecting()}
+                    />
                   ) : null}
                 </View>
               </>
@@ -371,19 +434,32 @@ export function AdminLibraryScreen() {
             }}
             ListEmptyComponent={
               <AdminEmpty
-                title={query || activeFilters.length ? 'Nothing matches' : 'The library is empty'}
+                title={
+                  query || activeFilters.length
+                    ? 'Nothing matches'
+                    : 'The library is empty'
+                }
                 message={
                   query || activeFilters.length
                     ? 'Try a different search, or clear the filters to see the whole catalog.'
                     : 'Add your first title with a PDF and a cover, and it appears on Home the moment you publish it.'
                 }
-                actionLabel={query || activeFilters.length ? undefined : 'Add the first book'}
-                onAction={() => navigation.navigate(ADMIN_ROUTES.BOOK_EDITOR, {})}
+                actionLabel={
+                  query || activeFilters.length
+                    ? undefined
+                    : 'Add the first book'
+                }
+                onAction={() =>
+                  navigation.navigate(ADMIN_ROUTES.BOOK_EDITOR, {})
+                }
               />
             }
             ListFooterComponent={
               books.isFetchingNextPage ? (
-                <ActivityIndicator style={styles.footer} color={colors.primary} />
+                <ActivityIndicator
+                  style={styles.footer}
+                  color={colors.primary}
+                />
               ) : null
             }
             style={styles.grow}
@@ -392,20 +468,28 @@ export function AdminLibraryScreen() {
       ) : segment === 'authors' ? (
         <LibraryAuthors
           query={debouncedAuthorQuery}
-          onOpen={authorId => navigation.navigate(ADMIN_ROUTES.AUTHOR_EDITOR, { authorId })}
+          onOpen={authorId =>
+            navigation.navigate(ADMIN_ROUTES.AUTHOR_EDITOR, { authorId })
+          }
           onCreate={() => navigation.navigate(ADMIN_ROUTES.AUTHOR_EDITOR, {})}
         />
       ) : segment === 'categories' ? (
         <LibraryCategories
-          onOpen={categoryId => navigation.navigate(ADMIN_ROUTES.CATEGORY_EDITOR, { categoryId })}
+          onOpen={categoryId =>
+            navigation.navigate(ADMIN_ROUTES.CATEGORY_EDITOR, { categoryId })
+          }
           onCreate={() => navigation.navigate(ADMIN_ROUTES.CATEGORY_EDITOR, {})}
         />
       ) : (
         <LibraryShelves
           onOpen={collectionId =>
-            navigation.navigate(ADMIN_ROUTES.COLLECTION_EDITOR, { collectionId })
+            navigation.navigate(ADMIN_ROUTES.COLLECTION_EDITOR, {
+              collectionId,
+            })
           }
-          onCreate={() => navigation.navigate(ADMIN_ROUTES.COLLECTION_EDITOR, {})}
+          onCreate={() =>
+            navigation.navigate(ADMIN_ROUTES.COLLECTION_EDITOR, {})
+          }
         />
       )}
 
@@ -420,7 +504,8 @@ export function AdminLibraryScreen() {
               borderTopColor: colors.borderStrong,
               paddingBottom: Math.max(insets.bottom, 20) + 14,
             },
-          ]}>
+          ]}
+        >
           <View style={styles.bulkHeader}>
             <AdminEyebrow tone="muted">
               {`Apply to ${selected.length} ${selected.length === 1 ? 'title' : 'titles'}`}
@@ -444,8 +529,15 @@ export function AdminLibraryScreen() {
               label="Mark premium"
               onPress={() => runBulk({ is_premium: true }, 'marked premium')}
             />
-            <BulkButton label="Make free" onPress={() => runBulk({ is_premium: false }, 'made free')} />
-            <BulkButton label="Delete" tone="danger" onPress={() => setConfirmDelete(true)} />
+            <BulkButton
+              label="Make free"
+              onPress={() => runBulk({ is_premium: false }, 'made free')}
+            />
+            <BulkButton
+              label="Delete"
+              tone="danger"
+              onPress={() => setConfirmDelete(true)}
+            />
           </View>
         </View>
       ) : null}
@@ -463,7 +555,11 @@ export function AdminLibraryScreen() {
             value: status,
             onChange: setStatus,
             options: [
-              { value: 'all' as BookStatusFilter, label: 'All', count: bookTotal },
+              {
+                value: 'all' as BookStatusFilter,
+                label: 'All',
+                count: bookTotal,
+              },
               {
                 value: 'published' as BookStatusFilter,
                 label: 'Live',
@@ -486,17 +582,22 @@ export function AdminLibraryScreen() {
             title: 'Access',
             value: access,
             onChange: setAccess,
-            options: (['all', 'premium', 'free'] as BookAccessFilter[]).map(value => ({
-              value,
-              label: ACCESS_LABEL[value],
-            })),
+            options: (['all', 'premium', 'free'] as BookAccessFilter[]).map(
+              value => ({
+                value,
+                label: ACCESS_LABEL[value],
+              }),
+            ),
           },
           {
             id: 'sort',
             title: 'Sort',
             value: sort,
             onChange: setSort,
-            options: SORT_OPTIONS.map(value => ({ value, label: SORT_LABEL[value] })),
+            options: SORT_OPTIONS.map(value => ({
+              value,
+              label: SORT_LABEL[value],
+            })),
           },
         ]}
       />
@@ -521,7 +622,9 @@ export function AdminLibraryScreen() {
             onSuccess: count => {
               setConfirmDelete(false);
               stopSelecting();
-              toast.success(`${count} ${count === 1 ? 'title' : 'titles'} deleted.`);
+              toast.success(
+                `${count} ${count === 1 ? 'title' : 'titles'} deleted.`,
+              );
             },
             onError: caught => {
               setConfirmDelete(false);
@@ -564,17 +667,23 @@ function BulkButton({
           backgroundColor: danger
             ? colors.dangerFill
             : primary
-            ? colors.primaryFill
-            : colors.control,
+              ? colors.primaryFill
+              : colors.control,
           borderColor: danger
             ? colors.dangerBorder
             : primary
-            ? colors.selectedBorder
-            : colors.border,
+              ? colors.selectedBorder
+              : colors.border,
         },
         pressed && styles.pressed,
-      ]}>
-      <Text size={13} leading={1} weight="500" tone={danger ? 'danger' : primary ? 'action' : 'soft'}>
+      ]}
+    >
+      <Text
+        size={13}
+        leading={1}
+        weight="500"
+        tone={danger ? 'danger' : primary ? 'action' : 'soft'}
+      >
         {label}
       </Text>
     </Pressable>

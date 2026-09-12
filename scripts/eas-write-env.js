@@ -40,4 +40,6 @@ const body = KEYS.filter(k => process.env[k] !== undefined)
   .join('\n');
 
 fs.writeFileSync(envPath, body + '\n');
-console.log(`[eas-write-env] wrote .env with ${KEYS.length - missing.length} keys`);
+console.log(
+  `[eas-write-env] wrote .env with ${KEYS.length - missing.length} keys`,
+);

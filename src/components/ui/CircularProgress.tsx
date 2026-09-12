@@ -52,7 +52,8 @@ type CircularProgressContextValue = {
   labelColor: string;
 };
 
-const CircularProgressContext = createContext<CircularProgressContextValue | null>(null);
+const CircularProgressContext =
+  createContext<CircularProgressContextValue | null>(null);
 
 function useCircularProgressContext(consumerName: string) {
   const context = useContext(CircularProgressContext);
@@ -63,7 +64,11 @@ function useCircularProgressContext(consumerName: string) {
 }
 
 function getProgressState(value: number | null, max: number): ProgressState {
-  return value == null ? 'indeterminate' : value >= max ? 'complete' : 'loading';
+  return value == null
+    ? 'indeterminate'
+    : value >= max
+      ? 'complete'
+      : 'loading';
 }
 
 export type CircularProgressProps = {
@@ -100,7 +105,11 @@ export function CircularProgress({
       ? Math.min(clampedMax, Math.max(min, valueProp))
       : null;
   const percentage =
-    value == null ? null : clampedMax === min ? 1 : (value - min) / (clampedMax - min);
+    value == null
+      ? null
+      : clampedMax === min
+        ? 1
+        : (value - min) / (clampedMax - min);
   const radius = Math.max(0, (size - thickness) / 2);
   const center = size / 2;
   const circumference = 2 * Math.PI * radius;
@@ -153,15 +162,22 @@ export function CircularProgress({
             ? { min, max: clampedMax, text: 'Loading' }
             : { min, max: clampedMax, now: Math.round(value) }
         }
-        style={[styles.root, { width: size, height: size }]}>
+        style={[styles.root, { width: size, height: size }]}
+      >
         {children}
       </View>
     </CircularProgressContext.Provider>
   );
 }
 
-export function CircularProgressIndicator({ children }: { children?: ReactNode }) {
-  const { size, state } = useCircularProgressContext('CircularProgressIndicator');
+export function CircularProgressIndicator({
+  children,
+}: {
+  children?: ReactNode;
+}) {
+  const { size, state } = useCircularProgressContext(
+    'CircularProgressIndicator',
+  );
   const reduceMotion = useReducedMotion();
   const spin = useSharedValue(0);
 
@@ -189,7 +205,9 @@ export function CircularProgressIndicator({ children }: { children?: ReactNode }
   }));
 
   return (
-    <Animated.View style={[styles.indicator, { width: size, height: size }, spinStyle]}>
+    <Animated.View
+      style={[styles.indicator, { width: size, height: size }, spinStyle]}
+    >
       <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         {children}
       </Svg>
@@ -218,8 +236,15 @@ export function CircularProgressTrack() {
 }
 
 export function CircularProgressRange() {
-  const { center, radius, thickness, circumference, percentage, rangeColor, state } =
-    useCircularProgressContext('CircularProgressRange');
+  const {
+    center,
+    radius,
+    thickness,
+    circumference,
+    percentage,
+    rangeColor,
+    state,
+  } = useCircularProgressContext('CircularProgressRange');
   const initialOffset =
     state === 'indeterminate' || percentage == null
       ? circumference * 0.75
@@ -277,7 +302,8 @@ export function CircularProgressValueText() {
         style={[
           styles.value,
           { color: labelColor, fontSize: scaleFont(VALUE_SIZE, fontScale) },
-        ]}>
+        ]}
+      >
         {valueText}
       </Text>
     </View>

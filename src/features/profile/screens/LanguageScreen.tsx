@@ -1,9 +1,21 @@
 import { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { Card, Divider, Label, SettingsGroup, SettingsRow, Text, Toggle, UrduText } from '@/components/ui';
+import {
+  Card,
+  Divider,
+  Label,
+  SettingsGroup,
+  SettingsRow,
+  Text,
+  Toggle,
+  UrduText,
+} from '@/components/ui';
 import { ProfileSubScreenLayout } from '@/features/profile/components/ProfileSubScreenLayout';
-import { catalogueToggles, languageOptions } from '@/features/profile/data/profileContent';
+import {
+  catalogueToggles,
+  languageOptions,
+} from '@/features/profile/data/profileContent';
 import { fontSize } from '@/theme/typography';
 
 /**
@@ -16,7 +28,9 @@ import { fontSize } from '@/theme/typography';
 export function LanguageScreen() {
   const [language, setLanguage] = useState('en');
   const [catalogue, setCatalogue] = useState(() =>
-    Object.fromEntries(catalogueToggles.map(toggle => [toggle.id, toggle.defaultValue])),
+    Object.fromEntries(
+      catalogueToggles.map(toggle => [toggle.id, toggle.defaultValue]),
+    ),
   );
 
   const setToggle = useCallback((id: string, value: boolean) => {
@@ -26,7 +40,8 @@ export function LanguageScreen() {
   return (
     <ProfileSubScreenLayout
       title="Language"
-      subtitle="Applies to the interface immediately.">
+      subtitle="Applies to the interface immediately."
+    >
       <SettingsGroup>
         {languageOptions.map(option => (
           <SettingsRow
@@ -39,7 +54,12 @@ export function LanguageScreen() {
                   {option.description}
                 </UrduText>
               ) : option.script === 'arabic' ? (
-                <Text size={fontSize.bodySmall} leading={1.3} tone="muted" align="right">
+                <Text
+                  size={fontSize.bodySmall}
+                  leading={1.3}
+                  tone="muted"
+                  align="right"
+                >
                   {option.description}
                 </Text>
               ) : undefined
@@ -80,8 +100,8 @@ export function LanguageScreen() {
 
       <Card tone="alt" padded={15}>
         <Text size={12.5} leading={1.55} tone="muted">
-          Urdu and Arabic switch the interface to right-to-left, including the reader’s page
-          order and the tab bar.
+          Urdu and Arabic switch the interface to right-to-left, including the
+          reader’s page order and the tab bar.
         </Text>
       </Card>
     </ProfileSubScreenLayout>

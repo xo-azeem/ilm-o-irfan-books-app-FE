@@ -36,7 +36,11 @@ import {
 } from '@/features/search/hooks/useSearchFilters';
 import { useRecentSearches } from '@/features/search/hooks/useRecentSearches';
 import { useLibrary } from '@/hooks/useAccount';
-import { useCatalogFeed, useCategories, useHomeCatalog } from '@/hooks/useCatalog';
+import {
+  useCatalogFeed,
+  useCategories,
+  useHomeCatalog,
+} from '@/hooks/useCatalog';
 import type { CatalogBook, CatalogSlide } from '@/services/catalog';
 import { isUrduTitle } from '@/services/script';
 import { layout } from '@/theme/palette';
@@ -94,7 +98,8 @@ const MIN_FILTERED_ROWS = 8;
  * catalogue can know.
  */
 export function SearchScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { colors } = useTheme();
 
   const [query, setQuery] = useState('');
@@ -116,7 +121,9 @@ export function SearchScreen() {
   const libraryIds = useMemo(
     () =>
       new Set(
-        [...(library?.reading ?? []), ...(library?.finished ?? [])].map(book => book.id),
+        [...(library?.reading ?? []), ...(library?.finished ?? [])].map(
+          book => book.id,
+        ),
       ),
     [library?.finished, library?.reading],
   );
@@ -148,19 +155,26 @@ export function SearchScreen() {
     refetch,
   } = useCatalogFeed(query, serverFilters);
 
-  const books = useMemo(() => data?.pages.flatMap(page => page.data) ?? [], [data]);
+  const books = useMemo(
+    () => data?.pages.flatMap(page => page.data) ?? [],
+    [data],
+  );
 
   // Nothing is dropped here unless "Downloaded only" is on — every other
   // filter was applied before the page was cut. `countIsLocal` says which of
   // those two the list is looking at.
-  const { rows: filtered, countIsLocal } = useMemo(() => apply(books), [apply, books]);
+  const { rows: filtered, countIsLocal } = useMemo(
+    () => apply(books),
+    [apply, books],
+  );
 
   /**
    * The backend's own count of the matches — the real size of the filtered set,
    * not the length of the pages fetched so far.
    */
   const totalCount = data?.pages[0]?.totalCount ?? null;
-  const shownCount = countIsLocal || totalCount == null ? filtered.length : totalCount;
+  const shownCount =
+    countIsLocal || totalCount == null ? filtered.length : totalCount;
 
   const loadMore = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) {
@@ -194,10 +208,15 @@ export function SearchScreen() {
 
     // One author match, so the reader can jump to a body of work rather than a
     // single title. De-duplicated against the title suggestions above.
-    const author = books.find(book => book.author?.toLowerCase().includes(term));
+    const author = books.find(book =>
+      book.author?.toLowerCase().includes(term),
+    );
 
     return author
-      ? [...titles.slice(0, MAX_SUGGESTIONS - 1), { kind: 'author', value: author.author }]
+      ? [
+          ...titles.slice(0, MAX_SUGGESTIONS - 1),
+          { kind: 'author', value: author.author },
+        ]
       : titles;
   }, [books, query]);
 
@@ -238,7 +257,10 @@ export function SearchScreen() {
 
   const renderItem = useCallback(
     ({ item }: { item: CatalogBook }) => (
-      <BookListRow book={toSummary(item, libraryIds.has(item.id))} onPress={openBook} />
+      <BookListRow
+        book={toSummary(item, libraryIds.has(item.id))}
+        onPress={openBook}
+      />
     ),
     [libraryIds, openBook],
   );
@@ -292,7 +314,9 @@ export function SearchScreen() {
           onSubmitEditing={() => query.trim() && remember(query.trim())}
           style={styles.grow}
         />
-        {searching ? <TextButton label="Cancel" tone="muted" onPress={cancelSearch} /> : null}
+        {searching ? (
+          <TextButton label="Cancel" tone="muted" onPress={cancelSearch} />
+        ) : null}
       </View>
 
       {searching || tokens.length > 0 ? (
@@ -354,7 +378,12 @@ export function SearchScreen() {
           </View>
           <ChipWrap gap={9}>
             {recents.map(term => (
-              <Chip key={term} label={term} size="sm" onPress={() => setQuery(term)} />
+              <Chip
+                key={term}
+                label={term}
+                size="sm"
+                onPress={() => setQuery(term)}
+              />
             ))}
           </ChipWrap>
         </View>
@@ -379,7 +408,8 @@ export function SearchScreen() {
                 leading={1.6}
                 align="center"
                 tone="muted"
-                style={styles.noResults}>
+                style={styles.noResults}
+              >
                 {query.trim() || activeCount > 0
                   ? 'Nothing matched that. Try a different word, or clear your filters.'
                   : 'No published books are available yet.'}

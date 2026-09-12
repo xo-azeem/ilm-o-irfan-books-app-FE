@@ -21,7 +21,11 @@ import {
 import type { HighlightRow } from '@/services/api/types';
 import { getAvatarUrl, uploadAvatar } from '@/services/avatar';
 import { readBookmarks, writeBookmarks } from '@/services/bookmarkCache';
-import { getPosition, positionsVersion, subscribeToPositions } from '@/services/readingPosition';
+import {
+  getPosition,
+  positionsVersion,
+  subscribeToPositions,
+} from '@/services/readingPosition';
 import { useAuthStore } from '@/stores/authStore';
 
 function scoped(name: string, userId: string | null, extra?: string) {
@@ -65,7 +69,8 @@ export function useAvatarUpload() {
   const client = useQueryClient();
   const userId = useAuthStore(state => state.userId);
   return useMutation({
-    mutationFn: ({ uri, mime }: { uri: string; mime?: string }) => uploadAvatar(uri, mime),
+    mutationFn: ({ uri, mime }: { uri: string; mime?: string }) =>
+      uploadAvatar(uri, mime),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: scoped('profile', userId) });
       void client.invalidateQueries({ queryKey: ['avatar'] });
@@ -101,7 +106,8 @@ function overlayPositions(
       currentPage: local.page,
       totalPages,
       lastReadAt: local.updatedAt,
-      progress: totalPages > 0 ? Math.min(1, local.page / totalPages) : book.progress,
+      progress:
+        totalPages > 0 ? Math.min(1, local.page / totalPages) : book.progress,
       chapter: progressCaption(null, local.page, totalPages),
     };
   });
@@ -247,7 +253,11 @@ export function useBookmarkToggle(bookId: string) {
     },
     onSettled: () => {
       if (userId) {
-        writeBookmarks(userId, bookId, client.getQueryData<HighlightRow[]>(queryKey) ?? []);
+        writeBookmarks(
+          userId,
+          bookId,
+          client.getQueryData<HighlightRow[]>(queryKey) ?? [],
+        );
       }
     },
   });
@@ -258,7 +268,8 @@ export function useUpdateProfile() {
   const userId = useAuthStore(state => state.userId);
   return useMutation({
     mutationFn: (profile: ProfileForm) => updateProfile(profile),
-    onSuccess: () => client.invalidateQueries({ queryKey: scoped('profile', userId) }),
+    onSuccess: () =>
+      client.invalidateQueries({ queryKey: scoped('profile', userId) }),
   });
 }
 
@@ -272,7 +283,9 @@ export function useWishlistMutation(bookId: string) {
     mutationFn: (_saved: boolean) => toggleWishlist(bookId),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: scoped('wishlist', userId) });
-      void client.invalidateQueries({ queryKey: scoped('wishlist-item', userId, bookId) });
+      void client.invalidateQueries({
+        queryKey: scoped('wishlist-item', userId, bookId),
+      });
       void client.invalidateQueries({ queryKey: scoped('library', userId) });
     },
   });
@@ -287,7 +300,8 @@ export function useDownloadMutation() {
       status: 'pending' | 'completed' | 'failed';
       sizeBytes?: number;
     }) => syncDownload(params.bookId, params.status, params.sizeBytes),
-    onSuccess: () => client.invalidateQueries({ queryKey: scoped('library', userId) }),
+    onSuccess: () =>
+      client.invalidateQueries({ queryKey: scoped('library', userId) }),
   });
 }
 
@@ -296,6 +310,7 @@ export function useRemoveDownload() {
   const userId = useAuthStore(state => state.userId);
   return useMutation({
     mutationFn: removeDownload,
-    onSuccess: () => client.invalidateQueries({ queryKey: scoped('library', userId) }),
+    onSuccess: () =>
+      client.invalidateQueries({ queryKey: scoped('library', userId) }),
   });
 }

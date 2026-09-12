@@ -32,7 +32,11 @@ describe('catalog mappers', () => {
     assert.equal(isEntitlementActive('active', null), true);
     assert.equal(isEntitlementActive('expired', null), false);
     assert.equal(
-      isEntitlementActive('active', '2020-01-01T00:00:00.000Z', Date.parse('2026-01-01')),
+      isEntitlementActive(
+        'active',
+        '2020-01-01T00:00:00.000Z',
+        Date.parse('2026-01-01'),
+      ),
       false,
     );
   });
@@ -73,7 +77,10 @@ describe('catalog mappers', () => {
     });
 
     assert.equal(book.author, 'Unknown');
-    assert.equal(book.description, 'A thoughtful read from the Ilm o Irfan library.');
+    assert.equal(
+      book.description,
+      'A thoughtful read from the Ilm o Irfan library.',
+    );
     // A nulled endpoint column must not reach the UI as null.
     assert.equal(book.price, 0);
     assert.equal(book.currency, 'USD');
@@ -82,23 +89,26 @@ describe('catalog mappers', () => {
   });
 
   it('maps backend book rows onto the existing UI model', () => {
-    const book = mapCatalogBook({
-      id: '33333333-3333-3333-3333-333333333333',
-      title: 'Mapped catalog title',
-      author_name: 'Mapped Author',
-      cover_path: 'covers/ihya.webp',
-      cover_color: '#1F4D3A',
-      cover_color_dark: '#163628',
-      rating: 4.9,
-      tag: 'Classic',
-      genre: 'Spirituality',
-      read_time_minutes: 360,
-      price_cents: 0,
-      currency: 'USD',
-      format: 'Digital edition',
-      is_premium: false,
-      description: 'A classic of the spiritual sciences.',
-    }, 'https://example.test/ihya.webp');
+    const book = mapCatalogBook(
+      {
+        id: '33333333-3333-3333-3333-333333333333',
+        title: 'Mapped catalog title',
+        author_name: 'Mapped Author',
+        cover_path: 'covers/ihya.webp',
+        cover_color: '#1F4D3A',
+        cover_color_dark: '#163628',
+        rating: 4.9,
+        tag: 'Classic',
+        genre: 'Spirituality',
+        read_time_minutes: 360,
+        price_cents: 0,
+        currency: 'USD',
+        format: 'Digital edition',
+        is_premium: false,
+        description: 'A classic of the spiritual sciences.',
+      },
+      'https://example.test/ihya.webp',
+    );
 
     assert.equal(book.id, '33333333-3333-3333-3333-333333333333');
     assert.equal(book.author, 'Mapped Author');

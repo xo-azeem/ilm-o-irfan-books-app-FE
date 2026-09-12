@@ -8,6 +8,9 @@
     "ios": "expo run:ios",
     "doctor": "npx expo-doctor",
     "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit",
     "test": "npx --yes tsx --test src/services/mappers.test.ts src/services/api/errors.test.ts src/services/accessClock.test.ts src/services/accessState.test.ts src/services/billing/options.test.ts src/features/reader/paperFold.test.ts src/services/readingPositionMerge.test.ts",
     "eas-build-pre-install": "node scripts/eas-write-env.js"
   },
@@ -57,8 +60,8 @@
     "@types/react": "~19.2.4",
     "babel-plugin-module-resolver": "^5.0.3",
     "babel-preset-expo": "~57.0.0",
-    "eslint": "^8.19.0",
-    "prettier": "2.8.8",
+    "eslint": "^9.39.5",
+    "prettier": "^3.9.6",
     "typescript": "^5.8.3"
   },
   "engines": {
@@ -81,5 +84,8 @@
         ]
       }
     }
+  },
+  "overrides": {
+    "eslint-plugin-ft-flow": "^3.0.11"
   }
 }

@@ -13,13 +13,31 @@ import { useTheme } from '@/theme/ThemeContext';
  */
 export const DashedShelf = memo(function DashedShelf() {
   const { colors } = useTheme();
-  const spine = { borderColor: colors.borderStrong, borderWidth: 1, borderStyle: 'dashed' as const };
+  const spine = {
+    borderColor: colors.borderStrong,
+    borderWidth: 1,
+    borderStyle: 'dashed' as const,
+  };
 
   return (
     <View style={styles.shelf}>
-      <View style={[styles.spine, styles.spineShort, spine, { transform: [{ rotate: '-6deg' }] }]} />
+      <View
+        style={[
+          styles.spine,
+          styles.spineShort,
+          spine,
+          { transform: [{ rotate: '-6deg' }] },
+        ]}
+      />
       <View style={[styles.spine, styles.spineTall, spine]} />
-      <View style={[styles.spine, styles.spineShort, spine, { transform: [{ rotate: '6deg' }] }]} />
+      <View
+        style={[
+          styles.spine,
+          styles.spineShort,
+          spine,
+          { transform: [{ rotate: '6deg' }] },
+        ]}
+      />
     </View>
   );
 });
@@ -57,13 +75,20 @@ export const EmptyState = memo(function EmptyState({
       <Display size={27} align="center">
         {title}
       </Display>
-      <Text size={fontSize.bodySmall} leading={1.65} align="center" tone="muted">
+      <Text
+        size={fontSize.bodySmall}
+        leading={1.65}
+        align="center"
+        tone="muted"
+      >
         {message}
       </Text>
 
       {action || secondaryAction ? (
         <View style={styles.actions}>
-          {action ? <Button label={action.label} onPress={action.onPress} size="md" /> : null}
+          {action ? (
+            <Button label={action.label} onPress={action.onPress} size="md" />
+          ) : null}
           {secondaryAction ? (
             <Button
               label={secondaryAction.label}

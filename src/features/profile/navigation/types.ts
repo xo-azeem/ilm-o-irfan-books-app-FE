@@ -11,4 +11,7 @@ export type ProfileStackParamList = {
   PrivacySecurity: undefined;
 };
 
-export type ProfileStackScreen = Exclude<keyof ProfileStackParamList, 'ProfileMain'>;
+export type ProfileStackScreen = Exclude<
+  keyof ProfileStackParamList,
+  'ProfileMain'
+>;

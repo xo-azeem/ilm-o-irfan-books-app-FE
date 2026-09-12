@@ -257,11 +257,7 @@ export type TrendingWeeklyPayload = {
 
 /** Why the backend picked a book. Styling only — the copy is already composed. */
 export type RecommendationReasonType =
-  | 'author'
-  | 'genre'
-  | 'category'
-  | 'tag'
-  | 'popular';
+  'author' | 'genre' | 'category' | 'tag' | 'popular';
 
 export type RecommendationReason = {
   type: RecommendationReasonType;

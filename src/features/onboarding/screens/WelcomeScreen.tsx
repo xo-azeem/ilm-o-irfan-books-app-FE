@@ -19,11 +19,14 @@ import { useTheme } from '@/theme/ThemeContext';
  * seen a book they want.
  */
 export function WelcomeScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<OnboardingStackParamList>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<OnboardingStackParamList>>();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
-  const completeWithSignIn = useOnboardingStore(state => state.completeWithSignIn);
+  const completeWithSignIn = useOnboardingStore(
+    state => state.completeWithSignIn,
+  );
 
   const startExploring = useCallback(
     () => navigation.navigate('OnboardingSubjects'),
@@ -35,27 +38,52 @@ export function WelcomeScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* Two blooms: green from the top-left, a cooler gold from the bottom-right. */}
-      <RadialGlow color={colors.primary} opacity={0.34} size={520} left={-90} top={-60} />
-      <RadialGlow color={colors.gold} opacity={0.16} size={420} right={-120} bottom={-90} />
+      <RadialGlow
+        color={colors.primary}
+        opacity={0.34}
+        size={520}
+        left={-90}
+        top={-60}
+      />
+      <RadialGlow
+        color={colors.gold}
+        opacity={0.16}
+        size={420}
+        right={-120}
+        bottom={-90}
+      />
 
       <View
         style={[
           styles.content,
-          { paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, 24) + 40 },
-        ]}>
+          {
+            paddingTop: insets.top,
+            paddingBottom: Math.max(insets.bottom, 24) + 40,
+          },
+        ]}
+      >
         <AppLogo size={SPLASH_LOGO_SIZE} style={styles.logo} />
 
         <Display size={46} leading={1.06} tracking={-0.9}>
           {'Knowledge,\ncarried forward.'}
         </Display>
 
-        <Text size={fontSize.body} leading={1.6} tone="muted" style={styles.blurb}>
+        <Text
+          size={fontSize.body}
+          leading={1.6}
+          tone="muted"
+          style={styles.blurb}
+        >
           Seven decades of Ilm-o-Irfan's shelves, now in your pocket.
         </Text>
 
         <View style={styles.actions}>
           <Button label="Start exploring" onPress={startExploring} />
-          <Button label="I already have an account" variant="secondary" onPress={signIn} />
+          <Button
+            label="I already have an account"
+            variant="secondary"
+            onPress={signIn}
+          />
         </View>
       </View>
     </View>

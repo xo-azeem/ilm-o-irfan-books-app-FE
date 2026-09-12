@@ -1,5 +1,17 @@
-import { createContext, memo, useContext, useEffect, type ReactNode } from 'react';
-import { StyleSheet, View, type DimensionValue, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  createContext,
+  memo,
+  useContext,
+  useEffect,
+  type ReactNode,
+} from 'react';
+import {
+  StyleSheet,
+  View,
+  type DimensionValue,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import Animated, {
   Easing,
   ReduceMotion,
@@ -20,7 +32,11 @@ const PulseContext = createContext<SharedValue<number> | null>(null);
  * One driver for a whole skeleton tree. Every bone reads the same shared value,
  * so a full-screen skeleton costs one animation rather than thirty.
  */
-export const SkeletonPulse = memo(function SkeletonPulse({ children }: { children: ReactNode }) {
+export const SkeletonPulse = memo(function SkeletonPulse({
+  children,
+}: {
+  children: ReactNode;
+}) {
   const pulse = useSharedValue(0);
 
   useEffect(() => {
@@ -38,7 +54,9 @@ export const SkeletonPulse = memo(function SkeletonPulse({ children }: { childre
     };
   }, [pulse]);
 
-  return <PulseContext.Provider value={pulse}>{children}</PulseContext.Provider>;
+  return (
+    <PulseContext.Provider value={pulse}>{children}</PulseContext.Provider>
+  );
 });
 
 export type SkeletonBoneProps = {
@@ -82,14 +100,24 @@ export const SkeletonBone = memo(function SkeletonBone({
     <Animated.View
       style={[
         styles.bone,
-        { width, height, borderRadius: radius, backgroundColor: colors.surfaceRaised },
+        {
+          width,
+          height,
+          borderRadius: radius,
+          backgroundColor: colors.surfaceRaised,
+        },
         animatedStyle,
         style,
-      ]}>
+      ]}
+    >
       {shimmer ? (
         <Animated.View
           pointerEvents="none"
-          style={[styles.sweep, { backgroundColor: colors.surfaceHigh }, sweepStyle]}
+          style={[
+            styles.sweep,
+            { backgroundColor: colors.surfaceHigh },
+            sweepStyle,
+          ]}
         />
       ) : null}
     </Animated.View>

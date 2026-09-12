@@ -53,7 +53,8 @@ export const GlassTabBar = memo(function GlassTabBar({
   const [barWidth, setBarWidth] = useState(0);
 
   const tabs = state.routes.filter(route => items[route.name]);
-  const slotWidth = barWidth > 0 && tabs.length > 0 ? barWidth / tabs.length : 0;
+  const slotWidth =
+    barWidth > 0 && tabs.length > 0 ? barWidth / tabs.length : 0;
 
   const focusedKey = state.routes[state.index]?.key;
   const focusedSlot = tabs.findIndex(route => route.key === focusedKey);
@@ -98,7 +99,8 @@ export const GlassTabBar = memo(function GlassTabBar({
           paddingBottom: Math.max(insets.bottom, 8) + metrics.gap,
           paddingHorizontal: metrics.inset,
         },
-      ]}>
+      ]}
+    >
       <View
         style={[
           styles.capsule,
@@ -106,7 +108,8 @@ export const GlassTabBar = memo(function GlassTabBar({
             shadowColor: colors.glassShadow,
             shadowOpacity: isDark ? 0.5 : 0.14,
           },
-        ]}>
+        ]}
+      >
         <View style={styles.clip} onLayout={handleLayout}>
           <BlurView
             style={styles.fill}
@@ -114,7 +117,11 @@ export const GlassTabBar = memo(function GlassTabBar({
             blurAmount={isDark ? 20 : 26}
             reducedTransparencyFallbackColor={colors.surface}
             {...(Platform.OS === 'android'
-              ? { overlayColor: 'transparent', blurRadius: 22, downsampleFactor: 4 }
+              ? {
+                  overlayColor: 'transparent',
+                  blurRadius: 22,
+                  downsampleFactor: 4,
+                }
               : null)}
           />
 
@@ -151,14 +158,22 @@ export const GlassTabBar = memo(function GlassTabBar({
           {/* Inner bevel, drawn last so it sits above the blur and the tint. */}
           <View
             pointerEvents="none"
-            style={[styles.fill, styles.stroke, { borderColor: colors.glassRim }]}
+            style={[
+              styles.fill,
+              styles.stroke,
+              { borderColor: colors.glassRim },
+            ]}
           />
         </View>
 
         {/* Outer stroke sits outside the clip so it is not cut in half. */}
         <View
           pointerEvents="none"
-          style={[styles.fill, styles.stroke, { borderColor: colors.glassEdge }]}
+          style={[
+            styles.fill,
+            styles.stroke,
+            { borderColor: colors.glassEdge },
+          ]}
         />
       </View>
     </View>
@@ -186,10 +201,7 @@ const GlassTab = memo(function GlassTab({
   const iconStyle = useAnimatedStyle(() => ({
     transform: [
       {
-        scale: withTiming(
-          pressed.value === 1 ? PRESS_SCALE : 1,
-          PRESS_TIMING,
-        ),
+        scale: withTiming(pressed.value === 1 ? PRESS_SCALE : 1, PRESS_TIMING),
       },
     ],
   }));
@@ -222,7 +234,8 @@ const GlassTab = memo(function GlassTab({
       style={styles.tab}
       accessibilityRole="button"
       accessibilityState={isFocused ? { selected: true } : {}}
-      accessibilityLabel={label}>
+      accessibilityLabel={label}
+    >
       <Animated.View style={iconStyle}>
         <Icon
           size={ICON_SIZE}

@@ -6,7 +6,10 @@ import { Button, Display, Text, TextButton } from '@/components/ui';
 import { ChoiceCard } from '@/features/onboarding/components/ChoiceCard';
 import { OnboardingProgress } from '@/features/onboarding/components/OnboardingProgress';
 import { READING_RHYTHMS } from '@/features/onboarding/data/onboardingContent';
-import { useOnboardingStore, type ReadingRhythm } from '@/stores/onboardingStore';
+import {
+  useOnboardingStore,
+  type ReadingRhythm,
+} from '@/stores/onboardingStore';
 import { layout } from '@/theme/palette';
 import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
@@ -36,7 +39,11 @@ export function RhythmScreen() {
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + 12 }]}>
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + 12 },
+        ]}
+      >
         <OnboardingProgress step={2} />
 
         <View style={styles.heading}>
@@ -63,10 +70,19 @@ export function RhythmScreen() {
       <View
         style={[
           styles.footer,
-          { paddingBottom: Math.max(insets.bottom, 20) + 18, backgroundColor: colors.background },
-        ]}>
+          {
+            paddingBottom: Math.max(insets.bottom, 20) + 18,
+            backgroundColor: colors.background,
+          },
+        ]}
+      >
         <Button label="Continue" onPress={finish} disabled={!rhythm} />
-        <TextButton label="Skip for now" tone="muted" onPress={finish} style={styles.skip} />
+        <TextButton
+          label="Skip for now"
+          tone="muted"
+          onPress={finish}
+          style={styles.skip}
+        />
       </View>
     </View>
   );

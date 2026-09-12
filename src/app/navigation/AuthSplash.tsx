@@ -174,7 +174,11 @@ export function AuthSplash({ ready = false, onFinished }: AuthSplashProps) {
     // blooming it here would mean dimming it first. Only the ring is new.
     ring.value = withDelay(
       WAKE_DELAY_MS + 40,
-      withTiming(1, { duration: RING_MS, easing: Easing.out(Easing.cubic), ...TIMING }),
+      withTiming(1, {
+        duration: RING_MS,
+        easing: Easing.out(Easing.cubic),
+        ...TIMING,
+      }),
     );
 
     return () => {
@@ -198,7 +202,11 @@ export function AuthSplash({ ready = false, onFinished }: AuthSplashProps) {
     pulse.value = withDelay(
       idleAt,
       withRepeat(
-        withTiming(0, { duration: PULSE_MS, easing: Easing.inOut(Easing.quad), ...TIMING }),
+        withTiming(0, {
+          duration: PULSE_MS,
+          easing: Easing.inOut(Easing.quad),
+          ...TIMING,
+        }),
         -1,
         true,
       ),
@@ -249,7 +257,11 @@ export function AuthSplash({ ready = false, onFinished }: AuthSplashProps) {
         easing: EASE_OUT,
         ...TIMING,
       });
-      markY.value = withTiming(0, { duration: EXIT_DIP_MS, easing: EASE_OUT, ...TIMING });
+      markY.value = withTiming(0, {
+        duration: EXIT_DIP_MS,
+        easing: EASE_OUT,
+        ...TIMING,
+      });
 
       // Ease back, then accelerate through the viewer.
       exitScale.value = withSequence(
@@ -321,18 +333,31 @@ export function AuthSplash({ ready = false, onFinished }: AuthSplashProps) {
     // both ends: a ring already at rest on frame one would be a circle the
     // native launch screen never drew, which is the one thing this screen must
     // not do.
-    opacity: interpolate(ring.value, [0, 0.1, 1], [0, 0.5, 0], Extrapolation.CLAMP),
+    opacity: interpolate(
+      ring.value,
+      [0, 0.1, 1],
+      [0, 0.5, 0],
+      Extrapolation.CLAMP,
+    ),
     transform: [{ scale: 0.55 + ring.value * (RING_TO_SCALE - 0.55) }],
   }));
 
   return (
     <Animated.View
       pointerEvents="auto"
-      style={[styles.root, overlayStyle, { backgroundColor: colors.background }]}
+      style={[
+        styles.root,
+        overlayStyle,
+        { backgroundColor: colors.background },
+      ]}
       accessibilityRole="progressbar"
       accessibilityLabel="Ilm o Irfan"
-      accessibilityState={{ busy: !ready }}>
-      <Animated.View pointerEvents="none" style={[styles.centreLayer, glowStyle]}>
+      accessibilityState={{ busy: !ready }}
+    >
+      <Animated.View
+        pointerEvents="none"
+        style={[styles.centreLayer, glowStyle]}
+      >
         <RadialGlow
           color={colors.primary}
           opacity={0.3}
@@ -341,7 +366,10 @@ export function AuthSplash({ ready = false, onFinished }: AuthSplashProps) {
         />
       </Animated.View>
 
-      <Animated.View pointerEvents="none" style={[styles.centreLayer, ringStyle]}>
+      <Animated.View
+        pointerEvents="none"
+        style={[styles.centreLayer, ringStyle]}
+      >
         <View style={[styles.ring, { borderColor: colors.primarySoft }]} />
       </Animated.View>
 

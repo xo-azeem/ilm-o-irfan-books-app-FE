@@ -1,4 +1,11 @@
-import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import {
   BackHandler,
   KeyboardAvoidingView,
@@ -69,10 +76,13 @@ export const Sheet = memo(function Sheet({
     if (!visible) {
       return;
     }
-    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      onClose();
-      return true;
-    });
+    const subscription = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => {
+        onClose();
+        return true;
+      },
+    );
     return () => subscription.remove();
   }, [onClose, visible]);
 
@@ -101,11 +111,18 @@ export const Sheet = memo(function Sheet({
       transparent
       animationType="none"
       statusBarTranslucent
-      onRequestClose={onClose}>
+      onRequestClose={onClose}
+    >
       {/* Padding, not a window resize: a translucent modal is not resized for
           the keyboard on Android, so a sheet with a field would sit under it. */}
       <KeyboardAvoidingView behavior="padding" style={styles.root}>
-        <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: colors.scrim }, scrimStyle]}>
+        <Animated.View
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: colors.scrim },
+            scrimStyle,
+          ]}
+        >
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Dismiss"
@@ -124,8 +141,11 @@ export const Sheet = memo(function Sheet({
             },
             panelStyle,
             contentStyle,
-          ]}>
-          <View style={[styles.handle, { backgroundColor: colors.borderStrong }]} />
+          ]}
+        >
+          <View
+            style={[styles.handle, { backgroundColor: colors.borderStrong }]}
+          />
 
           {title ? (
             <View style={styles.header}>
@@ -163,7 +183,10 @@ export function useSheet(initial = false) {
   const close = useCallback(() => setVisible(false), []);
   const toggle = useCallback(() => setVisible(current => !current), []);
 
-  return useMemo(() => ({ visible, open, close, toggle }), [close, open, toggle, visible]);
+  return useMemo(
+    () => ({ visible, open, close, toggle }),
+    [close, open, toggle, visible],
+  );
 }
 
 const styles = StyleSheet.create({

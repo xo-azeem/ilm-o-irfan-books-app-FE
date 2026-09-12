@@ -9,7 +9,8 @@ export type LibrarySegment = 'books' | 'authors' | 'categories' | 'shelves';
 export type PeopleSegment = 'readers' | 'plans';
 
 export type AdminLibraryStackParamList = {
-  AdminLibraryHome: { segment?: LibrarySegment; status?: BookStatusFilter } | undefined;
+  AdminLibraryHome:
+    { segment?: LibrarySegment; status?: BookStatusFilter } | undefined;
   AdminBookEditor: { bookId?: string };
   AdminPdfPreview: { bookId: string; title: string };
   AdminAuthorEditor: { authorId?: string };

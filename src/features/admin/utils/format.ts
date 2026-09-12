@@ -14,7 +14,9 @@ export function formatBytes(bytes: number | null | undefined): string {
 
 export function formatMoney(cents: number, currency: string): string {
   const amount = cents / 100;
-  const formatted = Number.isInteger(amount) ? String(amount) : amount.toFixed(2);
+  const formatted = Number.isInteger(amount)
+    ? String(amount)
+    : amount.toFixed(2);
   return `${currency} ${formatted}`;
 }
 

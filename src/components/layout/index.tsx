@@ -82,9 +82,11 @@ export const Screen = memo(function Screen({
   // hold the design's 52px as a floor.
   const measuredTop = Math.max(
     insets.top,
-    Platform.OS === 'android' ? StatusBar.currentHeight ?? 0 : 0,
+    Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 0,
   );
-  const paddingTop = edgeToEdge ? 0 : Math.max(measuredTop + 8, DESIGN_TOP_INSET);
+  const paddingTop = edgeToEdge
+    ? 0
+    : Math.max(measuredTop + 8, DESIGN_TOP_INSET);
 
   const scrollY = useSharedValue(0);
 
@@ -101,7 +103,8 @@ export const Screen = memo(function Screen({
         // A static page's children can only fill the screen if the wrapper does.
         !scrollable && styles.grow,
         contentStyle,
-      ]}>
+      ]}
+    >
       {children}
     </View>
   );
@@ -117,20 +120,33 @@ export const Screen = memo(function Screen({
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           contentInsetAdjustmentBehavior="never"
-          contentContainerStyle={{ paddingTop, paddingBottom: scrollEndPadding }}
+          contentContainerStyle={{
+            paddingTop,
+            paddingBottom: scrollEndPadding,
+          }}
           {...scrollViewProps}
           onScroll={showSticky ? onScroll : undefined}
-          scrollEventThrottle={16}>
+          scrollEventThrottle={16}
+        >
           {inner}
         </Animated.ScrollView>
       ) : (
-        <View style={[styles.static, { paddingTop, paddingBottom: contentBottomInset }]}>
+        <View
+          style={[
+            styles.static,
+            { paddingTop, paddingBottom: contentBottomInset },
+          ]}
+        >
           {inner}
         </View>
       )}
 
       {showSticky ? (
-        <StickyBar scrollY={scrollY} offset={stickyHeaderOffset} padding={padding}>
+        <StickyBar
+          scrollY={scrollY}
+          offset={stickyHeaderOffset}
+          padding={padding}
+        >
           {stickyHeader}
         </StickyBar>
       ) : null}
@@ -179,7 +195,8 @@ const StickyBar = memo(function StickyBar({
           borderBottomColor: colors.chromeBorder,
         },
         style,
-      ]}>
+      ]}
+    >
       {children}
     </Animated.View>
   );
@@ -277,5 +294,11 @@ const styles = StyleSheet.create({
   },
 });
 
-export { Card, PressableCard, Divider, SectionHeader, Callout } from '@/components/ui/Surface';
+export {
+  Card,
+  PressableCard,
+  Divider,
+  SectionHeader,
+  Callout,
+} from '@/components/ui/Surface';
 export { EmptyState } from '@/components/ui/EmptyState';

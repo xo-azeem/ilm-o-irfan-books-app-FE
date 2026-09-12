@@ -32,12 +32,24 @@ export const AdminRowsSkeleton = memo(function AdminRowsSkeleton({
             style={[
               styles.row,
               { backgroundColor: colors.surface, opacity: FADE[index] ?? 0.15 },
-            ]}>
-            <SkeletonBone width={48} height={68} radius={8} shimmer={index === 0} />
+            ]}
+          >
+            <SkeletonBone
+              width={48}
+              height={68}
+              radius={8}
+              shimmer={index === 0}
+            />
             <View style={styles.body}>
-              <SkeletonBone width={WIDTHS[index] ?? '70%'} height={11} radius={5} />
+              <SkeletonBone
+                width={WIDTHS[index] ?? '70%'}
+                height={11}
+                radius={5}
+              />
               <SkeletonBone width="52%" height={9} radius={5} />
-              {index < 2 ? <SkeletonBone width="38%" height={9} radius={5} /> : null}
+              {index < 2 ? (
+                <SkeletonBone width="38%" height={9} radius={5} />
+              ) : null}
             </View>
           </View>
         ))}

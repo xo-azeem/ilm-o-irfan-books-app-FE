@@ -1,9 +1,21 @@
 import type { PropsWithChildren, ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft } from 'lucide-react-native';
 
-import { DiagonalTexture, Display, IconButton, RadialGlow, Text } from '@/components/ui';
+import {
+  DiagonalTexture,
+  Display,
+  IconButton,
+  RadialGlow,
+  Text,
+} from '@/components/ui';
 import { layout } from '@/theme/palette';
 import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
@@ -20,7 +32,13 @@ export type AuthLayoutProps = PropsWithChildren<{
  * diagonal texture, a single green bloom behind the heading, and a serif title
  * that carries the whole page.
  */
-export function AuthLayout({ title, subtitle, footer, onBack, children }: AuthLayoutProps) {
+export function AuthLayout({
+  title,
+  subtitle,
+  footer,
+  onBack,
+  children,
+}: AuthLayoutProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -38,15 +56,20 @@ export function AuthLayout({ title, subtitle, footer, onBack, children }: AuthLa
 
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <ScrollView
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[
             styles.content,
-            { paddingTop: insets.top + 12, paddingBottom: Math.max(insets.bottom, 20) + 20 },
-          ]}>
+            {
+              paddingTop: insets.top + 12,
+              paddingBottom: Math.max(insets.bottom, 20) + 20,
+            },
+          ]}
+        >
           {onBack ? (
             <IconButton
               icon={ChevronLeft}

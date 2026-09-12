@@ -2,7 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
 
-import { Avatar, ReadOnlyField, Text, TextButton, TextField } from '@/components/ui';
+import {
+  Avatar,
+  ReadOnlyField,
+  Text,
+  TextButton,
+  TextField,
+} from '@/components/ui';
 import { ProfileSubScreenLayout } from '@/features/profile/components/ProfileSubScreenLayout';
 import {
   useAvatarUpload,
@@ -74,7 +80,9 @@ export function PersonalDetailsScreen() {
       return false;
     }
     const saved = toForm(profile);
-    return (Object.keys(saved) as (keyof Form)[]).some(key => saved[key] !== form[key]);
+    return (Object.keys(saved) as (keyof Form)[]).some(
+      key => saved[key] !== form[key],
+    );
   }, [form, profile]);
 
   /**
@@ -85,7 +93,10 @@ export function PersonalDetailsScreen() {
    * edits their address — and losing them if they backed out.
    */
   const handlePickPhoto = useCallback(async () => {
-    const result = await launchImageLibrary({ mediaType: 'photo', selectionLimit: 1 });
+    const result = await launchImageLibrary({
+      mediaType: 'photo',
+      selectionLimit: 1,
+    });
     const asset = result.assets?.[0];
     if (result.didCancel || !asset?.uri) {
       return;
@@ -126,7 +137,8 @@ export function PersonalDetailsScreen() {
           tone={isDirty && !updateProfile.isPending ? 'primary' : 'muted'}
           disabled={!isDirty || updateProfile.isPending}
         />
-      }>
+      }
+    >
       <View style={styles.photo}>
         <Avatar
           imageUrl={avatarUrl}
@@ -162,7 +174,11 @@ export function PersonalDetailsScreen() {
           textContentType="name"
         />
 
-        <ReadOnlyField label="Email" value={form.email || '—'} note="Verified" />
+        <ReadOnlyField
+          label="Email"
+          value={form.email || '—'}
+          note="Verified"
+        />
 
         <TextField
           label="Phone"

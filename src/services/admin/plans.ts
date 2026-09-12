@@ -55,11 +55,20 @@ export async function upsertAdminPlan(input: AdminPlanInput): Promise<string> {
   };
 
   if (input.id) {
-    unwrap(await supabase.from('plans').update(payload).eq('id', input.id).select('id').single());
+    unwrap(
+      await supabase
+        .from('plans')
+        .update(payload)
+        .eq('id', input.id)
+        .select('id')
+        .single(),
+    );
     return input.id;
   }
 
-  return unwrap(await supabase.from('plans').insert(payload).select('id').single()).id;
+  return unwrap(
+    await supabase.from('plans').insert(payload).select('id').single(),
+  ).id;
 }
 
 export async function deleteAdminPlan(id: string) {

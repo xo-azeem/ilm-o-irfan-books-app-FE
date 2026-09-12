@@ -52,14 +52,14 @@ export const Chip = memo(function Chip({
       backgroundColor: solidSelected
         ? colors.primary
         : selected
-        ? colors.selected
-        : colors.control,
+          ? colors.selected
+          : colors.control,
       borderWidth: StyleSheet.hairlineWidth * 2,
       borderColor: solidSelected
         ? colors.primary
         : selected
-        ? colors.selectedBorder
-        : colors.border,
+          ? colors.selectedBorder
+          : colors.border,
     }),
     [colors, selected, size, solidSelected],
   );
@@ -70,25 +70,47 @@ export const Chip = memo(function Chip({
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ selected }}
-      style={({ pressed }) => [styles.chip, chipStyle, pressed && styles.pressed, style]}
-      {...rest}>
+      style={({ pressed }) => [
+        styles.chip,
+        chipStyle,
+        pressed && styles.pressed,
+        style,
+      ]}
+      {...rest}
+    >
       {icon ? (
-        <Icon icon={icon} size={12} tone={labelTone === 'onPrimary' ? 'onPrimary' : 'soft'} strokeWidth={2.2} />
+        <Icon
+          icon={icon}
+          size={12}
+          tone={labelTone === 'onPrimary' ? 'onPrimary' : 'soft'}
+          strokeWidth={2.2}
+        />
       ) : null}
       <Text
         size={size === 'sm' ? fontSize.captionSmall + 0.5 : fontSize.caption}
         leading={1}
         weight="500"
-        tone={labelTone}>
+        tone={labelTone}
+      >
         {label}
       </Text>
       {count != null ? (
-        <Text size={fontSize.labelSmall} leading={1} weight="600" tone={solidSelected ? 'onPrimary' : 'primary'}>
+        <Text
+          size={fontSize.labelSmall}
+          leading={1}
+          weight="600"
+          tone={solidSelected ? 'onPrimary' : 'primary'}
+        >
           {String(count)}
         </Text>
       ) : null}
       {solidSelected ? (
-        <Text size={fontSize.caption} leading={1} tone="onPrimary" style={styles.tick}>
+        <Text
+          size={fontSize.caption}
+          leading={1}
+          tone="onPrimary"
+          style={styles.tick}
+        >
           ✓
         </Text>
       ) : null}
@@ -117,7 +139,8 @@ export const ChipRow = memo(function ChipRow({
       horizontal
       showsHorizontalScrollIndicator={false}
       style={[{ marginHorizontal: -bleed }, style]}
-      contentContainerStyle={{ paddingHorizontal: bleed, gap }}>
+      contentContainerStyle={{ paddingHorizontal: bleed, gap }}
+    >
       {children}
     </ScrollView>
   );
@@ -136,7 +159,8 @@ export const ChipWrap = memo(function ChipWrap({
   return <View style={[styles.wrap, { gap }, style]}>{children}</View>;
 });
 
-export type BadgeTone = 'primary' | 'gold' | 'lime' | 'neutral' | 'danger' | 'warning';
+export type BadgeTone =
+  'primary' | 'gold' | 'lime' | 'neutral' | 'danger' | 'warning';
 
 /**
  * The small uppercase pill that states a fact — IN MEMBERSHIP, LIVE, DRAFT,
@@ -167,8 +191,15 @@ export const Badge = memo(function Badge({
           borderColor: palette.border,
         },
         style,
-      ]}>
-      <Label size={9} leading={1.3} weight="600" tone="inherit" style={{ color: palette.ink }}>
+      ]}
+    >
+      <Label
+        size={9}
+        leading={1.3}
+        weight="600"
+        tone="inherit"
+        style={{ color: palette.ink }}
+      >
         {label}
       </Label>
     </View>
@@ -178,17 +209,41 @@ export const Badge = memo(function Badge({
 function badgePalette(tone: BadgeTone, colors: AppColors) {
   switch (tone) {
     case 'primary':
-      return { fill: colors.primaryFill, border: colors.selectedBorder, ink: colors.primarySoft };
+      return {
+        fill: colors.primaryFill,
+        border: colors.selectedBorder,
+        ink: colors.primarySoft,
+      };
     case 'gold':
-      return { fill: colors.goldFill, border: colors.goldBorder, ink: colors.goldBright };
+      return {
+        fill: colors.goldFill,
+        border: colors.goldBorder,
+        ink: colors.goldBright,
+      };
     case 'lime':
-      return { fill: colors.limeFill, border: colors.borderStrong, ink: colors.lime };
+      return {
+        fill: colors.limeFill,
+        border: colors.borderStrong,
+        ink: colors.lime,
+      };
     case 'danger':
-      return { fill: colors.dangerFill, border: colors.dangerBorder, ink: colors.danger };
+      return {
+        fill: colors.dangerFill,
+        border: colors.dangerBorder,
+        ink: colors.danger,
+      };
     case 'warning':
-      return { fill: colors.warningFill, border: colors.warningBorder, ink: colors.warning };
+      return {
+        fill: colors.warningFill,
+        border: colors.warningBorder,
+        ink: colors.warning,
+      };
     case 'neutral':
-      return { fill: colors.primaryFillSoft, border: colors.border, ink: colors.muted };
+      return {
+        fill: colors.primaryFillSoft,
+        border: colors.border,
+        ink: colors.muted,
+      };
   }
 }
 
@@ -216,15 +271,29 @@ export const Tag = memo(function Tag({
       style={({ pressed }) => [
         styles.tag,
         dashed
-          ? { borderWidth: StyleSheet.hairlineWidth * 2, borderColor: colors.borderStrong, borderStyle: 'dashed' }
+          ? {
+              borderWidth: StyleSheet.hairlineWidth * 2,
+              borderColor: colors.borderStrong,
+              borderStyle: 'dashed',
+            }
           : { backgroundColor: colors.primaryFillSoft },
         pressed && styles.pressed,
-      ]}>
-      <Text size={fontSize.captionSmall + 0.5} leading={1} tone={dashed ? 'faint' : 'soft'}>
+      ]}
+    >
+      <Text
+        size={fontSize.captionSmall + 0.5}
+        leading={1}
+        tone={dashed ? 'faint' : 'soft'}
+      >
         {label}
       </Text>
       {onRemove ? (
-        <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${label}`} hitSlop={8} onPress={onRemove}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Remove ${label}`}
+          hitSlop={8}
+          onPress={onRemove}
+        >
           <Text size={fontSize.captionSmall} leading={1} tone="faint">
             ×
           </Text>

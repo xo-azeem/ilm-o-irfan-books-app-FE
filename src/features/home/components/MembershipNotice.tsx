@@ -6,12 +6,13 @@ import type { AccessReason } from '@/services/api/types';
 import { reasonCopy } from '@/services/entitlements';
 
 /** The three states that warn without taking anything away. */
-const SOFT: Partial<Record<AccessReason, { icon: typeof AlertCircle; tone: 'warning' | 'info' }>> =
-  {
-    billing_issue_paid_through: { icon: CreditCard, tone: 'warning' },
-    grace: { icon: AlertCircle, tone: 'warning' },
-    cancelled_paid_through: { icon: CalendarClock, tone: 'info' },
-  };
+const SOFT: Partial<
+  Record<AccessReason, { icon: typeof AlertCircle; tone: 'warning' | 'info' }>
+> = {
+  billing_issue_paid_through: { icon: CreditCard, tone: 'warning' },
+  grace: { icon: AlertCircle, tone: 'warning' },
+  cancelled_paid_through: { icon: CalendarClock, tone: 'info' },
+};
 
 function endsOn(expiresAt: string | null): string | undefined {
   if (!expiresAt) {

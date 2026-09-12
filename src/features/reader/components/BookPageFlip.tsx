@@ -83,7 +83,12 @@ type Box = { width: number; height: number };
  * margin, and the stage clips it.
  */
 function pageBox(frame: Box, aspect: number): Box | null {
-  if (frame.width <= 0 || frame.height <= 0 || !Number.isFinite(aspect) || aspect <= 0) {
+  if (
+    frame.width <= 0 ||
+    frame.height <= 0 ||
+    !Number.isFinite(aspect) ||
+    aspect <= 0
+  ) {
     return null;
   }
 
@@ -110,8 +115,8 @@ function errorMessage(error: unknown) {
     error && typeof error === 'object' && 'message' in error
       ? String((error as { message?: unknown }).message ?? '')
       : typeof error === 'string'
-      ? error
-      : '';
+        ? error
+        : '';
   return raw.trim() || 'This PDF could not be displayed.';
 }
 
@@ -410,15 +415,21 @@ export const BookPageFlip = memo(
       turn.veil = uri;
       if (turn.forward) {
         turn.uri = uri;
-        setFold(current => (current && !current.leaf ? { ...current, leaf: uri } : current));
+        setFold(current =>
+          current && !current.leaf ? { ...current, leaf: uri } : current,
+        );
       } else {
-        setFold(current => (current && !current.under ? { ...current, under: uri } : current));
+        setFold(current =>
+          current && !current.under ? { ...current, under: uri } : current,
+        );
       }
     }, []);
 
     /** A page under any zoom, the reader's or the document view's own, is not a page. */
     const canShoot = useCallback(
-      () => zoomRef.current <= MIN_SCALE + ZOOM_EPS && nativeZoomRef.current <= MIN_SCALE,
+      () =>
+        zoomRef.current <= MIN_SCALE + ZOOM_EPS &&
+        nativeZoomRef.current <= MIN_SCALE,
       [],
     );
 
@@ -429,7 +440,9 @@ export const BookPageFlip = memo(
 
     // Both gesture hooks are declared further down — each needs callbacks
     // declared here — so the zoom reaches them through a fixed identity.
-    const zoomSinkRef = useRef<((control: number, native: number) => void) | null>(null);
+    const zoomSinkRef = useRef<
+      ((control: number, native: number) => void) | null
+    >(null);
 
     /**
      * Whichever zoom is up counts: the reader's, from the controls, or the
@@ -513,7 +526,8 @@ export const BookPageFlip = memo(
         const next = value > MIN_SCALE + NATIVE_ZOOM_EPS ? value : MIN_SCALE;
         const changed = setNativeZoom(next);
         if (next > MIN_SCALE) pinchedRef.current = true;
-        else if (SEAT_ZOOM_OUT && pinchedRef.current && !touchingRef.current) seatPage();
+        else if (SEAT_ZOOM_OUT && pinchedRef.current && !touchingRef.current)
+          seatPage();
         if (changed) pushZoom();
       },
       [pushZoom, seatPage, setNativeZoom],
@@ -536,7 +550,8 @@ export const BookPageFlip = memo(
     const onStageLayout = useCallback((event: LayoutChangeEvent) => {
       const { width, height } = event.nativeEvent.layout;
       setFrame(current =>
-        Math.abs(current.width - width) < 1 && Math.abs(current.height - height) < 1
+        Math.abs(current.width - width) < 1 &&
+        Math.abs(current.height - height) < 1
           ? current
           : { width, height },
       );
@@ -610,7 +625,9 @@ export const BookPageFlip = memo(
     // The fold's own hooks are declared below the callbacks that drive them —
     // each needs the other — so the two things a landing has to reach back for
     // are held at a fixed identity here.
-    const boundsRef = useRef<((current: number, count: number) => void) | null>(null);
+    const boundsRef = useRef<((current: number, count: number) => void) | null>(
+      null,
+    );
     const clearRef = useRef<(() => void) | null>(null);
 
     /**
@@ -643,7 +660,10 @@ export const BookPageFlip = memo(
         turnRef.current = null;
 
         const total = totalPagesRef.current;
-        const landed = Math.min(Math.max(finalPage, 1), total > 0 ? total : finalPage);
+        const landed = Math.min(
+          Math.max(finalPage, 1),
+          total > 0 ? total : finalPage,
+        );
         pageRef.current = landed;
         boundsRef.current?.(landed, total);
         setFold(null);
@@ -679,7 +699,9 @@ export const BookPageFlip = memo(
         coverTimerRef.current = null;
       }
       setFold(current =>
-        current && !current.covered ? { ...current, opaque: true, covered: true } : current,
+        current && !current.covered
+          ? { ...current, opaque: true, covered: true }
+          : current,
       );
     }, []);
 
@@ -738,7 +760,10 @@ export const BookPageFlip = memo(
         const total = totalPagesRef.current;
         const asked = targetRef.current ?? from + dir;
         targetRef.current = null;
-        const dest = Math.min(Math.max(Math.round(asked), 1), total > 0 ? total : asked);
+        const dest = Math.min(
+          Math.max(Math.round(asked), 1),
+          total > 0 ? total : asked,
+        );
         if (dest === from) return;
 
         const forward = dest > from;
@@ -845,7 +870,10 @@ export const BookPageFlip = memo(
         applyPage(finalPage);
         // The document view usually reports back well inside this; the timer is
         // for the one that does not, so a leaf is never left lying on the book.
-        graceRef.current = setTimeout(() => closeFold(finalPage), PAGE_FLIP.graceMs);
+        graceRef.current = setTimeout(
+          () => closeFold(finalPage),
+          PAGE_FLIP.graceMs,
+        );
       },
       [applyPage, closeFold],
     );
@@ -954,7 +982,8 @@ export const BookPageFlip = memo(
         if (graceRef.current) clearTimeout(graceRef.current);
         if (landRef.current !== null) cancelAnimationFrame(landRef.current);
         if (bareRef.current !== null) cancelAnimationFrame(bareRef.current);
-        if (coverFrameRef.current !== null) cancelAnimationFrame(coverFrameRef.current);
+        if (coverFrameRef.current !== null)
+          cancelAnimationFrame(coverFrameRef.current);
         if (coverTimerRef.current) clearTimeout(coverTimerRef.current);
       },
       [],
@@ -997,11 +1026,16 @@ export const BookPageFlip = memo(
       [fold, folding, startFold, startTurn],
     );
 
-    useImperativeHandle(ref, () => ({ turn: turnPage, goTo: goToPage }), [goToPage, turnPage]);
+    useImperativeHandle(ref, () => ({ turn: turnPage, goTo: goToPage }), [
+      goToPage,
+      turnPage,
+    ]);
 
     const handleLoadComplete = useCallback(
       (numberOfPages: number, _path: string, size?: Box) => {
-        const total = Number.isFinite(numberOfPages) ? Math.max(0, Math.floor(numberOfPages)) : 0;
+        const total = Number.isFinite(numberOfPages)
+          ? Math.max(0, Math.floor(numberOfPages))
+          : 0;
         totalPagesRef.current = total;
         readyRef.current = true;
         // A saved page from a longer edition of the file lands on the last
@@ -1022,7 +1056,9 @@ export const BookPageFlip = memo(
         const height = Number(size?.height);
         if (width > 0 && height > 0) {
           setAspect(current =>
-            Math.abs(current - width / height) < 0.001 ? current : width / height,
+            Math.abs(current - width / height) < 0.001
+              ? current
+              : width / height,
           );
         }
 
@@ -1054,7 +1090,12 @@ export const BookPageFlip = memo(
               landRef.current = null;
               closeFold(finalPage);
             });
-          } else if (!turn.forward && !turn.landed && !turn.bare && landed === turn.dest) {
+          } else if (
+            !turn.forward &&
+            !turn.landed &&
+            !turn.bare &&
+            landed === turn.dest
+          ) {
             // Coming back, the page arriving is now behind the leaf. A leaf
             // with no picture of it has been paper until now, and is made
             // see-through so the page shows on it — a frame later, as above.
@@ -1066,7 +1107,9 @@ export const BookPageFlip = memo(
                 bareRef.current = null;
                 if (turnRef.current !== turn || turn.landed) return;
                 setFold(current =>
-                  current && current.opaque ? { ...current, opaque: false } : current,
+                  current && current.opaque
+                    ? { ...current, opaque: false }
+                    : current,
                 );
               });
             }
@@ -1098,9 +1141,15 @@ export const BookPageFlip = memo(
       handlers.current.onError(errorMessage(error));
     }, []);
 
-    const pdfStyle = useMemo(() => [styles.pdf, { backgroundColor: stage }], [stage]);
+    const pdfStyle = useMemo(
+      () => [styles.pdf, { backgroundColor: stage }],
+      [stage],
+    );
 
-    const renderActivityIndicator = useCallback(() => <View style={styles.pdf} />, []);
+    const renderActivityIndicator = useCallback(
+      () => <View style={styles.pdf} />,
+      [],
+    );
 
     // Scrolling runs the book as one column, which fills the screen by itself;
     // a page turned on its own gets drawn to the shape of the page.
@@ -1111,7 +1160,8 @@ export const BookPageFlip = memo(
     const boxWidth = box?.width ?? 0;
     const boxHeight = box?.height ?? 0;
     const pageSize = useMemo(
-      () => (boxWidth > 0 ? { width: boxWidth, height: boxHeight } : styles.fill),
+      () =>
+        boxWidth > 0 ? { width: boxWidth, height: boxHeight } : styles.fill,
       [boxHeight, boxWidth],
     );
     const readySource = useMemo(() => (ready ? { uri: ready } : null), [ready]);
@@ -1129,10 +1179,15 @@ export const BookPageFlip = memo(
      * carries the fold; the view merely has more paper to show when the
      * reader asks for more.
      */
-    const band = paged && boxHeight > 0 ? Math.max(0, (frame.height - boxHeight) / 2) : 0;
-    const reach = paged && boxWidth > 0 ? Math.ceil(Math.max(insets.top, foot) + band) : 0;
+    const band =
+      paged && boxHeight > 0 ? Math.max(0, (frame.height - boxHeight) / 2) : 0;
+    const reach =
+      paged && boxWidth > 0 ? Math.ceil(Math.max(insets.top, foot) + band) : 0;
     const sheetStyle = useMemo(
-      () => (reach > 0 ? [styles.sheet, { top: -reach, bottom: -reach }] : styles.fill),
+      () =>
+        reach > 0
+          ? [styles.sheet, { top: -reach, bottom: -reach }]
+          : styles.fill,
       [reach],
     );
 
@@ -1143,24 +1198,34 @@ export const BookPageFlip = memo(
         style={[styles.stage, { backgroundColor: stage }]}
         onTouchStart={handleStageTouchStart}
         onTouchEnd={handleStageTouchEnd}
-        onTouchCancel={handleStageTouchEnd}>
-        <GestureDetector gesture={folding ? paperFlip.gesture : pageTurn.gesture}>
+        onTouchCancel={handleStageTouchEnd}
+      >
+        <GestureDetector
+          gesture={folding ? paperFlip.gesture : pageTurn.gesture}
+        >
           {/* The stage runs edge to edge — the tone belongs under the bars as
               much as anywhere. The page does not: it is drawn inside the frame,
               which keeps clear of the system bars and of the rule and status
               line that never leave, so nothing of a page can end up behind
               them at any zoom. */}
           <View
-            style={[styles.frame, { paddingTop: insets.top, paddingBottom: foot }]}
+            style={[
+              styles.frame,
+              { paddingTop: insets.top, paddingBottom: foot },
+            ]}
             accessible
             accessibilityRole="button"
             accessibilityLabel="Show reading controls"
-            onAccessibilityTap={handleSingleTap}>
+            onAccessibilityTap={handleSingleTap}
+          >
             <View style={styles.area} onLayout={handleAreaLayout}>
               {/* The depth, and nothing else: a plain transform on the plane
                   the page sits on, with no shadow or corner to recompute per
                   frame. */}
-              <Animated.View pointerEvents="box-none" style={[styles.layer, pageTurn.style]}>
+              <Animated.View
+                pointerEvents="box-none"
+                style={[styles.layer, pageTurn.style]}
+              >
                 <Animated.View
                   collapsable={false}
                   onLayout={handlePageLayout}
@@ -1170,7 +1235,8 @@ export const BookPageFlip = memo(
                     // The give at either end of the book, which moves the whole
                     // page rather than folding it.
                     folding ? paperFlip.groupStyle : undefined,
-                  ]}>
+                  ]}
+                >
                   {/* The page's picture, decoded ahead of the fold that will
                       wear it. Invisible, outside what is photographed, and
                       the exact size of the leaf's face — the decoded image is
@@ -1180,7 +1246,10 @@ export const BookPageFlip = memo(
                     <Image
                       source={readySource}
                       fadeDuration={0}
-                      style={[styles.decoder, { width: boxWidth, height: boxHeight }]}
+                      style={[
+                        styles.decoder,
+                        { width: boxWidth, height: boxHeight },
+                      ]}
                     />
                   ) : null}
 

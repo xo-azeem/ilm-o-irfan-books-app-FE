@@ -93,7 +93,13 @@ export const profileGroups: ProfileGroup[] = [
     id: 'group-support',
     title: 'Support',
     rows: [
-      { id: 'row-help', label: 'Help center', icon: CircleHelp, iconTone: 'neutral', screen: 'HelpCenter' },
+      {
+        id: 'row-help',
+        label: 'Help center',
+        icon: CircleHelp,
+        iconTone: 'neutral',
+        screen: 'HelpCenter',
+      },
       {
         id: 'row-privacy',
         label: 'Privacy & security',
@@ -170,7 +176,12 @@ export const quietHoursDefault = { from: '11:00 pm', to: '6:00 am' };
 export const languageOptions = [
   { id: 'en', label: 'English', description: 'Default' },
   { id: 'ur', label: 'Urdu', description: 'اردو', script: 'urdu' as const },
-  { id: 'ar', label: 'Arabic', description: 'العربية', script: 'arabic' as const },
+  {
+    id: 'ar',
+    label: 'Arabic',
+    description: 'العربية',
+    script: 'arabic' as const,
+  },
 ];
 
 /**

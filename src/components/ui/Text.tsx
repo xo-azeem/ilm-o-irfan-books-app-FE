@@ -7,7 +7,13 @@ import {
   type TextStyle,
 } from 'react-native';
 
-import { fonts, fontSize, resolveFamily, scaleFont, typography } from '@/theme/typography';
+import {
+  fonts,
+  fontSize,
+  resolveFamily,
+  scaleFont,
+  typography,
+} from '@/theme/typography';
 import { useTheme, type AppColors } from '@/theme/ThemeContext';
 
 /**
@@ -102,15 +108,38 @@ export type DisplaySize =
   | 'section'
   | 'cardTitle';
 
-const displayScale: Record<DisplaySize, { size: number; leading: number; tracking: number }> = {
-  hero: { size: fontSize.hero, leading: 1.08, tracking: typography.displayTight },
+const displayScale: Record<
+  DisplaySize,
+  { size: number; leading: number; tracking: number }
+> = {
+  hero: {
+    size: fontSize.hero,
+    leading: 1.08,
+    tracking: typography.displayTight,
+  },
   title: { size: fontSize.title, leading: 1.15, tracking: typography.tight },
   screen: { size: fontSize.screen, leading: 1.1, tracking: typography.display },
-  screenDense: { size: fontSize.screenDense, leading: 1.1, tracking: typography.display },
+  screenDense: {
+    size: fontSize.screenDense,
+    leading: 1.1,
+    tracking: typography.display,
+  },
   heading: { size: fontSize.heading, leading: 1.15, tracking: typography.snug },
-  subheading: { size: fontSize.subheading, leading: 1.14, tracking: typography.snug },
-  section: { size: fontSize.section, leading: 1.15, tracking: typography.normal },
-  cardTitle: { size: fontSize.cardTitle, leading: 1.2, tracking: typography.normal },
+  subheading: {
+    size: fontSize.subheading,
+    leading: 1.14,
+    tracking: typography.snug,
+  },
+  section: {
+    size: fontSize.section,
+    leading: 1.15,
+    tracking: typography.normal,
+  },
+  cardTitle: {
+    size: fontSize.cardTitle,
+    leading: 1.2,
+    tracking: typography.normal,
+  },
 };
 
 export type DisplayProps = Omit<BaseTextProps, 'size'> & {
@@ -218,7 +247,17 @@ export const Label = memo(function Label({
       textAlign: align,
       textTransform: uppercase ? 'uppercase' : undefined,
     } satisfies TextStyle;
-  }, [align, colors, fontScale, leading, size, tone, tracking, uppercase, weight]);
+  }, [
+    align,
+    colors,
+    fontScale,
+    leading,
+    size,
+    tone,
+    tracking,
+    uppercase,
+    weight,
+  ]);
 
   return <RNText {...rest} style={[resolved, style]} />;
 });
@@ -273,7 +312,8 @@ export function BookTitle({
     return (
       <UrduText
         size={typeof size === 'number' ? size : undefined}
-        {...urduRest}>
+        {...urduRest}
+      >
         {title}
       </UrduText>
     );

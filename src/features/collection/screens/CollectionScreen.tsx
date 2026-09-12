@@ -1,6 +1,10 @@
 import { useCallback, useMemo } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import {
+  useNavigation,
+  useRoute,
+  type RouteProp,
+} from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '@/app/navigation/types';
@@ -41,7 +45,8 @@ function toSummary(book: CatalogBook, inLibrary: boolean): BookSummary {
  * changes is right on the next load rather than at the next release.
  */
 export function CollectionScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'Collection'>>();
   const { colors } = useTheme();
 
@@ -61,12 +66,17 @@ export function CollectionScreen() {
   const libraryIds = useMemo(
     () =>
       new Set(
-        [...(library?.reading ?? []), ...(library?.finished ?? [])].map(book => book.id),
+        [...(library?.reading ?? []), ...(library?.finished ?? [])].map(
+          book => book.id,
+        ),
       ),
     [library?.finished, library?.reading],
   );
 
-  const books = useMemo(() => data?.pages.flatMap(page => page.data) ?? [], [data]);
+  const books = useMemo(
+    () => data?.pages.flatMap(page => page.data) ?? [],
+    [data],
+  );
   const collection = data?.pages[0]?.collection ?? null;
   const totalCount = data?.pages[0]?.totalCount ?? books.length;
 
@@ -84,7 +94,10 @@ export function CollectionScreen() {
 
   const renderItem = useCallback(
     ({ item }: { item: CatalogBook }) => (
-      <BookListRow book={toSummary(item, libraryIds.has(item.id))} onPress={openBook} />
+      <BookListRow
+        book={toSummary(item, libraryIds.has(item.id))}
+        onPress={openBook}
+      />
     ),
     [libraryIds, openBook],
   );

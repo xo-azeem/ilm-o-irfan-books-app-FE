@@ -35,6 +35,10 @@ export const READING_RHYTHMS: {
   { value: 'casual', label: 'Casual', detail: 'A few pages, now and then' },
   { value: 'daily', label: 'Daily', detail: '20 minutes every day' },
   { value: 'night-owl', label: 'Night owl', detail: 'After Isha, lights low' },
-  { value: 'weekend', label: 'Weekend reader', detail: 'Long sittings, Friday to Sunday' },
+  {
+    value: 'weekend',
+    label: 'Weekend reader',
+    detail: 'Long sittings, Friday to Sunday',
+  },
   { value: 'scholar', label: 'Scholar', detail: 'Several books in parallel' },
 ];

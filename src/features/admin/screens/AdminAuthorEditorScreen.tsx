@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import {
+  useNavigation,
+  useRoute,
+  type RouteProp,
+} from '@react-navigation/native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { ImageUp } from 'lucide-react-native';
 
@@ -19,10 +23,22 @@ import {
   AdminTag,
   AdminTextAction,
 } from '@/features/admin/components/AdminUi';
-import { useDirtyTracker, useUnsavedGuard } from '@/features/admin/hooks/useAdminForm';
+import {
+  useDirtyTracker,
+  useUnsavedGuard,
+} from '@/features/admin/hooks/useAdminForm';
 import { useAppInsets } from '@/hooks/useAppInsets';
-import { useAdminAuthors, useDeleteAdminAuthor, useSaveAdminAuthor } from '@/hooks/useAdmin';
-import { adminCoverUrl, slugify, uploadAdminAvatar, validateCoverSize } from '@/services/admin';
+import {
+  useAdminAuthors,
+  useDeleteAdminAuthor,
+  useSaveAdminAuthor,
+} from '@/hooks/useAdmin';
+import {
+  adminCoverUrl,
+  slugify,
+  uploadAdminAvatar,
+  validateCoverSize,
+} from '@/services/admin';
 import { useTheme } from '@/theme/ThemeContext';
 
 import type { AdminLibraryStackParamList } from '../navigation/types';
@@ -35,7 +51,8 @@ import type { AdminLibraryStackParamList } from '../navigation/types';
  */
 export function AdminAuthorEditorScreen() {
   const navigation = useNavigation();
-  const route = useRoute<RouteProp<AdminLibraryStackParamList, 'AdminAuthorEditor'>>();
+  const route =
+    useRoute<RouteProp<AdminLibraryStackParamList, 'AdminAuthorEditor'>>();
   const authorId = route.params?.authorId;
   const { colors } = useTheme();
   const { scrollEndPadding } = useAppInsets();
@@ -80,7 +97,10 @@ export function AdminAuthorEditorScreen() {
   const credited = existing?.book_count ?? 0;
 
   const handleAvatar = async () => {
-    const result = await launchImageLibrary({ mediaType: 'photo', selectionLimit: 1 });
+    const result = await launchImageLibrary({
+      mediaType: 'photo',
+      selectionLimit: 1,
+    });
     const asset = result.assets?.[0];
     if (!asset?.uri) return;
 
@@ -134,11 +154,14 @@ export function AdminAuthorEditorScreen() {
   return (
     <SafeAreaView
       style={[styles.root, { backgroundColor: colors.background }]}
-      edges={['top', 'left', 'right']}>
+      edges={['top', 'left', 'right']}
+    >
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <AdminBackLink
           label="Authors"
-          action={isDirty ? <AdminTag label="UNSAVED" tone="warning" /> : undefined}
+          action={
+            isDirty ? <AdminTag label="UNSAVED" tone="warning" /> : undefined
+          }
         />
       </View>
 
@@ -151,7 +174,8 @@ export function AdminAuthorEditorScreen() {
           gap: 17,
         }}
         keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+      >
         <AdminScreenTitle
           title={authorId ? form.name || 'Edit author' : 'New author'}
           subtitle={
@@ -175,10 +199,17 @@ export function AdminAuthorEditorScreen() {
               Portrait
             </Text>
             <Text size={12} leading={1.5} tone="muted">
-              Optional. A square image reads best — readers see it as a circle beside the name.
+              Optional. A square image reads best — readers see it as a circle
+              beside the name.
             </Text>
             <AdminButton
-              label={uploading ? 'Uploading…' : avatarUrl ? 'Replace image' : 'Choose image'}
+              label={
+                uploading
+                  ? 'Uploading…'
+                  : avatarUrl
+                    ? 'Replace image'
+                    : 'Choose image'
+              }
               Icon={ImageUp}
               variant="secondary"
               compact
@@ -194,13 +225,17 @@ export function AdminAuthorEditorScreen() {
           <AdminField
             label="Name"
             value={form.name}
-            onChangeText={value => setForm(current => ({ ...current, name: value }))}
+            onChangeText={value =>
+              setForm(current => ({ ...current, name: value }))
+            }
             maxLength={120}
           />
           <AdminField
             label="Public link"
             value={form.slug}
-            onChangeText={value => setForm(current => ({ ...current, slug: value }))}
+            onChangeText={value =>
+              setForm(current => ({ ...current, slug: value }))
+            }
             placeholder={slugify(form.name) || 'auto-from-name'}
             autoCapitalize="none"
             mono
@@ -209,7 +244,9 @@ export function AdminAuthorEditorScreen() {
           <AdminField
             label="Biography"
             value={form.bio}
-            onChangeText={value => setForm(current => ({ ...current, bio: value }))}
+            onChangeText={value =>
+              setForm(current => ({ ...current, bio: value }))
+            }
             multiline
             maxLength={800}
             helper="Shown on the author's page in the reader app."
@@ -241,8 +278,12 @@ export function AdminAuthorEditorScreen() {
       <View
         style={[
           styles.footer,
-          { backgroundColor: colors.chrome, borderTopColor: colors.chromeBorder },
-        ]}>
+          {
+            backgroundColor: colors.chrome,
+            borderTopColor: colors.chromeBorder,
+          },
+        ]}
+      >
         <AdminButton
           label={authorId ? 'Save author' : 'Create author'}
           loading={save.isPending}

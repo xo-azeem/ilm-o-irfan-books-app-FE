@@ -23,15 +23,18 @@ export function GuestAuthPanel({
   /** Sends the reader back to the book they were opening once signed in. */
   returnTo?: AuthReturnTo;
 }) {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const signIn = useCallback(
-    () => navigation.navigate(ROUTES.LOGIN, returnTo ? { returnTo } : undefined),
+    () =>
+      navigation.navigate(ROUTES.LOGIN, returnTo ? { returnTo } : undefined),
     [navigation, returnTo],
   );
 
   const createAccount = useCallback(
-    () => navigation.navigate(ROUTES.SIGN_UP, returnTo ? { returnTo } : undefined),
+    () =>
+      navigation.navigate(ROUTES.SIGN_UP, returnTo ? { returnTo } : undefined),
     [navigation, returnTo],
   );
 
@@ -42,13 +45,23 @@ export function GuestAuthPanel({
       <Display size={27} align="center">
         {title}
       </Display>
-      <Text size={fontSize.bodySmall} leading={1.65} align="center" tone="muted">
+      <Text
+        size={fontSize.bodySmall}
+        leading={1.65}
+        align="center"
+        tone="muted"
+      >
         {message}
       </Text>
 
       <View style={styles.actions}>
         <Button label="Sign in" onPress={signIn} size="md" />
-        <Button label="Create an account" variant="secondary" onPress={createAccount} size="md" />
+        <Button
+          label="Create an account"
+          variant="secondary"
+          onPress={createAccount}
+          size="md"
+        />
       </View>
     </View>
   );

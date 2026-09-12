@@ -58,7 +58,8 @@ export const AdminOrderableList = memo(function AdminOrderableList({
         style={[
           styles.empty,
           { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
-        ]}>
+        ]}
+      >
         <Text size={12.5} leading={1.45} align="center" tone="muted">
           {emptyLabel}
         </Text>
@@ -67,7 +68,12 @@ export const AdminOrderableList = memo(function AdminOrderableList({
   }
 
   return (
-    <View style={[styles.list, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View
+      style={[
+        styles.list,
+        { backgroundColor: colors.surface, borderColor: colors.border },
+      ]}
+    >
       {items.map((item, index) => (
         <Fragment key={item.id}>
           {index > 0 ? <Divider /> : null}
@@ -108,7 +114,12 @@ const OrderableRow = memo(function OrderableRow({
 
   return (
     <View style={[styles.row, hidden && styles.dimmed]}>
-      <Icon icon={GripHorizontal} size={15} color={colors.dim} strokeWidth={2} />
+      <Icon
+        icon={GripHorizontal}
+        size={15}
+        color={colors.dim}
+        strokeWidth={2}
+      />
 
       <View style={styles.body}>
         <Text size={13} leading={1.2} numberOfLines={1}>
@@ -127,7 +138,8 @@ const OrderableRow = memo(function OrderableRow({
         onPress={() => onMove(index, index - 1)}
         disabled={isFirst}
         hitSlop={6}
-        style={[styles.control, isFirst && styles.disabled]}>
+        style={[styles.control, isFirst && styles.disabled]}
+      >
         <Icon icon={ChevronUp} size={16} tone="muted" strokeWidth={2.2} />
       </Pressable>
 
@@ -137,7 +149,8 @@ const OrderableRow = memo(function OrderableRow({
         onPress={() => onMove(index, index + 1)}
         disabled={isLast}
         hitSlop={6}
-        style={[styles.control, isLast && styles.disabled]}>
+        style={[styles.control, isLast && styles.disabled]}
+      >
         <Icon icon={ChevronDown} size={16} tone="muted" strokeWidth={2.2} />
       </Pressable>
 
@@ -155,7 +168,8 @@ const OrderableRow = memo(function OrderableRow({
           accessibilityLabel={`Remove ${item.label}`}
           onPress={() => onRemove(item.id)}
           hitSlop={8}
-          style={styles.control}>
+          style={styles.control}
+        >
           <Icon icon={X} size={13} tone="danger" strokeWidth={2.4} />
         </Pressable>
       ) : null}

@@ -3,7 +3,14 @@ import { Alert, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-import { Button, Card, EmptyState, Label, ProgressBar, Text } from '@/components/ui';
+import {
+  Button,
+  Card,
+  EmptyState,
+  Label,
+  ProgressBar,
+  Text,
+} from '@/components/ui';
 import { DownloadsCatalogSkeleton } from '@/components/skeletons/CatalogSkeletons';
 import {
   DownloadBookRow,
@@ -15,7 +22,10 @@ import { useLibrary, useRemoveDownload } from '@/hooks/useAccount';
 import { isUrduTitle } from '@/services/script';
 import { fontSize } from '@/theme/typography';
 
-type DownloadsNavigation = NativeStackNavigationProp<ProfileStackParamList, 'Downloads'>;
+type DownloadsNavigation = NativeStackNavigationProp<
+  ProfileStackParamList,
+  'Downloads'
+>;
 
 /** The device allowance the storage bar is drawn against. */
 const STORAGE_LIMIT_BYTES = 4 * 1_000_000_000;
@@ -64,14 +74,18 @@ export function DownloadsScreen() {
 
   const handleRemove = useCallback(
     (entry: DownloadEntry) => {
-      Alert.alert('Remove download?', `${entry.title} will stay in your library but need a connection to open.`, [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: () => removeDownload.mutate(entry.id),
-        },
-      ]);
+      Alert.alert(
+        'Remove download?',
+        `${entry.title} will stay in your library but need a connection to open.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Remove',
+            style: 'destructive',
+            onPress: () => removeDownload.mutate(entry.id),
+          },
+        ],
+      );
     },
     [removeDownload],
   );
@@ -85,7 +99,8 @@ export function DownloadsScreen() {
         {
           text: 'Remove all',
           style: 'destructive',
-          onPress: () => downloads.forEach(entry => removeDownload.mutate(entry.id)),
+          onPress: () =>
+            downloads.forEach(entry => removeDownload.mutate(entry.id)),
         },
       ],
     );
@@ -101,7 +116,8 @@ export function DownloadsScreen() {
           ? 'One book available offline.'
           : `${downloads.length} books available offline.`
       }
-      gap={20}>
+      gap={20}
+    >
       {isLoading ? (
         <DownloadsCatalogSkeleton />
       ) : downloads.length === 0 ? (
@@ -119,7 +135,9 @@ export function DownloadsScreen() {
               <Text size={fontSize.body} leading={1}>
                 {formatSize(usedBytes)} used
               </Text>
-              <Label tracking={0.9}>{`OF ${formatSize(STORAGE_LIMIT_BYTES)} LIMIT`}</Label>
+              <Label
+                tracking={0.9}
+              >{`OF ${formatSize(STORAGE_LIMIT_BYTES)} LIMIT`}</Label>
             </View>
             <ProgressBar value={usedBytes / STORAGE_LIMIT_BYTES} height={7} />
             <Text size={12.5} leading={1.3} tone="muted">
@@ -129,11 +147,20 @@ export function DownloadsScreen() {
 
           <View style={styles.list}>
             {downloads.map(entry => (
-              <DownloadBookRow key={entry.id} entry={entry} onRemove={handleRemove} />
+              <DownloadBookRow
+                key={entry.id}
+                entry={entry}
+                onRemove={handleRemove}
+              />
             ))}
           </View>
 
-          <Button label="Remove all downloads" variant="danger" size="md" onPress={handleRemoveAll} />
+          <Button
+            label="Remove all downloads"
+            variant="danger"
+            size="md"
+            onPress={handleRemoveAll}
+          />
         </>
       )}
     </ProfileSubScreenLayout>

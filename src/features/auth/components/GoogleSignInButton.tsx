@@ -33,7 +33,8 @@ export const GoogleSignInButton = memo(function GoogleSignInButton({
         styles.button,
         { borderColor: colors.borderStrong },
         pressed && styles.pressed,
-      ]}>
+      ]}
+    >
       {showLogo ? <GoogleLogoIcon size={18} /> : null}
       <Text size={fontSize.bodySmall} leading={1} weight="500" tone="soft">
         {label}

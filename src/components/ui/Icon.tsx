@@ -82,7 +82,8 @@ export const Icon = memo(function Icon({
   );
 });
 
-export type IconTileTone = 'primary' | 'gold' | 'lime' | 'neutral' | 'danger' | 'warning';
+export type IconTileTone =
+  'primary' | 'gold' | 'lime' | 'neutral' | 'danger' | 'warning';
 
 export type IconTileProps = IconProps & {
   /** The rounded, tinted square behind a settings-row icon. */

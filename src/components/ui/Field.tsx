@@ -1,4 +1,11 @@
-import { memo, useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  memo,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import {
   Pressable,
   StyleSheet,
@@ -35,7 +42,13 @@ export type FieldProps = {
 };
 
 /** Wraps any control with the standard mono label and hint slots. */
-export const Field = memo(function Field({ label, hint, error, children, style }: FieldProps) {
+export const Field = memo(function Field({
+  label,
+  hint,
+  error,
+  children,
+  style,
+}: FieldProps) {
   return (
     <View style={[styles.field, style]}>
       {label ? <Label size={fontSize.labelSmall + 0.5}>{label}</Label> : null}
@@ -119,14 +132,14 @@ export const TextField = memo(function TextField({
       backgroundColor: !editable
         ? colors.surfaceAlt
         : isFocused
-        ? colors.focus
-        : colors.surfaceAlt,
+          ? colors.focus
+          : colors.surfaceAlt,
       borderWidth: StyleSheet.hairlineWidth * 2,
       borderColor: error
         ? colors.dangerBorder
         : isFocused
-        ? colors.focusBorder
-        : colors.border,
+          ? colors.focusBorder
+          : colors.border,
       // The focus wash — a wide, very soft shadow rather than a second border.
       ...(isFocused
         ? {
@@ -142,7 +155,11 @@ export const TextField = memo(function TextField({
 
   return (
     <Field label={label} hint={hint} error={error} style={containerStyle}>
-      <Pressable accessible={false} onPress={focusInput} style={[styles.box, boxStyle]}>
+      <Pressable
+        accessible={false}
+        onPress={focusInput}
+        style={[styles.box, boxStyle]}
+      >
         <TextInput
           ref={inputRef}
           editable={editable}
@@ -159,7 +176,10 @@ export const TextField = memo(function TextField({
               // A TextInput is not a `Text`, so the app-wide size is applied
               // here by hand — otherwise a field's label would grow and the
               // value the reader types into it would not.
-              fontSize: scaleFont(mono ? fontSize.caption + 0.5 : fontSize.body, fontScale),
+              fontSize: scaleFont(
+                mono ? fontSize.caption + 0.5 : fontSize.body,
+                fontScale,
+              ),
               textAlignVertical: multiline ? 'top' : 'center',
             },
           ]}
@@ -195,13 +215,18 @@ export const ReadOnlyField = memo(function ReadOnlyField({
         style={[
           styles.box,
           styles.readOnly,
-          { backgroundColor: colors.background, borderColor: colors.borderSoft },
-        ]}>
+          {
+            backgroundColor: colors.background,
+            borderColor: colors.borderSoft,
+          },
+        ]}
+      >
         <Text
           size={mono ? fontSize.caption + 0.5 : fontSize.body}
           leading={1.2}
           tone="muted"
-          style={mono ? { fontFamily: fonts.mono } : undefined}>
+          style={mono ? { fontFamily: fonts.mono } : undefined}
+        >
           {value}
         </Text>
         {note ? (
@@ -244,8 +269,14 @@ export const SelectField = memo(function SelectField({
             borderColor: colors.border,
           },
           pressed && styles.pressed,
-        ]}>
-        <Text size={fontSize.body} leading={1.2} tone={value ? 'ink' : 'faint'} style={styles.grow}>
+        ]}
+      >
+        <Text
+          size={fontSize.body}
+          leading={1.2}
+          tone={value ? 'ink' : 'faint'}
+          style={styles.grow}
+        >
           {value ?? placeholder}
         </Text>
         <Icon icon={ChevronDown} size={13} tone="faint" strokeWidth={2} />
@@ -325,9 +356,19 @@ export const SearchField = memo(function SearchField({
 
   const content = (
     <>
-      <Icon icon={Search} size={dense ? 15 : 17} tone={focused ? 'primary' : 'faint'} strokeWidth={1.9} />
+      <Icon
+        icon={Search}
+        size={dense ? 15 : 17}
+        tone={focused ? 'primary' : 'faint'}
+        strokeWidth={1.9}
+      />
       {readOnly ? (
-        <Text size={dense ? fontSize.caption + 0.5 : fontSize.bodySmall + 0.5} leading={1.2} tone="faint" style={styles.grow}>
+        <Text
+          size={dense ? fontSize.caption + 0.5 : fontSize.bodySmall + 0.5}
+          leading={1.2}
+          tone="faint"
+          style={styles.grow}
+        >
           {placeholder}
         </Text>
       ) : (
@@ -354,7 +395,12 @@ export const SearchField = memo(function SearchField({
         />
       )}
       {onClear && value ? (
-        <Pressable accessibilityRole="button" accessibilityLabel="Clear search" hitSlop={8} onPress={onClear}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Clear search"
+          hitSlop={8}
+          onPress={onClear}
+        >
           <Icon icon={X} size={15} tone="faint" strokeWidth={2} />
         </Pressable>
       ) : null}
@@ -366,14 +412,24 @@ export const SearchField = memo(function SearchField({
       <Pressable
         accessibilityRole="search"
         onPress={onPress}
-        style={({ pressed }) => [styles.box, boxStyle, pressed && styles.pressed, style]}>
+        style={({ pressed }) => [
+          styles.box,
+          boxStyle,
+          pressed && styles.pressed,
+          style,
+        ]}
+      >
         {content}
       </Pressable>
     );
   }
 
   return (
-    <Pressable accessible={false} onPress={focusInput} style={[styles.box, boxStyle, style]}>
+    <Pressable
+      accessible={false}
+      onPress={focusInput}
+      style={[styles.box, boxStyle, style]}
+    >
       {content}
     </Pressable>
   );

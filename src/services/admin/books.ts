@@ -54,7 +54,9 @@ export async function listAdminBooks(
 
   const query = filters.query.trim().replace(/[,()]/g, ' ');
   if (query) {
-    builder = builder.or(`title.ilike.%${query}%,author_name.ilike.%${query}%,slug.ilike.%${query}%`);
+    builder = builder.or(
+      `title.ilike.%${query}%,author_name.ilike.%${query}%,slug.ilike.%${query}%`,
+    );
   }
 
   if (filters.status === 'published') {
@@ -82,7 +84,9 @@ export async function listAdminBooks(
   const result = await builder;
   assertOk(result);
 
-  const rows = ((result.data as unknown as Record<string, unknown>[]) ?? []).map(normalizeRow);
+  const rows = (
+    (result.data as unknown as Record<string, unknown>[]) ?? []
+  ).map(normalizeRow);
   const total = result.count ?? rows.length;
 
   return {
@@ -109,7 +113,13 @@ export async function getAdminBook(id: string): Promise<AdminBookDetail> {
 
 /** Titles a picker can choose from, without the heavy list payload. */
 export async function listBookOptions(query = ''): Promise<
-  Array<{ id: string; title: string; author_name: string; cover_path: string | null; cover_color: string | null }>
+  Array<{
+    id: string;
+    title: string;
+    author_name: string;
+    cover_path: string | null;
+    cover_color: string | null;
+  }>
 > {
   let builder = supabase
     .from('admin_book_rows')
@@ -141,7 +151,8 @@ function bookPayload(input: AdminBookInput) {
     tag: input.tag.trim() || null,
     tags: input.tags.map(tag => tag.trim()).filter(Boolean),
     cover_color: input.cover_color.trim() || null,
-    cover_color_dark: input.cover_color_dark.trim() || input.cover_color.trim() || null,
+    cover_color_dark:
+      input.cover_color_dark.trim() || input.cover_color.trim() || null,
     cover_path: input.cover_path,
     pdf_path: input.pdf_path,
     file_size_bytes: input.file_size_bytes,
@@ -167,14 +178,28 @@ async function syncRelations(bookId: string, input: AdminBookInput) {
 
 export async function createAdminBook(input: AdminBookInput): Promise<string> {
   const inserted = unwrap(
-    await supabase.from('books').insert(bookPayload(input)).select('id').single(),
+    await supabase
+      .from('books')
+      .insert(bookPayload(input))
+      .select('id')
+      .single(),
   );
   await syncRelations(inserted.id, input);
   return inserted.id;
 }
 
-export async function updateAdminBook(id: string, input: AdminBookInput): Promise<string> {
-  unwrap(await supabase.from('books').update(bookPayload(input)).eq('id', id).select('id').single());
+export async function updateAdminBook(
+  id: string,
+  input: AdminBookInput,
+): Promise<string> {
+  unwrap(
+    await supabase
+      .from('books')
+      .update(bookPayload(input))
+      .eq('id', id)
+      .select('id')
+      .single(),
+  );
   await syncRelations(id, input);
   return id;
 }
@@ -225,7 +250,9 @@ export async function bulkUpdateBooks(
 
 /** Removes the rows, then the storage objects they owned. */
 export async function deleteAdminBooks(ids: string[]): Promise<number> {
-  const data = unwrap(await supabase.rpc('admin_delete_books', { p_ids: ids })) as {
+  const data = unwrap(
+    await supabase.rpc('admin_delete_books', { p_ids: ids }),
+  ) as {
     deleted?: number;
     covers?: string[];
     pdfs?: string[];
@@ -242,13 +269,20 @@ export async function deleteAdminBooks(ids: string[]): Promise<number> {
   return num(data.deleted);
 }
 
-export async function isSlugAvailable(slug: string, excludeId?: string): Promise<boolean> {
+export async function isSlugAvailable(
+  slug: string,
+  excludeId?: string,
+): Promise<boolean> {
   const trimmed = slug.trim();
   if (!trimmed) {
     return false;
   }
 
-  let builder = supabase.from('books').select('id').eq('slug', trimmed).limit(1);
+  let builder = supabase
+    .from('books')
+    .select('id')
+    .eq('slug', trimmed)
+    .limit(1);
   if (excludeId) {
     builder = builder.neq('id', excludeId);
   }

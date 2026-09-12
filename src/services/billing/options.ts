@@ -67,7 +67,9 @@ export function planForPackage<P extends PackageLike, T extends PlanLike>(
 }
 
 function featuresOf(plan: PlanLike | undefined): string[] {
-  return (plan?.features ?? []).filter((feature): feature is string => Boolean(feature));
+  return (plan?.features ?? []).filter((feature): feature is string =>
+    Boolean(feature),
+  );
 }
 
 /** One row per purchasable package, in the order the store offered them. */
@@ -102,7 +104,8 @@ export function buildMembershipRows<P extends PackageLike, T extends PlanLike>(
  */
 export function cheapestRow<R extends { price: number }>(rows: R[]): R | null {
   return rows.reduce<R | null>(
-    (lowest, row) => (lowest == null || row.price < lowest.price ? row : lowest),
+    (lowest, row) =>
+      lowest == null || row.price < lowest.price ? row : lowest,
     null,
   );
 }
@@ -112,5 +115,7 @@ export function defaultFeatures<T extends PlanLike>(
   plans: T[] | undefined,
   defaultPlanCode: string,
 ): string[] {
-  return featuresOf(plans?.find(plan => plan.code === defaultPlanCode) ?? plans?.[0]);
+  return featuresOf(
+    plans?.find(plan => plan.code === defaultPlanCode) ?? plans?.[0],
+  );
 }

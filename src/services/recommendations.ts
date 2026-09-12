@@ -147,15 +147,18 @@ export async function getRecommendations({
   perSection,
   signal,
 }: RecommendationParams = {}): Promise<Recommendations> {
-  const payload = await requestData<RecommendationsPayload>(ENDPOINTS.recommendations, {
-    auth: true,
-    query: {
-      limit: clamp(limit, MAX.limit),
-      sections: clamp(sections, MAX.sections),
-      perSection: clamp(perSection, MAX.perSection),
+  const payload = await requestData<RecommendationsPayload>(
+    ENDPOINTS.recommendations,
+    {
+      auth: true,
+      query: {
+        limit: clamp(limit, MAX.limit),
+        sections: clamp(sections, MAX.sections),
+        perSection: clamp(perSection, MAX.perSection),
+      },
+      signal,
     },
-    signal,
-  });
+  );
 
   return {
     generatedAt: payload?.generatedAt ?? null,

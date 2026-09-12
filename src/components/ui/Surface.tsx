@@ -69,10 +69,10 @@ export const Card = memo(function Card({
     const borderColor = selected
       ? colors.selectedBorder
       : gold
-      ? colors.goldBorder
-      : warning
-      ? colors.warningBorder
-      : colors.border;
+        ? colors.goldBorder
+        : warning
+          ? colors.warningBorder
+          : colors.border;
 
     return {
       backgroundColor: selected ? colors.selected : cardFill(tone, colors),
@@ -104,7 +104,8 @@ export const PressableCard = memo(function PressableCard({
     <Pressable
       accessibilityRole="button"
       style={({ pressed }) => [pressed && styles.pressed, style]}
-      {...rest}>
+      {...rest}
+    >
       <Card
         tone={tone}
         rounded={rounded}
@@ -112,7 +113,8 @@ export const PressableCard = memo(function PressableCard({
         bordered={bordered}
         selected={selected}
         gold={gold}
-        gap={gap}>
+        gap={gap}
+      >
         {children}
       </Card>
     </Pressable>
@@ -211,13 +213,29 @@ export const Callout = memo(function Callout({
   const palette = useMemo(() => {
     switch (tone) {
       case 'warning':
-        return { fill: colors.warningFill, border: colors.warningBorder, ink: colors.warning };
+        return {
+          fill: colors.warningFill,
+          border: colors.warningBorder,
+          ink: colors.warning,
+        };
       case 'danger':
-        return { fill: colors.dangerFill, border: colors.dangerBorder, ink: colors.danger };
+        return {
+          fill: colors.dangerFill,
+          border: colors.dangerBorder,
+          ink: colors.danger,
+        };
       case 'gold':
-        return { fill: colors.goldFill, border: colors.goldBorder, ink: colors.goldBright };
+        return {
+          fill: colors.goldFill,
+          border: colors.goldBorder,
+          ink: colors.goldBright,
+        };
       case 'info':
-        return { fill: colors.surfaceAlt, border: colors.border, ink: colors.primarySoft };
+        return {
+          fill: colors.surfaceAlt,
+          border: colors.border,
+          ink: colors.primarySoft,
+        };
     }
   }, [colors, tone]);
 
@@ -227,10 +245,19 @@ export const Callout = memo(function Callout({
         styles.callout,
         { backgroundColor: palette.fill, borderColor: palette.border },
         style,
-      ]}>
-      {icon ? <Icon icon={icon} size={18} color={palette.ink} strokeWidth={2} /> : null}
+      ]}
+    >
+      {icon ? (
+        <Icon icon={icon} size={18} color={palette.ink} strokeWidth={2} />
+      ) : null}
       <View style={styles.calloutBody}>
-        <Text size={fontSize.caption} leading={1.3} weight="600" tone="inherit" style={{ color: palette.ink }}>
+        <Text
+          size={fontSize.caption}
+          leading={1.3}
+          weight="600"
+          tone="inherit"
+          style={{ color: palette.ink }}
+        >
           {title}
         </Text>
         {message ? (
@@ -251,7 +278,8 @@ export const Callout = memo(function Callout({
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => (pressed ? styles.pressed : undefined)}>
+      style={({ pressed }) => (pressed ? styles.pressed : undefined)}
+    >
       {body}
     </Pressable>
   );

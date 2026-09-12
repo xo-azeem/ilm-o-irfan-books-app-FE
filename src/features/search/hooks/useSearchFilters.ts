@@ -1,7 +1,11 @@
 import { useCallback, useMemo, useState } from 'react';
 
 import type { BookLanguage, BookLengthBucket } from '@/services/api/types';
-import type { CatalogBook, CatalogFilters, CatalogSort } from '@/services/catalog';
+import type {
+  CatalogBook,
+  CatalogFilters,
+  CatalogSort,
+} from '@/services/catalog';
 
 /**
  * Discover's filter state — the single source of truth behind the filter
@@ -125,8 +129,8 @@ export function activeTokens(filters: SearchFilters): FilterToken[] {
     ...(filters.categoryId
       ? [{ kind: 'category', value: filters.categoryId } as const]
       : []),
-    ...filters.languages.map(value => ({ kind: 'language', value } as const)),
-    ...filters.lengths.map(value => ({ kind: 'length', value } as const)),
+    ...filters.languages.map(value => ({ kind: 'language', value }) as const),
+    ...filters.lengths.map(value => ({ kind: 'length', value }) as const),
     ...(filters.membershipOnly ? [{ kind: 'membership' } as const] : []),
     ...(filters.downloadedOnly ? [{ kind: 'downloaded' } as const] : []),
     ...(filters.highlyRatedOnly ? [{ kind: 'rating' } as const] : []),
@@ -203,17 +207,20 @@ export function useSearchFilters(downloadedIds?: Set<string>) {
   }, []);
 
   const setMembershipOnly = useCallback(
-    (membershipOnly: boolean) => setFilters(current => ({ ...current, membershipOnly })),
+    (membershipOnly: boolean) =>
+      setFilters(current => ({ ...current, membershipOnly })),
     [],
   );
 
   const setDownloadedOnly = useCallback(
-    (downloadedOnly: boolean) => setFilters(current => ({ ...current, downloadedOnly })),
+    (downloadedOnly: boolean) =>
+      setFilters(current => ({ ...current, downloadedOnly })),
     [],
   );
 
   const setHighlyRatedOnly = useCallback(
-    (highlyRatedOnly: boolean) => setFilters(current => ({ ...current, highlyRatedOnly })),
+    (highlyRatedOnly: boolean) =>
+      setFilters(current => ({ ...current, highlyRatedOnly })),
     [],
   );
 

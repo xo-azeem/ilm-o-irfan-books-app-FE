@@ -64,7 +64,8 @@ function asString(value: unknown): string | null {
  * an `access_events` row is table columns and is snake_case. Both describe the
  * same access, so both feed the same reducer rather than each getting its own.
  */
-export type AccessPayload = (EntitlementStatus & AccessEventRow) | EntitlementStatus | AccessEventRow;
+export type AccessPayload =
+  (EntitlementStatus & AccessEventRow) | EntitlementStatus | AccessEventRow;
 
 /**
  * Reads one fact under either spelling.
@@ -106,7 +107,11 @@ export function parseAccessState(
 
   const isAdmin = Boolean(pick<boolean>(row, 'isAdmin', 'is_admin'));
   const isActive = Boolean(pick<boolean>(row, 'isActive', 'is_active'));
-  const canAccessPremium = pick<boolean>(row, 'canAccessPremium', 'can_access_premium');
+  const canAccessPremium = pick<boolean>(
+    row,
+    'canAccessPremium',
+    'can_access_premium',
+  );
 
   return {
     // The server's own verdict. Falling back to `isActive || isAdmin` covers a
@@ -118,9 +123,13 @@ export function parseAccessState(
     status: asString(row.status),
     expiresAt: asString(pick<string>(row, 'expiresAt', 'expires_at')),
     serverTime: asString(pick<string>(row, 'serverTime', 'server_time')),
-    reason: (asString(row.reason) as AccessReason | null) ?? previous?.reason ?? null,
+    reason:
+      (asString(row.reason) as AccessReason | null) ?? previous?.reason ?? null,
     // A delivered row need not repeat the channel it arrived on.
-    realtime: (row.realtime as EntitlementRealtime | undefined) ?? previous?.realtime ?? null,
+    realtime:
+      (row.realtime as EntitlementRealtime | undefined) ??
+      previous?.realtime ??
+      null,
   };
 }
 
@@ -165,12 +174,14 @@ export const REASON_COPY: Record<
   },
   trial: {
     title: 'You are on a trial',
-    message: 'Enjoy the full library. Your trial end date is shown in Membership.',
+    message:
+      'Enjoy the full library. Your trial end date is shown in Membership.',
     soft: true,
   },
   grace: {
     title: 'We are retrying your payment',
-    message: 'Keep reading — nothing is interrupted while the retry is in progress.',
+    message:
+      'Keep reading — nothing is interrupted while the retry is in progress.',
     soft: true,
   },
   billing_issue_paid_through: {
@@ -181,17 +192,20 @@ export const REASON_COPY: Record<
   },
   cancelled_paid_through: {
     title: 'Your membership is ending',
-    message: 'You keep full access until it ends. Resubscribe any time to continue after that.',
+    message:
+      'You keep full access until it ends. Resubscribe any time to continue after that.',
     soft: true,
   },
   lapsed: {
     title: 'Your membership has ended',
-    message: 'Renew to pick up exactly where you left off — your library is untouched.',
+    message:
+      'Renew to pick up exactly where you left off — your library is untouched.',
     soft: false,
   },
   expired: {
     title: 'Your membership has ended',
-    message: 'Renew to pick up exactly where you left off — your library is untouched.',
+    message:
+      'Renew to pick up exactly where you left off — your library is untouched.',
     soft: false,
   },
   none: {

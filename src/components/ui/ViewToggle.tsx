@@ -20,8 +20,18 @@ export const ViewToggle = memo(function ViewToggle({
 }) {
   return (
     <View style={styles.root}>
-      <ToggleButton mode="grid" icon={LayoutGrid} active={value === 'grid'} onChange={onChange} />
-      <ToggleButton mode="list" icon={List} active={value === 'list'} onChange={onChange} />
+      <ToggleButton
+        mode="grid"
+        icon={LayoutGrid}
+        active={value === 'grid'}
+        onChange={onChange}
+      />
+      <ToggleButton
+        mode="list"
+        icon={List}
+        active={value === 'list'}
+        onChange={onChange}
+      />
     </View>
   );
 });
@@ -53,7 +63,8 @@ const ToggleButton = memo(function ToggleButton({
           borderColor: active ? colors.selectedBorder : colors.border,
         },
         pressed && styles.pressed,
-      ]}>
+      ]}
+    >
       <Icon icon={icon} size={15} tone={active ? 'primary' : 'muted'} />
     </Pressable>
   );

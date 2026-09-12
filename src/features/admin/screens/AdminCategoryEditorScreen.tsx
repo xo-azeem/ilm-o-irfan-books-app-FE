@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import {
+  useNavigation,
+  useRoute,
+  type RouteProp,
+} from '@react-navigation/native';
 import {
   Book,
   BookMarked,
@@ -14,7 +18,10 @@ import {
 } from 'lucide-react-native';
 
 import { Icon, Text } from '@/components/ui';
-import { AdminColorField, AdminConfirmSheet } from '@/features/admin/components/AdminControls';
+import {
+  AdminColorField,
+  AdminConfirmSheet,
+} from '@/features/admin/components/AdminControls';
 import { errorMessage, useToast } from '@/features/admin/components/AdminToast';
 import {
   ADMIN_GUTTER,
@@ -27,9 +34,16 @@ import {
   AdminTag,
   AdminTextAction,
 } from '@/features/admin/components/AdminUi';
-import { useDirtyTracker, useUnsavedGuard } from '@/features/admin/hooks/useAdminForm';
+import {
+  useDirtyTracker,
+  useUnsavedGuard,
+} from '@/features/admin/hooks/useAdminForm';
 import { useAppInsets } from '@/hooks/useAppInsets';
-import { useAdminCategories, useDeleteAdminCategory, useSaveAdminCategory } from '@/hooks/useAdmin';
+import {
+  useAdminCategories,
+  useDeleteAdminCategory,
+  useSaveAdminCategory,
+} from '@/hooks/useAdmin';
 import { CATEGORY_ICON_KEYS, slugify } from '@/services/admin';
 import { palette } from '@/theme/palette';
 import { useTheme } from '@/theme/ThemeContext';
@@ -62,7 +76,8 @@ function ordinal(position: number): string {
  */
 export function AdminCategoryEditorScreen() {
   const navigation = useNavigation();
-  const route = useRoute<RouteProp<AdminLibraryStackParamList, 'AdminCategoryEditor'>>();
+  const route =
+    useRoute<RouteProp<AdminLibraryStackParamList, 'AdminCategoryEditor'>>();
   const categoryId = route.params?.categoryId;
   const { colors } = useTheme();
   const { scrollEndPadding } = useAppInsets();
@@ -92,7 +107,8 @@ export function AdminCategoryEditorScreen() {
       slug: existing.slug,
       iconKey: existing.icon_key,
       accent: existing.accent ?? palette.green,
-      accentDark: existing.accent_dark ?? existing.accent ?? palette.greenBright,
+      accentDark:
+        existing.accent_dark ?? existing.accent ?? palette.greenBright,
     });
   }, [existing]);
 
@@ -145,11 +161,14 @@ export function AdminCategoryEditorScreen() {
   return (
     <SafeAreaView
       style={[styles.root, { backgroundColor: colors.background }]}
-      edges={['top', 'left', 'right']}>
+      edges={['top', 'left', 'right']}
+    >
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <AdminBackLink
           label="Categories"
-          action={isDirty ? <AdminTag label="UNSAVED" tone="warning" /> : undefined}
+          action={
+            isDirty ? <AdminTag label="UNSAVED" tone="warning" /> : undefined
+          }
         />
       </View>
 
@@ -162,7 +181,8 @@ export function AdminCategoryEditorScreen() {
           gap: 17,
         }}
         keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+      >
         <AdminScreenTitle
           title={form.label || (categoryId ? 'Edit category' : 'New category')}
           subtitle={
@@ -179,15 +199,30 @@ export function AdminCategoryEditorScreen() {
           style={[
             styles.preview,
             { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
-          ]}>
+          ]}
+        >
           <AdminEyebrow>How readers see it</AdminEyebrow>
           <View
             style={[
               styles.previewTile,
-              { backgroundColor: colors.surface, borderColor: colors.borderSoft },
-            ]}>
-            <View style={[styles.previewIcon, { backgroundColor: `${form.accent}33` }]}>
-              <Icon icon={PreviewIcon} size={16} color={form.accent} strokeWidth={1.9} />
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.borderSoft,
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.previewIcon,
+                { backgroundColor: `${form.accent}33` },
+              ]}
+            >
+              <Icon
+                icon={PreviewIcon}
+                size={16}
+                color={form.accent}
+                strokeWidth={1.9}
+              />
             </View>
             <View style={styles.grow}>
               <Text size={14} leading={1.2} weight="500" numberOfLines={1}>
@@ -203,7 +238,9 @@ export function AdminCategoryEditorScreen() {
         <AdminField
           label="Label"
           value={form.label}
-          onChangeText={value => setForm(current => ({ ...current, label: value }))}
+          onChangeText={value =>
+            setForm(current => ({ ...current, label: value }))
+          }
           maxLength={40}
         />
 
@@ -219,15 +256,22 @@ export function AdminCategoryEditorScreen() {
                   accessibilityRole="button"
                   accessibilityState={{ selected }}
                   accessibilityLabel={key}
-                  onPress={() => setForm(current => ({ ...current, iconKey: key }))}
+                  onPress={() =>
+                    setForm(current => ({ ...current, iconKey: key }))
+                  }
                   style={({ pressed }) => [
                     styles.iconTile,
                     {
-                      backgroundColor: selected ? colors.primaryFill : colors.control,
-                      borderColor: selected ? colors.selectedBorder : 'transparent',
+                      backgroundColor: selected
+                        ? colors.primaryFill
+                        : colors.control,
+                      borderColor: selected
+                        ? colors.selectedBorder
+                        : 'transparent',
                     },
                     pressed && styles.pressed,
-                  ]}>
+                  ]}
+                >
                   <Icon
                     icon={Glyph}
                     size={17}
@@ -243,7 +287,9 @@ export function AdminCategoryEditorScreen() {
         <AdminField
           label="URL key"
           value={form.slug}
-          onChangeText={value => setForm(current => ({ ...current, slug: value }))}
+          onChangeText={value =>
+            setForm(current => ({ ...current, slug: value }))
+          }
           placeholder={slugify(form.label) || 'auto-from-label'}
           autoCapitalize="none"
           mono
@@ -253,13 +299,17 @@ export function AdminCategoryEditorScreen() {
         <AdminColorField
           label="Accent"
           value={form.accent}
-          onChange={value => setForm(current => ({ ...current, accent: value }))}
+          onChange={value =>
+            setForm(current => ({ ...current, accent: value }))
+          }
           helper="Tints the tile on Explore."
         />
         <AdminColorField
           label="Accent (dark mode)"
           value={form.accentDark}
-          onChange={value => setForm(current => ({ ...current, accentDark: value }))}
+          onChange={value =>
+            setForm(current => ({ ...current, accentDark: value }))
+          }
         />
 
         {categoryId ? (
@@ -281,8 +331,12 @@ export function AdminCategoryEditorScreen() {
       <View
         style={[
           styles.footer,
-          { backgroundColor: colors.chrome, borderTopColor: colors.chromeBorder },
-        ]}>
+          {
+            backgroundColor: colors.chrome,
+            borderTopColor: colors.chromeBorder,
+          },
+        ]}
+      >
         <AdminButton
           label={categoryId ? 'Save category' : 'Create category'}
           loading={save.isPending}

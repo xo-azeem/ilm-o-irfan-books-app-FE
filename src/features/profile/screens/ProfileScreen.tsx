@@ -13,7 +13,12 @@ import {
   type Achievement,
 } from '@/features/profile/components/ReadingRecord';
 import { SettingsSection } from '@/features/profile/components/SettingsSection';
-import { useAvatarUrl, useLibrary, useProfile, useSubscription } from '@/hooks/useAccount';
+import {
+  useAvatarUrl,
+  useLibrary,
+  useProfile,
+  useSubscription,
+} from '@/hooks/useAccount';
 import { useAuthStore } from '@/stores/authStore';
 
 /** This month's target. A real goal-setting screen would replace the constant. */
@@ -69,7 +74,13 @@ export function ProfileScreen() {
 
   const achievements = useMemo<Achievement[]>(
     () => [
-      { id: 'streak-7', mark: '7', label: 'Week streak', earned: streak >= 7, tone: 'gold' },
+      {
+        id: 'streak-7',
+        mark: '7',
+        label: 'Week streak',
+        earned: streak >= 7,
+        tone: 'gold',
+      },
       {
         id: 'books-25',
         mark: '25',
@@ -85,13 +96,20 @@ export function ProfileScreen() {
 
   const earned = achievements.filter(achievement => achievement.earned).length;
 
-  const planName = subscription?.active ? subscription.plan?.name ?? 'Premium' : 'Free';
+  const planName = subscription?.active
+    ? (subscription.plan?.name ?? 'Premium')
+    : 'Free';
 
   if (!isAuthenticated) {
     return (
       <Screen gap={22}>
         <View style={styles.identity}>
-          <Avatar imageUrl={avatarUrl} name={profile?.fullName} size={62} shape="squircle" />
+          <Avatar
+            imageUrl={avatarUrl}
+            name={profile?.fullName}
+            size={62}
+            shape="squircle"
+          />
           <View style={styles.identityBody}>
             <Display size={24}>Your reading record</Display>
           </View>
@@ -108,12 +126,20 @@ export function ProfileScreen() {
   return (
     <Screen gap={20}>
       <View style={styles.identity}>
-        <Avatar imageUrl={avatarUrl} name={profile?.fullName} size={62} shape="squircle" />
+        <Avatar
+          imageUrl={avatarUrl}
+          name={profile?.fullName}
+          size={62}
+          shape="squircle"
+        />
         <View style={styles.identityBody}>
           <Display size={24} numberOfLines={1}>
             {profile?.fullName || 'Reader'}
           </Display>
-          <RecordHeader email={profile?.email} memberSince={profile?.memberSince} />
+          <RecordHeader
+            email={profile?.email}
+            memberSince={profile?.memberSince}
+          />
         </View>
         {/* Centred against the whole name / email / date block, not just the
             name line — the row's `alignItems` does the work. */}
@@ -127,7 +153,11 @@ export function ProfileScreen() {
       {/* The longest streak is a real column on `reading_streaks`; it used to
           echo the current one back, which made the record read as if the
           reader had never done better than today. */}
-      <StreakCard current={streak} longest={longestStreak || undefined} week={week} />
+      <StreakCard
+        current={streak}
+        longest={longestStreak || undefined}
+        week={week}
+      />
 
       <StatRow stats={stats} />
 

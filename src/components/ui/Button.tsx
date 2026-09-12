@@ -22,12 +22,7 @@ import { useTheme, type AppColors } from '@/theme/ThemeContext';
  * that scarcity is what makes it read as a threshold.
  */
 export type ButtonVariant =
-  | 'primary'
-  | 'secondary'
-  | 'ghost'
-  | 'gold'
-  | 'danger'
-  | 'dangerSolid';
+  'primary' | 'secondary' | 'ghost' | 'gold' | 'danger' | 'dangerSolid';
 
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
@@ -37,12 +32,14 @@ export type ButtonSize = 'sm' | 'md' | 'lg';
  * *shrink* below the drawn value at the Small step — a 49pt button would be a
  * worse target for no gain, since only the label was asked to get smaller.
  */
-const sizing: Record<ButtonSize, { height: number; padding: number; text: number; radius: number }> =
-  {
-    sm: { height: 40, padding: 14, text: fontSize.caption, radius: radius.chip },
-    md: { height: 48, padding: 18, text: fontSize.bodySmall, radius: 14 },
-    lg: { height: 54, padding: 20, text: fontSize.body, radius: radius.button },
-  };
+const sizing: Record<
+  ButtonSize,
+  { height: number; padding: number; text: number; radius: number }
+> = {
+  sm: { height: 40, padding: 14, text: fontSize.caption, radius: radius.chip },
+  md: { height: 48, padding: 18, text: fontSize.bodySmall, radius: 14 },
+  lg: { height: 54, padding: 20, text: fontSize.body, radius: radius.button },
+};
 
 type VariantStyle = {
   background: string;
@@ -80,7 +77,11 @@ function variantStyle(variant: ButtonVariant, colors: AppColors): VariantStyle {
         label: colors.danger,
       };
     case 'dangerSolid':
-      return { background: colors.dangerFill, border: colors.dangerBorder, label: colors.danger };
+      return {
+        background: colors.dangerFill,
+        border: colors.dangerBorder,
+        label: colors.danger,
+      };
   }
 }
 
@@ -110,7 +111,10 @@ export const Button = memo(function Button({
 }: ButtonProps) {
   const { colors, fontScale } = useTheme();
   const metrics = sizing[size];
-  const palette = useMemo(() => variantStyle(variant, colors), [colors, variant]);
+  const palette = useMemo(
+    () => variantStyle(variant, colors),
+    [colors, variant],
+  );
   const isDisabled = disabled || loading;
   const growth = Math.max(1, fontScale);
 
@@ -139,7 +143,11 @@ export const Button = memo(function Button({
 
   // The glyph is set to the label's size, so it has to follow it up the ramp.
   const glyph = icon ? (
-    <Icon icon={icon} size={scaleFont(metrics.text, fontScale)} color={palette.label} />
+    <Icon
+      icon={icon}
+      size={scaleFont(metrics.text, fontScale)}
+      color={palette.label}
+    />
   ) : null;
 
   return (
@@ -154,7 +162,8 @@ export const Button = memo(function Button({
         isDisabled && styles.disabled,
         style,
       ]}
-      {...rest}>
+      {...rest}
+    >
       {loading ? (
         <ActivityIndicator size="small" color={palette.label} />
       ) : (
@@ -165,7 +174,8 @@ export const Button = memo(function Button({
             leading={1}
             weight={variant === 'primary' || variant === 'gold' ? '700' : '500'}
             tone="inherit"
-            style={{ color: palette.label }}>
+            style={{ color: palette.label }}
+          >
             {label}
           </Text>
           {iconTrailing ? glyph : null}
@@ -195,7 +205,11 @@ export const IconButton = memo(function IconButton({
   const palette = useMemo(
     () =>
       variant === 'plain'
-        ? { background: colors.primaryFillSoft, border: undefined, label: colors.inkSoft }
+        ? {
+            background: colors.primaryFillSoft,
+            border: undefined,
+            label: colors.inkSoft,
+          }
         : variantStyle(variant, colors),
     [colors, variant],
   );
@@ -215,8 +229,14 @@ export const IconButton = memo(function IconButton({
   return (
     <Pressable
       accessibilityRole="button"
-      style={({ pressed }) => [styles.base, containerStyle, pressed && styles.pressed, style]}
-      {...rest}>
+      style={({ pressed }) => [
+        styles.base,
+        containerStyle,
+        pressed && styles.pressed,
+        style,
+      ]}
+      {...rest}
+    >
       <Icon icon={icon} size={size} color={palette.label} />
     </Pressable>
   );
@@ -243,8 +263,14 @@ export const TextButton = memo(function TextButton({
       accessibilityRole="button"
       hitSlop={8}
       style={({ pressed }) => [pressed && styles.pressed, style]}
-      {...rest}>
-      <Text size={size} leading={1} weight={tone === 'primary' ? '600' : '500'} tone={tone}>
+      {...rest}
+    >
+      <Text
+        size={size}
+        leading={1}
+        weight={tone === 'primary' ? '600' : '500'}
+        tone={tone}
+      >
         {label}
       </Text>
     </Pressable>
@@ -281,9 +307,23 @@ export const FloatingAction = memo(function FloatingAction({
         pressed && styles.pressed,
         style,
       ]}
-      {...rest}>
-      {icon ? <Icon icon={icon} size={17} color={colors.onPrimary} strokeWidth={2.2} /> : null}
-      <Text size={fontSize.bodySmall} leading={1} weight="700" tone="inherit" style={{ color: colors.onPrimary }}>
+      {...rest}
+    >
+      {icon ? (
+        <Icon
+          icon={icon}
+          size={17}
+          color={colors.onPrimary}
+          strokeWidth={2.2}
+        />
+      ) : null}
+      <Text
+        size={fontSize.bodySmall}
+        leading={1}
+        weight="700"
+        tone="inherit"
+        style={{ color: colors.onPrimary }}
+      >
         {label}
       </Text>
     </Pressable>

@@ -69,7 +69,10 @@ async function hasPdfHeader(path: string): Promise<boolean> {
   try {
     await ReactNativeBlobUtil.fs.unlink(probe).catch(() => undefined);
     await ReactNativeBlobUtil.fs.slice(path, probe, 0, 5);
-    const bytes = (await ReactNativeBlobUtil.fs.readFile(probe, 'ascii')) as number[];
+    const bytes = (await ReactNativeBlobUtil.fs.readFile(
+      probe,
+      'ascii',
+    )) as number[];
     return isPdfHeader(bytes ?? []);
   } catch {
     // If the platform cannot slice the file, trust the download and let the
@@ -99,7 +102,9 @@ type DownloadOptions = {
 };
 
 function abortError() {
-  return Object.assign(new Error('The PDF download was cancelled.'), { name: 'AbortError' });
+  return Object.assign(new Error('The PDF download was cancelled.'), {
+    name: 'AbortError',
+  });
 }
 
 function statusError(status: number) {
@@ -121,7 +126,8 @@ function emitTransferProgress(
   }
 
   const ratio = Math.max(0, Math.min(1, loadedBytes / totalBytes));
-  const percent = loadedBytes >= totalBytes ? 100 : Math.min(99, Math.floor(ratio * 100));
+  const percent =
+    loadedBytes >= totalBytes ? 100 : Math.min(99, Math.floor(ratio * 100));
   if (percent === lastPercent.value && loadedBytes < totalBytes) {
     return;
   }
@@ -137,7 +143,11 @@ function emitTransferProgress(
  * through the bridge as base64 is what puts the app within reach of an
  * out-of-memory kill on the very screen that needs the memory to render.
  */
-async function downloadToPath(url: string, target: string, options: DownloadOptions = {}) {
+async function downloadToPath(
+  url: string,
+  target: string,
+  options: DownloadOptions = {},
+) {
   const temporary = `${target}.part`;
   await ReactNativeBlobUtil.fs.unlink(temporary).catch(() => undefined);
 
@@ -146,7 +156,9 @@ async function downloadToPath(url: string, target: string, options: DownloadOpti
   }
 
   const expectedBytes =
-    options.expectedBytes && options.expectedBytes > 0 ? options.expectedBytes : 0;
+    options.expectedBytes && options.expectedBytes > 0
+      ? options.expectedBytes
+      : 0;
   const lastPercent = { value: -1 };
   emitTransferProgress(0, expectedBytes, options.onProgress, lastPercent);
 
@@ -180,7 +192,12 @@ async function downloadToPath(url: string, target: string, options: DownloadOpti
   try {
     task.progress({ count: 50 }, (received, total) => {
       const totalBytes = Number(total) > 0 ? Number(total) : expectedBytes;
-      emitTransferProgress(Number(received) || 0, totalBytes, options.onProgress, lastPercent);
+      emitTransferProgress(
+        Number(received) || 0,
+        totalBytes,
+        options.onProgress,
+        lastPercent,
+      );
     });
 
     const response = await task;
@@ -197,7 +214,9 @@ async function downloadToPath(url: string, target: string, options: DownloadOpti
         const body = await ReactNativeBlobUtil.fs
           .readFile(temporary, 'utf8')
           .catch(() => '');
-        console.warn(`[pdf] download ${status} for ${url.split('?')[0]}: ${String(body).slice(0, 300)}`);
+        console.warn(
+          `[pdf] download ${status} for ${url.split('?')[0]}: ${String(body).slice(0, 300)}`,
+        );
       }
       throw statusError(status);
     }
@@ -273,7 +292,10 @@ export async function resolvePdfSource(
   return fileSource(target);
 }
 
-export async function downloadPdf(bookId: string, options: Omit<DownloadOptions, 'expectedBytes'> = {}) {
+export async function downloadPdf(
+  bookId: string,
+  options: Omit<DownloadOptions, 'expectedBytes'> = {},
+) {
   await ensureDirectory();
   await syncDownload(bookId, 'pending');
   const target = filePath(bookId);
@@ -286,7 +308,11 @@ export async function downloadPdf(bookId: string, options: Omit<DownloadOptions,
     });
     storage.set(key(bookId), target);
     const stats = await ReactNativeBlobUtil.fs.stat(target);
-    await syncDownload(bookId, 'completed', fileSizeBytes ?? Number(stats.size));
+    await syncDownload(
+      bookId,
+      'completed',
+      fileSizeBytes ?? Number(stats.size),
+    );
     return fileSource(target).uri;
   } catch (error) {
     await syncDownload(bookId, 'failed').catch(() => undefined);
@@ -296,6 +322,7 @@ export async function downloadPdf(bookId: string, options: Omit<DownloadOptions,
 
 export async function removeLocalPdf(bookId: string) {
   const path = storage.getString(key(bookId));
-  if (path && (await ReactNativeBlobUtil.fs.exists(path))) await ReactNativeBlobUtil.fs.unlink(path);
+  if (path && (await ReactNativeBlobUtil.fs.exists(path)))
+    await ReactNativeBlobUtil.fs.unlink(path);
   storage.remove(key(bookId));
 }

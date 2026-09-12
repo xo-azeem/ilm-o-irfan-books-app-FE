@@ -25,17 +25,21 @@ export function useUnsavedGuard(isDirty: boolean) {
         return;
       }
       event.preventDefault();
-      Alert.alert('Discard changes?', 'Your edits on this screen have not been saved.', [
-        { text: 'Keep editing', style: 'cancel' },
-        {
-          text: 'Discard',
-          style: 'destructive',
-          onPress: () => {
-            dirty.current = false;
-            navigation.dispatch(event.data.action);
+      Alert.alert(
+        'Discard changes?',
+        'Your edits on this screen have not been saved.',
+        [
+          { text: 'Keep editing', style: 'cancel' },
+          {
+            text: 'Discard',
+            style: 'destructive',
+            onPress: () => {
+              dirty.current = false;
+              navigation.dispatch(event.data.action);
+            },
           },
-        },
-      ]);
+        ],
+      );
     });
 
     return unsubscribe;

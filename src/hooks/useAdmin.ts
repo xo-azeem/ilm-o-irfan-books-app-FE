@@ -224,8 +224,13 @@ export function useDeleteAdminCollection() {
 export function useUpdateAdminCollection() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, changes }: { id: string; changes: { is_published: boolean } }) =>
-      setCollectionPublished(id, changes.is_published),
+    mutationFn: ({
+      id,
+      changes,
+    }: {
+      id: string;
+      changes: { is_published: boolean };
+    }) => setCollectionPublished(id, changes.is_published),
     onSuccess: () => invalidateAdmin(client),
   });
 }
@@ -242,8 +247,13 @@ export function useReorderCollections() {
 export function useReorderCatalog() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: ({ table, ids }: { table: 'categories' | 'collections'; ids: string[] }) =>
-      reorderCatalog(table, ids),
+    mutationFn: ({
+      table,
+      ids,
+    }: {
+      table: 'categories' | 'collections';
+      ids: string[];
+    }) => reorderCatalog(table, ids),
     onSuccess: () => invalidateAdmin(client),
   });
 }
@@ -271,8 +281,13 @@ export function useAdminUserDetail(userId: string) {
 export function useSetUserRole() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: ({ userId, role }: { userId: string; role: 'user' | 'admin' }) =>
-      setAdminUserRole(userId, role),
+    mutationFn: ({
+      userId,
+      role,
+    }: {
+      userId: string;
+      role: 'user' | 'admin';
+    }) => setAdminUserRole(userId, role),
     onSuccess: () => invalidateAdmin(client),
   });
 }
@@ -353,8 +368,14 @@ export function useStorageAudit() {
 export function useDeleteStorageObject() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: ({ bucket, name }: { bucket: 'covers' | 'pdfs'; name: string }) =>
-      deleteStorageObject(bucket, name),
-    onSuccess: () => client.invalidateQueries({ queryKey: ['admin', 'storage'] }),
+    mutationFn: ({
+      bucket,
+      name,
+    }: {
+      bucket: 'covers' | 'pdfs';
+      name: string;
+    }) => deleteStorageObject(bucket, name),
+    onSuccess: () =>
+      client.invalidateQueries({ queryKey: ['admin', 'storage'] }),
   });
 }

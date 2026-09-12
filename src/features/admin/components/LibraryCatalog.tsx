@@ -12,7 +12,11 @@ import {
   AdminTag,
 } from '@/features/admin/components/AdminUi';
 import { useAppInsets } from '@/hooks/useAppInsets';
-import { useAdminCategories, useAdminCollections, useReorderCatalog } from '@/hooks/useAdmin';
+import {
+  useAdminCategories,
+  useAdminCollections,
+  useReorderCatalog,
+} from '@/hooks/useAdmin';
 import type { AdminCategory, AdminCollection } from '@/services/admin';
 import { useTheme } from '@/theme/ThemeContext';
 
@@ -83,7 +87,8 @@ const MoveControls = memo(function MoveControls({
         disabled={isFirst}
         hitSlop={6}
         onPress={() => onMove(-1)}
-        style={[styles.moveButton, isFirst && styles.disabled]}>
+        style={[styles.moveButton, isFirst && styles.disabled]}
+      >
         <Icon icon={ChevronUp} size={16} tone="muted" strokeWidth={2.2} />
       </Pressable>
       <Pressable
@@ -92,7 +97,8 @@ const MoveControls = memo(function MoveControls({
         disabled={isLast}
         hitSlop={6}
         onPress={() => onMove(1)}
-        style={[styles.moveButton, isLast && styles.disabled]}>
+        style={[styles.moveButton, isLast && styles.disabled]}
+      >
         <Icon icon={ChevronDown} size={16} tone="muted" strokeWidth={2.2} />
       </Pressable>
     </View>
@@ -174,8 +180,12 @@ export const LibraryCategories = memo(function LibraryCategories({
   return (
     <ScrollView
       style={styles.fill}
-      contentContainerStyle={[styles.list, { paddingBottom: scrollEndPadding + 20 }]}
-      showsVerticalScrollIndicator={false}>
+      contentContainerStyle={[
+        styles.list,
+        { paddingBottom: scrollEndPadding + 20 },
+      ]}
+      showsVerticalScrollIndicator={false}
+    >
       {order.map((category, index) => (
         <CategoryRow
           key={category.id}
@@ -189,8 +199,8 @@ export const LibraryCategories = memo(function LibraryCategories({
       ))}
 
       <OrderHint>
-        Move a category and readers see the new Explore order immediately. Hidden categories still
-        work as search filters.
+        Move a category and readers see the new Explore order immediately.
+        Hidden categories still work as search filters.
       </OrderHint>
 
       {reorder.isPending ? (
@@ -219,14 +229,25 @@ const CategoryRow = memo(function CategoryRow({
   const { colors } = useTheme();
 
   return (
-    <View style={[styles.row, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-      <View style={[styles.swatch, { backgroundColor: category.accent ?? colors.primary }]} />
+    <View
+      style={[
+        styles.row,
+        { backgroundColor: colors.surface, borderColor: colors.border },
+      ]}
+    >
+      <View
+        style={[
+          styles.swatch,
+          { backgroundColor: category.accent ?? colors.primary },
+        ]}
+      />
 
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={category.label}
         onPress={onPress}
-        style={({ pressed }) => [styles.body, pressed && styles.pressed]}>
+        style={({ pressed }) => [styles.body, pressed && styles.pressed]}
+      >
         <Text size={14} leading={1.2} numberOfLines={1}>
           {category.label}
         </Text>
@@ -314,8 +335,12 @@ export const LibraryShelves = memo(function LibraryShelves({
   return (
     <ScrollView
       style={styles.fill}
-      contentContainerStyle={[styles.list, { paddingBottom: scrollEndPadding + 20 }]}
-      showsVerticalScrollIndicator={false}>
+      contentContainerStyle={[
+        styles.list,
+        { paddingBottom: scrollEndPadding + 20 },
+      ]}
+      showsVerticalScrollIndicator={false}
+    >
       {order.map((collection, index) => (
         <ShelfRow
           key={collection.id}
@@ -329,8 +354,8 @@ export const LibraryShelves = memo(function LibraryShelves({
       ))}
 
       <OrderHint>
-        Move a shelf and readers see the new Home order immediately. A hidden shelf stays linkable
-        but disappears from Home.
+        Move a shelf and readers see the new Home order immediately. A hidden
+        shelf stays linkable but disappears from Home.
       </OrderHint>
     </ScrollView>
   );
@@ -367,8 +392,16 @@ const ShelfRow = memo(function ShelfRow({
         styles.row,
         { backgroundColor: colors.surface, borderColor: colors.border },
         hidden && styles.dimmed,
-      ]}>
-      <Label size={10} leading={1} weight="700" tracking={0} tone="dim" style={styles.position}>
+      ]}
+    >
+      <Label
+        size={10}
+        leading={1}
+        weight="700"
+        tracking={0}
+        tone="dim"
+        style={styles.position}
+      >
         {String(position)}
       </Label>
 
@@ -376,7 +409,8 @@ const ShelfRow = memo(function ShelfRow({
         accessibilityRole="button"
         accessibilityLabel={collection.title}
         onPress={onPress}
-        style={({ pressed }) => [styles.body, pressed && styles.pressed]}>
+        style={({ pressed }) => [styles.body, pressed && styles.pressed]}
+      >
         <Text size={14} leading={1.2} numberOfLines={1}>
           {collection.title}
         </Text>

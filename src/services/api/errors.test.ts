@@ -6,7 +6,12 @@ import { ApiError, isEndpointMissing, readError } from './errors';
 describe('api error parsing', () => {
   it('reads the current { error: { code, message } } envelope', () => {
     const error = readError(
-      { error: { code: 'PREMIUM_REQUIRED', message: 'Active subscription required' } },
+      {
+        error: {
+          code: 'PREMIUM_REQUIRED',
+          message: 'Active subscription required',
+        },
+      },
       403,
     );
 
@@ -17,7 +22,10 @@ describe('api error parsing', () => {
   });
 
   it('still reads the older { error: "text", code } envelope', () => {
-    const error = readError({ error: 'Active subscription required', code: 'PREMIUM_REQUIRED' }, 403);
+    const error = readError(
+      { error: 'Active subscription required', code: 'PREMIUM_REQUIRED' },
+      403,
+    );
 
     assert.equal(error.code, 'PREMIUM_REQUIRED');
     assert.equal(error.message, 'Active subscription required');
@@ -36,7 +44,10 @@ describe('api error parsing', () => {
 
   it('falls back to a readable message when the body is unusable', () => {
     assert.equal(readError(null, 500).message, 'Request failed (500).');
-    assert.equal(readError({ error: {} }, 500).message, 'Request failed (500).');
+    assert.equal(
+      readError({ error: {} }, 500).message,
+      'Request failed (500).',
+    );
   });
 });
 
@@ -56,7 +67,10 @@ describe('undeployed endpoint detection', () => {
   it('does not mistake a handler NOT_FOUND for a missing function', () => {
     // book-detail, profile-update, highlights-upsert and reading-progress all
     // answer exactly this for a row that is not there.
-    const error = readError({ error: { code: 'NOT_FOUND', message: 'Book not found' } }, 404);
+    const error = readError(
+      { error: { code: 'NOT_FOUND', message: 'Book not found' } },
+      404,
+    );
 
     assert.equal(error.code, 'NOT_FOUND');
     assert.equal(error.status, 404);
@@ -64,10 +78,19 @@ describe('undeployed endpoint detection', () => {
   });
 
   it('ignores other failures entirely', () => {
-    assert.equal(isEndpointMissing(readError({ error: { code: 'FORBIDDEN' } }, 403)), false);
-    assert.equal(isEndpointMissing(readError({ code: 'NOT_FOUND' }, 500)), false);
+    assert.equal(
+      isEndpointMissing(readError({ error: { code: 'FORBIDDEN' } }, 403)),
+      false,
+    );
+    assert.equal(
+      isEndpointMissing(readError({ code: 'NOT_FOUND' }, 500)),
+      false,
+    );
     assert.equal(isEndpointMissing(new Error('boom')), false);
-    assert.equal(isEndpointMissing(new ApiError('nope', 404, 'PDF_NOT_AVAILABLE')), false);
+    assert.equal(
+      isEndpointMissing(new ApiError('nope', 404, 'PDF_NOT_AVAILABLE')),
+      false,
+    );
   });
 });
 

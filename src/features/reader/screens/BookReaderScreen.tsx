@@ -8,7 +8,10 @@ import type { RootStackParamList } from '@/app/navigation/types';
 import { useSheet } from '@/components/ui';
 import type { BookPdfSource } from '@/constants/books';
 import { ROUTES } from '@/constants/routes';
-import { BookPageFlip, type BookPageFlipHandle } from '@/features/reader/components/BookPageFlip';
+import {
+  BookPageFlip,
+  type BookPageFlipHandle,
+} from '@/features/reader/components/BookPageFlip';
 import { ReaderBoundary } from '@/features/reader/components/ReaderBoundary';
 import { ReaderChrome } from '@/features/reader/components/ReaderChrome';
 import { ReaderError } from '@/features/reader/components/ReaderError';
@@ -55,7 +58,10 @@ const SETTLE_TURN_MS = 2500;
 const SETTLE_JUMP_MS = 8000;
 
 type BookReaderRouteProp = RouteProp<RootStackParamList, 'BookReader'>;
-type BookReaderNavigationProp = NativeStackNavigationProp<RootStackParamList, 'BookReader'>;
+type BookReaderNavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  'BookReader'
+>;
 
 /**
  * The reading screen, behind a boundary.
@@ -91,7 +97,10 @@ type PdfError = {
  * for a draft's id cannot confirm it exists. One message serves both.
  */
 function pdfErrorMessage(error: PdfError): string {
-  if (error?.code === 'PDF_NOT_AVAILABLE' || error?.code === 'PDF_NOT_IN_STORAGE') {
+  if (
+    error?.code === 'PDF_NOT_AVAILABLE' ||
+    error?.code === 'PDF_NOT_IN_STORAGE'
+  ) {
     return 'This book’s file is missing from our library. Nothing is wrong with your membership — please report it and we will restore it.';
   }
   if (error?.status === 404) {
@@ -124,7 +133,10 @@ function isSessionRejected(error: PdfError): boolean {
  * `expired` when the countdown is what ran out, the plain pitch otherwise,
  * until the refresh corrects it.
  */
-function lockReason(reason: AccessReason | null, expired: boolean): AccessReason {
+function lockReason(
+  reason: AccessReason | null,
+  expired: boolean,
+): AccessReason {
   if (reason && !reasonCopy(reason).soft) {
     return reason;
   }
@@ -198,7 +210,8 @@ function BookReader() {
   const setReadingMode = useThemeStore(state => state.setReadingMode);
   /** Set once a download completes, so the error state can offer it. */
   const downloadedUri = useRef<string | null>(null);
-  const { canOpenBooks, isAuthenticated, isSubscriptionLoading, reason } = useAccess();
+  const { canOpenBooks, isAuthenticated, isSubscriptionLoading, reason } =
+    useAccess();
   // Whether the local countdown is what locked the book, for the lock's wording.
   const expired = useAccessStore(state => state.expired);
   /** True once a page has actually been on screen for this book. */
@@ -250,7 +263,8 @@ function BookReader() {
     setRefused(false);
     setErrorMessage(null);
     documentReady.current = false;
-    const cached = (userId ? getPosition(userId, bookId)?.page : undefined) ?? 1;
+    const cached =
+      (userId ? getPosition(userId, bookId)?.page : undefined) ?? 1;
     pageRef.current = cached;
     settledPage.current = cached;
     setStartPage(cached);
@@ -265,7 +279,9 @@ function BookReader() {
       signal: abort.signal,
       onProgress: ({ percent }) => {
         if (active) {
-          setLoadProgress(prev => (prev != null && percent < prev ? prev : percent));
+          setLoadProgress(prev =>
+            prev != null && percent < prev ? prev : percent,
+          );
         }
       },
     })
@@ -300,7 +316,15 @@ function BookReader() {
       active = false;
       abort.abort();
     };
-  }, [bookId, canOpenBooks, isAuthenticated, isSubscriptionLoading, navigation, retryToken, userId]);
+  }, [
+    bookId,
+    canOpenBooks,
+    isAuthenticated,
+    isSubscriptionLoading,
+    navigation,
+    retryToken,
+    userId,
+  ]);
 
   /**
    * Asks the server where this book was left, behind the page already up.
@@ -410,7 +434,9 @@ function BookReader() {
   const handlePageChanged = useCallback(
     (currentPage: number, numberOfPages: number) => {
       const landed =
-        numberOfPages > 0 ? Math.min(Math.max(1, currentPage), numberOfPages) : currentPage;
+        numberOfPages > 0
+          ? Math.min(Math.max(1, currentPage), numberOfPages)
+          : currentPage;
       pageRef.current = landed;
       setPage(landed);
       setTotalPages(numberOfPages);
@@ -424,7 +450,8 @@ function BookReader() {
       // The page the book opened on is already the remembered one; it only
       // needs its timestamp refreshed, and that can happen at once.
       const distance = Math.abs(landed - settledPage.current);
-      const wait = distance === 0 ? 0 : distance === 1 ? SETTLE_TURN_MS : SETTLE_JUMP_MS;
+      const wait =
+        distance === 0 ? 0 : distance === 1 ? SETTLE_TURN_MS : SETTLE_JUMP_MS;
       settleTimer.current = setTimeout(() => {
         settleTimer.current = null;
         settledPage.current = landed;
@@ -503,7 +530,9 @@ function BookReader() {
   }, [page, toggleBookmark]);
 
   const applyScale = useCallback((next: number) => {
-    setControlScale(Number(Math.min(Math.max(next, MIN_SCALE), MAX_SCALE).toFixed(2)));
+    setControlScale(
+      Number(Math.min(Math.max(next, MIN_SCALE), MAX_SCALE).toFixed(2)),
+    );
   }, []);
 
   const handleZoomIn = useCallback(() => {
@@ -583,7 +612,9 @@ function BookReader() {
    * and the answer is given here, at the door, with the way to renew.
    */
   const locked =
-    lockedMidRead || refused || (isAuthenticated && !isSubscriptionLoading && !canOpenBooks);
+    lockedMidRead ||
+    refused ||
+    (isAuthenticated && !isSubscriptionLoading && !canOpenBooks);
 
   // Ahead of the error state: a lock is not a fault, and offering "retry" for
   // an ended membership would be telling the reader to try the door again.
@@ -604,7 +635,9 @@ function BookReader() {
         page={page > 1 ? page : undefined}
         message={errorMessage ?? undefined}
         onRetry={handleRetry}
-        onReadDownloaded={downloadedUri.current ? handleReadDownloaded : undefined}
+        onReadDownloaded={
+          downloadedUri.current ? handleReadDownloaded : undefined
+        }
       />
     );
   }
@@ -616,14 +649,17 @@ function BookReader() {
         page={page}
         totalPages={totalPages}
         visible={chromeVisible}
-        hint={readingMode === 'flip' && !pageTouched && !isLoading && totalPages > 1}
+        hint={
+          readingMode === 'flip' && !pageTouched && !isLoading && totalPages > 1
+        }
         // The blur waits for the screen to settle and the book to be up: while
         // either is still moving, it would be sampling the window every frame.
         glass={settled && !loaderVisible}
         saved={Boolean(bookmark)}
         onBack={() => navigation.goBack()}
         onOpenSettings={settingsSheet.open}
-        onBookmark={handleHighlight}>
+        onBookmark={handleHighlight}
+      >
         {pdfSource && entered ? (
           <ReaderBoundary>
             <BookPageFlip
@@ -647,11 +683,18 @@ function BookReader() {
 
       {/* The page dimmer. Sits above the page, below the chrome. */}
       {brightness < 1 ? (
-        <View pointerEvents="none" style={[styles.dimmer, { opacity: (1 - brightness) * 0.75 }]} />
+        <View
+          pointerEvents="none"
+          style={[styles.dimmer, { opacity: (1 - brightness) * 0.75 }]}
+        />
       ) : null}
 
       {loaderVisible ? (
-        <ReaderStageSkeleton ready={!isLoading} progress={loadProgress} onFinished={hideLoader} />
+        <ReaderStageSkeleton
+          ready={!isLoading}
+          progress={loadProgress}
+          onFinished={hideLoader}
+        />
       ) : null}
 
       <ReaderSettingsSheet

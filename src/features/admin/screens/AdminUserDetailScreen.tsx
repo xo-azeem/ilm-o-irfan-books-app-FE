@@ -4,7 +4,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, type RouteProp } from '@react-navigation/native';
 
 import { Display, Label, Text } from '@/components/ui';
-import { AdminConfirmSheet, AdminPickerSheet } from '@/features/admin/components/AdminControls';
+import {
+  AdminConfirmSheet,
+  AdminPickerSheet,
+} from '@/features/admin/components/AdminControls';
 import { AdminMenuSkeleton } from '@/features/admin/components/AdminSkeletons';
 import { errorMessage, useToast } from '@/features/admin/components/AdminToast';
 import {
@@ -43,7 +46,12 @@ import { useTheme } from '@/theme/ThemeContext';
 
 import type { AdminPeopleStackParamList } from '../navigation/types';
 
-type GrantOption = { id: string; label: string; months: number | null; days?: number };
+type GrantOption = {
+  id: string;
+  label: string;
+  months: number | null;
+  days?: number;
+};
 
 const GRANT_OPTIONS: GrantOption[] = [
   { id: '14d', label: '14 days', months: null, days: 14 },
@@ -70,7 +78,8 @@ const STATUS_LABEL: Record<EntitlementStatus, string> = {
  * reverse, last and clearly marked.
  */
 export function AdminUserDetailScreen() {
-  const route = useRoute<RouteProp<AdminPeopleStackParamList, 'AdminUserDetail'>>();
+  const route =
+    useRoute<RouteProp<AdminPeopleStackParamList, 'AdminUserDetail'>>();
   const { userId } = route.params;
   const { colors } = useTheme();
   const { scrollEndPadding } = useAppInsets();
@@ -92,7 +101,9 @@ export function AdminUserDetailScreen() {
   const isSelf = userId === currentUserId;
 
   const activePlan = useMemo(
-    () => plans.find(plan => plan.id === (pendingPlanId ?? user?.plan_id)) ?? plans[0],
+    () =>
+      plans.find(plan => plan.id === (pendingPlanId ?? user?.plan_id)) ??
+      plans[0],
     [plans, pendingPlanId, user?.plan_id],
   );
 
@@ -106,8 +117,8 @@ export function AdminUserDetailScreen() {
           expiresAt: option.days
             ? daysFromNow(option.days)
             : option.months === null
-            ? null
-            : monthsFromNow(option.months),
+              ? null
+              : monthsFromNow(option.months),
         },
         {
           onSuccess: () => {
@@ -156,11 +167,16 @@ export function AdminUserDetailScreen() {
   return (
     <SafeAreaView
       style={[styles.root, { backgroundColor: colors.background }]}
-      edges={['top', 'left', 'right']}>
+      edges={['top', 'left', 'right']}
+    >
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <AdminBackLink
           label="People"
-          action={user.role === 'admin' ? <AdminTag label="ADMIN" tone="success" /> : undefined}
+          action={
+            user.role === 'admin' ? (
+              <AdminTag label="ADMIN" tone="success" />
+            ) : undefined
+          }
         />
       </View>
 
@@ -172,19 +188,31 @@ export function AdminUserDetailScreen() {
           paddingBottom: scrollEndPadding + 20,
           gap: 16,
         }}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.identity}>
           <AdminAvatar
             name={user.full_name ?? user.email ?? '?'}
             size={56}
-            tone={access.tone === 'warning' ? 'warning' : user.is_subscriber ? 'primary' : 'neutral'}
+            tone={
+              access.tone === 'warning'
+                ? 'warning'
+                : user.is_subscriber
+                  ? 'primary'
+                  : 'neutral'
+            }
           />
           <View style={styles.identityBody}>
             <Display size={22} weight="500" tracking={-0.4} numberOfLines={1}>
               {user.full_name || 'Reader'}
             </Display>
             <Text size={12} leading={1.35} tone="muted">
-              {[user.email, user.phone, user.country, `joined ${formatDate(user.created_at)}`]
+              {[
+                user.email,
+                user.phone,
+                user.country,
+                `joined ${formatDate(user.created_at)}`,
+              ]
                 .filter(Boolean)
                 .join(' · ')}
             </Text>
@@ -196,16 +224,34 @@ export function AdminUserDetailScreen() {
           style={[
             styles.accessCard,
             access.tone === 'warning'
-              ? { backgroundColor: colors.warningFill, borderColor: colors.warningBorder }
+              ? {
+                  backgroundColor: colors.warningFill,
+                  borderColor: colors.warningBorder,
+                }
               : access.tone === 'active'
-              ? { backgroundColor: colors.primaryFillSoft, borderColor: colors.selectedBorder }
-              : { backgroundColor: colors.surface, borderColor: colors.border },
-          ]}>
+                ? {
+                    backgroundColor: colors.primaryFillSoft,
+                    borderColor: colors.selectedBorder,
+                  }
+                : {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                  },
+          ]}
+        >
           <View style={styles.between}>
-            <AdminEyebrow tone={access.tone === 'warning' ? 'warning' : 'action'}>
+            <AdminEyebrow
+              tone={access.tone === 'warning' ? 'warning' : 'action'}
+            >
               {access.eyebrow}
             </AdminEyebrow>
-            <Label size={10.5} leading={1} weight="400" tracking={0.6} tone="muted">
+            <Label
+              size={10.5}
+              leading={1}
+              weight="400"
+              tracking={0.6}
+              tone="muted"
+            >
               {user.store ?? 'Manual'}
             </Label>
           </View>
@@ -295,12 +341,20 @@ export function AdminUserDetailScreen() {
         {downloads.length > 0 ? (
           <AdminRowGroup title="Downloads">
             {downloads.map(entry => (
-              <View key={`${entry.book_id}-${entry.downloaded_at}`} style={styles.downloadRow}>
+              <View
+                key={`${entry.book_id}-${entry.downloaded_at}`}
+                style={styles.downloadRow}
+              >
                 <View style={styles.grow}>
                   <Text size={13} leading={1.2} numberOfLines={1}>
                     {entry.title}
                   </Text>
-                  <Text size={10.5} leading={1.3} tone="faint" numberOfLines={1}>
+                  <Text
+                    size={10.5}
+                    leading={1.3}
+                    tone="faint"
+                    numberOfLines={1}
+                  >
                     {`${formatRelative(entry.downloaded_at)} · ${formatBytes(
                       entry.file_size_bytes,
                     )}`}
@@ -348,8 +402,9 @@ export function AdminUserDetailScreen() {
         </AdminRowGroup>
 
         <Text size={11.5} leading={1.45} tone="faint">
-          Store purchases stay owned by RevenueCat — a webhook will overwrite a manual grant on the
-          next event. Use grants for comps and support fixes.
+          Store purchases stay owned by RevenueCat — a webhook will overwrite a
+          manual grant on the next event. Use grants for comps and support
+          fixes.
         </Text>
       </ScrollView>
 
@@ -357,7 +412,10 @@ export function AdminUserDetailScreen() {
         visible={showGrant}
         title="Grant for how long?"
         searchable={false}
-        items={GRANT_OPTIONS.map(option => ({ id: option.id, label: option.label }))}
+        items={GRANT_OPTIONS.map(option => ({
+          id: option.id,
+          label: option.label,
+        }))}
         selected={[]}
         onClose={() => setShowGrant(false)}
         onChange={next => {
@@ -397,7 +455,12 @@ export function AdminUserDetailScreen() {
         onCancel={() => setConfirmRevoke(false)}
         onConfirm={() =>
           setEntitlement.mutate(
-            { userId, status: 'expired', planId: user.plan_id, expiresAt: null },
+            {
+              userId,
+              status: 'expired',
+              planId: user.plan_id,
+              expiresAt: null,
+            },
             {
               onSuccess: () => {
                 setConfirmRevoke(false);
@@ -414,7 +477,11 @@ export function AdminUserDetailScreen() {
 
       <AdminConfirmSheet
         visible={confirmRole !== null}
-        title={confirmRole === 'admin' ? 'Grant admin access?' : 'Remove admin access?'}
+        title={
+          confirmRole === 'admin'
+            ? 'Grant admin access?'
+            : 'Remove admin access?'
+        }
         message={
           confirmRole === 'admin'
             ? 'This account opens the admin panel on its next sign-in. What it gains:'
@@ -442,7 +509,9 @@ export function AdminUserDetailScreen() {
               onSuccess: () => {
                 setConfirmRole(null);
                 toast.success(
-                  confirmRole === 'admin' ? 'Admin access granted.' : 'Admin access removed.',
+                  confirmRole === 'admin'
+                    ? 'Admin access granted.'
+                    : 'Admin access removed.',
                 );
               },
               onError: caught => {
@@ -500,7 +569,8 @@ const Shell = memo(function Shell({ children }: { children: React.ReactNode }) {
   return (
     <SafeAreaView
       style={[styles.root, { backgroundColor: colors.background }]}
-      edges={['top', 'left', 'right']}>
+      edges={['top', 'left', 'right']}
+    >
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <AdminBackLink label="People" />
       </View>

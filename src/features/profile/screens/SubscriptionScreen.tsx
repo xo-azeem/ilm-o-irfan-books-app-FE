@@ -38,7 +38,11 @@ function formatDate(iso: string | null | undefined): string {
   const date = new Date(iso);
   return Number.isNaN(date.getTime())
     ? '—'
-    : date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    : date.toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      });
 }
 
 /**
@@ -121,7 +125,10 @@ export function SubscriptionScreen() {
     restore().then(
       ({ restored, granted }) => {
         if (granted) {
-          Alert.alert('Membership restored', 'Your membership is active on this device.');
+          Alert.alert(
+            'Membership restored',
+            'Your membership is active on this device.',
+          );
           return;
         }
         Alert.alert(
@@ -149,7 +156,10 @@ export function SubscriptionScreen() {
           text: 'Cancel',
           style: 'destructive',
           onPress: () =>
-            Alert.alert('Manage in store', 'Cancel from your App Store or Play Store subscriptions.'),
+            Alert.alert(
+              'Manage in store',
+              'Cancel from your App Store or Play Store subscriptions.',
+            ),
         },
       ],
     );
@@ -157,13 +167,17 @@ export function SubscriptionScreen() {
 
   // Server totals, not the length of a capped shelf: "books opened" is every
   // title the reader has started, finished ones included.
-  const booksOpened = (library?.readingCount ?? 0) + (library?.finishedCount ?? 0);
+  const booksOpened =
+    (library?.readingCount ?? 0) + (library?.finishedCount ?? 0);
 
   const usage = useMemo(
     () => [
       { value: String(booksOpened), label: 'BOOKS\nOPENED' },
       { value: String(library?.downloadsCount ?? 0), label: 'FILES\nOFFLINE' },
-      { value: String(library?.highlightsCount ?? 0), label: 'PAGES\nBOOKMARKED' },
+      {
+        value: String(library?.highlightsCount ?? 0),
+        label: 'PAGES\nBOOKMARKED',
+      },
     ],
     [booksOpened, library?.downloadsCount, library?.highlightsCount],
   );
@@ -236,11 +250,16 @@ export function SubscriptionScreen() {
         <Divider />
 
         <DetailRow
-          label={ending ? 'Access until' : trialing ? 'Trial ends' : 'Renews on'}
+          label={
+            ending ? 'Access until' : trialing ? 'Trial ends' : 'Renews on'
+          }
           // `null` is a lifetime comp or an admin — nothing to show a date for.
           value={expiresAt ? formatDate(expiresAt) : 'Never expires'}
         />
-        <DetailRow label="Billing" value={plan?.interval ? `${plan.interval}ly` : '—'} />
+        <DetailRow
+          label="Billing"
+          value={plan?.interval ? `${plan.interval}ly` : '—'}
+        />
       </View>
 
       <View style={styles.section}>
@@ -248,14 +267,21 @@ export function SubscriptionScreen() {
           What’s included
         </Label>
         <Card tone="surface" padded={16} gap={10}>
-          {(plan?.features?.length ? plan.features : subscriptionIncludes).map(feature => (
-            <View key={feature} style={styles.feature}>
-              <Icon icon={Check} size={13} tone="primary" strokeWidth={2.6} />
-              <Text size={fontSize.bodySmall} leading={1.3} tone="soft" style={styles.grow}>
-                {feature}
-              </Text>
-            </View>
-          ))}
+          {(plan?.features?.length ? plan.features : subscriptionIncludes).map(
+            feature => (
+              <View key={feature} style={styles.feature}>
+                <Icon icon={Check} size={13} tone="primary" strokeWidth={2.6} />
+                <Text
+                  size={fontSize.bodySmall}
+                  leading={1.3}
+                  tone="soft"
+                  style={styles.grow}
+                >
+                  {feature}
+                </Text>
+              </View>
+            ),
+          )}
         </Card>
       </View>
 
@@ -291,7 +317,10 @@ export function SubscriptionScreen() {
             label="Payment method"
             tone="muted"
             onPress={() =>
-              Alert.alert('Payment method', 'Managed by your App Store or Play Store account.')
+              Alert.alert(
+                'Payment method',
+                'Managed by your App Store or Play Store account.',
+              )
             }
           />
           <TextButton
@@ -300,7 +329,11 @@ export function SubscriptionScreen() {
             disabled={isRestoring}
             onPress={handleRestore}
           />
-          <TextButton label="Cancel subscription" tone="danger" onPress={handleCancel} />
+          <TextButton
+            label="Cancel subscription"
+            tone="danger"
+            onPress={handleCancel}
+          />
         </View>
       </View>
     </ProfileSubScreenLayout>

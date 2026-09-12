@@ -21,12 +21,14 @@ import { useAuthStore } from '@/stores/authStore';
  * for the times a reader arrives here from a book rather than from the tab.
  */
 export function WishlistScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   const { data: items = [], isLoading } = useWishlist();
 
   const openBook = useCallback(
-    (book: { id: string }) => navigation.navigate(ROUTES.BOOK_DETAIL, { bookId: book.id }),
+    (book: { id: string }) =>
+      navigation.navigate(ROUTES.BOOK_DETAIL, { bookId: book.id }),
     [navigation],
   );
 

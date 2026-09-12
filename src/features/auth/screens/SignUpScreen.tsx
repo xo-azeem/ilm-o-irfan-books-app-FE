@@ -36,7 +36,8 @@ function isValidEmail(email: string): boolean {
 }
 
 export function SignUpScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'SignUp'>>();
   const returnTo = route.params?.returnTo;
 
@@ -93,7 +94,10 @@ export function SignUpScreen() {
       // then is the "check your email" route worth showing.
       if (!data.session) {
         try {
-          data = await signInWithEmail({ email: form.email, password: form.password });
+          data = await signInWithEmail({
+            email: form.email,
+            password: form.password,
+          });
         } catch {
           // Fall through to the confirmation prompt below.
         }
@@ -107,7 +111,10 @@ export function SignUpScreen() {
             {
               text: 'OK',
               onPress: () =>
-                navigation.navigate(ROUTES.LOGIN, returnTo ? { returnTo } : undefined),
+                navigation.navigate(
+                  ROUTES.LOGIN,
+                  returnTo ? { returnTo } : undefined,
+                ),
             },
           ],
         );
@@ -121,7 +128,9 @@ export function SignUpScreen() {
       resumeAfterAuth(navigation, returnTo);
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : 'Unable to create account. Try again.';
+        error instanceof Error
+          ? error.message
+          : 'Unable to create account. Try again.';
       Alert.alert('Sign up failed', message);
     } finally {
       setIsSubmitting(false);
@@ -136,7 +145,8 @@ export function SignUpScreen() {
   }, []);
 
   const goToSignIn = useCallback(
-    () => navigation.navigate(ROUTES.LOGIN, returnTo ? { returnTo } : undefined),
+    () =>
+      navigation.navigate(ROUTES.LOGIN, returnTo ? { returnTo } : undefined),
     [navigation, returnTo],
   );
 
@@ -150,9 +160,14 @@ export function SignUpScreen() {
           <Text size={fontSize.bodySmall} leading={1} tone="muted">
             Already have an account?
           </Text>
-          <TextButton label="Sign in" onPress={goToSignIn} size={fontSize.bodySmall} />
+          <TextButton
+            label="Sign in"
+            onPress={goToSignIn}
+            size={fontSize.bodySmall}
+          />
         </View>
-      }>
+      }
+    >
       <View style={styles.fields}>
         <AuthField
           label="Full name"
@@ -224,7 +239,10 @@ export function SignUpScreen() {
 
       <AuthDivider />
 
-      <GoogleSignInButton label="Sign up with Google" onPress={handleGoogleSignUp} />
+      <GoogleSignInButton
+        label="Sign up with Google"
+        onPress={handleGoogleSignUp}
+      />
     </AuthLayout>
   );
 }

@@ -150,7 +150,8 @@ export function usePageTurn({
     // far enough to snap forward — long after the touch is over. The pages go
     // with it rather than stopping where the finger left them.
     const flicked = Math.abs(velocity.value) > PAGE_TURN.flickVelocity;
-    const carried = open.value === 1 && (flicked || phase.value > PAGE_TURN.flickRatio);
+    const carried =
+      open.value === 1 && (flicked || phase.value > PAGE_TURN.flickRatio);
 
     if (!carried) {
       lift.value = withTiming(0, SETTLE);
@@ -200,7 +201,9 @@ export function usePageTurn({
       if (moved.value || Date.now() - at > PAGE_TURN.tapMs) return;
       if (pageHeight.value <= 0) return;
 
-      const withinPage = Math.abs(y - areaTop.value - areaHeight.value / 2) <= pageHeight.value / 2;
+      const withinPage =
+        Math.abs(y - areaTop.value - areaHeight.value / 2) <=
+        pageHeight.value / 2;
       if (!withinPage) runOnJS(tapped)();
     },
     [areaHeight, areaTop, moved, pageHeight, tapped],
@@ -248,7 +251,9 @@ export function usePageTurn({
 
           const now = Date.now();
           velocity.value =
-            ((touch.absoluteX - lastX.value) / Math.max(now - lastAt.value, 1)) * 1000;
+            ((touch.absoluteX - lastX.value) /
+              Math.max(now - lastAt.value, 1)) *
+            1000;
           lastX.value = touch.absoluteX;
           lastAt.value = now;
 
@@ -262,7 +267,8 @@ export function usePageTurn({
           phase.value = travel - Math.floor(travel);
           tracking.value = 1;
           lift.value =
-            Math.sin(phase.value * Math.PI) * (open.value === 1 ? 1 : PAGE_TURN.edgeLift);
+            Math.sin(phase.value * Math.PI) *
+            (open.value === 1 ? 1 : PAGE_TURN.edgeLift);
         })
         .onTouchesUp(event => {
           const touch = event.changedTouches[0] ?? event.allTouches[0];
@@ -388,5 +394,14 @@ export function usePageTurn({
     [zoom],
   );
 
-  return { gesture, style, start, settle, onAreaLayout, onPageLayout, setBounds, setZoom };
+  return {
+    gesture,
+    style,
+    start,
+    settle,
+    onAreaLayout,
+    onPageLayout,
+    setBounds,
+    setZoom,
+  };
 }

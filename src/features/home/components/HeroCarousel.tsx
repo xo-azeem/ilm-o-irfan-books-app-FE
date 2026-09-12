@@ -19,7 +19,10 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
-import { HeroSlideCard, type HeroSlide } from '@/features/home/components/HeroSlideCard';
+import {
+  HeroSlideCard,
+  type HeroSlide,
+} from '@/features/home/components/HeroSlideCard';
 import { layout } from '@/theme/palette';
 import { useTheme } from '@/theme/ThemeContext';
 
@@ -123,7 +126,9 @@ export const HeroCarousel = memo(function HeroCarousel({
 
   // A lone slide is not a carousel — no paging, no dots, no timer.
   if (count === 1) {
-    return <HeroSlideCard slide={slides[0]} onRead={onRead} onPress={onPress} />;
+    return (
+      <HeroSlideCard slide={slides[0]} onRead={onRead} onPress={onPress} />
+    );
   }
 
   return (
@@ -139,7 +144,8 @@ export const HeroCarousel = memo(function HeroCarousel({
         scrollEventThrottle={16}
         onScrollBeginDrag={handleDragBegin}
         onMomentumScrollEnd={handleSettled}
-        style={{ marginHorizontal: -layout.screenPadding }}>
+        style={{ marginHorizontal: -layout.screenPadding }}
+      >
         {slides.map((slide, pageIndex) => (
           <HeroPage
             key={slide.id}
@@ -156,7 +162,8 @@ export const HeroCarousel = memo(function HeroCarousel({
       <View
         style={styles.dots}
         accessibilityRole="tablist"
-        accessibilityLabel={`Featured ${index + 1} of ${count}`}>
+        accessibilityLabel={`Featured ${index + 1} of ${count}`}
+      >
         {slides.map((slide, dotIndex) => (
           <Dot
             key={slide.id}
@@ -189,22 +196,37 @@ const HeroPage = memo(function HeroPage({
   onRead?: (slide: HeroSlide) => void;
   onPress?: (slide: HeroSlide) => void;
 }) {
-  const range = [(index - 1) * pageWidth, index * pageWidth, (index + 1) * pageWidth];
+  const range = [
+    (index - 1) * pageWidth,
+    index * pageWidth,
+    (index + 1) * pageWidth,
+  ];
 
   const cardStyle = useAnimatedStyle(() => {
-    const active = interpolate(scrollX.value, range, [0, 1, 0], Extrapolation.CLAMP);
+    const active = interpolate(
+      scrollX.value,
+      range,
+      [0, 1, 0],
+      Extrapolation.CLAMP,
+    );
     return {
       opacity: interpolate(active, [0, 1], [0.45, 1], Extrapolation.CLAMP),
       transform: [
         { scale: interpolate(active, [0, 1], [0.92, 1], Extrapolation.CLAMP) },
-        { translateY: interpolate(active, [0, 1], [10, 0], Extrapolation.CLAMP) },
+        {
+          translateY: interpolate(active, [0, 1], [10, 0], Extrapolation.CLAMP),
+        },
       ],
     };
   });
 
   return (
     <View
-      style={[styles.page, { width: pageWidth, paddingHorizontal: layout.screenPadding }]}>
+      style={[
+        styles.page,
+        { width: pageWidth, paddingHorizontal: layout.screenPadding },
+      ]}
+    >
       <Animated.View style={cardStyle}>
         <HeroSlideCard slide={slide} onRead={onRead} onPress={onPress} />
       </Animated.View>
@@ -223,14 +245,27 @@ const Dot = memo(function Dot({
   pageWidth: number;
 }) {
   const { colors } = useTheme();
-  const range = [(index - 1) * pageWidth, index * pageWidth, (index + 1) * pageWidth];
+  const range = [
+    (index - 1) * pageWidth,
+    index * pageWidth,
+    (index + 1) * pageWidth,
+  ];
 
   const dotStyle = useAnimatedStyle(() => ({
     width: interpolate(scrollX.value, range, [6, 20, 6], Extrapolation.CLAMP),
-    opacity: interpolate(scrollX.value, range, [0.32, 1, 0.32], Extrapolation.CLAMP),
+    opacity: interpolate(
+      scrollX.value,
+      range,
+      [0.32, 1, 0.32],
+      Extrapolation.CLAMP,
+    ),
   }));
 
-  return <Animated.View style={[styles.dot, { backgroundColor: colors.primarySoft }, dotStyle]} />;
+  return (
+    <Animated.View
+      style={[styles.dot, { backgroundColor: colors.primarySoft }, dotStyle]}
+    />
+  );
 });
 
 const styles = StyleSheet.create({

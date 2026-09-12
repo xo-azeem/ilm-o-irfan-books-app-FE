@@ -32,7 +32,9 @@ export function useAccess() {
   const isAdmin = useAuthStore(state => state.isAdmin);
   const userId = useAuthStore(state => state.userId);
 
-  const canAccessPremium = useAccessStore(state => state.state.canAccessPremium);
+  const canAccessPremium = useAccessStore(
+    state => state.state.canAccessPremium,
+  );
   const expired = useAccessStore(state => state.expired);
   const resolved = useAccessStore(state => state.resolved);
   const reason = useAccessStore(state => state.state.reason);
@@ -70,12 +72,16 @@ export async function waitForAccessCheck(userId: string, timeoutMs = 8000) {
 
   while (Date.now() - started < timeoutMs) {
     const state = useAuthStore.getState();
-    if (state.userId === userId && state.accessCheckedFor === userId && state.roleResolved) {
+    if (
+      state.userId === userId &&
+      state.accessCheckedFor === userId &&
+      state.roleResolved
+    ) {
       return state;
     }
-      await new Promise<void>(resolve => {
-        setTimeout(resolve, 40);
-      });
+    await new Promise<void>(resolve => {
+      setTimeout(resolve, 40);
+    });
   }
 
   return useAuthStore.getState();

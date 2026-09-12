@@ -1,5 +1,11 @@
 import { memo, useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Label, Text } from '@/components/ui';
@@ -74,7 +80,10 @@ export function AdminHistoryScreen() {
     // "Deletions" is a question about the action, not the table, so it narrows
     // what is already loaded rather than asking the server for a column it
     // does not filter on.
-    const filtered = scope === 'deletions' ? rows.filter(row => row.action === 'delete') : rows;
+    const filtered =
+      scope === 'deletions'
+        ? rows.filter(row => row.action === 'delete')
+        : rows;
 
     const byDay = new Map<string, AuditEntry[]>();
     for (const entry of filtered) {
@@ -111,7 +120,8 @@ export function AdminHistoryScreen() {
   return (
     <SafeAreaView
       style={[styles.root, { backgroundColor: colors.background }]}
-      edges={['top', 'left', 'right']}>
+      edges={['top', 'left', 'right']}
+    >
       <View style={styles.header}>
         <AdminBackLink label="System" />
         <AdminScreenTitle title="Change history" />
@@ -170,7 +180,11 @@ export function AdminHistoryScreen() {
   );
 }
 
-const HistoryEntry = memo(function HistoryEntry({ entry }: { entry: AuditEntry }) {
+const HistoryEntry = memo(function HistoryEntry({
+  entry,
+}: {
+  entry: AuditEntry;
+}) {
   const { colors } = useTheme();
   const [expanded, setExpanded] = useState(false);
 
@@ -188,20 +202,30 @@ const HistoryEntry = memo(function HistoryEntry({ entry }: { entry: AuditEntry }
         styles.entry,
         {
           backgroundColor: colors.surface,
-          borderColor: entry.action === 'delete' ? colors.dangerBorder : colors.border,
+          borderColor:
+            entry.action === 'delete' ? colors.dangerBorder : colors.border,
         },
         pressed && styles.pressed,
-      ]}>
+      ]}
+    >
       <View style={styles.entryHeader}>
         <AdminTag
           label={ACTION_LABEL[entry.action]}
           tone={
-            entry.action === 'delete' ? 'danger' : entry.action === 'insert' ? 'success' : 'neutral'
+            entry.action === 'delete'
+              ? 'danger'
+              : entry.action === 'insert'
+                ? 'success'
+                : 'neutral'
           }
         />
         <Text size={13} leading={1.3} style={styles.grow}>
           {sentence(entry)}
-          <Text size={13} leading={1.3} tone={entry.action === 'delete' ? 'soft' : 'action'}>
+          <Text
+            size={13}
+            leading={1.3}
+            tone={entry.action === 'delete' ? 'soft' : 'action'}
+          >
             {entry.entity_label ?? entry.entity_type}
           </Text>
         </Text>
@@ -222,7 +246,8 @@ const HistoryEntry = memo(function HistoryEntry({ entry }: { entry: AuditEntry }
                 uppercase={false}
                 tone="faint"
                 numberOfLines={1}
-                style={styles.diffKey}>
+                style={styles.diffKey}
+              >
                 {key}
               </Label>
               <Label
@@ -233,10 +258,18 @@ const HistoryEntry = memo(function HistoryEntry({ entry }: { entry: AuditEntry }
                 uppercase={false}
                 tone="danger"
                 numberOfLines={1}
-                style={styles.struck}>
+                style={styles.struck}
+              >
                 {short(change.from)}
               </Label>
-              <Label size={11} leading={1.3} weight="400" tracking={0} uppercase={false} tone="dim">
+              <Label
+                size={11}
+                leading={1.3}
+                weight="400"
+                tracking={0}
+                uppercase={false}
+                tone="dim"
+              >
                 →
               </Label>
               <Label
@@ -247,7 +280,8 @@ const HistoryEntry = memo(function HistoryEntry({ entry }: { entry: AuditEntry }
                 uppercase={false}
                 tone="action"
                 numberOfLines={1}
-                style={styles.grow}>
+                style={styles.grow}
+              >
                 {short(change.to)}
               </Label>
             </View>
@@ -285,8 +319,10 @@ function sentence(entry: AuditEntry): string {
 
 function short(value: unknown): string {
   if (value === null || value === undefined) return '—';
-  if (typeof value === 'string') return value.length > 22 ? `${value.slice(0, 21)}…` : value;
-  if (typeof value === 'boolean' || typeof value === 'number') return String(value);
+  if (typeof value === 'string')
+    return value.length > 22 ? `${value.slice(0, 21)}…` : value;
+  if (typeof value === 'boolean' || typeof value === 'number')
+    return String(value);
   return Array.isArray(value) ? `${value.length} items` : '…';
 }
 
@@ -302,11 +338,18 @@ function dayTitle(value: string): string {
 
   if (date.toDateString() === today.toDateString()) return 'Today';
   if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
-  return date.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' });
+  return date.toLocaleDateString(undefined, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'short',
+  });
 }
 
 function time(value: string): string {
-  return new Date(value).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  return new Date(value).toLocaleTimeString(undefined, {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 const styles = StyleSheet.create({

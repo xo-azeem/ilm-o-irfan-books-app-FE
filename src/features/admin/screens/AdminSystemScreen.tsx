@@ -40,7 +40,8 @@ import type { AdminSystemStackParamList } from '../navigation/types';
  * is wrong is not a menu, it is four more taps.
  */
 export function AdminSystemScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<AdminSystemStackParamList>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<AdminSystemStackParamList>>();
 
   const email = useAuthStore(state => state.email);
   const signOut = useAuthStore(state => state.signOut);
@@ -52,25 +53,33 @@ export function AdminSystemScreen() {
 
   const orphans = storage.data?.orphans.length ?? 0;
   const storageBytes =
-    (storage.data?.totals.covers_bytes ?? 0) + (storage.data?.totals.pdfs_bytes ?? 0);
+    (storage.data?.totals.covers_bytes ?? 0) +
+    (storage.data?.totals.pdfs_bytes ?? 0);
   const lastChange = audit.data?.pages[0]?.rows[0];
 
   const handleSignOut = () => {
-    Alert.alert('Sign out of admin', 'You will land back on the sign-in screen.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign out',
-        style: 'destructive',
-        onPress: () => {
-          void signOut();
+    Alert.alert(
+      'Sign out of admin',
+      'You will land back on the sign-in screen.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign out',
+          style: 'destructive',
+          onPress: () => {
+            void signOut();
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
 
   return (
     <Screen padding={ADMIN_GUTTER} gap={17}>
-      <AdminPageTitle title="System" subtitle={`Signed in as ${email || 'admin'}`} />
+      <AdminPageTitle
+        title="System"
+        subtitle={`Signed in as ${email || 'admin'}`}
+      />
 
       <AdminRowGroup>
         <AdminNavRow
@@ -109,7 +118,9 @@ export function AdminSystemScreen() {
           sublabel={
             settings.data
               ? `${settings.data.signup_enabled ? 'Signups open' : 'Signups closed'} · ${
-                  settings.data.maintenance_mode ? 'maintenance on' : 'maintenance off'
+                  settings.data.maintenance_mode
+                    ? 'maintenance on'
+                    : 'maintenance off'
                 }`
               : 'Availability, notices and versions'
           }
@@ -133,22 +144,31 @@ export function AdminSystemScreen() {
           />
           <HealthRow
             label="File storage"
-            state={storage.isError ? 'down' : storage.isLoading ? 'checking' : 'up'}
+            state={
+              storage.isError ? 'down' : storage.isLoading ? 'checking' : 'up'
+            }
           />
           <HealthRow
             label="App settings"
-            state={settings.isError ? 'down' : settings.isLoading ? 'checking' : 'up'}
+            state={
+              settings.isError ? 'down' : settings.isLoading ? 'checking' : 'up'
+            }
           />
         </AdminRowGroup>
       </View>
 
       <View style={styles.signOut}>
-        <AdminButton label="Sign out of admin" variant="ghostDanger" onPress={handleSignOut} />
+        <AdminButton
+          label="Sign out of admin"
+          variant="ghostDanger"
+          onPress={handleSignOut}
+        />
       </View>
 
       <Text size={11.5} leading={1.45} align="center" tone="dim">
         {`${stats.data?.user_count ?? 0} accounts · ${
-          (stats.data?.book_published_count ?? 0) + (stats.data?.book_draft_count ?? 0)
+          (stats.data?.book_published_count ?? 0) +
+          (stats.data?.book_draft_count ?? 0)
         } titles · ${stats.data?.plan_count ?? 0} plans`}
       </Text>
     </Screen>
@@ -165,7 +185,11 @@ const HealthRow = memo(function HealthRow({
   const { colors } = useTheme();
 
   const dot =
-    state === 'down' ? colors.danger : state === 'checking' ? colors.warning : colors.primaryBright;
+    state === 'down'
+      ? colors.danger
+      : state === 'checking'
+        ? colors.warning
+        : colors.primaryBright;
 
   return (
     <View style={styles.healthRow}>
@@ -173,8 +197,18 @@ const HealthRow = memo(function HealthRow({
       <Text size={13.5} leading={1.2} style={styles.grow}>
         {label}
       </Text>
-      <Label size={11} leading={1} weight="400" tracking={0.4} tone={state === 'down' ? 'danger' : 'faint'}>
-        {state === 'down' ? 'not responding' : state === 'checking' ? 'checking' : 'responding'}
+      <Label
+        size={11}
+        leading={1}
+        weight="400"
+        tracking={0.4}
+        tone={state === 'down' ? 'danger' : 'faint'}
+      >
+        {state === 'down'
+          ? 'not responding'
+          : state === 'checking'
+            ? 'checking'
+            : 'responding'}
       </Label>
     </View>
   );

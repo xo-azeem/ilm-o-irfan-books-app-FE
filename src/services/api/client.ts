@@ -82,7 +82,7 @@ async function accessToken(): Promise<string | null> {
 async function refreshedAccessToken(): Promise<string | null> {
   try {
     const { data, error } = await supabase.auth.refreshSession();
-    return error ? null : data.session?.access_token ?? null;
+    return error ? null : (data.session?.access_token ?? null);
   } catch {
     return null;
   }
@@ -108,7 +108,9 @@ async function send(
     if (signal.aborted) {
       controller.abort();
     } else {
-      signal.addEventListener('abort', () => controller.abort(), { once: true });
+      signal.addEventListener('abort', () => controller.abort(), {
+        once: true,
+      });
     }
   }
 
@@ -167,7 +169,10 @@ async function send(
  * the refreshed token is refused as well, the session is genuinely finished and
  * the 401 is raised for the auth layer to act on.
  */
-export async function request<T>(name: string, options: RequestOptions = {}): Promise<T> {
+export async function request<T>(
+  name: string,
+  options: RequestOptions = {},
+): Promise<T> {
   const { auth = false } = options;
 
   const token = await accessToken();
@@ -192,7 +197,11 @@ export async function request<T>(name: string, options: RequestOptions = {}): Pr
   }
 
   // A 200 can still carry an error envelope on the handlers that answer 410.
-  if (result.payload && typeof result.payload === 'object' && 'error' in result.payload) {
+  if (
+    result.payload &&
+    typeof result.payload === 'object' &&
+    'error' in result.payload
+  ) {
     throw readError(result.payload, result.status);
   }
 

@@ -92,7 +92,11 @@ export async function getSignedPdfUrl(bookId: string) {
   const payload = body?.data ?? body;
 
   if (!payload?.signedUrl) {
-    throw new ApiError('Signed URL missing from response', 502, 'PDF_URL_MISSING');
+    throw new ApiError(
+      'Signed URL missing from response',
+      502,
+      'PDF_URL_MISSING',
+    );
   }
 
   // Every open re-anchors the lock. Absent on an older deployment, in which

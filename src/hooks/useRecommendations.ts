@@ -7,7 +7,10 @@ import {
 } from '@/services/recommendations';
 import { useAuthStore } from '@/stores/authStore';
 
-export { ALL_RECOMMENDATIONS, HOME_RECOMMENDATIONS } from '@/services/recommendations';
+export {
+  ALL_RECOMMENDATIONS,
+  HOME_RECOMMENDATIONS,
+} from '@/services/recommendations';
 
 /**
  * The reader's "Because you read …" rails.
@@ -26,7 +29,9 @@ export { ALL_RECOMMENDATIONS, HOME_RECOMMENDATIONS } from '@/services/recommenda
  * what `staleTime` mirrors. There is deliberately no refresh action and no
  * polling: neither could produce a newer answer than that.
  */
-export function useRecommendations(params: RecommendationParams = HOME_RECOMMENDATIONS) {
+export function useRecommendations(
+  params: RecommendationParams = HOME_RECOMMENDATIONS,
+) {
   const userId = useAuthStore(state => state.userId);
   const { limit = null, sections = null, perSection = null } = params;
 

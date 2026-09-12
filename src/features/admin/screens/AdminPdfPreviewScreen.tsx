@@ -7,7 +7,11 @@ import {
   type LayoutChangeEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import {
+  useNavigation,
+  useRoute,
+  type RouteProp,
+} from '@react-navigation/native';
 import Pdf from 'react-native-pdf';
 
 import { Label, Text } from '@/components/ui';
@@ -32,7 +36,8 @@ import { useTheme } from '@/theme/ThemeContext';
  */
 export function AdminPdfPreviewScreen() {
   const navigation = useNavigation();
-  const route = useRoute<RouteProp<AdminLibraryStackParamList, 'AdminPdfPreview'>>();
+  const route =
+    useRoute<RouteProp<AdminLibraryStackParamList, 'AdminPdfPreview'>>();
   const { colors, isDark } = useTheme();
 
   const [uri, setUri] = useState<string | null>(null);
@@ -45,7 +50,9 @@ export function AdminPdfPreviewScreen() {
     setError(null);
     void getSignedPdfUrl(route.params.bookId)
       .then(result => setUri(result.url))
-      .catch(caught => setError(errorMessage(caught, 'Could not open this PDF.')));
+      .catch(caught =>
+        setError(errorMessage(caught, 'Could not open this PDF.')),
+      );
   }, [route.params.bookId]);
 
   useEffect(() => {
@@ -71,13 +78,21 @@ export function AdminPdfPreviewScreen() {
 
   return (
     <SafeAreaView
-      style={[styles.root, { backgroundColor: isDark ? readerStages.dark : readerStages.light }]}
-      edges={['top', 'left', 'right']}>
+      style={[
+        styles.root,
+        { backgroundColor: isDark ? readerStages.dark : readerStages.light },
+      ]}
+      edges={['top', 'left', 'right']}
+    >
       <View
         style={[
           styles.bar,
-          { backgroundColor: colors.chrome, borderBottomColor: colors.chromeBorder },
-        ]}>
+          {
+            backgroundColor: colors.chrome,
+            borderBottomColor: colors.chromeBorder,
+          },
+        ]}
+      >
         <AdminBackLink label="Files" />
         <Label size={11.5} leading={1} weight="400" tracking={0.6} tone="muted">
           {pageCount > 0 ? `Page ${page} / ${pageCount}` : route.params.title}
@@ -102,7 +117,9 @@ export function AdminPdfPreviewScreen() {
           page={page}
           onLoadComplete={count => setPageCount(count)}
           onPageChanged={next => setPage(next)}
-          onError={caught => setError(errorMessage(caught, 'This file could not be rendered.'))}
+          onError={caught =>
+            setError(errorMessage(caught, 'This file could not be rendered.'))
+          }
           style={styles.pdf}
         />
       ) : (
@@ -118,8 +135,12 @@ export function AdminPdfPreviewScreen() {
         <View
           style={[
             styles.panel,
-            { backgroundColor: colors.tabBarSurface, borderColor: colors.tabBarBorder },
-          ]}>
+            {
+              backgroundColor: colors.tabBarSurface,
+              borderColor: colors.tabBarBorder,
+            },
+          ]}
+        >
           <View style={styles.scrub}>
             <Label size={11} leading={1} weight="400" tracking={0} tone="faint">
               1
@@ -131,12 +152,18 @@ export function AdminPdfPreviewScreen() {
               onLayout={onTrackLayout}
               onPress={event => scrubTo(event.nativeEvent.locationX)}
               hitSlop={12}
-              style={styles.trackHit}>
-              <View style={[styles.track, { backgroundColor: colors.tabBarBorder }]}>
+              style={styles.trackHit}
+            >
+              <View
+                style={[styles.track, { backgroundColor: colors.tabBarBorder }]}
+              >
                 <View
                   style={[
                     styles.trackFill,
-                    { width: `${progress * 100}%`, backgroundColor: colors.primaryBright },
+                    {
+                      width: `${progress * 100}%`,
+                      backgroundColor: colors.primaryBright,
+                    },
                   ]}
                 />
               </View>
@@ -167,7 +194,11 @@ export function AdminPdfPreviewScreen() {
               />
             </View>
             <View style={styles.grow}>
-              <AdminButton label="Looks right" compact onPress={() => navigation.goBack()} />
+              <AdminButton
+                label="Looks right"
+                compact
+                onPress={() => navigation.goBack()}
+              />
             </View>
           </View>
         </View>

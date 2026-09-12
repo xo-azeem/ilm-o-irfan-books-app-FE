@@ -119,15 +119,33 @@ const Glass = memo(function Glass({ blur }: { blur: boolean }) {
           blurAmount={glass.blur}
           reducedTransparencyFallbackColor={colors.surface}
           {...(Platform.OS === 'android'
-            ? { overlayColor: 'transparent', blurRadius: 25, downsampleFactor: 4 }
+            ? {
+                overlayColor: 'transparent',
+                blurRadius: 25,
+                downsampleFactor: 4,
+              }
             : null)}
         />
       ) : null}
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: glass.tint }]} />
+      <View
+        style={[StyleSheet.absoluteFill, { backgroundColor: glass.tint }]}
+      />
       {/* The light on the glass: strongest at the screen's edge, gone by the page. */}
       <LinearGradient stops={glass.sheen} angle={180} />
-      <View style={[styles.hairline, styles.hairlineBottom, { backgroundColor: glass.edge }]} />
-      <View style={[styles.hairline, styles.rimBottom, { backgroundColor: glass.rim }]} />
+      <View
+        style={[
+          styles.hairline,
+          styles.hairlineBottom,
+          { backgroundColor: glass.edge },
+        ]}
+      />
+      <View
+        style={[
+          styles.hairline,
+          styles.rimBottom,
+          { backgroundColor: glass.rim },
+        ]}
+      />
     </View>
   );
 });
@@ -173,7 +191,10 @@ export const ReaderChrome = memo(function ReaderChrome({
   const progress = totalPages > 0 ? Math.min(1, page / totalPages) : 0;
   const percent = Math.round(progress * 100);
 
-  const shown = useDerivedValue(() => withTiming(visible ? 1 : 0, TIMING), [visible]);
+  const shown = useDerivedValue(
+    () => withTiming(visible ? 1 : 0, TIMING),
+    [visible],
+  );
 
   const barStyle = useAnimatedStyle(() => ({ opacity: shown.value }));
   const topStyle = useAnimatedStyle(() => ({
@@ -202,7 +223,8 @@ export const ReaderChrome = memo(function ReaderChrome({
           page it rises over shows through it frosted. */}
       <Animated.View
         pointerEvents={visible ? 'auto' : 'none'}
-        style={[styles.top, { paddingTop: insets.top + 10 }, topStyle]}>
+        style={[styles.top, { paddingTop: insets.top + 10 }, topStyle]}
+      >
         <Glass blur={glass && barBlur} />
         <IconButton
           icon={ChevronLeft}
@@ -213,7 +235,12 @@ export const ReaderChrome = memo(function ReaderChrome({
         />
 
         <View style={styles.titleBlock}>
-          <Text size={fontSize.caption} leading={1} weight="500" numberOfLines={1}>
+          <Text
+            size={fontSize.caption}
+            leading={1}
+            weight="500"
+            numberOfLines={1}
+          >
             {title}
           </Text>
           {totalPages > 0 ? (
@@ -229,7 +256,9 @@ export const ReaderChrome = memo(function ReaderChrome({
             onPress={onBookmark}
             variant={saved ? 'ghost' : 'plain'}
             buttonSize={36}
-            accessibilityLabel={saved ? 'Remove this bookmark' : 'Bookmark this page'}
+            accessibilityLabel={
+              saved ? 'Remove this bookmark' : 'Bookmark this page'
+            }
           />
           <IconButton
             icon={Settings2}
@@ -244,7 +273,12 @@ export const ReaderChrome = memo(function ReaderChrome({
       {/* Immersed status line — fades out as the chrome fades in. */}
       <Animated.View
         pointerEvents="none"
-        style={[styles.status, { bottom: Math.max(insets.bottom, 8) }, statusStyle]}>
+        style={[
+          styles.status,
+          { bottom: Math.max(insets.bottom, 8) },
+          statusStyle,
+        ]}
+      >
         {totalPages > 0 ? (
           // This line sits on the stage rather than in the chrome, so it takes
           // the stage's own ink rather than the chrome's.
@@ -252,7 +286,8 @@ export const ReaderChrome = memo(function ReaderChrome({
             size={fontSize.label}
             tracking={1.1}
             tone="inherit"
-            style={{ color: surface.muted }}>
+            style={{ color: surface.muted }}
+          >
             {chapterLabel
               ? `${chapterLabel} · ${percent}%`
               : `PAGE ${page} OF ${totalPages} · ${percent}%`}
@@ -263,7 +298,11 @@ export const ReaderChrome = memo(function ReaderChrome({
       {/* The hairline rule that never leaves. */}
       <View
         pointerEvents="none"
-        style={[styles.rule, { bottom: Math.max(insets.bottom, 8) + READER_RULE_INSET }]}>
+        style={[
+          styles.rule,
+          { bottom: Math.max(insets.bottom, 8) + READER_RULE_INSET },
+        ]}
+      >
         <View
           style={{
             width: `${progress * 100}%`,
@@ -280,24 +319,32 @@ export const ReaderChrome = memo(function ReaderChrome({
         style={[
           styles.hint,
           {
-            bottom: Math.max(insets.bottom, 8) + READER_RULE_INSET + 2 + HINT_LIFT,
+            bottom:
+              Math.max(insets.bottom, 8) + READER_RULE_INSET + 2 + HINT_LIFT,
           },
           hintStyle,
-        ]}>
+        ]}
+      >
         <View
           style={[
             styles.hintPill,
             {
-              backgroundColor: isDark ? 'rgba(5, 7, 6, 0.55)' : 'rgba(231, 234, 227, 0.72)',
+              backgroundColor: isDark
+                ? 'rgba(5, 7, 6, 0.55)'
+                : 'rgba(231, 234, 227, 0.72)',
             },
-          ]}>
+          ]}
+        >
           <Label
             size={10}
             tracking={1.4}
             tone="inherit"
             style={{
-              color: isDark ? 'rgba(241, 245, 238, 0.5)' : 'rgba(16, 26, 18, 0.55)',
-            }}>
+              color: isDark
+                ? 'rgba(241, 245, 238, 0.5)'
+                : 'rgba(16, 26, 18, 0.55)',
+            }}
+          >
             DRAG THE PAGE FROM ANYWHERE
           </Label>
         </View>

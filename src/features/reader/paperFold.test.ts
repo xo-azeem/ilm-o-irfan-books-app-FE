@@ -74,10 +74,12 @@ function pathOf(poly: Pt[] | null) {
 
 /** How much of the page a clip path covers, by the shoelace formula. */
 function areaOf(path: string) {
-  const pts = Array.from(path.matchAll(/[ML](-?[\d.]+) (-?[\d.]+)/g)).map(m => ({
-    x: Number(m[1]),
-    y: Number(m[2]),
-  }));
+  const pts = Array.from(path.matchAll(/[ML](-?[\d.]+) (-?[\d.]+)/g)).map(
+    m => ({
+      x: Number(m[1]),
+      y: Number(m[2]),
+    }),
+  );
   let sum = 0;
   for (let i = 0; i < pts.length; i += 1) {
     const a = pts[i];
@@ -145,14 +147,30 @@ describe('paper fold geometry', () => {
       // Each axis starts and ends a stated number of points from the crease,
       // along its normal — which is what lets the stops stay put.
       const along = (x: number, y: number) => (x - m.x) * n.x + (y - m.y) * n.y;
-      const across = (x: number, y: number) => (x - m.x) * -n.y + (y - m.y) * n.x;
+      const across = (x: number, y: number) =>
+        (x - m.x) * -n.y + (y - m.y) * n.x;
 
-      assert.ok(Math.abs(along(ours.cast[0], ours.cast[1]) - -3) < 1e-9, `cast from ${where}`);
-      assert.ok(Math.abs(along(ours.cast[2], ours.cast[3]) - 105) < 1e-9, `cast to ${where}`);
-      assert.ok(Math.abs(across(ours.cast[0], ours.cast[1])) < 1e-9, `cast square ${where}`);
+      assert.ok(
+        Math.abs(along(ours.cast[0], ours.cast[1]) - -3) < 1e-9,
+        `cast from ${where}`,
+      );
+      assert.ok(
+        Math.abs(along(ours.cast[2], ours.cast[3]) - 105) < 1e-9,
+        `cast to ${where}`,
+      );
+      assert.ok(
+        Math.abs(across(ours.cast[0], ours.cast[1])) < 1e-9,
+        `cast square ${where}`,
+      );
 
-      assert.ok(Math.abs(along(ours.curl[0], ours.curl[1]) - -26) < 1e-9, `curl from ${where}`);
-      assert.ok(Math.abs(across(ours.curl[0], ours.curl[1])) < 1e-9, `curl square ${where}`);
+      assert.ok(
+        Math.abs(along(ours.curl[0], ours.curl[1]) - -26) < 1e-9,
+        `curl from ${where}`,
+      );
+      assert.ok(
+        Math.abs(across(ours.curl[0], ours.curl[1])) < 1e-9,
+        `curl square ${where}`,
+      );
     }
   });
 
@@ -167,7 +185,11 @@ describe('paper fold geometry', () => {
 
       // A sheet lying flat covers the page outright, which is what the stage
       // changes the page underneath.
-      assert.equal(Math.round(areaOf(flatSheet.flat)), whole, `flat sheet at cy=${cy}`);
+      assert.equal(
+        Math.round(areaOf(flatSheet.flat)),
+        whole,
+        `flat sheet at cy=${cy}`,
+      );
       assert.equal(flatSheet.gone, true, `flat sheet at cy=${cy}`);
 
       // Turned right over, no part of the leaf is on the page at all — neither
@@ -175,8 +197,16 @@ describe('paper fold geometry', () => {
       // reached the spine, so both clips have collapsed onto it: the design
       // still calls that a leaf and draws it, and drawing a polygon of no area
       // is how it comes to nothing.
-      assert.equal(Math.round(areaOf(turnedOver.flat)), 0, `turned at cy=${cy}`);
-      assert.equal(Math.round(areaOf(turnedOver.land)), 0, `turned at cy=${cy}`);
+      assert.equal(
+        Math.round(areaOf(turnedOver.flat)),
+        0,
+        `turned at cy=${cy}`,
+      );
+      assert.equal(
+        Math.round(areaOf(turnedOver.land)),
+        0,
+        `turned at cy=${cy}`,
+      );
     }
   });
 
@@ -194,7 +224,10 @@ describe('paper fold geometry', () => {
         // A leaf that came down on the lifted side would be paper folded onto
         // paper that is no longer there.
         const side = (p.x - m.x) * n.x + (p.y - m.y) * n.y;
-        assert.ok(side <= 0.1, `land at ${p.x},${p.y} is ${side} past the crease`);
+        assert.ok(
+          side <= 0.1,
+          `land at ${p.x},${p.y} is ${side} past the crease`,
+        );
       });
     }
   });
@@ -215,7 +248,14 @@ describe('paper fold geometry', () => {
 
 // ---- the fold as native views -----------------------------------------------
 
-import { bandXf, clipperXf, contentXf, creaseOf, reflectXf, type Xf } from './paperFold';
+import {
+  bandXf,
+  clipperXf,
+  contentXf,
+  creaseOf,
+  reflectXf,
+  type Xf,
+} from './paperFold';
 
 /**
  * What a native view does with a transform list and `transformOrigin: '0 0'`:
@@ -248,9 +288,17 @@ describe('paper fold as views', () => {
       for (const side of [1, -1] as const) {
         const outer = clipperXf(crease.mx, crease.my, crease.th, side, SIZE);
         const inner = contentXf(crease.mx, crease.my, crease.th, side, SIZE);
-        for (const p of [{ x: 0, y: 0 }, { x: W, y: 0 }, { x: W / 3, y: H / 2 }, { x: W, y: H }]) {
+        for (const p of [
+          { x: 0, y: 0 },
+          { x: W, y: 0 },
+          { x: W / 3, y: H / 2 },
+          { x: W, y: H },
+        ]) {
           const q = apply(outer, apply(inner, p));
-          assert.ok(Math.abs(q.x - p.x) < 1e-6 && Math.abs(q.y - p.y) < 1e-6, `${side} ${JSON.stringify(p)}`);
+          assert.ok(
+            Math.abs(q.x - p.x) < 1e-6 && Math.abs(q.y - p.y) < 1e-6,
+            `${side} ${JSON.stringify(p)}`,
+          );
         }
       }
     }
@@ -268,7 +316,10 @@ describe('paper fold as views', () => {
         const outer = clipperXf(crease.mx, crease.my, crease.th, side, SIZE);
         const edgeX = side === 1 ? 0 : SIZE;
         for (const ly of [0, SIZE / 2, SIZE]) {
-          assert.ok(Math.abs(along(apply(outer, { x: edgeX, y: ly }))) < 1e-6, 'edge on crease');
+          assert.ok(
+            Math.abs(along(apply(outer, { x: edgeX, y: ly }))) < 1e-6,
+            'edge on crease',
+          );
         }
         const inside = apply(outer, { x: SIZE / 2, y: SIZE / 2 });
         assert.ok(Math.sign(along(inside)) === side, `body on side ${side}`);
@@ -282,7 +333,10 @@ describe('paper fold as views', () => {
       if (!crease) continue;
       const mirror = reflectXf(crease.mx, crease.my, crease.th);
       const carried = apply(mirror, { x: W, y: cy });
-      assert.ok(Math.abs(carried.x - fx) < 1e-6 && Math.abs(carried.y - fy) < 1e-6, `${fx},${fy}`);
+      assert.ok(
+        Math.abs(carried.x - fx) < 1e-6 && Math.abs(carried.y - fy) < 1e-6,
+        `${fx},${fy}`,
+      );
       // A reflection is its own inverse.
       const back = apply(mirror, carried);
       assert.ok(Math.abs(back.x - W) < 1e-6 && Math.abs(back.y - cy) < 1e-6);

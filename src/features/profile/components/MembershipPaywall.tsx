@@ -71,7 +71,9 @@ export const MembershipPaywall = memo(function MembershipPaywall({
       if (current && options.some(option => option.id === current)) {
         return current;
       }
-      return (options.find(option => option.recommended) ?? options[0])?.id ?? null;
+      return (
+        (options.find(option => option.recommended) ?? options[0])?.id ?? null
+      );
     });
   }, [options]);
 
@@ -106,7 +108,12 @@ export const MembershipPaywall = memo(function MembershipPaywall({
         top={-160}
         style={styles.glow}
       />
-      <DiagonalTexture color={colors.gold} opacity={0.05} angle={120} spacing={18} />
+      <DiagonalTexture
+        color={colors.gold}
+        opacity={0.05}
+        angle={120}
+        spacing={18}
+      />
 
       <View style={styles.content}>
         <Label tone="gold" tracking={1.5}>
@@ -114,7 +121,9 @@ export const MembershipPaywall = memo(function MembershipPaywall({
         </Label>
 
         <Display size="hero" leading={1.08}>
-          {returning ? 'Pick up where\nyou left off.' : 'Unlimited reading.\nOne membership.'}
+          {returning
+            ? 'Pick up where\nyou left off.'
+            : 'Unlimited reading.\nOne membership.'}
         </Display>
 
         <Text size={14.5} leading={1.6} tone="muted">
@@ -127,7 +136,12 @@ export const MembershipPaywall = memo(function MembershipPaywall({
           {bullets.map(benefit => (
             <View key={benefit} style={styles.benefit}>
               <Icon icon={Check} size={13} tone="gold" strokeWidth={2.6} />
-              <Text size={fontSize.bodySmall} leading={1.3} tone="soft" style={styles.grow}>
+              <Text
+                size={fontSize.bodySmall}
+                leading={1.3}
+                tone="soft"
+                style={styles.grow}
+              >
                 {benefit}
               </Text>
             </View>
@@ -153,21 +167,26 @@ export const MembershipPaywall = memo(function MembershipPaywall({
 
         {unavailable ? (
           <Text size={12.5} leading={1.5} align="center" tone="muted">
-            Membership cannot be purchased on this device right now. Check your connection and
-            try again.
+            Membership cannot be purchased on this device right now. Check your
+            connection and try again.
           </Text>
         ) : (
           <>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={chosen ? `Subscribe for ${chosen.priceString}` : 'Subscribe'}
-              accessibilityState={{ disabled: !chosen || Boolean(isPurchasing) }}
+              accessibilityLabel={
+                chosen ? `Subscribe for ${chosen.priceString}` : 'Subscribe'
+              }
+              accessibilityState={{
+                disabled: !chosen || Boolean(isPurchasing),
+              }}
               disabled={!chosen || isPurchasing}
               onPress={handleSubscribe}
               style={({ pressed }) => [
                 styles.cta,
                 (pressed || isPurchasing) && styles.pressed,
-              ]}>
+              ]}
+            >
               <LinearGradient
                 angle={120}
                 stops={[
@@ -200,7 +219,8 @@ export const MembershipPaywall = memo(function MembershipPaywall({
             accessibilityState={{ disabled: Boolean(isRestoring) }}
             disabled={isRestoring}
             onPress={onRestore}
-            hitSlop={8}>
+            hitSlop={8}
+          >
             <Text size={11.5} leading={1.4} align="center" tone="muted">
               {isRestoring ? 'Restoring…' : 'Restore purchase'}
             </Text>
@@ -271,7 +291,8 @@ const PlanCard = memo(function PlanCard({
           elevation: 6,
         },
         pressed && styles.pressed,
-      ]}>
+      ]}
+    >
       {selected ? (
         <LinearGradient
           angle={140}
@@ -281,7 +302,12 @@ const PlanCard = memo(function PlanCard({
           ]}
         />
       ) : (
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.surfaceAlt }]} />
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: colors.surfaceAlt },
+          ]}
+        />
       )}
 
       {badge ? (

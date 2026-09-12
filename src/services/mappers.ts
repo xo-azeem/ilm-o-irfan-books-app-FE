@@ -57,7 +57,9 @@ export function centsToAmount(cents: number): number {
 }
 
 /** PostgREST often serializes `numeric` as a string. */
-export function asNumber(value: number | string | null | undefined): number | undefined {
+export function asNumber(
+  value: number | string | null | undefined,
+): number | undefined {
   if (value == null || value === '') {
     return undefined;
   }
@@ -100,10 +102,7 @@ export function authorName(
   return authors.name?.trim() || UNKNOWN_AUTHOR;
 }
 
-export function mapCatalogBook(
-  row: CatalogListRow,
-  coverUrl?: string,
-) {
+export function mapCatalogBook(row: CatalogListRow, coverUrl?: string) {
   const author = authorName(row.author_name);
 
   return {

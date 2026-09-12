@@ -5,7 +5,11 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import { queryClient } from '@/lib/queryClient';
 import { supabase } from '@/lib/supabase';
 import type { AccessEventRow } from '@/services/api/types';
-import { configureBilling, forgetPurchaser, identifyPurchaser } from '@/services/billing';
+import {
+  configureBilling,
+  forgetPurchaser,
+  identifyPurchaser,
+} from '@/services/billing';
 import { useAccessStore } from '@/stores/accessStore';
 import { useAuthStore } from '@/stores/authStore';
 

@@ -32,7 +32,11 @@ import {
   useAdminRefresh,
 } from '@/features/admin/components/AdminUi';
 import { formatRelative } from '@/features/admin/utils/format';
-import { useAdminAnalytics, useAdminStats, useAuditLog } from '@/hooks/useAdmin';
+import {
+  useAdminAnalytics,
+  useAdminStats,
+  useAuditLog,
+} from '@/hooks/useAdmin';
 import { useAuthStore } from '@/stores/authStore';
 import type { AuditEntry, TimeSeriesPoint } from '@/services/admin';
 import { useTheme } from '@/theme/ThemeContext';
@@ -40,7 +44,10 @@ import { useTheme } from '@/theme/ThemeContext';
 import type { AdminTabParamList } from '../navigation/types';
 
 type Nav = {
-  navigate: <T extends keyof AdminTabParamList>(screen: T, params?: AdminTabParamList[T]) => void;
+  navigate: <T extends keyof AdminTabParamList>(
+    screen: T,
+    params?: AdminTabParamList[T],
+  ) => void;
 };
 
 /**
@@ -92,7 +99,10 @@ export function AdminTodayScreen() {
             icon={Search}
             label="Search the library"
             onPress={() =>
-              openLibrary({ screen: ADMIN_ROUTES.LIBRARY_HOME, params: { segment: 'books' } })
+              openLibrary({
+                screen: ADMIN_ROUTES.LIBRARY_HOME,
+                params: { segment: 'books' },
+              })
             }
           />
         }
@@ -139,14 +149,19 @@ export function AdminTodayScreen() {
             icon={LayoutGrid}
             label="Shelf"
             onPress={() =>
-              openLibrary({ screen: ADMIN_ROUTES.COLLECTION_EDITOR, params: {} })
+              openLibrary({
+                screen: ADMIN_ROUTES.COLLECTION_EDITOR,
+                params: {},
+              })
             }
           />
           <CreateTile
             icon={ChartNoAxesColumn}
             label="Report"
             onPress={() =>
-              navigation.navigate(ADMIN_ROUTES.SYSTEM, { screen: ADMIN_ROUTES.ANALYTICS })
+              navigation.navigate(ADMIN_ROUTES.SYSTEM, {
+                screen: ADMIN_ROUTES.ANALYTICS,
+              })
             }
           />
         </View>
@@ -161,7 +176,9 @@ export function AdminTodayScreen() {
               label="See analytics"
               size={11.5}
               onPress={() =>
-                navigation.navigate(ADMIN_ROUTES.SYSTEM, { screen: ADMIN_ROUTES.ANALYTICS })
+                navigation.navigate(ADMIN_ROUTES.SYSTEM, {
+                  screen: ADMIN_ROUTES.ANALYTICS,
+                })
               }
             />
           }
@@ -182,8 +199,16 @@ export function AdminTodayScreen() {
               hint={readers.delta}
               tone="success"
             />
-            <AdminStat label="Reading sessions" value={sessions.total} hint={sessions.delta} />
-            <AdminStat label="Downloads" value={downloads.total} hint={downloads.delta} />
+            <AdminStat
+              label="Reading sessions"
+              value={sessions.total}
+              hint={sessions.delta}
+            />
+            <AdminStat
+              label="Downloads"
+              value={downloads.total}
+              hint={downloads.delta}
+            />
           </AdminStatRow>
         )}
       </View>
@@ -196,10 +221,13 @@ export function AdminTodayScreen() {
             label="View all"
             size={11.5}
             onPress={() =>
-              navigation.navigate(ADMIN_ROUTES.SYSTEM, { screen: ADMIN_ROUTES.HISTORY })
+              navigation.navigate(ADMIN_ROUTES.SYSTEM, {
+                screen: ADMIN_ROUTES.HISTORY,
+              })
             }
           />
-        }>
+        }
+      >
         {recent.length === 0 ? (
           <View style={styles.emptyActivity}>
             <Text size={12.5} leading={1.4} tone="muted">
@@ -218,7 +246,8 @@ export function AdminTodayScreen() {
 function useWeek(points: TimeSeriesPoint[] | undefined) {
   return useMemo(() => {
     const series = points ?? [];
-    const sum = (slice: TimeSeriesPoint[]) => slice.reduce((total, point) => total + point.value, 0);
+    const sum = (slice: TimeSeriesPoint[]) =>
+      slice.reduce((total, point) => total + point.value, 0);
 
     const current = sum(series.slice(-7));
     const previous = sum(series.slice(-14, -7));
@@ -278,7 +307,8 @@ const IconTile = memo(function IconTile({
         styles.iconTile,
         { backgroundColor: colors.surface, borderColor: colors.border },
         pressed && styles.pressed,
-      ]}>
+      ]}
+    >
       <Icon icon={icon} size={16} tone="action" strokeWidth={1.9} />
     </Pressable>
   );
@@ -311,14 +341,21 @@ const CreateTile = memo(function CreateTile({
           borderColor: accent ? colors.selectedBorder : colors.border,
         },
         pressed && styles.pressed,
-      ]}>
+      ]}
+    >
       <Icon
         icon={icon}
         size={17}
         color={accent ? colors.primaryBright : colors.actionIcon}
         strokeWidth={accent ? 2 : 1.9}
       />
-      <Text size={10.5} leading={1} weight="500" tone={accent ? 'ink' : 'soft'} numberOfLines={1}>
+      <Text
+        size={10.5}
+        leading={1}
+        weight="500"
+        tone={accent ? 'ink' : 'soft'}
+        numberOfLines={1}
+      >
         {label}
       </Text>
     </Pressable>
@@ -336,7 +373,13 @@ const ChangeRow = memo(function ChangeRow({ entry }: { entry: AuditEntry }) {
     <View style={styles.changeRow}>
       <AdminTag
         label={ACTION_LABEL[entry.action]}
-        tone={entry.action === 'delete' ? 'danger' : entry.action === 'insert' ? 'success' : 'neutral'}
+        tone={
+          entry.action === 'delete'
+            ? 'danger'
+            : entry.action === 'insert'
+              ? 'success'
+              : 'neutral'
+        }
       />
       <View style={styles.changeBody}>
         <Text size={13} leading={1.2} numberOfLines={1}>

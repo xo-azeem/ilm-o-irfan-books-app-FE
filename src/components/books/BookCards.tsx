@@ -1,8 +1,19 @@
 import { memo, useCallback, type ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import { Bookmark, Play } from 'lucide-react-native';
 
-import { AccessLabel, accessFor, type BookAccess } from '@/components/books/BookAccess';
+import {
+  AccessLabel,
+  accessFor,
+  type BookAccess,
+} from '@/components/books/BookAccess';
 import {
   BookCover,
   Display,
@@ -71,7 +82,8 @@ export const BookCard = memo(function BookCard({
       accessibilityRole="button"
       accessibilityLabel={book.title}
       onPress={handlePress}
-      style={({ pressed }) => [{ width }, pressed && styles.pressed, style]}>
+      style={({ pressed }) => [{ width }, pressed && styles.pressed, style]}
+    >
       <BookCover
         width={width}
         coverUrl={book.coverUrl}
@@ -83,11 +95,21 @@ export const BookCard = memo(function BookCard({
       />
       <View style={styles.cardMeta}>
         {book.isUrdu ? (
-          <UrduText size={Math.max(14, width * 0.14)} tone="ink" numberOfLines={2}>
+          <UrduText
+            size={Math.max(14, width * 0.14)}
+            tone="ink"
+            numberOfLines={2}
+          >
             {book.title}
           </UrduText>
         ) : (
-          <Text size={width > 110 ? fontSize.caption : 12.5} leading={1.25} weight="500" tone="ink" numberOfLines={2}>
+          <Text
+            size={width > 110 ? fontSize.caption : 12.5}
+            leading={1.25}
+            weight="500"
+            tone="ink"
+            numberOfLines={2}
+          >
             {book.title}
           </Text>
         )}
@@ -120,14 +142,20 @@ export const BookRail = memo(function BookRail({
   return (
     <View style={styles.rail}>
       {title ? (
-        <SectionHeader title={title} subtitle={subtitle} action={action} variant="display" />
+        <SectionHeader
+          title={title}
+          subtitle={subtitle}
+          action={action}
+          variant="display"
+        />
       ) : null}
       <ScrollView
         horizontal
         nestedScrollEnabled
         showsHorizontalScrollIndicator={false}
         style={{ marginHorizontal: -bleed }}
-        contentContainerStyle={{ paddingHorizontal: bleed, gap }}>
+        contentContainerStyle={{ paddingHorizontal: bleed, gap }}
+      >
         {children}
       </ScrollView>
     </View>
@@ -161,7 +189,8 @@ export const BookListRow = memo(function BookListRow({
       accessibilityRole="button"
       accessibilityLabel={book.title}
       onPress={handlePress}
-      style={({ pressed }) => [styles.listRow, pressed && styles.pressed]}>
+      style={({ pressed }) => [styles.listRow, pressed && styles.pressed]}
+    >
       <BookCover
         width={coverWidth}
         coverUrl={book.coverUrl}
@@ -175,7 +204,12 @@ export const BookListRow = memo(function BookListRow({
             {book.title}
           </UrduText>
         ) : (
-          <Text size={fontSize.body} leading={1.2} weight="500" numberOfLines={2}>
+          <Text
+            size={fontSize.body}
+            leading={1.2}
+            weight="500"
+            numberOfLines={2}
+          >
             {book.title}
           </Text>
         )}
@@ -195,7 +229,11 @@ export const BookListRow = memo(function BookListRow({
  * The trailing control on a search row: a green play button when the reader can
  * open it now, a bookmark when they cannot.
  */
-const BookRowAction = memo(function BookRowAction({ book }: { book: BookSummary }) {
+const BookRowAction = memo(function BookRowAction({
+  book,
+}: {
+  book: BookSummary;
+}) {
   const { colors } = useTheme();
   const owned = !!book.inLibrary;
 
@@ -207,7 +245,8 @@ const BookRowAction = memo(function BookRowAction({ book }: { book: BookSummary 
           backgroundColor: owned ? colors.primaryFill : 'transparent',
           borderColor: owned ? colors.selectedBorder : colors.borderStrong,
         },
-      ]}>
+      ]}
+    >
       <Icon
         icon={owned ? Play : Bookmark}
         size={owned ? 13 : 14}
@@ -255,7 +294,8 @@ export const ContinueCard = memo(function ContinueCard({
           borderRadius: isRail ? radius.card : radius.cardLarge,
         },
         pressed && styles.pressed,
-      ]}>
+      ]}
+    >
       <BookCover
         width={isRail ? 52 : 58}
         coverUrl={book.coverUrl}
@@ -264,7 +304,13 @@ export const ContinueCard = memo(function ContinueCard({
 
       <View style={styles.continueBody}>
         {!isRail ? (
-          <Text size={10} leading={1} weight="500" tracking={1.2} tone="primary">
+          <Text
+            size={10}
+            leading={1}
+            weight="500"
+            tracking={1.2}
+            tone="primary"
+          >
             {eyebrow}
           </Text>
         ) : null}
@@ -280,7 +326,12 @@ export const ContinueCard = memo(function ContinueCard({
         )}
 
         {detail ? (
-          <Text size={isRail ? 11.5 : fontSize.captionSmall} leading={1} tone="muted" numberOfLines={1}>
+          <Text
+            size={isRail ? 11.5 : fontSize.captionSmall}
+            leading={1}
+            tone="muted"
+            numberOfLines={1}
+          >
             {detail}
           </Text>
         ) : null}
@@ -334,7 +385,8 @@ export const NewCollectionTile = memo(function NewCollectionTile({
           borderRadius: Math.max(5, Math.round(width * 0.07)),
         },
         pressed && styles.pressed,
-      ]}>
+      ]}
+    >
       <Text size={24} leading={1} weight="300" tone="faint">
         +
       </Text>
@@ -353,7 +405,9 @@ export const RailAction = memo(function RailAction({
   label: string;
   onPress?: () => void;
 }) {
-  return <TextButton label={label} onPress={onPress} size={fontSize.captionSmall} />;
+  return (
+    <TextButton label={label} onPress={onPress} size={fontSize.captionSmall} />
+  );
 });
 
 const styles = StyleSheet.create({

@@ -6,7 +6,11 @@ import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
 
 /** The "or" rule between the primary action and the alternative sign-in routes. */
-export const AuthDivider = memo(function AuthDivider({ label = 'or' }: { label?: string }) {
+export const AuthDivider = memo(function AuthDivider({
+  label = 'or',
+}: {
+  label?: string;
+}) {
   const { colors } = useTheme();
 
   return (

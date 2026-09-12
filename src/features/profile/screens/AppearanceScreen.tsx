@@ -64,7 +64,8 @@ export function AppearanceScreen() {
   return (
     <ProfileSubScreenLayout
       title="Appearance"
-      subtitle="Choose how the app looks on this device.">
+      subtitle="Choose how the app looks on this device."
+    >
       <View style={styles.previews}>
         {THEME_OPTIONS.map(option => (
           <ThemePreview
@@ -112,7 +113,12 @@ export function AppearanceScreen() {
                 Applied to every screen
               </Text>
             </View>
-            <Text size={fontSize.caption} leading={1} weight="600" tone="primary">
+            <Text
+              size={fontSize.caption}
+              leading={1}
+              weight="600"
+              tone="primary"
+            >
               {FONT_SCALES[fontScale].label}
             </Text>
           </View>
@@ -226,7 +232,8 @@ const ThemePreview = memo(function ThemePreview({
       accessibilityState={{ selected }}
       accessibilityLabel={label}
       onPress={handlePress}
-      style={({ pressed }) => [styles.preview, pressed && styles.pressed]}>
+      style={({ pressed }) => [styles.preview, pressed && styles.pressed]}
+    >
       <View
         style={[
           styles.previewFrame,
@@ -234,11 +241,19 @@ const ThemePreview = memo(function ThemePreview({
             borderColor: selected ? colors.primaryBright : colors.borderStrong,
             borderWidth: selected ? 2 : 1,
           },
-        ]}>
+        ]}
+      >
         {id === 'system' ? (
           <View style={styles.previewSplit}>
-            <View style={[styles.previewHalf, { backgroundColor: light.background }]} />
-            <View style={[styles.previewHalf, { backgroundColor: dark.background }]} />
+            <View
+              style={[
+                styles.previewHalf,
+                { backgroundColor: light.background },
+              ]}
+            />
+            <View
+              style={[styles.previewHalf, { backgroundColor: dark.background }]}
+            />
           </View>
         ) : (
           <PreviewContent palette={id === 'light' ? light : dark} />
@@ -248,20 +263,35 @@ const ThemePreview = memo(function ThemePreview({
         size={fontSize.caption}
         leading={1}
         weight={selected ? '600' : '500'}
-        tone={selected ? 'primary' : 'soft'}>
+        tone={selected ? 'primary' : 'soft'}
+      >
         {label}
       </Text>
     </Pressable>
   );
 });
 
-function PreviewContent({ palette }: { palette: typeof theme.light | typeof theme.dark }) {
+function PreviewContent({
+  palette,
+}: {
+  palette: typeof theme.light | typeof theme.dark;
+}) {
   return (
     <View style={[styles.previewBody, { backgroundColor: palette.background }]}>
-      <View style={[styles.previewTitle, { backgroundColor: palette.primary }]} />
+      <View
+        style={[styles.previewTitle, { backgroundColor: palette.primary }]}
+      />
       <View style={[styles.previewLine, { backgroundColor: palette.border }]} />
-      <View style={[styles.previewLine, styles.previewLineShort, { backgroundColor: palette.border }]} />
-      <View style={[styles.previewButton, { backgroundColor: palette.primaryFill }]} />
+      <View
+        style={[
+          styles.previewLine,
+          styles.previewLineShort,
+          { backgroundColor: palette.border },
+        ]}
+      />
+      <View
+        style={[styles.previewButton, { backgroundColor: palette.primaryFill }]}
+      />
     </View>
   );
 }
@@ -306,12 +336,14 @@ const TextSizeStep = memo(function TextSizeStep({
           borderWidth: selected ? 2 : 1,
         },
         pressed && styles.pressed,
-      ]}>
+      ]}
+    >
       <Text
         size={STEP_GLYPH_SIZE[step]}
         leading={1.1}
         weight={selected ? '600' : '400'}
-        tone={selected ? 'primary' : 'soft'}>
+        tone={selected ? 'primary' : 'soft'}
+      >
         A
       </Text>
     </Pressable>

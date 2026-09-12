@@ -8,7 +8,11 @@ import { useColorScheme } from 'react-native';
 
 import { useThemeStore } from '@/stores/themeStore';
 import { theme } from '@/theme/palette';
-import { fontScaleMultiplier, scaleFont, type FontScale } from '@/theme/typography';
+import {
+  fontScaleMultiplier,
+  scaleFont,
+  type FontScale,
+} from '@/theme/typography';
 
 export type AppColors = (typeof theme)['light'] | (typeof theme)['dark'];
 
@@ -63,7 +67,9 @@ export function ThemeStateProvider({ children }: PropsWithChildren) {
     };
   }, [fontScaleKey, isDark]);
 
-  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+  return (
+    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
+  );
 }
 
 export function useTheme() {

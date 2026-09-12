@@ -21,7 +21,8 @@ export const OnboardingProgress = memo(function OnboardingProgress({
     <View
       style={styles.root}
       accessibilityRole="progressbar"
-      accessibilityValue={{ min: 1, max: total, now: step }}>
+      accessibilityValue={{ min: 1, max: total, now: step }}
+    >
       {Array.from({ length: total }, (_, index) => (
         <View
           key={index}

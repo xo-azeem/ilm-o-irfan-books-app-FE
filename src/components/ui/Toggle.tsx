@@ -1,5 +1,11 @@
 import { memo, useEffect } from 'react';
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import Animated, {
   Easing,
   ReduceMotion,
@@ -64,12 +70,22 @@ export const Toggle = memo(function Toggle({
   const off = trackOff ?? colors.primaryFillSoft;
 
   const trackStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(progress.value, [0, 1], [off, colors.primary]),
+    backgroundColor: interpolateColor(
+      progress.value,
+      [0, 1],
+      [off, colors.primary],
+    ),
   }));
 
   const knobStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: progress.value * (m.width - m.knob - m.pad * 2) }],
-    backgroundColor: interpolateColor(progress.value, [0, 1], [colors.faint, colors.onPrimary]),
+    transform: [
+      { translateX: progress.value * (m.width - m.knob - m.pad * 2) },
+    ],
+    backgroundColor: interpolateColor(
+      progress.value,
+      [0, 1],
+      [colors.faint, colors.onPrimary],
+    ),
   }));
 
   return (
@@ -80,7 +96,8 @@ export const Toggle = memo(function Toggle({
       disabled={disabled}
       hitSlop={8}
       onPress={() => onValueChange?.(!value)}
-      style={[disabled && styles.disabled, style]}>
+      style={[disabled && styles.disabled, style]}
+    >
       <Animated.View
         style={[
           {
@@ -90,9 +107,13 @@ export const Toggle = memo(function Toggle({
             padding: m.pad,
           },
           trackStyle,
-        ]}>
+        ]}
+      >
         <Animated.View
-          style={[{ width: m.knob, height: m.knob, borderRadius: m.knob / 2 }, knobStyle]}
+          style={[
+            { width: m.knob, height: m.knob, borderRadius: m.knob / 2 },
+            knobStyle,
+          ]}
         />
       </Animated.View>
     </Pressable>
@@ -135,9 +156,15 @@ export const RadioDot = memo(function RadioDot({
           borderColor: colors.borderStrong,
         },
         style,
-      ]}>
+      ]}
+    >
       {selected ? (
-        <Icon icon={Check} size={size * 0.5} color={colors.background} strokeWidth={3} />
+        <Icon
+          icon={Check}
+          size={size * 0.5}
+          color={colors.background}
+          strokeWidth={3}
+        />
       ) : null}
     </View>
   );
@@ -153,7 +180,8 @@ export const RadioDot = memo(function RadioDot({
       accessibilityLabel={accessibilityLabel}
       disabled={disabled}
       hitSlop={8}
-      onPress={onPress}>
+      onPress={onPress}
+    >
       {body}
     </Pressable>
   );
@@ -183,9 +211,15 @@ export const Checkbox = memo(function Checkbox({
           borderColor: colors.borderStrong,
         },
         style,
-      ]}>
+      ]}
+    >
       {selected ? (
-        <Icon icon={Check} size={size * 0.55} color={colors.background} strokeWidth={3} />
+        <Icon
+          icon={Check}
+          size={size * 0.55}
+          color={colors.background}
+          strokeWidth={3}
+        />
       ) : null}
     </View>
   );
@@ -201,7 +235,8 @@ export const Checkbox = memo(function Checkbox({
       accessibilityLabel={accessibilityLabel}
       disabled={disabled}
       hitSlop={8}
-      onPress={onPress}>
+      onPress={onPress}
+    >
       {body}
     </Pressable>
   );

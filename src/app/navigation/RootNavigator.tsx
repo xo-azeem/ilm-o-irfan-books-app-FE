@@ -4,7 +4,11 @@ import {
   createBottomTabNavigator,
   type BottomTabBarProps,
 } from '@react-navigation/bottom-tabs';
-import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native';
+import {
+  DarkTheme,
+  DefaultTheme,
+  NavigationContainer,
+} from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { AuthSplash } from '@/app/navigation/AuthSplash';
@@ -45,7 +49,8 @@ function MainTabs() {
         lazy: true,
         freezeOnBlur: true,
         ...TAB_TRANSITION,
-      }}>
+      }}
+    >
       <Tab.Screen name={ROUTES.HOME} component={HomeScreen} />
       <Tab.Screen name={ROUTES.SEARCH} component={SearchScreen} />
       <Tab.Screen name={ROUTES.MY_LIBRARY} component={LibraryScreen} />
@@ -77,9 +82,14 @@ function ConsumerNavigator() {
   return (
     <Stack.Navigator
       initialRouteName={initialRoute}
-      screenOptions={{ headerShown: false, contentStyle, freezeOnBlur: true }}>
+      screenOptions={{ headerShown: false, contentStyle, freezeOnBlur: true }}
+    >
       <Stack.Screen name={ROUTES.MAIN_TABS} component={MainTabs} />
-      <Stack.Screen name={ROUTES.LOGIN} component={LoginScreen} options={{ animation: 'fade' }} />
+      <Stack.Screen
+        name={ROUTES.LOGIN}
+        component={LoginScreen}
+        options={{ animation: 'fade' }}
+      />
       <Stack.Screen
         name={ROUTES.SIGN_UP}
         component={SignUpScreen}
@@ -138,7 +148,14 @@ export function RootNavigator() {
         notification: colors.primary,
       },
     }),
-    [colors.background, colors.border, colors.ink, colors.primary, colors.surface, isDark],
+    [
+      colors.background,
+      colors.border,
+      colors.ink,
+      colors.primary,
+      colors.surface,
+      isDark,
+    ],
   );
 
   return (

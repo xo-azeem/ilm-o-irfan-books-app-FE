@@ -1,6 +1,9 @@
 import { memo, useCallback, useMemo, useState } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
-import Animated, { useAnimatedStyle, useDerivedValue } from 'react-native-reanimated';
+import Animated, {
+  useAnimatedStyle,
+  useDerivedValue,
+} from 'react-native-reanimated';
 
 import { LinearGradient, type GradientStop } from '@/components/ui/Gradient';
 import { PAGE_FLIP } from '@/features/reader/constants';
@@ -199,7 +202,8 @@ export const PaperFold = memo(function PaperFold({
   /** The curl on the folded half, measured out from the crease. */
   const span = curlSpan(width, height);
   const curlStops = useMemo<GradientStop[]>(() => {
-    const at = (points: number) => Math.min(1, (points - CURL_FROM) / (span || 1));
+    const at = (points: number) =>
+      Math.min(1, (points - CURL_FROM) / (span || 1));
     return [
       { offset: 0, color: '#FFFFFF', opacity: 0 },
       { offset: at(1), color: '#FFFFFF', opacity: lit },
@@ -321,7 +325,10 @@ export const PaperFold = memo(function PaperFold({
   // the picture to arrive.
   const frontPaper = opaque || drawn ? PAGE_FLIP.paper : 'transparent';
 
-  const clipper = useMemo(() => [styles.clipper, { width: size, height: size }], [size]);
+  const clipper = useMemo(
+    () => [styles.clipper, { width: size, height: size }],
+    [size],
+  );
   const page = useMemo(() => [styles.page, { width, height }], [height, width]);
 
   return (
@@ -345,7 +352,12 @@ export const PaperFold = memo(function PaperFold({
 
       {/* 1. The shadow the raised leaf throws on the page showing through. */}
       <Animated.View style={[clipper, castClip]}>
-        <View style={[styles.band, { left: CAST_FROM, width: CAST_SPAN, height: size }]}>
+        <View
+          style={[
+            styles.band,
+            { left: CAST_FROM, width: CAST_SPAN, height: size },
+          ]}
+        >
           <LinearGradient stops={CAST_STOPS} angle={90} />
         </View>
       </Animated.View>
@@ -386,7 +398,9 @@ export const PaperFold = memo(function PaperFold({
                 falling into its own shade behind it. In the page's own
                 coordinates, so the reflection carries it over with the
                 rest of the sheet. */}
-            <Animated.View style={[styles.band, { width: span, height: size }, curlBand]}>
+            <Animated.View
+              style={[styles.band, { width: span, height: size }, curlBand]}
+            >
               <LinearGradient stops={curlStops} angle={90} />
             </Animated.View>
           </Animated.View>
@@ -435,7 +449,9 @@ const Face = memo(function Face({
           onError={onFailed}
         />
       ) : null}
-      {wash ? <View style={[StyleSheet.absoluteFill, { backgroundColor: wash }]} /> : null}
+      {wash ? (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: wash }]} />
+      ) : null}
       <View style={[styles.spine, { width: spine }]}>
         <LinearGradient stops={SPINE_STOPS} angle={90} />
       </View>

@@ -98,7 +98,11 @@ export const CarouselMarquee = memo(function CarouselMarquee({
         <Animated.View style={[styles.row, rowStyle]}>
           {Array.from({ length: copies }, (_, copy) =>
             slides.map(slide => (
-              <MarqueeItem key={`${copy}-${slide.id}`} slide={slide} onPress={onPress} />
+              <MarqueeItem
+                key={`${copy}-${slide.id}`}
+                slide={slide}
+                onPress={onPress}
+              />
             )),
           )}
         </Animated.View>
@@ -122,7 +126,8 @@ const MarqueeItem = memo(function MarqueeItem({
       accessibilityRole="button"
       accessibilityLabel={slide.title}
       onPress={handlePress}
-      style={({ pressed }) => [styles.item, pressed && styles.pressed]}>
+      style={({ pressed }) => [styles.item, pressed && styles.pressed]}
+    >
       <BookCover
         width={COVER_WIDTH}
         coverUrl={slide.coverUrl ?? slide.imageUrl}

@@ -93,8 +93,8 @@ export function resolveFamily(
     role === 'display'
       ? displayFamily(weight)
       : role === 'urdu'
-      ? urduFamily(weight)
-      : sansFamily(weight);
+        ? urduFamily(weight)
+        : sansFamily(weight);
 
   return { fontFamily, fontWeight: undefined };
 }
@@ -158,7 +158,10 @@ export const fontSize = {
  */
 export type FontScale = 'small' | 'default' | 'large' | 'xlarge';
 
-export const FONT_SCALES: Record<FontScale, { label: string; multiplier: number }> = {
+export const FONT_SCALES: Record<
+  FontScale,
+  { label: string; multiplier: number }
+> = {
   small: { label: 'Small', multiplier: 0.9 },
   default: { label: 'Default', multiplier: 1 },
   large: { label: 'Large', multiplier: 1.12 },
@@ -166,7 +169,12 @@ export const FONT_SCALES: Record<FontScale, { label: string; multiplier: number 
 };
 
 /** Smallest to largest — the order the Appearance selector draws them in. */
-export const FONT_SCALE_ORDER: FontScale[] = ['small', 'default', 'large', 'xlarge'];
+export const FONT_SCALE_ORDER: FontScale[] = [
+  'small',
+  'default',
+  'large',
+  'xlarge',
+];
 
 export function fontScaleMultiplier(scale: FontScale | undefined): number {
   return (scale && FONT_SCALES[scale]?.multiplier) ?? 1;

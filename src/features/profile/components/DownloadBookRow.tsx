@@ -3,7 +3,14 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Trash2, X } from 'lucide-react-native';
 
 import type { BookSummary } from '@/components/books';
-import { BookCover, Icon, Label, ProgressBar, Text, UrduText } from '@/components/ui';
+import {
+  BookCover,
+  Icon,
+  Label,
+  ProgressBar,
+  Text,
+  UrduText,
+} from '@/components/ui';
 import { radius } from '@/theme/palette';
 import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
@@ -31,7 +38,8 @@ export const DownloadBookRow = memo(function DownloadBookRow({
   onPress?: (entry: DownloadEntry) => void;
 }) {
   const { colors, isDark } = useTheme();
-  const downloading = entry.downloadProgress != null && entry.downloadProgress < 1;
+  const downloading =
+    entry.downloadProgress != null && entry.downloadProgress < 1;
 
   const handlePress = useCallback(() => onPress?.(entry), [entry, onPress]);
   const handleRemove = useCallback(() => onRemove?.(entry), [entry, onRemove]);
@@ -49,11 +57,14 @@ export const DownloadBookRow = memo(function DownloadBookRow({
           borderColor: downloading ? colors.selectedBorder : colors.borderSoft,
         },
         pressed && styles.pressed,
-      ]}>
+      ]}
+    >
       <BookCover
         width={48}
         coverUrl={entry.coverUrl}
-        coverColor={(isDark ? entry.coverColorDark : entry.coverColor) ?? undefined}
+        coverColor={
+          (isDark ? entry.coverColorDark : entry.coverColor) ?? undefined
+        }
       />
 
       <View style={styles.body}>
@@ -62,7 +73,12 @@ export const DownloadBookRow = memo(function DownloadBookRow({
             {entry.title}
           </UrduText>
         ) : (
-          <Text size={fontSize.bodySmall} leading={1.2} weight="500" numberOfLines={2}>
+          <Text
+            size={fontSize.bodySmall}
+            leading={1.2}
+            weight="500"
+            numberOfLines={2}
+          >
             {entry.title}
           </Text>
         )}
@@ -75,7 +91,12 @@ export const DownloadBookRow = memo(function DownloadBookRow({
             </Label>
           </>
         ) : entry.detail ? (
-          <Text size={fontSize.captionSmall} leading={1} tone="muted" numberOfLines={1}>
+          <Text
+            size={fontSize.captionSmall}
+            leading={1}
+            tone="muted"
+            numberOfLines={1}
+          >
             {entry.detail}
           </Text>
         ) : null}
@@ -87,7 +108,8 @@ export const DownloadBookRow = memo(function DownloadBookRow({
           accessibilityLabel={`Cancel download of ${entry.title}`}
           hitSlop={8}
           onPress={handleCancel}
-          style={[styles.action, { borderColor: colors.borderStrong }]}>
+          style={[styles.action, { borderColor: colors.borderStrong }]}
+        >
           <Icon icon={X} size={15} tone="soft" />
         </Pressable>
       ) : (
@@ -98,8 +120,12 @@ export const DownloadBookRow = memo(function DownloadBookRow({
           onPress={handleRemove}
           style={[
             styles.action,
-            { backgroundColor: colors.dangerFill, borderColor: colors.dangerBorder },
-          ]}>
+            {
+              backgroundColor: colors.dangerFill,
+              borderColor: colors.dangerBorder,
+            },
+          ]}
+        >
           <Icon icon={Trash2} size={13} tone="danger" strokeWidth={1.9} />
         </Pressable>
       )}

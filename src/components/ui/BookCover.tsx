@@ -1,5 +1,11 @@
 import { memo, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Image, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  Image,
+  StyleSheet,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import { UserRound } from 'lucide-react-native';
 import Svg, { Defs, Line, Pattern, Rect } from 'react-native-svg';
 
@@ -39,7 +45,8 @@ const CoverWeave = memo(function CoverWeave({
           patternUnits="userSpaceOnUse"
           width={tile}
           height={tile}
-          patternTransform="rotate(45)">
+          patternTransform="rotate(45)"
+        >
           <Rect width={tile} height={tile} fill={base} />
           <Line
             x1={stripeWidth / 2}
@@ -115,7 +122,10 @@ export const BookCover = memo(function BookCover({
   const showImage = !!coverUrl && !imageFailed && !placeholder;
 
   const base = coverColor ?? colors.coverBase;
-  const stripe = useMemo(() => (coverColor ? shade(coverColor, -0.22) : colors.coverStripe), [colors.coverStripe, coverColor]);
+  const stripe = useMemo(
+    () => (coverColor ? shade(coverColor, -0.22) : colors.coverStripe),
+    [colors.coverStripe, coverColor],
+  );
 
   const frameStyle = useMemo<ViewStyle>(
     () => ({
@@ -151,7 +161,11 @@ export const BookCover = memo(function BookCover({
             onError={() => setImageFailed(true)}
           />
         ) : (
-          <CoverWeave base={base} stripe={stripe} stripeWidth={width > 90 ? 6 : 5} />
+          <CoverWeave
+            base={base}
+            stripe={stripe}
+            stripeWidth={width > 90 ? 6 : 5}
+          />
         )}
 
         {placeholderLabel ? (
@@ -164,7 +178,12 @@ export const BookCover = memo(function BookCover({
 
         {caption && !showImage ? (
           <View style={styles.caption}>
-            <Text size={8.5} leading={1.3} tone="faint" style={styles.captionText}>
+            <Text
+              size={8.5}
+              leading={1.3}
+              tone="faint"
+              style={styles.captionText}
+            >
               {caption}
             </Text>
           </View>
@@ -172,11 +191,17 @@ export const BookCover = memo(function BookCover({
 
         {overlay}
 
-        {progress != null ? <CoverProgress value={progress} finished={finished} /> : null}
+        {progress != null ? (
+          <CoverProgress value={progress} finished={finished} />
+        ) : null}
       </View>
 
       {rank != null ? (
-        <Display size={46} weight="600" style={[styles.rank, { color: colors.gold }]}>
+        <Display
+          size={46}
+          weight="600"
+          style={[styles.rank, { color: colors.gold }]}
+        >
           {String(rank)}
         </Display>
       ) : null}
@@ -189,6 +214,7 @@ export const BookCover = memo(function BookCover({
  * book's own cover colour so admin-chosen colours stay coherent.
  */
 function shade(hex: string, amount: number): string {
+  /* eslint-disable no-bitwise -- packing/unpacking RGB channels */
   const clean = hex.replace('#', '');
   if (clean.length !== 6) {
     return hex;
@@ -202,6 +228,7 @@ function shade(hex: string, amount: number): string {
   const b = adjust(num & 0xff);
 
   return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
+  /* eslint-enable no-bitwise */
 }
 
 export type AvatarProps = {
@@ -269,7 +296,8 @@ export const Avatar = memo(function Avatar({
           overflow: 'hidden',
         },
         style,
-      ]}>
+      ]}
+    >
       {imageUrl && !failed ? (
         <Image
           source={{ uri: imageUrl }}
@@ -284,7 +312,8 @@ export const Avatar = memo(function Avatar({
           leading={1}
           weight="600"
           tone="inherit"
-          style={{ color: palette.ink }}>
+          style={{ color: palette.ink }}
+        >
           {initials}
         </Text>
       ) : (

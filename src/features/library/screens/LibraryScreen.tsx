@@ -5,8 +5,15 @@ import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-import type { RootStackParamList, RootTabParamList } from '@/app/navigation/types';
-import { BookListRow, ContinueCard, type BookSummary } from '@/components/books';
+import type {
+  RootStackParamList,
+  RootTabParamList,
+} from '@/app/navigation/types';
+import {
+  BookListRow,
+  ContinueCard,
+  type BookSummary,
+} from '@/components/books';
 import { Screen, ScreenHeader } from '@/components/layout';
 import { LibraryCatalogSkeleton } from '@/components/skeletons/CatalogSkeletons';
 import { EmptyState, ViewToggle, type ViewMode } from '@/components/ui';
@@ -15,7 +22,10 @@ import {
   LibraryFilters,
   type LibraryShelf,
 } from '@/features/library/components/LibraryFilters';
-import { ShelfGrid, useShelfMetrics } from '@/features/library/components/ShelfGrid';
+import {
+  ShelfGrid,
+  useShelfMetrics,
+} from '@/features/library/components/ShelfGrid';
 import { useLibrary, useWishlist } from '@/hooks/useAccount';
 import { useAuthStore } from '@/stores/authStore';
 import type { CatalogBook } from '@/services/catalog';
@@ -77,7 +87,9 @@ export function LibraryScreen() {
 
   const finished = useMemo(
     () =>
-      (data?.finished ?? []).map(book => toSummary(book, { progress: 1, finished: true })),
+      (data?.finished ?? []).map(book =>
+        toSummary(book, { progress: 1, finished: true }),
+      ),
     [data?.finished],
   );
 
@@ -85,14 +97,19 @@ export function LibraryScreen() {
   // off one request. `useWishlist` only answers on the fallback path, where the
   // summary reports a wishlist count but has no books to go with it.
   const saved = useMemo(
-    () => (data?.saved?.length ? data.saved : (wishlist ?? [])).map(book => toSummary(book)),
+    () =>
+      (data?.saved?.length ? data.saved : (wishlist ?? [])).map(book =>
+        toSummary(book),
+      ),
     [data?.saved, wishlist],
   );
 
   const offline = useMemo(
     () =>
       (data?.downloads ?? []).map(book =>
-        toSummary(book, { meta: `${Math.round(book.sizeBytes / 1_000_000)} MB` }),
+        toSummary(book, {
+          meta: `${Math.round(book.sizeBytes / 1_000_000)} MB`,
+        }),
       ),
     [data?.downloads],
   );
@@ -131,11 +148,15 @@ export function LibraryScreen() {
   // the reader's own, and the membership is checked by the reader itself, at
   // the door, with the way to renew — never here, and never by hiding a book.
   const openBook = useCallback(
-    (book: { id: string }) => navigation.navigate(ROUTES.BOOK_READER, { bookId: book.id }),
+    (book: { id: string }) =>
+      navigation.navigate(ROUTES.BOOK_READER, { bookId: book.id }),
     [navigation],
   );
 
-  const browse = useCallback(() => navigation.navigate(ROUTES.SEARCH), [navigation]);
+  const browse = useCallback(
+    () => navigation.navigate(ROUTES.SEARCH),
+    [navigation],
+  );
 
   const header = (
     <>

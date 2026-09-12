@@ -37,12 +37,20 @@ export const LibraryAuthors = memo(function LibraryAuthors({
   onCreate: () => void;
 }) {
   const { scrollEndPadding } = useAppInsets();
-  const { data = [], isLoading, error, refetch, isRefetching } = useAdminAuthors(query);
+  const {
+    data = [],
+    isLoading,
+    error,
+    refetch,
+    isRefetching,
+  } = useAdminAuthors(query);
 
   const groups = useMemo<LetterGroup[]>(() => {
     const byLetter = new Map<string, AdminAuthor[]>();
 
-    for (const author of [...data].sort((a, b) => a.name.localeCompare(b.name))) {
+    for (const author of [...data].sort((a, b) =>
+      a.name.localeCompare(b.name),
+    )) {
       // Anything that does not start with a Latin letter — an Urdu name, a
       // kunya opening with a quote — collects under a single bucket rather
       // than inventing a heading nobody can scan for.
@@ -132,7 +140,10 @@ const AuthorRow = memo(function AuthorRow({
 }) {
   const { colors } = useTheme();
   const orphan = author.book_count === 0;
-  const handlePress = useCallback(() => onPress(author.id), [author.id, onPress]);
+  const handlePress = useCallback(
+    () => onPress(author.id),
+    [author.id, onPress],
+  );
 
   return (
     <Pressable
@@ -142,7 +153,8 @@ const AuthorRow = memo(function AuthorRow({
       style={({ pressed }) => [
         styles.row,
         pressed && { backgroundColor: colors.primaryFillSoft },
-      ]}>
+      ]}
+    >
       <AdminAvatar
         name={author.name}
         imageUrl={adminCoverUrl(author.avatar_path)}
@@ -154,7 +166,12 @@ const AuthorRow = memo(function AuthorRow({
         <Text size={14} leading={1.2} numberOfLines={1}>
           {author.name}
         </Text>
-        <Text size={11} leading={1.2} tone={orphan ? 'warning' : 'faint'} numberOfLines={1}>
+        <Text
+          size={11}
+          leading={1.2}
+          tone={orphan ? 'warning' : 'faint'}
+          numberOfLines={1}
+        >
           {orphan
             ? 'No books yet'
             : `${author.book_count} ${author.book_count === 1 ? 'book' : 'books'} · ${

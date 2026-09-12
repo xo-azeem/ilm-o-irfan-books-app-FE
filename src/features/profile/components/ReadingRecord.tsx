@@ -71,7 +71,10 @@ export const GoalCard = memo(function GoalCard({
     <Card tone="surface" rounded={radius.cardLarge} padded={18} gap={14}>
       <View style={styles.goalHeader}>
         <Display size={17}>This month’s goal</Display>
-        <Label tone="primary" tracking={0.8}>{`${completed} / ${target} books`}</Label>
+        <Label
+          tone="primary"
+          tracking={0.8}
+        >{`${completed} / ${target} books`}</Label>
       </View>
       <ProgressBar value={target > 0 ? completed / target : 0} height={8} />
       {note ? (
@@ -138,14 +141,14 @@ const AchievementBadge = memo(function AchievementBadge({
   const fill = !earned
     ? colors.primaryFillSoft
     : tone === 'gold'
-    ? colors.goldFill
-    : colors.primaryFill;
+      ? colors.goldFill
+      : colors.primaryFill;
 
   const border = !earned
     ? colors.borderStrong
     : tone === 'gold'
-    ? colors.goldBorder
-    : colors.selectedBorder;
+      ? colors.goldBorder
+      : colors.selectedBorder;
 
   return (
     <View style={styles.badge}>
@@ -157,12 +160,22 @@ const AchievementBadge = memo(function AchievementBadge({
             borderColor: border,
             borderStyle: earned ? 'solid' : 'dashed',
           },
-        ]}>
-        <Display size={earned ? 19 : 15} tone={earned ? (tone === 'gold' ? 'gold' : 'primary') : 'dim'}>
+        ]}
+      >
+        <Display
+          size={earned ? 19 : 15}
+          tone={earned ? (tone === 'gold' ? 'gold' : 'primary') : 'dim'}
+        >
           {earned ? achievement.mark : '?'}
         </Display>
       </View>
-      <Text size={10} leading={1.2} align="center" tone={earned ? 'muted' : 'dim'} numberOfLines={2}>
+      <Text
+        size={10}
+        leading={1.2}
+        align="center"
+        tone={earned ? 'muted' : 'dim'}
+        numberOfLines={2}
+      >
         {earned ? achievement.label : 'Locked'}
       </Text>
     </View>
@@ -183,7 +196,12 @@ export const RecordHeader = memo(function RecordHeader({
   return (
     <View style={styles.recordMeta}>
       {email ? (
-        <Text size={fontSize.captionSmall} leading={1.35} tone="muted" numberOfLines={1}>
+        <Text
+          size={fontSize.captionSmall}
+          leading={1.35}
+          tone="muted"
+          numberOfLines={1}
+        >
           {email}
         </Text>
       ) : null}

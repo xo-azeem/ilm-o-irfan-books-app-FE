@@ -41,7 +41,9 @@ export const SignOutButton = memo(function SignOutButton() {
     sheet.close();
     // `reset` bubbles up from the profile stack, through the tabs, to the root
     // navigator — the first one that owns the Login route handles it.
-    navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: ROUTES.LOGIN }] }));
+    navigation.dispatch(
+      CommonActions.reset({ index: 0, routes: [{ name: ROUTES.LOGIN }] }),
+    );
   }, [navigation, sheet]);
 
   // Ignore dismiss taps while the request is in flight, so the sheet cannot be
@@ -70,13 +72,24 @@ export const SignOutButton = memo(function SignOutButton() {
         scrollable={false}
         footer={
           <View style={styles.actions}>
-            <Button label="Sign out" variant="dangerSolid" loading={pending} onPress={confirm} />
-            <Button label="Cancel" variant="ghost" disabled={pending} onPress={close} />
+            <Button
+              label="Sign out"
+              variant="dangerSolid"
+              loading={pending}
+              onPress={confirm}
+            />
+            <Button
+              label="Cancel"
+              variant="ghost"
+              disabled={pending}
+              onPress={close}
+            />
           </View>
-        }>
+        }
+      >
         <Text size={fontSize.bodySmall} leading={1.45} tone="muted">
-          Your streak, finished books and downloads stay on your account. Sign back in at any
-          time to pick up where you left off.
+          Your streak, finished books and downloads stay on your account. Sign
+          back in at any time to pick up where you left off.
         </Text>
       </Sheet>
     </>

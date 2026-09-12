@@ -52,10 +52,22 @@ function renderTabBar(props: BottomTabBarProps) {
 function AdminLibraryNavigator() {
   return (
     <LibraryStack.Navigator screenOptions={STACK_OPTIONS}>
-      <LibraryStack.Screen name={ADMIN_ROUTES.LIBRARY_HOME} component={AdminLibraryScreen} />
-      <LibraryStack.Screen name={ADMIN_ROUTES.BOOK_EDITOR} component={AdminBookEditorScreen} />
-      <LibraryStack.Screen name={ADMIN_ROUTES.PDF_PREVIEW} component={AdminPdfPreviewScreen} />
-      <LibraryStack.Screen name={ADMIN_ROUTES.AUTHOR_EDITOR} component={AdminAuthorEditorScreen} />
+      <LibraryStack.Screen
+        name={ADMIN_ROUTES.LIBRARY_HOME}
+        component={AdminLibraryScreen}
+      />
+      <LibraryStack.Screen
+        name={ADMIN_ROUTES.BOOK_EDITOR}
+        component={AdminBookEditorScreen}
+      />
+      <LibraryStack.Screen
+        name={ADMIN_ROUTES.PDF_PREVIEW}
+        component={AdminPdfPreviewScreen}
+      />
+      <LibraryStack.Screen
+        name={ADMIN_ROUTES.AUTHOR_EDITOR}
+        component={AdminAuthorEditorScreen}
+      />
       <LibraryStack.Screen
         name={ADMIN_ROUTES.CATEGORY_EDITOR}
         component={AdminCategoryEditorScreen}
@@ -72,9 +84,18 @@ function AdminLibraryNavigator() {
 function AdminPeopleNavigator() {
   return (
     <PeopleStack.Navigator screenOptions={STACK_OPTIONS}>
-      <PeopleStack.Screen name={ADMIN_ROUTES.PEOPLE_HOME} component={AdminPeopleScreen} />
-      <PeopleStack.Screen name={ADMIN_ROUTES.USER_DETAIL} component={AdminUserDetailScreen} />
-      <PeopleStack.Screen name={ADMIN_ROUTES.PLAN_EDITOR} component={AdminPlanEditorScreen} />
+      <PeopleStack.Screen
+        name={ADMIN_ROUTES.PEOPLE_HOME}
+        component={AdminPeopleScreen}
+      />
+      <PeopleStack.Screen
+        name={ADMIN_ROUTES.USER_DETAIL}
+        component={AdminUserDetailScreen}
+      />
+      <PeopleStack.Screen
+        name={ADMIN_ROUTES.PLAN_EDITOR}
+        component={AdminPlanEditorScreen}
+      />
     </PeopleStack.Navigator>
   );
 }
@@ -83,11 +104,26 @@ function AdminPeopleNavigator() {
 function AdminSystemNavigator() {
   return (
     <SystemStack.Navigator screenOptions={STACK_OPTIONS}>
-      <SystemStack.Screen name={ADMIN_ROUTES.SYSTEM_HOME} component={AdminSystemScreen} />
-      <SystemStack.Screen name={ADMIN_ROUTES.ANALYTICS} component={AdminAnalyticsScreen} />
-      <SystemStack.Screen name={ADMIN_ROUTES.STORAGE} component={AdminStorageScreen} />
-      <SystemStack.Screen name={ADMIN_ROUTES.HISTORY} component={AdminHistoryScreen} />
-      <SystemStack.Screen name={ADMIN_ROUTES.SETTINGS} component={AdminSettingsScreen} />
+      <SystemStack.Screen
+        name={ADMIN_ROUTES.SYSTEM_HOME}
+        component={AdminSystemScreen}
+      />
+      <SystemStack.Screen
+        name={ADMIN_ROUTES.ANALYTICS}
+        component={AdminAnalyticsScreen}
+      />
+      <SystemStack.Screen
+        name={ADMIN_ROUTES.STORAGE}
+        component={AdminStorageScreen}
+      />
+      <SystemStack.Screen
+        name={ADMIN_ROUTES.HISTORY}
+        component={AdminHistoryScreen}
+      />
+      <SystemStack.Screen
+        name={ADMIN_ROUTES.SETTINGS}
+        component={AdminSettingsScreen}
+      />
     </SystemStack.Navigator>
   );
 }
@@ -105,11 +141,21 @@ export function AdminNavigator() {
             lazy: true,
             freezeOnBlur: true,
             ...TAB_TRANSITION,
-          }}>
+          }}
+        >
           <Tab.Screen name={ADMIN_ROUTES.TODAY} component={AdminTodayScreen} />
-          <Tab.Screen name={ADMIN_ROUTES.LIBRARY} component={AdminLibraryNavigator} />
-          <Tab.Screen name={ADMIN_ROUTES.PEOPLE} component={AdminPeopleNavigator} />
-          <Tab.Screen name={ADMIN_ROUTES.SYSTEM} component={AdminSystemNavigator} />
+          <Tab.Screen
+            name={ADMIN_ROUTES.LIBRARY}
+            component={AdminLibraryNavigator}
+          />
+          <Tab.Screen
+            name={ADMIN_ROUTES.PEOPLE}
+            component={AdminPeopleNavigator}
+          />
+          <Tab.Screen
+            name={ADMIN_ROUTES.SYSTEM}
+            component={AdminSystemNavigator}
+          />
         </Tab.Navigator>
       </View>
     </AdminToastProvider>

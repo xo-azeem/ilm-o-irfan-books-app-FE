@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { Platform, type View } from 'react-native';
-import { captureRef, releaseCapture, type CaptureOptions } from 'react-native-view-shot';
+import {
+  captureRef,
+  releaseCapture,
+  type CaptureOptions,
+} from 'react-native-view-shot';
 
 /**
  * How many pages of the book are kept as pictures.
@@ -107,7 +111,10 @@ export function usePageCapture(
   }, []);
 
   /** The picture of a page, if one has been taken. */
-  const shotOf = useCallback((page: number) => shots.current.get(page) ?? null, []);
+  const shotOf = useCallback(
+    (page: number) => shots.current.get(page) ?? null,
+    [],
+  );
 
   const snapshot = useCallback(async (view: View) => {
     try {
@@ -168,7 +175,8 @@ export function usePageCapture(
         // The fold falls back to blank paper, which is a softer failure than
         // anything worth showing a reader — but not one worth hiding from
         // whoever is building this.
-        if (__DEV__) console.warn('[reader] could not photograph the page', error);
+        if (__DEV__)
+          console.warn('[reader] could not photograph the page', error);
       } finally {
         inflight.current = null;
         done();

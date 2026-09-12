@@ -62,7 +62,9 @@ export const SubjectPanel = memo(function SubjectPanel({
   }, [open, progress]);
 
   // Two tiles per row, inside the screen's gutters.
-  const tileWidth = Math.floor((screenWidth - layout.screenPadding * 2 - GRID_GAP) / 2);
+  const tileWidth = Math.floor(
+    (screenWidth - layout.screenPadding * 2 - GRID_GAP) / 2,
+  );
 
   const containerStyle = useAnimatedStyle(() => ({
     height: progress.value * contentHeight,
@@ -84,13 +86,17 @@ export const SubjectPanel = memo(function SubjectPanel({
       // Collapsed, the panel is not just invisible but unreachable — a tile
       // behind a zero height would still take a tap on some Android builds.
       pointerEvents={open ? 'auto' : 'none'}
-      style={[styles.root, containerStyle]}>
+      style={[styles.root, containerStyle]}
+    >
       <View
         style={styles.measured}
-        onLayout={event => setContentHeight(event.nativeEvent.layout.height)}>
+        onLayout={event => setContentHeight(event.nativeEvent.layout.height)}
+      >
         <View style={styles.header}>
           <Label>Browse by subject</Label>
-          {selectedId ? <TextButton label="All subjects" onPress={clear} /> : null}
+          {selectedId ? (
+            <TextButton label="All subjects" onPress={clear} />
+          ) : null}
         </View>
 
         <View style={styles.grid}>

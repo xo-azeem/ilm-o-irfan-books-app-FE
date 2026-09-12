@@ -129,7 +129,7 @@ export function usePaperFlip({
   onBegin,
   onEnd,
   onTap,
-  onFirstTouch,
+  onTouch,
 }: {
   /** Off in the other reading modes, and while the reader's zoom is up. */
   enabled: boolean;
@@ -139,8 +139,8 @@ export function usePaperFlip({
   onEnd: (commit: boolean, dir: TurnDirection) => void;
   /** A touch that never became a fold. */
   onTap: () => void;
-  /** The first touch of the session, which is what retires the hint. */
-  onFirstTouch?: () => void;
+  /** A finger has landed on the page. Fires on every touch, fold or not. */
+  onTouch?: () => void;
 }) {
   /** The corner in the hand, eased, and the point it is chasing. */
   const fx = useSharedValue(0);
@@ -175,8 +175,6 @@ export function usePaperFlip({
 
   /** Whether this touch has travelled far enough to stop being a tap. */
   const moved = useSharedValue(0);
-  /** The reader has found the page. Said once, and it is not news again. */
-  const greeted = useSharedValue(0);
   const downAt = useSharedValue(0);
   const downX = useSharedValue(0);
   const downY = useSharedValue(0);
@@ -188,8 +186,8 @@ export function usePaperFlip({
 
   // What the worklets need from JS is held at a fixed identity — that is what
   // keeps the gesture from being rebuilt on every render of the reader.
-  const handlers = useRef({ onBegin, onEnd, onTap, onFirstTouch });
-  handlers.current = { onBegin, onEnd, onTap, onFirstTouch };
+  const handlers = useRef({ onBegin, onEnd, onTap, onTouch });
+  handlers.current = { onBegin, onEnd, onTap, onTouch };
 
   const began = useCallback((value: TurnDirection) => handlers.current.onBegin(value), []);
   const ended = useCallback(
@@ -197,7 +195,7 @@ export function usePaperFlip({
     [],
   );
   const tapped = useCallback(() => handlers.current.onTap(), []);
-  const touched = useCallback(() => handlers.current.onFirstTouch?.(), []);
+  const touched = useCallback(() => handlers.current.onTouch?.(), []);
 
   const canTurn = useCallback(
     (value: TurnDirection) => {
@@ -317,10 +315,7 @@ export function usePaperFlip({
           // Which corner the sheet hinges from — the near one.
           if (!turning.value) cy.value = downY.value < h.value / 2 ? 0 : h.value;
 
-          if (!greeted.value) {
-            greeted.value = 1;
-            runOnJS(touched)();
-          }
+          runOnJS(touched)();
         })
         .onTouchesMove(event => {
           const touch = event.allTouches[0];
@@ -422,7 +417,6 @@ export function usePaperFlip({
       follow,
       fx,
       fy,
-      greeted,
       h,
       lastAt,
       lastX,

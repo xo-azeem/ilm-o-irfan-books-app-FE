@@ -212,3 +212,93 @@ describe('paper fold geometry', () => {
     }
   });
 });
+
+// ---- the fold as native views -----------------------------------------------
+
+import { bandXf, clipperXf, contentXf, creaseOf, reflectXf, type Xf } from './paperFold';
+
+/**
+ * What a native view does with a transform list and `transformOrigin: '0 0'`:
+ * reads it right to left, the last entry meeting the point first.
+ */
+function apply(xf: Xf, p: Pt): Pt {
+  let { x, y } = p;
+  for (let i = xf.length - 1; i >= 0; i -= 1) {
+    const step = xf[i];
+    if ('translateX' in step) x += step.translateX;
+    else if ('translateY' in step) y += step.translateY;
+    else if ('scaleX' in step) x *= step.scaleX;
+    else {
+      const th = parseFloat(step.rotate);
+      const c = Math.cos(th);
+      const s = Math.sin(th);
+      [x, y] = [x * c - y * s, x * s + y * c];
+    }
+  }
+  return { x, y };
+}
+
+const SIZE = 2 * (W + H);
+
+describe('paper fold as views', () => {
+  it('leaves what is inside a clipper exactly where it was on the page', () => {
+    for (const { cy, fx, fy } of sweep()) {
+      const crease = creaseOf(W, H, cy, fx, fy);
+      if (!crease) continue;
+      for (const side of [1, -1] as const) {
+        const outer = clipperXf(crease.mx, crease.my, crease.th, side, SIZE);
+        const inner = contentXf(crease.mx, crease.my, crease.th, side, SIZE);
+        for (const p of [{ x: 0, y: 0 }, { x: W, y: 0 }, { x: W / 3, y: H / 2 }, { x: W, y: H }]) {
+          const q = apply(outer, apply(inner, p));
+          assert.ok(Math.abs(q.x - p.x) < 1e-6 && Math.abs(q.y - p.y) < 1e-6, `${side} ${JSON.stringify(p)}`);
+        }
+      }
+    }
+  });
+
+  it('puts the edge of each clipper on the crease, and its body on its own side', () => {
+    for (const { cy, fx, fy } of sweep()) {
+      const crease = creaseOf(W, H, cy, fx, fy);
+      const theirs = design(W, H, cy, fx, fy);
+      if (!crease || !theirs.n || !theirs.m) continue;
+      const { m, n } = theirs;
+      const along = (p: Pt) => (p.x - m.x) * n.x + (p.y - m.y) * n.y;
+
+      for (const side of [1, -1] as const) {
+        const outer = clipperXf(crease.mx, crease.my, crease.th, side, SIZE);
+        const edgeX = side === 1 ? 0 : SIZE;
+        for (const ly of [0, SIZE / 2, SIZE]) {
+          assert.ok(Math.abs(along(apply(outer, { x: edgeX, y: ly }))) < 1e-6, 'edge on crease');
+        }
+        const inside = apply(outer, { x: SIZE / 2, y: SIZE / 2 });
+        assert.ok(Math.sign(along(inside)) === side, `body on side ${side}`);
+      }
+    }
+  });
+
+  it('reflects the corner in the hand onto where it has been carried', () => {
+    for (const { cy, fx, fy } of sweep()) {
+      const crease = creaseOf(W, H, cy, fx, fy);
+      if (!crease) continue;
+      const mirror = reflectXf(crease.mx, crease.my, crease.th);
+      const carried = apply(mirror, { x: W, y: cy });
+      assert.ok(Math.abs(carried.x - fx) < 1e-6 && Math.abs(carried.y - fy) < 1e-6, `${fx},${fy}`);
+      // A reflection is its own inverse.
+      const back = apply(mirror, carried);
+      assert.ok(Math.abs(back.x - W) < 1e-6 && Math.abs(back.y - cy) < 1e-6);
+    }
+  });
+
+  it('starts a band of shading the stated distance from the crease', () => {
+    for (const { cy, fx, fy } of sweep()) {
+      const crease = creaseOf(W, H, cy, fx, fy);
+      const theirs = design(W, H, cy, fx, fy);
+      if (!crease || !theirs.n || !theirs.m) continue;
+      const { m, n } = theirs;
+      const along = (p: Pt) => (p.x - m.x) * n.x + (p.y - m.y) * n.y;
+      const band = bandXf(crease.mx, crease.my, crease.th, -26, SIZE);
+      assert.ok(Math.abs(along(apply(band, { x: 0, y: 0 })) - -26) < 1e-6);
+      assert.ok(Math.abs(along(apply(band, { x: 40, y: SIZE })) - 14) < 1e-6);
+    }
+  });
+});

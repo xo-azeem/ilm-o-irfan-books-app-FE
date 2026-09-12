@@ -272,3 +272,106 @@ export function foldFrame(
     gone,
   };
 }
+
+/**
+ * The fold, as native views.
+ *
+ * A half-plane is a large rotated view with `overflow: hidden`, laid so that
+ * one edge runs along the crease; anything inside it is counter-transformed so
+ * it stays exactly where it was on the page while the view around it clips.
+ * The folded half is the same clip under a reflection in the crease. None of
+ * it needs a path: only translations, rotations and one mirror, every one of
+ * them a transform a native view has always known how to draw.
+ *
+ * All transforms here assume `transformOrigin: '0 0'`, so they compose the way
+ * SVG's do: the list reads left to right as outermost to innermost, and the
+ * last entry is what a point meets first.
+ */
+export type Xf = (
+  | { translateX: number }
+  | { translateY: number }
+  | { rotate: string }
+  | { scaleX: number }
+)[];
+
+/**
+ * A clipper for one side of the crease.
+ *
+ * A square of side `size`, rotated so its local x axis runs along the crease
+ * normal `th`, with the crease itself on its left edge (`side` +1: the lifted
+ * half, along the normal) or its right edge (`side` -1: the half still lying
+ * flat, against it). Local x inside it is distance from the crease along the
+ * normal — which is what lets a shadow measured from the crease be drawn as a
+ * plain horizontal gradient inside it, with no transform of its own.
+ */
+export function clipperXf(mx: number, my: number, th: number, side: 1 | -1, size: number): Xf {
+  'worklet';
+  return [
+    { translateX: mx },
+    { translateY: my },
+    { rotate: `${th}rad` },
+    { translateX: side === 1 ? 0 : -size },
+    { translateY: -size / 2 },
+  ];
+}
+
+/** The inverse of `clipperXf`: what its contents wear to stay put on the page. */
+export function contentXf(mx: number, my: number, th: number, side: 1 | -1, size: number): Xf {
+  'worklet';
+  return [
+    { translateX: side === 1 ? 0 : size },
+    { translateY: size / 2 },
+    { rotate: `${-th}rad` },
+    { translateX: -mx },
+    { translateY: -my },
+  ];
+}
+
+/** Reflection in the crease: turn the normal onto x, mirror, turn it back. */
+export function reflectXf(mx: number, my: number, th: number): Xf {
+  'worklet';
+  return [
+    { translateX: mx },
+    { translateY: my },
+    { rotate: `${th}rad` },
+    { scaleX: -1 },
+    { rotate: `${-th}rad` },
+    { translateX: -mx },
+    { translateY: -my },
+  ];
+}
+
+/**
+ * A band of shading measured out from the crease, in page coordinates: its
+ * left edge `from` points along the normal from the crease, running along the
+ * normal from there, and tall enough to cross the whole page.
+ */
+export function bandXf(mx: number, my: number, th: number, from: number, size: number): Xf {
+  'worklet';
+  return [
+    { translateX: mx },
+    { translateY: my },
+    { rotate: `${th}rad` },
+    { translateX: from },
+    { translateY: -size / 2 },
+  ];
+}
+
+/** Where the crease is, and which way its normal points. */
+export type Crease = {
+  mx: number;
+  my: number;
+  /** The angle of the normal, in radians, clockwise from the page's x axis. */
+  th: number;
+};
+
+/** The crease of the fold at `fx`,`fy`, or null while nothing has folded. */
+export function creaseOf(w: number, h: number, cy: number, fx: number, fy: number): Crease | null {
+  'worklet';
+  const ox = w;
+  const oy = cy;
+  if (w <= 0 || h <= 0 || (Math.abs(fx - ox) < 1.5 && Math.abs(fy - oy) < 1.5)) return null;
+  const nx = ox - fx;
+  const ny = oy - fy;
+  return { mx: (ox + fx) / 2, my: (oy + fy) / 2, th: Math.atan2(ny, nx) };
+}

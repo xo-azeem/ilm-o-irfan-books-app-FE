@@ -1,46 +1,29 @@
-import { memo, useId, useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
-import Animated, { useAnimatedProps, useDerivedValue } from 'react-native-reanimated';
-import Svg, {
-  ClipPath,
-  Defs,
-  G,
-  Image as SvgImage,
-  LinearGradient,
-  Path,
-  Pattern,
-  RadialGradient,
-  Rect,
-  Stop,
-} from 'react-native-svg';
+import { memo, useCallback, useId, useMemo, useState } from 'react';
+import { Image, StyleSheet, View } from 'react-native';
+import Animated, {
+  runOnJS,
+  useAnimatedReaction,
+  useAnimatedStyle,
+  useDerivedValue,
+} from 'react-native-reanimated';
+import Svg, { Defs, Path, Pattern, RadialGradient, Rect, Stop } from 'react-native-svg';
 
+import { LinearGradient, type GradientStop } from '@/components/ui/Gradient';
 import { PAGE_FLIP } from '@/features/reader/constants';
 import {
   CAST_FROM,
   CAST_SPAN,
   CURL_FROM,
+  bandXf,
+  clipperXf,
+  contentXf,
+  creaseOf,
   curlSpan,
   foldFrame,
-  type FoldFrame,
+  reflectXf,
+  type Xf,
 } from '@/features/reader/paperFold';
 import type { FoldState } from '@/features/reader/usePaperFlip';
-
-const AnimatedPath = Animated.createAnimatedComponent(Path);
-const AnimatedRect = Animated.createAnimatedComponent(Rect);
-const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
-
-/**
- * `matrix`, not `transform`.
- *
- * An animated prop is written straight onto the native node, past the JSX
- * props a group would normally be built from — and the node knows the fold's
- * reflection by the name its own shadow node uses. The JSX type has no reason
- * to know that name, so it is told here.
- */
-type MatrixProps = { matrix: number[] };
-const AnimatedG = Animated.createAnimatedComponent(
-  G as unknown as React.ComponentType<React.ComponentProps<typeof G> & Partial<MatrixProps>>,
-);
 
 /** The ink of the book: what its shading and its grain are drawn in. */
 const INK = '#30302B';
@@ -48,25 +31,72 @@ const INK = '#30302B';
 /**
  * The halo a raised leaf throws around its own edges.
  *
- * The design asks for a drop-shadow, which in SVG means a filter — an offscreen
- * pass and a blur, regenerated on every frame of a fold, which is the one thing
- * a turn cannot afford. So the blur is built instead out of three strokes of
- * the leaf's own outline, widest and faintest first. Each is centred on the
- * edge, so its inner half is covered by the leaf drawn over it and only the
- * outer half is seen; stacked, they step down from the edge the way a blur
- * does. Composited over one another the three reach 1-(1-a)³ ≈ 0.34 hard
- * against the edge, which is the shadow the design asks for.
+ * The design asks for a drop-shadow, which for a shape that changes every
+ * frame means an offscreen pass and a blur, regenerated on every frame of a
+ * fold — the one thing a turn cannot afford. So the blur is built instead out
+ * of three strokes of the leaf's own outline, widest and faintest first. Each
+ * is centred on the edge, so its inner half is covered by the leaf drawn over
+ * it and only the outer half is seen; stacked, they step down from the edge the
+ * way a blur does. Composited over one another the three reach 1-(1-a)³ ≈ 0.34
+ * hard against the edge, which is the shadow the design asks for.
  */
 const HALO = [1, 0.62, 0.3] as const;
 const HALO_ALPHA = 0.13;
 
-/** Fixed stops along the cast shadow's axis: see `paperFold.ts`. */
-const CAST_STOPS = [
-  { at: 0, opacity: 0 },
-  { at: (1 - CAST_FROM) / CAST_SPAN, opacity: 0.5 },
-  { at: (34 - CAST_FROM) / CAST_SPAN, opacity: 0.18 },
-  { at: 1, opacity: 0 },
-] as const;
+/** The shadow the raised leaf throws on the page below, out from the crease. */
+const CAST_STOPS: GradientStop[] = [
+  { offset: 0, color: '#000000', opacity: 0 },
+  { offset: (1 - CAST_FROM) / CAST_SPAN, color: '#000000', opacity: 0.5 * PAGE_FLIP.shadowStrength },
+  { offset: (34 - CAST_FROM) / CAST_SPAN, color: '#000000', opacity: 0.18 * PAGE_FLIP.shadowStrength },
+  { offset: 1, color: '#000000', opacity: 0 },
+];
+
+/** The shade along the spine, where a bound page curves away. */
+const SPINE_STOPS: GradientStop[] = [
+  { offset: 0, color: INK, opacity: 0.2 },
+  { offset: 0.45, color: INK, opacity: 0.06 },
+  { offset: 1, color: INK, opacity: 0 },
+];
+
+/**
+ * A clipper's side. A page is at most a few hundred points across; a square
+ * this large, laid with one edge on the crease, covers the whole of it from
+ * any angle with room to spare.
+ */
+function sizeFor(width: number, height: number) {
+  return 2 * (width + height);
+}
+
+/** Where the crease is, and everything the views need to know about it. */
+type Crease = {
+  on: number;
+  mx: number;
+  my: number;
+  th: number;
+  /** Nothing has folded: the sheet is lying flat across the whole page. */
+  flat: number;
+  /** Nothing of the folded half is on the page. */
+  gone: number;
+  cast: number;
+  halo: number;
+  land: string;
+};
+
+/** The crease with no fold: off the page to the right, so everything is flat. */
+function noCrease(width: number, on: number): Crease {
+  'worklet';
+  return {
+    on,
+    mx: width + 8,
+    my: 0,
+    th: 0,
+    flat: 1,
+    gone: 1,
+    cast: 0,
+    halo: 0,
+    land: 'M0 0Z',
+  };
+}
 
 type PaperFoldProps = {
   /** The page box, in points. The fold is measured in its coordinates. */
@@ -98,14 +128,34 @@ type PaperFoldProps = {
 /**
  * A sheet of paper, folded.
  *
- * `paperFold.ts` works out where the crease is and what falls either side of
- * it; this draws that, once per frame, on the UI thread. Nothing in here
- * re-renders during a turn — every moving part is an animated prop.
+ * `paperFold.ts` works out where the crease is; this draws what falls either
+ * side of it, on the UI thread, out of nothing but native views.
  *
- * Order matters, and it is the design's: the shadow the leaf throws on the page
- * below, then the sheet still lying flat, then the halo around the raised leaf,
- * then the folded half itself. The page underneath is not drawn here at all —
- * it is the live document view, showing through wherever this is transparent.
+ * ## Why views and not paths
+ *
+ * The obvious way to fold a picture is to clip it to a polygon — and on the
+ * web, where the design was drawn, that is what a fold is. Here it is not.
+ * A polygon clip is an SVG definition, and an SVG picture inside it is a second
+ * one, and neither of those reliably draws what it is asked to on both
+ * platforms. A leaf whose picture never appears is not a fold.
+ *
+ * A half-plane, though, is nothing special. It is a large rotated view with
+ * `overflow: hidden`, laid so that one edge runs along the crease; whatever is
+ * put inside it wears the inverse transform and so stays exactly where it was
+ * on the page while the view around it clips. The folded half is the same
+ * thing again under a reflection in the crease. Every piece of that is a
+ * translation, a rotation or one mirror — transforms a native view has drawn
+ * for as long as there have been native views — and the picture on the leaf is
+ * an ordinary `Image`.
+ *
+ * The shadows fall out of the same trick. A clipper's local x axis *is* the
+ * crease normal, so a shadow measured out from the crease is a plain
+ * left-to-right gradient inside one, with no transform of its own.
+ *
+ * Order is the design's: the shadow the leaf throws on the page below, then the
+ * sheet still lying flat, then the halo around the raised leaf, then the folded
+ * half itself. The page underneath is not drawn here at all — it is the live
+ * document view, showing through wherever this is transparent.
  */
 export const PaperFold = memo(function PaperFold({
   width,
@@ -114,196 +164,225 @@ export const PaperFold = memo(function PaperFold({
   leaf,
   wash,
 }: PaperFoldProps) {
-  // React's own ids carry characters a URL reference may not, and every one of
-  // these is referenced as `url(#…)`.
-  const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
-  const flatId = `pf-flat-${uid}`;
-  const landId = `pf-land-${uid}`;
-  const castId = `pf-cast-${uid}`;
-  const curlId = `pf-curl-${uid}`;
-  const spineId = `pf-spine-${uid}`;
-
   const { fx, fy, cy, live } = fold;
+  const size = sizeFor(width, height);
   const k = PAGE_FLIP.shadowStrength;
   const lit = PAGE_FLIP.curlHighlight;
   const spine = Math.min(PAGE_FLIP.spine, width);
 
-  /** The curl's stops, which are fractions of an axis the page's size sets. */
-  const curlStops = useMemo(() => {
-    const span = curlSpan(width, height) || 1;
-    const at = (points: number) => Math.min(1, (points - CURL_FROM) / span);
+  /** The curl on the folded half, measured out from the crease. */
+  const span = curlSpan(width, height);
+  const curlStops = useMemo<GradientStop[]>(() => {
+    const at = (points: number) => Math.min(1, (points - CURL_FROM) / (span || 1));
     return [
-      { at: 0, color: '#FFFFFF', opacity: 0 },
-      { at: at(1), color: '#FFFFFF', opacity: lit },
-      { at: at(14), color: '#FFFFFF', opacity: 0 },
-      { at: at(46), color: '#000000', opacity: 0.07 * k },
-      { at: at(170), color: '#000000', opacity: 0.19 * k },
-      { at: 1, color: '#000000', opacity: 0.28 * k },
+      { offset: 0, color: '#FFFFFF', opacity: 0 },
+      { offset: at(1), color: '#FFFFFF', opacity: lit },
+      { offset: at(14), color: '#FFFFFF', opacity: 0 },
+      { offset: at(46), color: '#000000', opacity: 0.07 * k },
+      { offset: at(170), color: '#000000', opacity: 0.19 * k },
+      { offset: 1, color: '#000000', opacity: 0.28 * k },
     ];
-  }, [height, k, lit, width]);
+  }, [k, lit, span]);
 
-  // One geometry pass per frame, read by everything below it.
-  const frame = useDerivedValue<FoldFrame>(
-    () => foldFrame(live.value ? width : 0, height, cy.value, fx.value, fy.value),
-    [width, height],
+  // One geometry pass per frame, read by every view below it.
+  const crease = useDerivedValue<Crease>(() => {
+    const on = live.value;
+    const c = on ? creaseOf(width, height, cy.value, fx.value, fy.value) : null;
+    if (!c) return noCrease(width, on);
+    const frame = foldFrame(width, height, cy.value, fx.value, fy.value);
+    return {
+      on,
+      mx: c.mx,
+      my: c.my,
+      th: c.th,
+      flat: 0,
+      gone: frame.gone ? 1 : 0,
+      cast: frame.castOpacity,
+      halo: frame.halo,
+      land: frame.land,
+    };
+  }, [width, height]);
+
+  // The sheet still lying flat: the half of the page against the normal.
+  const frontClip = useAnimatedStyle(() => {
+    const c = crease.value;
+    return { transform: clipperXf(c.mx, c.my, c.th, -1, size) as Xf };
+  });
+  const frontContent = useAnimatedStyle(() => {
+    const c = crease.value;
+    return { transform: contentXf(c.mx, c.my, c.th, -1, size) as Xf };
+  });
+
+  // What the raised leaf casts on the page below: the lifted half, shaded out
+  // from the crease. Its band needs no transform of its own — the clipper's
+  // local x is already distance from the crease.
+  const castClip = useAnimatedStyle(() => {
+    const c = crease.value;
+    return {
+      opacity: c.flat ? 0 : c.cast,
+      transform: clipperXf(c.mx, c.my, c.th, 1, size) as Xf,
+    };
+  });
+
+  // The folded half: the lifted half of the page, reflected in the crease. The
+  // reflection is outermost; inside it the clip and its contents are laid out
+  // as if the sheet had never folded, and the reflection carries them over.
+  const backReflect = useAnimatedStyle(() => {
+    const c = crease.value;
+    return {
+      opacity: c.flat || c.gone ? 0 : 1,
+      transform: reflectXf(c.mx, c.my, c.th) as Xf,
+    };
+  });
+  const flapClip = useAnimatedStyle(() => {
+    const c = crease.value;
+    return { transform: clipperXf(c.mx, c.my, c.th, 1, size) as Xf };
+  });
+  const flapContent = useAnimatedStyle(() => {
+    const c = crease.value;
+    return { transform: contentXf(c.mx, c.my, c.th, 1, size) as Xf };
+  });
+  const curlBand = useAnimatedStyle(() => {
+    const c = crease.value;
+    return { transform: bandXf(c.mx, c.my, c.th, CURL_FROM, size) as Xf };
+  });
+
+  // The halo is the one thing here that is a shape rather than a half-plane,
+  // so it is the one thing drawn as a path — a plain one, with no definition
+  // behind it, rendered from props once per frame.
+  const [halo, setHalo] = useState<{ d: string; r: number } | null>(null);
+  const pushHalo = useCallback((d: string, r: number, gone: number) => {
+    setHalo(gone ? null : { d, r });
+  }, []);
+  useAnimatedReaction(
+    () => {
+      const c = crease.value;
+      return { d: c.land, r: c.halo, gone: c.gone };
+    },
+    (now, before) => {
+      if (before && now.d === before.d && now.r === before.r && now.gone === before.gone) return;
+      runOnJS(pushHalo)(now.d, now.r, now.gone);
+    },
+    [pushHalo],
   );
 
-  const flatProps = useAnimatedProps(() => ({ d: frame.value.flat }));
-  const landProps = useAnimatedProps(() => ({ d: frame.value.land }));
+  const source = useMemo(() => (leaf ? { uri: leaf } : null), [leaf]);
+  const bare = source ? null : wash;
 
-  const castProps = useAnimatedProps(() => {
-    const a = frame.value.cast;
-    return { x1: a[0], y1: a[1], x2: a[2], y2: a[3] };
-  });
-  const castFade = useAnimatedProps(() => ({ opacity: frame.value.castOpacity }));
-
-  const curlProps = useAnimatedProps(() => {
-    const a = frame.value.curl;
-    return { x1: a[0], y1: a[1], x2: a[2], y2: a[3] };
-  });
-
-  const mirrorProps = useAnimatedProps<MatrixProps>(() => ({ matrix: frame.value.matrix }));
-
-  const halo0 = useAnimatedProps(() => ({
-    d: frame.value.land,
-    strokeWidth: 2 * frame.value.halo * HALO[0],
-  }));
-  const halo1 = useAnimatedProps(() => ({
-    d: frame.value.land,
-    strokeWidth: 2 * frame.value.halo * HALO[1],
-  }));
-  const halo2 = useAnimatedProps(() => ({
-    d: frame.value.land,
-    strokeWidth: 2 * frame.value.halo * HALO[2],
-  }));
-
-  const halos = [halo0, halo1, halo2];
-  const href = leaf ? { uri: leaf } : undefined;
-  const bare = href ? null : wash;
+  const clipper = useMemo(
+    () => [styles.clipper, { width: size, height: size }],
+    [size],
+  );
+  const page = useMemo(() => [styles.page, { width, height }], [height, width]);
 
   return (
     <View pointerEvents="none" style={[styles.box, { width, height }]}>
-      <Svg width={width} height={height} pointerEvents="none">
-        <Defs>
-          <ClipPath id={flatId}>
-            <AnimatedPath animatedProps={flatProps} />
-          </ClipPath>
-          <ClipPath id={landId}>
-            <AnimatedPath animatedProps={landProps} />
-          </ClipPath>
+      {/* 1. The shadow the raised leaf throws on the page showing through. */}
+      <Animated.View style={[clipper, castClip]}>
+        <View style={[styles.band, { left: CAST_FROM, width: CAST_SPAN, height: size }]}>
+          <LinearGradient stops={CAST_STOPS} angle={90} />
+        </View>
+      </Animated.View>
 
-          {/* The shadow the raised leaf throws on the page below: hard against
-              the crease, and gone a hundred points out from it. */}
-          <AnimatedLinearGradient
-            id={castId}
-            gradientUnits="userSpaceOnUse"
-            animatedProps={castProps}>
-            {CAST_STOPS.map((stop, index) => (
-              <Stop
-                key={index}
-                offset={stop.at}
-                stopColor="#000000"
-                stopOpacity={stop.opacity * k}
-              />
-            ))}
-          </AnimatedLinearGradient>
+      {/* 2. The sheet still lying flat. */}
+      <Animated.View style={[clipper, frontClip]}>
+        <Animated.View style={[page, frontContent]}>
+          <Face
+            width={width}
+            height={height}
+            source={source}
+            paper={PAGE_FLIP.paper}
+            wash={bare}
+            spine={spine}
+          />
+        </Animated.View>
+      </Animated.View>
 
-          {/* The curl on the folded half: a lit edge right at the crease, and
-              the paper falling into its own shade behind it. */}
-          <AnimatedLinearGradient
-            id={curlId}
-            gradientUnits="userSpaceOnUse"
-            animatedProps={curlProps}>
-            {curlStops.map((stop, index) => (
-              <Stop
-                key={index}
-                offset={stop.at}
-                stopColor={stop.color}
-                stopOpacity={stop.opacity}
-              />
-            ))}
-          </AnimatedLinearGradient>
+      {/* 3. The halo, over the flat sheet and under the leaf that throws it. */}
+      {halo ? (
+        <Svg width={width} height={height} style={StyleSheet.absoluteFill} pointerEvents="none">
+          {HALO.map((share, index) => (
+            <Path
+              key={index}
+              d={halo.d}
+              fill="none"
+              stroke="#000000"
+              strokeOpacity={HALO_ALPHA * k}
+              strokeWidth={2 * halo.r * share}
+              strokeLinejoin="round"
+            />
+          ))}
+        </Svg>
+      ) : null}
 
-          {/* The shade along the spine, where a bound page curves away. */}
-          <LinearGradient
-            id={spineId}
-            gradientUnits="userSpaceOnUse"
-            x1={0}
-            y1={0}
-            x2={spine}
-            y2={0}>
-            <Stop offset={0} stopColor={INK} stopOpacity={0.2} />
-            <Stop offset={0.45} stopColor={INK} stopOpacity={0.06} />
-            <Stop offset={1} stopColor={INK} stopOpacity={0} />
-          </LinearGradient>
-        </Defs>
-
-        {/* 1. What the raised leaf casts on the page showing through beneath.
-               The design clips this to the lifted half; there is no need to,
-               because the sheet still lying flat is drawn opaque over the
-               rest of it in the very next layer. */}
-        <AnimatedRect
-          width={width}
-          height={height}
-          fill={`url(#${castId})`}
-          animatedProps={castFade}
-        />
-
-        {/* 2. The sheet still lying flat: clipped to the part that has not
-               folded, which at rest is the whole page. */}
-        <G clipPath={`url(#${flatId})`}>
-          <Rect width={width} height={height} fill={PAGE_FLIP.paper} />
-          {href ? (
-            <SvgImage
-              href={href}
-              x={0}
-              y={0}
+      {/* 4. The folded half of the same sheet, mirrored across the crease.
+             The page's own box clips it to where it lands: a bound leaf
+             cannot fold past its own binding. */}
+      <Animated.View style={[page, backReflect]}>
+        <Animated.View style={[clipper, flapClip]}>
+          <Animated.View style={[page, styles.clipped, flapContent]}>
+            <Face
               width={width}
               height={height}
-              preserveAspectRatio="none"
+              source={source}
+              paper={PAGE_FLIP.paperBack}
+              wash={bare}
+              spine={spine}
+              inkOpacity={0.9}
             />
-          ) : null}
-          {bare ? <Rect width={width} height={height} fill={bare} /> : null}
-          <Rect width={spine} height={height} fill={`url(#${spineId})`} />
-        </G>
+            {/* The curl: a lit edge right at the crease, and the paper
+                falling into its own shade behind it. In the page's own
+                coordinates, so the reflection carries it over with the
+                rest of the sheet. */}
+            <Animated.View style={[styles.band, { width: span, height: size }, curlBand]}>
+              <LinearGradient stops={curlStops} angle={90} />
+            </Animated.View>
+          </Animated.View>
+        </Animated.View>
+      </Animated.View>
+    </View>
+  );
+});
 
-        {/* 3. The halo, over the flat sheet and under the leaf that throws it. */}
-        {halos.map((props, index) => (
-          <AnimatedPath
-            key={index}
-            animatedProps={props}
-            fill="none"
-            stroke="#000000"
-            strokeOpacity={HALO_ALPHA * k}
-            strokeLinejoin="round"
-          />
-        ))}
-
-        {/* 4. The folded half of the same sheet, mirrored across the crease and
-               trimmed to where it lands — a bound leaf cannot fold past its own
-               binding. The clip is in the page's coordinates, outside the
-               reflection; the paper inside it is drawn as if it had never
-               folded, and the reflection carries it over. */}
-        <G clipPath={`url(#${landId})`}>
-          <AnimatedG animatedProps={mirrorProps}>
-            <Rect width={width} height={height} fill={PAGE_FLIP.paperBack} />
-            {href ? (
-              <SvgImage
-                href={href}
-                x={0}
-                y={0}
-                width={width}
-                height={height}
-                opacity={0.9}
-                preserveAspectRatio="none"
-              />
-            ) : null}
-            {bare ? <Rect width={width} height={height} fill={bare} opacity={0.9} /> : null}
-            <Rect width={spine} height={height} fill={`url(#${spineId})`} />
-            <Rect width={width} height={height} fill={`url(#${curlId})`} />
-          </AnimatedG>
-        </G>
-      </Svg>
+/**
+ * One face of the leaf: paper, the page printed on it, and the shade along the
+ * spine. Memoised on exactly what it is made of, so that nothing in it — least
+ * of all the picture — is touched while the fold around it moves.
+ */
+const Face = memo(function Face({
+  width,
+  height,
+  source,
+  paper,
+  wash,
+  spine,
+  inkOpacity = 1,
+}: {
+  width: number;
+  height: number;
+  source: { uri: string } | null;
+  paper: string;
+  wash: string | null | undefined;
+  spine: number;
+  /** The back of the sheet shows its print a shade fainter. */
+  inkOpacity?: number;
+}) {
+  return (
+    <View style={[styles.face, { width, height, backgroundColor: paper }]}>
+      {source ? (
+        <Image
+          source={source}
+          resizeMode="stretch"
+          fadeDuration={0}
+          style={[StyleSheet.absoluteFill, { opacity: inkOpacity }]}
+        />
+      ) : null}
+      {wash ? (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: wash, opacity: inkOpacity }]} />
+      ) : null}
+      <View style={[styles.spine, { width: spine }]}>
+        <LinearGradient stops={SPINE_STOPS} angle={90} />
+      </View>
     </View>
   );
 });
@@ -375,10 +454,48 @@ export const PaperGrain = memo(function PaperGrain({
 });
 
 const styles = StyleSheet.create({
-  /** Laid exactly over the page box it is a fold of. */
+  /** Laid exactly over the page box it is a fold of, and clipping to it. */
   box: {
     position: 'absolute',
     left: 0,
     top: 0,
+    overflow: 'hidden',
+  },
+  /**
+   * One side of the crease. Every transform in this file assumes the origin
+   * is the top-left corner, so that they compose the way the maths does.
+   */
+  clipper: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    overflow: 'hidden',
+    transformOrigin: 'top left',
+  },
+  /** A page-sized layer inside a clipper, wearing the inverse transform. */
+  page: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    transformOrigin: 'top left',
+  },
+  clipped: {
+    overflow: 'hidden',
+  },
+  /** A band of shading, along a clipper's own x axis or laid on the crease. */
+  band: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    transformOrigin: 'top left',
+  },
+  face: {
+    overflow: 'hidden',
+  },
+  spine: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
   },
 });

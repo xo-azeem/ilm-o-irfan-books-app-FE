@@ -114,6 +114,8 @@ type Turn = {
   from: number;
   /** The page a turn carried through lands on. */
   dest: number;
+  /** The page printed on the leaf: the one being left, or the one returned to. */
+  leaf: number;
   /**
    * The page the document view is asked to show for the length of the turn.
    *
@@ -258,7 +260,19 @@ export const BookPageFlip = memo(
 
     /** What a picture of the page is taken of: the document view and its tone. */
     const shotRef = useRef<View>(null);
-    const capture = usePageCapture(shotRef);
+
+    /**
+     * A picture has arrived. If it is of the leaf of a fold already in flight —
+     * the reader touched the page and pulled before the shutter had closed —
+     * it goes onto that leaf now, over the blank paper that stood in for it.
+     */
+    const handleShot = useCallback((page: number, uri: string) => {
+      const turn = turnRef.current;
+      if (!turn || turn.leaf !== page) return;
+      setFold(current => (current && current.leaf !== uri ? { ...current, leaf: uri } : current));
+    }, []);
+
+    const capture = usePageCapture(shotRef, handleShot);
 
     const onStageLayout = useCallback((event: LayoutChangeEvent) => {
       const { width, height } = event.nativeEvent.layout;
@@ -277,9 +291,19 @@ export const BookPageFlip = memo(
       handlers.current.onSingleTap?.();
     }, []);
 
-    const handleFirstTouch = useCallback(() => {
+    /**
+     * A finger has landed on the page.
+     *
+     * This is when the page's picture is taken: the reader is looking at it,
+     * so it has certainly been drawn, and the fold that may follow is still a
+     * few points of travel away. A picture taken on a timer after the page
+     * settled can catch the page half-rendered, or be cancelled by the very
+     * drag that needs it; this one is of exactly what the reader can see.
+     */
+    const handleTouch = useCallback(() => {
       handlers.current.onFirstTouch?.();
-    }, []);
+      if (!turnRef.current) capture.refresh(pageRef.current);
+    }, [capture]);
 
     /** Moves the document view. Nothing here animates; the stage does that. */
     const applyPage = useCallback((target: number) => {
@@ -380,7 +404,7 @@ export const BookPageFlip = memo(
 
         const forward = dest > from;
         const leafPage = forward ? from : dest;
-        turnRef.current = { from, dest, under: forward ? dest : from };
+        turnRef.current = { from, dest, leaf: leafPage, under: forward ? dest : from };
 
         capture.hold();
         foldToken.current += 1;
@@ -440,7 +464,7 @@ export const BookPageFlip = memo(
       onBegin: handleFoldBegin,
       onEnd: handleFoldEnd,
       onTap: handleSingleTap,
-      onFirstTouch: handleFirstTouch,
+      onTouch: handleTouch,
     });
 
     const {

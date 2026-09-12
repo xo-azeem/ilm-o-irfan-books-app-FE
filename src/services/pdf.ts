@@ -191,6 +191,14 @@ async function downloadToPath(url: string, target: string, options: DownloadOpti
 
     const status = Number(response.info?.()?.status ?? 200);
     if (status >= 400) {
+      if (__DEV__) {
+        // The error body landed in the temp file. Small, and worth reading in
+        // development: Storage says *why* in it, and the status alone does not.
+        const body = await ReactNativeBlobUtil.fs
+          .readFile(temporary, 'utf8')
+          .catch(() => '');
+        console.warn(`[pdf] download ${status} for ${url.split('?')[0]}: ${String(body).slice(0, 300)}`);
+      }
       throw statusError(status);
     }
 

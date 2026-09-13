@@ -1,3 +1,4 @@
+import { queryClient } from '@/lib/queryClient';
 import { ApiError } from '@/services/api/client';
 import type { ReadingProgressRow } from '@/services/api/types';
 import {
@@ -34,6 +35,14 @@ import { keyValueStore } from '@/stores/storage';
  * Nothing here is async on the read side. The write side is fire-and-forget:
  * a failed push leaves the position pending for the next flush, which runs on
  * every foreground and every sign-in.
+ *
+ * The shelves are a separate concern: "Continue reading" is built from
+ * `library-overview`, which is a React Query cache, not this store. A book
+ * opened for the first time is not on that shelf until the server has the
+ * row *and* the query has been re-read — so a flush that pushed anything
+ * invalidates the library query on its way out. Without that, a reader who
+ * starts a book and backs out to Home sees the shelf as it was before they
+ * opened it, until the app is next foregrounded.
  */
 
 export type { ReadingPosition };
@@ -278,6 +287,9 @@ const inflight = new Map<string, Promise<void>>();
  * never take it, and retrying cannot change that — and kept on anything else
  * (network, 5xx, a session that has just expired), and the loop stops there
  * rather than fail the same way for every book in turn.
+ *
+ * When at least one position reached the server, the library query is
+ * invalidated so the Continue reading shelf picks up the new or moved row.
  */
 export function flushPositions(userId: string): Promise<void> {
   const running = inflight.get(userId);
@@ -293,37 +305,56 @@ export function flushPositions(userId: string): Promise<void> {
 
 async function flush(userId: string) {
   const ids = pendingIds(userId).slice(0, FLUSH_BATCH);
-  for (const bookId of ids) {
-    const position = getPosition(userId, bookId);
-    if (!position || !position.pending) {
-      markPending(userId, bookId, false);
-      continue;
-    }
-
-    try {
-      const row = await saveReadingProgress(
-        bookId,
-        position.page,
-        position.totalPages,
-        position.updatedAt,
-      );
-      // The server answers with the row that won. When ours was applied its
-      // `last_read_at` is our own stamp and the merge clears the pending flag;
-      // when it was not, the row is newer and replaces ours outright.
-      acceptRow(userId, row);
-      // A position turned in the moment between the send and the answer is
-      // still pending and still newer than the row, so `acceptRow` left it —
-      // only an unchanged one is marked as sent.
-      const after = getPosition(userId, bookId);
-      if (after && after.updatedAt === position.updatedAt) {
-        writePosition(userId, { ...after, pending: false });
-      }
-    } catch (error) {
-      if (dropOnFlushError(error instanceof ApiError ? error.status : 0)) {
+  let pushed = 0;
+  try {
+    for (const bookId of ids) {
+      const position = getPosition(userId, bookId);
+      if (!position || !position.pending) {
         markPending(userId, bookId, false);
         continue;
       }
-      return;
+
+      try {
+        const row = await saveReadingProgress(
+          bookId,
+          position.page,
+          position.totalPages,
+          position.updatedAt,
+        );
+        pushed += 1;
+        // The server answers with the row that won. When ours was applied its
+        // `last_read_at` is our own stamp and the merge clears the pending flag;
+        // when it was not, the row is newer and replaces ours outright.
+        acceptRow(userId, row);
+        // A position turned in the moment between the send and the answer is
+        // still pending and still newer than the row, so `acceptRow` left it —
+        // only an unchanged one is marked as sent.
+        const after = getPosition(userId, bookId);
+        if (after && after.updatedAt === position.updatedAt) {
+          writePosition(userId, { ...after, pending: false });
+        }
+      } catch (error) {
+        const status = error instanceof ApiError ? error.status : 0;
+        if (dropOnFlushError(status)) {
+          // Dropped for good, so say so: a shelf that never shows a book is
+          // otherwise indistinguishable from one that has not refreshed yet.
+          if (__DEV__) {
+            console.warn(
+              `[reading-progress] server refused page ${position.page} of ${bookId} (${status}); position dropped`,
+              error,
+            );
+          }
+          markPending(userId, bookId, false);
+          continue;
+        }
+        return;
+      }
+    }
+  } finally {
+    if (pushed > 0) {
+      // Home stays mounted under the reader, so its library query is active
+      // and refetches at once; anything else is stale for its next mount.
+      void queryClient.invalidateQueries({ queryKey: ['library', userId] });
     }
   }
 }

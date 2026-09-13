@@ -1,4 +1,8 @@
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useQuery,
+} from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
 import {
@@ -91,6 +95,12 @@ export function useCategories() {
  * the ones already on screen. `hasNextPage` comes from the backend's envelope,
  * which is what lets the list ask for page N+1 before the reader reaches the
  * bottom of page N instead of guessing from a short page.
+ *
+ * A new key does not empty the list: the previous term's pages are held as
+ * placeholder data until the first page of the new one lands, so typing narrows
+ * the results in place rather than flashing a skeleton between every word.
+ * Callers read `isPlaceholderData` to tell the two apart — and must not page
+ * placeholder data, since its `hasNextPage` describes a different query.
  */
 export function useCatalogFeed(query: string, filters: CatalogFilters) {
   const debounced = useDebounced(query);
@@ -102,6 +112,7 @@ export function useCatalogFeed(query: string, filters: CatalogFilters) {
     queryFn: ({ pageParam, signal }) =>
       browseCatalog({ ...filters, query: term, page: pageParam, signal }),
     getNextPageParam: page => (page.hasNextPage ? page.page + 1 : undefined),
+    placeholderData: keepPreviousData,
     staleTime: 60_000,
   });
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -64,6 +64,29 @@ function toSummary(book: CatalogBook, inLibrary = false): BookSummary {
 }
 
 const MAX_SUGGESTIONS = 3;
+
+/** Module-level so the list is not handed a new function every render. */
+const keyExtractor = (item: BookSummary) => item.id;
+
+/**
+ * One row's adapted summary, remembered against the catalogue row it came
+ * from. `BookListRow` is memoised on its `book` prop, so the same catalogue row
+ * must map to the same summary object across renders or every keystroke would
+ * re-render every mounted row. React Query keeps the row references stable
+ * between refetches (structural sharing), which is what makes this cache hit.
+ */
+type SummaryEntry = {
+  source: CatalogBook;
+  inLibrary: boolean;
+  summary: BookSummary;
+};
+
+/** A book's title and author lower-cased once, for the suggestion scan. */
+type SuggestionIndexEntry = {
+  book: CatalogBook;
+  title: string;
+  author: string;
+};
 
 /** The space between the header's rows. */
 const HEADER_GAP = 20;
@@ -148,6 +171,7 @@ export function SearchScreen() {
   const {
     data,
     isPending,
+    isPlaceholderData,
     isFetchingNextPage,
     isRefetching,
     hasNextPage,
@@ -176,11 +200,15 @@ export function SearchScreen() {
   const shownCount =
     countIsLocal || totalCount == null ? filtered.length : totalCount;
 
+  // `onEndReached` fires repeatedly through a momentum scroll. `cancelRefetch:
+  // false` makes a second call while a page is in flight join that request
+  // rather than abort and restart it — the default would. Placeholder data is
+  // never paged: its `hasNextPage` belongs to the previous query.
   const loadMore = useCallback(() => {
-    if (hasNextPage && !isFetchingNextPage) {
-      void fetchNextPage();
+    if (hasNextPage && !isFetchingNextPage && !isPlaceholderData) {
+      void fetchNextPage({ cancelRefetch: false });
     }
-  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage, isPlaceholderData]);
 
   // A page the downloaded filter emptied is not the end of the catalogue, so
   // keep pulling until there is a screenful to show or there are no pages left.
@@ -195,40 +223,64 @@ export function SearchScreen() {
   const searching = focused || query.trim().length > 0;
   const browsing = !searching && activeCount === 0;
 
+  // Lower-cased once per page load, not once per book per keystroke.
+  const suggestionIndex = useMemo<SuggestionIndexEntry[]>(
+    () =>
+      books.map(book => ({
+        book,
+        title: book.title.toLowerCase(),
+        author: book.author?.toLowerCase() ?? '',
+      })),
+    [books],
+  );
+
   const suggestions = useMemo<Suggestion[]>(() => {
     const term = query.trim().toLowerCase();
     if (term.length < 2) {
       return [];
     }
 
-    const titles = books
-      .filter(book => book.title.toLowerCase().includes(term))
-      .slice(0, MAX_SUGGESTIONS)
-      .map<Suggestion>(book => ({ kind: 'query', value: book.title }));
+    const titles: Suggestion[] = [];
+    for (const entry of suggestionIndex) {
+      if (titles.length === MAX_SUGGESTIONS) {
+        break;
+      }
+      if (entry.title.includes(term)) {
+        titles.push({ kind: 'query', value: entry.book.title });
+      }
+    }
 
     // One author match, so the reader can jump to a body of work rather than a
     // single title. De-duplicated against the title suggestions above.
-    const author = books.find(book =>
-      book.author?.toLowerCase().includes(term),
-    );
+    const author = suggestionIndex.find(
+      entry => entry.author && entry.author.includes(term),
+    )?.book.author;
 
     return author
       ? [
           ...titles.slice(0, MAX_SUGGESTIONS - 1),
-          { kind: 'author', value: author.author },
+          { kind: 'author', value: author },
         ]
       : titles;
-  }, [books, query]);
+  }, [suggestionIndex, query]);
+
+  // Read through a ref so `openBook` — and with it every row's `onPress` — does
+  // not change identity on each keystroke.
+  const queryRef = useRef(query);
+  queryRef.current = query;
 
   const openBook = useCallback(
     (book: { id: string }) => {
-      if (query.trim()) {
-        remember(query.trim());
+      const term = queryRef.current.trim();
+      if (term) {
+        remember(term);
       }
       navigation.navigate(ROUTES.BOOK_DETAIL, { bookId: book.id });
     },
-    [navigation, query, remember],
+    [navigation, remember],
   );
+
+  const handleRefresh = useCallback(() => void refetch(), [refetch]);
 
   const cancelSearch = useCallback(() => {
     setQuery('');
@@ -255,14 +307,33 @@ export function SearchScreen() {
     [categories],
   );
 
+  // The rows the list draws, adapted once each. A summary is rebuilt only when
+  // its catalogue row or library flag changes, so a keystroke, a new page or a
+  // focus change leaves the mounted rows' props identical and `BookListRow`'s
+  // memo holds.
+  const summaryCache = useRef(new Map<string, SummaryEntry>());
+  const rows = useMemo(() => {
+    const previous = summaryCache.current;
+    const next = new Map<string, SummaryEntry>();
+    const summaries = filtered.map(book => {
+      const inLibrary = libraryIds.has(book.id);
+      const hit = previous.get(book.id);
+      const entry =
+        hit && hit.source === book && hit.inLibrary === inLibrary
+          ? hit
+          : { source: book, inLibrary, summary: toSummary(book, inLibrary) };
+      next.set(book.id, entry);
+      return entry.summary;
+    });
+    summaryCache.current = next;
+    return summaries;
+  }, [filtered, libraryIds]);
+
   const renderItem = useCallback(
-    ({ item }: { item: CatalogBook }) => (
-      <BookListRow
-        book={toSummary(item, libraryIds.has(item.id))}
-        onPress={openBook}
-      />
+    ({ item }: { item: BookSummary }) => (
+      <BookListRow book={item} onPress={openBook} />
     ),
-    [libraryIds, openBook],
+    [openBook],
   );
 
   /**
@@ -358,7 +429,12 @@ export function SearchScreen() {
         <CarouselMarquee slides={carousel} onPress={openSlide} />
       ) : null}
 
-      <Label>All books</Label>
+      <View style={styles.labelRow}>
+        <Label>All books</Label>
+        {isPlaceholderData ? (
+          <ActivityIndicator size="small" color={colors.primary} />
+        ) : null}
+      </View>
 
       {isPending && books.length === 0 ? <ListSkeleton count={4} /> : null}
     </View>
@@ -395,14 +471,14 @@ export function SearchScreen() {
     <>
       <Screen scrollable={false} padding={0}>
         <FlatList
-          data={filtered}
-          keyExtractor={item => item.id}
+          data={rows}
+          keyExtractor={keyExtractor}
           renderItem={renderItem}
           ItemSeparatorComponent={ListGap}
           ListHeaderComponent={header}
           ListFooterComponent={footer}
           ListEmptyComponent={
-            isPending || isFetchingNextPage ? null : (
+            isPending || isPlaceholderData || isFetchingNextPage ? null : (
               <Text
                 size={fontSize.bodySmall}
                 leading={1.6}
@@ -416,8 +492,10 @@ export function SearchScreen() {
               </Text>
             )
           }
-          refreshing={isRefetching}
-          onRefresh={() => void refetch()}
+          // A new term's fetch also counts as a refetch while the old pages
+          // stand in for it; that one is shown beside the label, not as a pull.
+          refreshing={isRefetching && !isPlaceholderData}
+          onRefresh={handleRefresh}
           // Well before the last row, so the next page lands under the reader
           // rather than after they hit the bottom and wait for it.
           onEndReachedThreshold={0.8}
@@ -426,6 +504,8 @@ export function SearchScreen() {
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
           initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          updateCellsBatchingPeriod={50}
           windowSize={9}
           style={styles.grow}
           contentContainerStyle={styles.list}
@@ -533,6 +613,11 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: 12,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   gap: {
     height: 14,

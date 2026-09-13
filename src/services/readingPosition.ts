@@ -20,8 +20,10 @@ import { keyValueStore } from '@/stores/storage';
  * neither should fail offline. So every position is mirrored in MMKV, keyed
  * by user and book, and read synchronously:
  *
- *   · a page turn is written here first (`recordPosition`), stamped with the
- *     moment it happened, and marked pending;
+ *   · a page turn is written here first (`recordPosition`), synchronously,
+ *     stamped with the moment it happened, and marked pending — so the page
+ *     is on disk before the turn has finished animating, and killing the app
+ *     the instant after still reopens the book there;
  *   · pending positions are pushed to `reading-progress` by `flushPositions`
  *     with that stamp as `client_updated_at`, so a queue drained hours later —
  *     in any order — cannot move the reader backwards;
@@ -77,6 +79,25 @@ function notify() {
   listeners.forEach(listener => listener());
 }
 
+/**
+ * How long a run of page turns is left to finish before the shelves hear
+ * about it. The write itself is never delayed — only the re-render of every
+ * shelf caption under the reader, which nobody can see while the book is open.
+ */
+const NOTIFY_COALESCE_MS = 400;
+let notifyTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Like `notify`, but a burst of calls collapses into one, at the end of the burst. */
+function notifySoon() {
+  if (notifyTimer) {
+    clearTimeout(notifyTimer);
+  }
+  notifyTimer = setTimeout(() => {
+    notifyTimer = null;
+    notify();
+  }, NOTIFY_COALESCE_MS);
+}
+
 export function subscribeToPositions(listener: Listener): () => void {
   listeners.add(listener);
   return () => {
@@ -101,11 +122,26 @@ export function getPosition(
   return position && position.page > 0 ? position : null;
 }
 
+/**
+ * The pending queue, mirrored in memory so the hot path — a page turn —
+ * never has to read and parse it from disk to learn what it already knows.
+ * Disk is still the source of truth across launches; this is only a cache
+ * of it, filled on first touch per user.
+ */
+const pendingCache = new Map<string, string[]>();
+
 function pendingIds(userId: string): string[] {
-  return readJson<string[]>(pendingKey(userId)) ?? [];
+  const cached = pendingCache.get(userId);
+  if (cached) {
+    return cached;
+  }
+  const ids = readJson<string[]>(pendingKey(userId)) ?? [];
+  pendingCache.set(userId, ids);
+  return ids;
 }
 
 function setPendingIds(userId: string, ids: string[]) {
+  pendingCache.set(userId, ids);
   if (ids.length === 0) {
     store.remove(pendingKey(userId));
   } else {
@@ -126,10 +162,18 @@ function markPending(userId: string, bookId: string, pending: boolean) {
   }
 }
 
-function writePosition(userId: string, position: ReadingPosition) {
+function writePosition(
+  userId: string,
+  position: ReadingPosition,
+  { coalesce = false }: { coalesce?: boolean } = {},
+) {
   store.set(positionKey(userId, position.bookId), JSON.stringify(position));
   markPending(userId, position.bookId, position.pending);
-  notify();
+  if (coalesce) {
+    notifySoon();
+  } else {
+    notify();
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -138,6 +182,13 @@ function writePosition(userId: string, position: ReadingPosition) {
 
 /**
  * The reader turned to a page. Written to disk now, sent later.
+ *
+ * This is the hot path: it runs on every turn, and a reader flicking through
+ * a book runs it several times a second. So it is one synchronous MMKV write
+ * and nothing else — the pending queue is answered from memory, and the
+ * shelves are told once the run of turns is over rather than on each one.
+ * The position is durable the moment this returns; closing or killing the
+ * app on the very next frame reopens the book on this page.
  *
  * The stamp is taken here — the moment of the turn — not when the request
  * goes out, because that is the instant the server compares against.
@@ -155,7 +206,7 @@ export function recordPosition(
     updatedAt: new Date().toISOString(),
     pending: true,
   };
-  writePosition(userId, position);
+  writePosition(userId, position, { coalesce: true });
   return position;
 }
 

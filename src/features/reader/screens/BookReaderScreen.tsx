@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
@@ -19,9 +19,15 @@ import { ReaderLocked } from '@/features/reader/components/ReaderLocked';
 import { ReaderSettingsSheet } from '@/features/reader/components/ReaderSettingsSheet';
 import { ReaderStageSkeleton } from '@/features/reader/components/ReaderStageSkeleton';
 import { MAX_SCALE, MIN_SCALE, SCALE_STEP } from '@/features/reader/constants';
-import { useBookmarkToggle, useHighlights } from '@/hooks/useAccount';
+import {
+  useBookmarkToggle,
+  useHighlights,
+  useRemoveDownload,
+} from '@/hooks/useAccount';
 import { useBook } from '@/hooks/useCatalog';
-import { downloadPdf, resolvePdfSource } from '@/services/pdf';
+import { keepBook, openBook, releaseBook } from '@/services/bookVault';
+import { useBookKept } from '@/hooks/useBookVault';
+import { isAbortError } from '@/services/pdf';
 import {
   flushPositions,
   getPosition,
@@ -34,28 +40,45 @@ import { reasonCopy } from '@/services/entitlements';
 import { useAccessStore } from '@/stores/accessStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useThemeStore } from '@/stores/themeStore';
+import { useKeepScreenAwake } from '@/features/reader/useKeepScreenAwake';
 import { useReaderSurface } from '@/features/reader/useReaderSurface';
 
 /** How close two reported taps have to be before the second is a duplicate. */
 const TOGGLE_GUARD_MS = 220;
 
 /**
- * How long the reader has to stay on a page before it counts as *their* page.
+ * How long a run of page turns is left to end before the server is told.
  *
- * Not every page in view is the one the reader is on. Flicking back three
- * leaves to find a name and closing the book should not reopen it three
- * leaves back; neither should a glance at the last page to see how long the
- * book is mark it finished. So a page only becomes the saved position once
- * the reader has settled on it — and a page arrived at by a jump (go-to, or a
- * run of turns) has to earn it for longer than the next page over, because a
- * single turn is almost always reading and a jump is almost always looking.
- *
- * The page on screen and the progress rule follow every turn instantly; only
- * what is *remembered* waits. Closing the book mid-wait remembers nothing
- * new, which is exactly the point.
+ * Every turn is remembered on the device the instant it happens — a single
+ * synchronous write, see `recordPosition` — so the page on screen is always
+ * the page the book will reopen on, however fast the reader is turning and
+ * however abruptly the app is closed. Only the *network* waits: a reader
+ * flicking through ten pages should cost one request, not ten, so the push
+ * is held until the turning stops. Closing the book sooner than that does
+ * not lose anything — the position is already pending on disk, and it goes
+ * up on unmount, on the next background, and on the next launch.
  */
-const SETTLE_TURN_MS = 2500;
-const SETTLE_JUMP_MS = 8000;
+const PUSH_DEBOUNCE_MS = 1500;
+
+/**
+ * The loader's budget.
+ *
+ * Two things happen before a page is on screen: the file arrives (a stream
+ * from the network, or an unseal from the vault), and then Pdfium parses it.
+ * The first reports real progress; the second reports nothing for a local
+ * file until it is done. Giving the transfer the whole ring meant a book
+ * from the vault read "100%" for the seconds the parser was still working,
+ * and a download whose size the server withheld sat on "0%" until it landed.
+ *
+ * So the transfer owns the ring up to `TRANSFER_SHARE`, and from there the
+ * ring eases towards 99 on a clock — closing a fixed fraction of the gap
+ * each tick, so it visibly keeps moving and never quite arrives — until the
+ * document says it is up, which is the only thing that draws 100.
+ */
+const TRANSFER_SHARE = 88;
+const RENDER_CEILING = 99;
+const RENDER_TICK_MS = 100;
+const RENDER_EASE = 0.06;
 
 type BookReaderRouteProp = RouteProp<RootStackParamList, 'BookReader'>;
 type BookReaderNavigationProp = NativeStackNavigationProp<
@@ -162,6 +185,12 @@ function BookReader() {
   const [sourceError, setSourceError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
+  /** 0–100 while a download is running, for the tile; null otherwise. */
+  const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
+  // Whether this book is kept offline — live, so the tile flips as it lands.
+  const isKept = useBookKept(bookId);
+  const removeDownload = useRemoveDownload();
+  const bookTitle = book?.title?.trim() || 'Book';
   // The zoom the reader asked for. The document view follows it, never the
   // other way round, so the controls can never end up describing a zoom that
   // is not the one on screen.
@@ -208,6 +237,8 @@ function BookReader() {
   const setPageTone = useThemeStore(state => state.setPageTone);
   const readingMode = useThemeStore(state => state.readingMode);
   const setReadingMode = useThemeStore(state => state.setReadingMode);
+  // The screen stays lit while a book is open, if the reader has asked for it.
+  useKeepScreenAwake();
   /** Set once a download completes, so the error state can offer it. */
   const downloadedUri = useRef<string | null>(null);
   const { canOpenBooks, isAuthenticated, isSubscriptionLoading, reason } =
@@ -224,19 +255,23 @@ function BookReader() {
    * only ever a mirror of what the server last said, and it can be behind.
    */
   const [refused, setRefused] = useState(false);
-  // Only the stable `mutate` is kept: the mutation object itself is new on
-  // every render, and anything keyed on it would be rebuilt on every render.
-  const { mutate: toggleBookmark } = useBookmarkToggle(bookId);
+  // Only the stable `mutate` and the `isPending` flag are kept: the mutation
+  // object itself is new on every render, and anything keyed on it would be
+  // rebuilt on every render.
+  const { mutate: toggleBookmark, isPending: bookmarkPending } =
+    useBookmarkToggle(bookId);
   // `highlights-list` filters to this book server-side, and starts from the
   // on-disk mirror so the button knows the page's state on the first frame.
   const { data: highlights } = useHighlights(bookId);
   const lastToggle = useRef(0);
-  /** The wait for the page in view to become the page remembered. */
-  const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /** The last page that was remembered, so the next can tell a turn from a jump. */
-  const settledPage = useRef(startPage);
+  /** The wait for a run of turns to end before the page is pushed. */
+  const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** True once the document has loaded, so a late server position jumps rather than seeds. */
   const documentReady = useRef(false);
+  /** True while the document view is mounted, so a re-seed knows it would remount. */
+  const stageMounted = useRef(false);
+  /** A server position that landed mid-parse, to turn to once the document is up. */
+  const pendingJump = useRef<number | null>(null);
   /** `page`, readable from an effect without being a dependency of it. */
   const pageRef = useRef(startPage);
   const flipRef = useRef<BookPageFlipHandle>(null);
@@ -263,10 +298,10 @@ function BookReader() {
     setRefused(false);
     setErrorMessage(null);
     documentReady.current = false;
+    pendingJump.current = null;
     const cached =
       (userId ? getPosition(userId, bookId)?.page : undefined) ?? 1;
     pageRef.current = cached;
-    settledPage.current = cached;
     setStartPage(cached);
     setPage(cached);
     setTotalPages(0);
@@ -275,24 +310,30 @@ function BookReader() {
     setLoaderVisible(true);
     setHasError(false);
     setControlScale(MIN_SCALE);
-    void resolvePdfSource(bookId, {
+    // The vault answers first when it can — an unseal into the cache, with no
+    // network — and streams the book down otherwise. Either way the progress
+    // drives the same bar, so the reader sees one thing happening.
+    void openBook(bookId, {
       signal: abort.signal,
       onProgress: ({ percent }) => {
         if (active) {
-          setLoadProgress(prev =>
-            prev != null && percent < prev ? prev : percent,
-          );
+          // The transfer's share of the ring, and never backwards: a retry
+          // that restarts its count should not be seen to.
+          const scaled = (percent / 100) * TRANSFER_SHARE;
+          setLoadProgress(prev => (scaled < prev ? prev : scaled));
         }
       },
     })
-      .then(source => {
+      .then(({ uri }) => {
         if (active) {
           hasOpened.current = true;
-          setPdfSource(source);
+          // The file is whole; the rest of the ring is the parser's.
+          setLoadProgress(prev => Math.max(prev, TRANSFER_SHARE));
+          setPdfSource({ uri });
         }
       })
       .catch((error: PdfError) => {
-        if (!active || error?.name === 'AbortError') {
+        if (!active || isAbortError(error)) {
           return;
         }
         setIsLoading(false);
@@ -327,6 +368,25 @@ function BookReader() {
   ]);
 
   /**
+   * Closing the book deletes its plaintext from the cache. Only on the way
+   * out — a retry or a membership change re-runs the source effect above
+   * without leaving the screen, and must not pull the file from under the
+   * renderer. The vault waits for any seal still in flight before deleting.
+   */
+  useEffect(
+    () => () => {
+      void releaseBook(bookId);
+    },
+    [bookId],
+  );
+
+  // Mirrors whether the document view is on stage, for the position pull
+  // below to read without being re-run by it.
+  useEffect(() => {
+    stageMounted.current = Boolean(pdfSource && entered);
+  }, [entered, pdfSource]);
+
+  /**
    * Asks the server where this book was left, behind the page already up.
    *
    * The cache answered first; this is the correction. A newer position — from
@@ -351,10 +411,18 @@ function BookReader() {
         flipRef.current?.goTo(position.page);
         return;
       }
-      // Still loading: re-seed. The stage is keyed on the start page, so the
-      // document view comes back up on the new one rather than page 1.
+      if (stageMounted.current) {
+        // The document view is up and parsing. Re-seeding now would remount
+        // it — the stage is keyed on the start page — and parse the whole
+        // book a second time, which is the difference between a book that
+        // opens once and one that is seen to load twice. The page is held
+        // and turned to the moment the document reports in.
+        pendingJump.current = position.page;
+        return;
+      }
+      // The file is not here yet, so nothing is parsing: re-seed. The
+      // document view will come up on the new page rather than page 1.
       pageRef.current = position.page;
-      settledPage.current = position.page;
       setStartPage(position.page);
       setPage(position.page);
     });
@@ -372,13 +440,14 @@ function BookReader() {
   }, [navigation]);
 
   /**
-   * Sends whatever has been remembered to the server. A page still waiting to
-   * settle is abandoned, not hurried: the reader left before it was theirs.
+   * Sends whatever is pending to the server now. A push still being held for
+   * the debounce is hurried, not dropped: the page is already on disk, and
+   * leaving the book is the best moment to send it.
    */
   const flushProgress = useCallback(() => {
-    if (settleTimer.current) {
-      clearTimeout(settleTimer.current);
-      settleTimer.current = null;
+    if (pushTimer.current) {
+      clearTimeout(pushTimer.current);
+      pushTimer.current = null;
     }
     if (userId) {
       void flushPositions(userId);
@@ -418,18 +487,58 @@ function BookReader() {
     setLoadProgress(100);
     setIsLoading(false);
     setHasError(false);
+    // A newer position that arrived while the book was parsing: turn to it
+    // now, in place, rather than having reopened the book to start there.
+    const jump = pendingJump.current;
+    if (jump != null) {
+      pendingJump.current = null;
+      if (jump !== pageRef.current) {
+        pageRef.current = jump;
+        flipRef.current?.goTo(jump);
+      }
+    }
   }, []);
 
+  /**
+   * The parser's own word, when it gives one (it does for a remote source,
+   * rarely for a file). Mapped into the render share of the ring, so it
+   * agrees with the clock-driven ease rather than fighting it.
+   */
   const handleLoadProgress = useCallback((percent: number) => {
     const value = percent <= 1 ? percent * 100 : percent;
-    const next = Math.round(Math.max(0, Math.min(100, value)));
+    const ratio = Math.max(0, Math.min(1, value / 100));
+    const next = TRANSFER_SHARE + ratio * (RENDER_CEILING - TRANSFER_SHARE);
     setLoadProgress(prev => Math.max(prev ?? 0, next));
   }, []);
 
   /**
-   * A page turned. The screen follows it now; the saved position follows it
-   * once the reader has stayed — see `SETTLE_TURN_MS`. Every turn restarts
-   * the wait, so a run of turns only ever remembers the page it ends on.
+   * The render phase, on a clock. Runs from the moment the renderer has its
+   * file until it reports the document up, closing a fixed fraction of what
+   * is left each tick — so the ring is seen to keep moving through a parse
+   * that says nothing, and on a fast device it is barely seen at all.
+   */
+  useEffect(() => {
+    if (!pdfSource || !isLoading) {
+      return undefined;
+    }
+    const timer = setInterval(() => {
+      setLoadProgress(prev => {
+        if (prev >= RENDER_CEILING) return prev;
+        const gap = RENDER_CEILING - prev;
+        return Math.min(
+          RENDER_CEILING,
+          prev + Math.max(0.15, gap * RENDER_EASE),
+        );
+      });
+    }, RENDER_TICK_MS);
+    return () => clearInterval(timer);
+  }, [isLoading, pdfSource]);
+
+  /**
+   * A page turned. The screen and the saved position follow it now — the
+   * write is synchronous, so by the time this returns the book will reopen
+   * here. Only the push waits, and every turn restarts that wait, so a run of
+   * turns costs one request for the page it ends on — see `PUSH_DEBOUNCE_MS`.
    */
   const handlePageChanged = useCallback(
     (currentPage: number, numberOfPages: number) => {
@@ -440,24 +549,17 @@ function BookReader() {
       pageRef.current = landed;
       setPage(landed);
       setTotalPages(numberOfPages);
-      if (settleTimer.current) {
-        clearTimeout(settleTimer.current);
-        settleTimer.current = null;
-      }
       if (!userId || numberOfPages <= 0) {
         return;
       }
-      // The page the book opened on is already the remembered one; it only
-      // needs its timestamp refreshed, and that can happen at once.
-      const distance = Math.abs(landed - settledPage.current);
-      const wait =
-        distance === 0 ? 0 : distance === 1 ? SETTLE_TURN_MS : SETTLE_JUMP_MS;
-      settleTimer.current = setTimeout(() => {
-        settleTimer.current = null;
-        settledPage.current = landed;
-        recordPosition(userId, bookId, landed, numberOfPages);
+      recordPosition(userId, bookId, landed, numberOfPages);
+      if (pushTimer.current) {
+        clearTimeout(pushTimer.current);
+      }
+      pushTimer.current = setTimeout(() => {
+        pushTimer.current = null;
         void flushPositions(userId);
-      }, wait);
+      }, PUSH_DEBOUNCE_MS);
     },
     [bookId, userId],
   );
@@ -496,18 +598,57 @@ function BookReader() {
     };
   }, [navigation]);
 
-  const handleDownload = useCallback(async () => {
-    setIsDownloading(true);
-    try {
-      const uri = await downloadPdf(bookId);
-      downloadedUri.current = uri;
-      setPdfSource({ uri });
-    } catch {
-      // Keep the open document visible if an offline download fails.
-    } finally {
-      setIsDownloading(false);
+  /**
+   * The Download tile, both directions.
+   *
+   * A book that is open is already on disk, so keeping it is usually a seal
+   * rather than a transfer, and the bar runs through in a moment. Removing a
+   * download from inside the book demotes it to the cache — the file the
+   * renderer is reading stays exactly where it is — and tells the backend.
+   */
+  const handleDownload = useCallback(() => {
+    if (isKept) {
+      Alert.alert(
+        'Remove download?',
+        `${bookTitle} will stay in your library but need a connection to open.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Remove',
+            style: 'destructive',
+            onPress: () => {
+              removeDownload.mutate({ bookId, local: 'demote' });
+            },
+          },
+        ],
+      );
+      return;
     }
-  }, [bookId]);
+    if (isDownloading) {
+      return;
+    }
+    setIsDownloading(true);
+    setDownloadProgress(0);
+    void keepBook(bookId, {
+      onProgress: ({ percent }) => setDownloadProgress(percent),
+    })
+      .then(({ uri }) => {
+        if (uri) downloadedUri.current = uri;
+      })
+      .catch((error: unknown) => {
+        // The open document stays up whatever happened to the download.
+        Alert.alert(
+          'Download failed',
+          error instanceof Error && error.message
+            ? error.message
+            : 'The book could not be saved for offline reading. Please try again.',
+        );
+      })
+      .finally(() => {
+        setIsDownloading(false);
+        setDownloadProgress(null);
+      });
+  }, [bookId, bookTitle, isDownloading, isKept, removeDownload]);
 
   /** The bookmark on the page in view, if the reader has already set one. */
   const bookmark = useMemo(
@@ -563,15 +704,12 @@ function BookReader() {
     setPageTouched(true);
   }, []);
 
-  /** Bookmarking from the sheet also closes it — the action is complete. */
-  const handleBookmarkFromSheet = useCallback(() => {
-    handleHighlight();
-    settingsSheet.close();
-  }, [handleHighlight, settingsSheet]);
-
-  const handleDownloadFromSheet = useCallback(() => {
-    void handleDownload();
-  }, [handleDownload]);
+  /**
+   * Bookmarking from the sheet leaves it open: the tile spins while the save
+   * is away and draws its tick as it lands, and that is what the reader is
+   * looking at. Closing under it would hide the answer.
+   */
+  const handleBookmarkFromSheet = handleHighlight;
 
   const handleGoToPage = useCallback(
     (target: number) => {
@@ -592,6 +730,8 @@ function BookReader() {
       setHasError(false);
       setErrorMessage(null);
       setIsLoading(true);
+      // The file is already here, so the ring starts where a transfer ends.
+      setLoadProgress(TRANSFER_SHARE);
       setLoaderVisible(true);
       setPdfSource({ uri });
     }
@@ -600,7 +740,6 @@ function BookReader() {
   const canZoomOut = controlScale > MIN_SCALE;
   const canZoomIn = controlScale < MAX_SCALE;
   const zoomPercent = Math.round(controlScale * 100);
-  const bookTitle = book?.title?.trim() || 'Book';
   const blocked = hasError || sourceError;
 
   /**
@@ -655,10 +794,8 @@ function BookReader() {
         // The blur waits for the screen to settle and the book to be up: while
         // either is still moving, it would be sampling the window every frame.
         glass={settled && !loaderVisible}
-        saved={Boolean(bookmark)}
         onBack={() => navigation.goBack()}
-        onOpenSettings={settingsSheet.open}
-        onBookmark={handleHighlight}
+        onOpenMenu={settingsSheet.open}
       >
         {pdfSource && entered ? (
           <ReaderBoundary>
@@ -713,10 +850,13 @@ function BookReader() {
         onZoomOut={handleZoomOut}
         onBookmark={handleBookmarkFromSheet}
         isBookmarked={Boolean(bookmark)}
+        isBookmarking={bookmarkPending}
         onGoToPage={handleGoToPage}
         page={page}
         totalPages={totalPages}
-        onDownload={handleDownloadFromSheet}
+        onDownload={handleDownload}
+        isDownloaded={isKept}
+        downloadProgress={downloadProgress}
         isDownloading={isDownloading}
       />
     </View>

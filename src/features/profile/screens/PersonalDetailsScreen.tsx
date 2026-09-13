@@ -16,22 +16,33 @@ import {
   useProfile,
   useUpdateProfile,
 } from '@/hooks/useAccount';
+import {
+  formatDateOfBirth,
+  parseDateOfBirth,
+} from '@/features/profile/dateOfBirth';
 import type { ProfileDetails, ProfileForm } from '@/services/account';
 import { fontSize } from '@/theme/typography';
 
 type Form = ProfileForm;
 
 /**
- * `memberSince` and `streak` are read-only record and the avatar writes itself
- * as soon as it uploads, so none of the three takes part in the form.
+ * `memberSince`, the streak, the goal and the achievements are read-only
+ * record (the goal has its own write on the record screen) and the avatar
+ * writes itself as soon as it uploads, so none of them takes part in the form.
+ * The date of birth is shown the way a reader would write it, not the way the
+ * column stores it.
  */
 function toForm({
   memberSince: _since,
   streak: _streak,
   avatarPath: _avatar,
+  goal: _goal,
+  monthlyGoal: _monthlyGoal,
+  achievements: _achievements,
+  dateOfBirth,
   ...fields
 }: ProfileDetails): Form {
-  return fields;
+  return { ...fields, dateOfBirth: formatDateOfBirth(dateOfBirth) };
 }
 
 const EMPTY_FORM: Form = {
@@ -114,16 +125,48 @@ export function PersonalDetailsScreen() {
     );
   }, [avatarUpload]);
 
+  /**
+   * The date of birth is checked here rather than left to the server: a typo
+   * is caught before the round trip, and the wording is the form's own rather
+   * than the endpoint's. What is sent is the column's `YYYY-MM-DD`.
+   */
+  const dateOfBirthError = useMemo(() => {
+    if (!form.dateOfBirth.trim() || parseDateOfBirth(form.dateOfBirth)) {
+      return undefined;
+    }
+    return 'Enter a date like 14 March 1996 or 14/03/1996';
+  }, [form.dateOfBirth]);
+
   const handleSave = useCallback(() => {
-    updateProfile.mutate(form, {
-      onSuccess: () => Alert.alert('Saved', 'Your details have been updated.'),
-      onError: error =>
-        Alert.alert(
-          'Could not save',
-          error instanceof Error ? error.message : 'Please try again.',
-        ),
-    });
-  }, [form, updateProfile]);
+    if (dateOfBirthError) {
+      Alert.alert('Check the date of birth', dateOfBirthError);
+      return;
+    }
+    const dateOfBirth = parseDateOfBirth(form.dateOfBirth) ?? '';
+    const trimmed = Object.fromEntries(
+      Object.entries(form).map(([key, value]) => [key, value.trim()]),
+    ) as Form;
+
+    updateProfile.mutate(
+      { ...trimmed, dateOfBirth },
+      {
+        onSuccess: () => {
+          // Show the fields as they were saved — trimmed, and the date in its
+          // written form — so what is on screen is what the record now holds.
+          setForm({
+            ...trimmed,
+            dateOfBirth: formatDateOfBirth(dateOfBirth),
+          });
+          Alert.alert('Saved', 'Your details have been updated.');
+        },
+        onError: error =>
+          Alert.alert(
+            'Could not save',
+            error instanceof Error ? error.message : 'Please try again.',
+          ),
+      },
+    );
+  }, [dateOfBirthError, form, updateProfile]);
 
   return (
     <ProfileSubScreenLayout
@@ -193,6 +236,9 @@ export function PersonalDetailsScreen() {
           value={form.dateOfBirth}
           onChangeText={value => update('dateOfBirth', value)}
           placeholder="14 March 1996"
+          error={dateOfBirthError}
+          autoCapitalize="words"
+          autoCorrect={false}
         />
 
         <TextField
@@ -218,7 +264,10 @@ export function PersonalDetailsScreen() {
             label="Postal code"
             value={form.postalCode}
             onChangeText={value => update('postalCode', value)}
-            keyboardType="number-pad"
+            // Not a number pad: codes outside Pakistan carry letters.
+            autoCapitalize="characters"
+            autoCorrect={false}
+            textContentType="postalCode"
             containerStyle={styles.grow}
           />
         </View>

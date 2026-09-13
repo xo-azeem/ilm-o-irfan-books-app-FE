@@ -58,6 +58,8 @@ export type IconProps = {
   /** Overrides `tone` when a one-off colour is genuinely needed. */
   color?: string;
   strokeWidth?: number;
+  /** A solid fill inside the stroke — a bookmark once it is set, say. */
+  fill?: string;
 };
 
 /**
@@ -71,6 +73,7 @@ export const Icon = memo(function Icon({
   tone = 'soft',
   color,
   strokeWidth = 1.8,
+  fill,
 }: IconProps) {
   const { colors } = useTheme();
   return (
@@ -78,6 +81,9 @@ export const Icon = memo(function Icon({
       size={size}
       color={color ?? iconColor(tone, colors)}
       strokeWidth={strokeWidth}
+      // Only when asked for: an explicit `undefined` would override lucide's
+      // own `fill="none"` and paint every glyph solid.
+      {...(fill != null ? { fill } : null)}
     />
   );
 });

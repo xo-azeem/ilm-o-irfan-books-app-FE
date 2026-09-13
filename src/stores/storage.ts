@@ -91,6 +91,8 @@ export type KeyValue = {
   getString(key: string): string | undefined;
   set(key: string, value: string): void;
   remove(key: string): void;
+  /** Every key in the store — for a sweep, not for a lookup. */
+  keys(): string[];
 };
 
 /**
@@ -133,6 +135,14 @@ export function keyValueStore(id: string): KeyValue {
         }
       } catch {
         fallback.delete(key);
+      }
+    },
+    keys: () => {
+      try {
+        const mmkv = sharedMMKV(id);
+        return mmkv ? mmkv.getAllKeys() : Array.from(fallback.keys());
+      } catch {
+        return Array.from(fallback.keys());
       }
     },
   };

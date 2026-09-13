@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { Alert, Linking } from 'react-native';
 
 import { Button, SettingsGroup, SettingsRow } from '@/components/ui';
@@ -6,7 +6,6 @@ import { ProfileSubScreenLayout } from '@/features/profile/components/ProfileSub
 import {
   accountSecurityRows,
   legalRows,
-  privacyOptions,
 } from '@/features/profile/data/profileContent';
 
 const PRIVACY_POLICY_URL = 'https://ilmoirfan.com/privacy';
@@ -15,21 +14,10 @@ const TERMS_URL = 'https://ilmoirfan.com/terms';
 /**
  * Privacy & security.
  *
- * The three privacy toggles, then the account and legal rows a store review
- * expects to find here — including account deletion, which both stores now
- * require to be reachable in-app.
+ * The account and legal rows a store review expects to find here — including
+ * account deletion, which both stores now require to be reachable in-app.
  */
 export function PrivacySecurityScreen() {
-  const [options, setOptions] = useState(() =>
-    Object.fromEntries(
-      privacyOptions.map(option => [option.id, option.defaultValue]),
-    ),
-  );
-
-  const setOption = useCallback((id: string, value: boolean) => {
-    setOptions(current => ({ ...current, [id]: value }));
-  }, []);
-
   const openUrl = useCallback((url: string) => {
     void Linking.openURL(url).catch(() =>
       Alert.alert('Could not open link', 'Please try again from a browser.'),
@@ -83,20 +71,6 @@ export function PrivacySecurityScreen() {
       title="Privacy & security"
       subtitle="You decide what leaves this device."
     >
-      <SettingsGroup>
-        {privacyOptions.map(option => (
-          <SettingsRow
-            key={option.id}
-            title={option.label}
-            subtitle={option.description}
-            toggle={{
-              value: options[option.id] ?? option.defaultValue,
-              onValueChange: value => setOption(option.id, value),
-            }}
-          />
-        ))}
-      </SettingsGroup>
-
       <SettingsGroup title="Account security">
         {accountSecurityRows.map(row => (
           <SettingsRow

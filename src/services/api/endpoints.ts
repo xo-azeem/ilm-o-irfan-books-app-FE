@@ -27,6 +27,8 @@ export const ENDPOINTS = {
   /** Issues a one-off upload ticket for the reader's own avatar folder. */
   avatarUploadUrl: 'avatar-upload-url',
   readingProgress: 'reading-progress',
+  /** Sets `profiles.monthly_goal`; answers with the month's goal recounted. */
+  readingGoalUpdate: 'reading-goal-update',
   /** "Because you read …" — derived from the reader's own history. */
   recommendations: 'recommendations',
   wishlistList: 'wishlist-list',

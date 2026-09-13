@@ -11,7 +11,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
-    "test": "npx --yes tsx --test src/services/mappers.test.ts src/services/api/errors.test.ts src/services/accessClock.test.ts src/services/accessState.test.ts src/services/billing/options.test.ts src/features/reader/paperFold.test.ts src/services/readingPositionMerge.test.ts",
+    "test": "npx --yes tsx --test src/services/mappers.test.ts src/services/api/errors.test.ts src/services/accessClock.test.ts src/services/accessState.test.ts src/services/billing/options.test.ts src/features/reader/paperFold.test.ts src/services/readingPositionMerge.test.ts src/features/profile/dateOfBirth.test.ts",
     "eas-build-pre-install": "node scripts/eas-write-env.js"
   },
   "dependencies": {
@@ -25,6 +25,9 @@
     "@supabase/supabase-js": "^2.109.0",
     "@tanstack/react-query": "^5.101.4",
     "expo": "~57.0.22",
+    "expo-file-system": "~57.0.7",
+    "expo-keep-awake": "~57.0.2",
+    "expo-secure-store": "~57.0.4",
     "lucide-react-native": "^1.17.0",
     "react": "19.2.3",
     "react-native": "0.86.3",
@@ -36,6 +39,8 @@
     "react-native-nitro-modules": "^0.36.1",
     "react-native-pdf": "^7.0.4",
     "react-native-purchases": "^9.15.2",
+    "react-native-quick-base64": "^3.0.1",
+    "react-native-quick-crypto": "^1.1.7",
     "react-native-reanimated": "4.5.1",
     "react-native-safe-area-context": "^5.5.2",
     "react-native-screens": "~4.26.0",

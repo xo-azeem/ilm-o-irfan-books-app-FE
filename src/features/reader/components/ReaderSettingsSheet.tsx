@@ -1,5 +1,13 @@
-import { memo, useCallback, useEffect, useState, useRef } from 'react';
 import {
+  memo,
+  useCallback,
+  useEffect,
+  useState,
+  useRef,
+  type ReactNode,
+} from 'react';
+import {
+  ActivityIndicator,
   Pressable,
   StyleSheet,
   View,
@@ -9,23 +17,27 @@ import {
   Bookmark,
   CornerDownLeft,
   Download,
-  ZoomIn,
-  ZoomOut,
+  Minus,
+  Plus,
+  Sun,
+  SunDim,
 } from 'lucide-react-native';
 
 import {
-  Divider,
   Icon,
   IconButton,
   Label,
+  SaveGlyph,
   SegmentedControl,
   Sheet,
   SliderTrack,
   Text,
   TextField,
+  useSavePhase,
   type LucideIcon,
 } from '@/components/ui';
 import {
+  READING_MODE_HINTS,
   READING_MODE_TAGS,
   READING_MODES,
   type ReadingMode,
@@ -39,6 +51,9 @@ const TONES: { value: ReaderTone; label: string }[] = [
   { value: 'sepia', label: 'Sepia' },
   { value: 'midnight', label: 'Midnight' },
 ];
+
+/** How long the bookmark tile's tick stays before the glyph returns. */
+const TICK_HOLD_MS = 1100;
 
 export type ReaderSettingsSheetProps = {
   visible: boolean;
@@ -59,20 +74,28 @@ export type ReaderSettingsSheetProps = {
   onBookmark: () => void;
   /** Whether the page in view is already bookmarked — the action toggles. */
   isBookmarked?: boolean;
+  /** The bookmark is on its way to the server; the tile spins meanwhile. */
+  isBookmarking?: boolean;
   /** Jumps the book to a page the reader typed. */
   onGoToPage: (page: number) => void;
   page: number;
   totalPages: number;
+  /** Keeps the book offline — or, once it is kept, offers to remove it. */
   onDownload: () => void;
   isDownloading?: boolean;
+  /** The book is sealed on this device and listed on the Offline shelf. */
+  isDownloaded?: boolean;
+  /** 0–100 while `isDownloading`; null when there is nothing to report. */
+  downloadProgress?: number | null;
 };
 
 /**
  * The reading sheet.
  *
  * A PDF page cannot reflow, so this offers only what a PDF genuinely supports:
- * page tone, brightness, zoom, and the three actions worth reaching for
- * mid-chapter. No font size, no line height — promising those would be a lie.
+ * page tone, brightness, zoom, and the two actions worth reaching for
+ * mid-chapter, which sit first. No font size, no line height — promising
+ * those would be a lie.
  */
 export const ReaderSettingsSheet = memo(function ReaderSettingsSheet({
   visible,
@@ -90,14 +113,41 @@ export const ReaderSettingsSheet = memo(function ReaderSettingsSheet({
   onZoomOut,
   onBookmark,
   isBookmarked = false,
+  isBookmarking = false,
   onGoToPage,
   page,
   totalPages,
   onDownload,
   isDownloading = false,
+  isDownloaded = false,
+  downloadProgress = null,
 }: ReaderSettingsSheetProps) {
   return (
-    <Sheet visible={visible} onClose={onClose} title="Reading">
+    <Sheet
+      visible={visible}
+      onClose={onClose}
+      title="Reading"
+      headerAction={
+        totalPages > 0 ? (
+          <Label tracking={0.9}>{`P. ${page} OF ${totalPages}`}</Label>
+        ) : null
+      }
+    >
+      <View style={styles.tiles}>
+        <BookmarkTile
+          page={page}
+          saved={isBookmarked}
+          saving={isBookmarking}
+          onPress={onBookmark}
+        />
+        <DownloadTile
+          downloaded={isDownloaded}
+          downloading={isDownloading}
+          progress={downloadProgress}
+          onPress={onDownload}
+        />
+      </View>
+
       <View style={styles.group}>
         <View style={styles.groupHeader}>
           <Label>Reading mode</Label>
@@ -111,6 +161,9 @@ export const ReaderSettingsSheet = memo(function ReaderSettingsSheet({
           onChange={onReadingModeChange}
           variant="soft"
         />
+        <Text size={fontSize.captionSmall} leading={1.4} tone="faint">
+          {READING_MODE_HINTS[readingMode]}
+        </Text>
       </View>
 
       <View style={styles.group}>
@@ -136,23 +189,34 @@ export const ReaderSettingsSheet = memo(function ReaderSettingsSheet({
             tracking={0.8}
           >{`${Math.round(brightness * 100)}%`}</Label>
         </View>
-        <BrightnessControl value={brightness} onChange={onBrightnessChange} />
+        <View style={styles.brightnessRow}>
+          <Icon icon={SunDim} size={15} tone="faint" />
+          <BrightnessControl value={brightness} onChange={onBrightnessChange} />
+          <Icon icon={Sun} size={15} tone="faint" />
+        </View>
       </View>
 
-      <View style={styles.group}>
-        <View style={styles.groupHeader}>
-          <Label>Zoom</Label>
-          <Label tone="primary" tracking={0.8}>{`${zoomPercent}%`}</Label>
-        </View>
-        <View style={styles.row}>
-          <ZoomButton
-            icon={ZoomOut}
+      <View style={styles.groupHeader}>
+        <Label>Zoom</Label>
+        <View style={styles.stepper}>
+          <StepButton
+            icon={Minus}
             label="Zoom out"
             disabled={!canZoomOut}
             onPress={onZoomOut}
           />
-          <ZoomButton
-            icon={ZoomIn}
+          <Text
+            size={fontSize.caption}
+            leading={1}
+            weight="600"
+            tone="soft"
+            align="center"
+            style={styles.stepperValue}
+          >
+            {`${zoomPercent}%`}
+          </Text>
+          <StepButton
+            icon={Plus}
             label="Zoom in"
             disabled={!canZoomIn}
             onPress={onZoomIn}
@@ -174,29 +238,188 @@ export const ReaderSettingsSheet = memo(function ReaderSettingsSheet({
           visible={visible}
         />
       </View>
-
-      <Divider />
-
-      <View style={styles.actions}>
-        <SheetAction
-          icon={Bookmark}
-          label={isBookmarked ? 'Remove bookmark' : 'Bookmark'}
-          onPress={onBookmark}
-        />
-        <SheetAction
-          icon={Download}
-          label={isDownloading ? 'Saving…' : 'Download'}
-          onPress={onDownload}
-          disabled={isDownloading}
-        />
-      </View>
     </Sheet>
   );
 });
 
 /**
+ * One of the two actions at the head of the sheet — a glyph in a soft square,
+ * a name, and a line under it saying what the action leaves behind.
+ */
+const ActionTile = memo(function ActionTile({
+  icon,
+  label,
+  detail,
+  busy = false,
+  active = false,
+  glyph,
+  onPress,
+}: {
+  icon: LucideIcon;
+  label: string;
+  detail: string;
+  busy?: boolean;
+  /** Tints the tile green — the action has already been taken. */
+  active?: boolean;
+  /** Replaces the plain icon, for a tile that animates its own state. */
+  glyph?: ReactNode;
+  onPress: () => void;
+}) {
+  const { colors } = useTheme();
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: busy, busy, selected: active }}
+      disabled={busy}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.tile,
+        {
+          backgroundColor: active ? colors.primaryFillSoft : colors.controlAlt,
+          borderColor: active ? colors.selectedBorder : colors.border,
+        },
+        pressed && styles.pressed,
+      ]}
+    >
+      <View
+        style={[
+          styles.tileGlyph,
+          {
+            backgroundColor: active
+              ? colors.primaryFill
+              : colors.primaryFillSoft,
+          },
+        ]}
+      >
+        {glyph ??
+          (busy ? (
+            <ActivityIndicator size="small" color={colors.inkSoft} />
+          ) : (
+            <Icon icon={icon} size={16} tone="soft" strokeWidth={1.7} />
+          ))}
+      </View>
+      <View style={styles.tileText}>
+        <Text
+          size={fontSize.caption}
+          leading={1.2}
+          weight="600"
+          tone={active ? 'primary' : 'ink'}
+          numberOfLines={1}
+        >
+          {label}
+        </Text>
+        <Text
+          size={fontSize.captionSmall - 1}
+          leading={1.3}
+          tone="faint"
+          numberOfLines={1}
+        >
+          {detail}
+        </Text>
+      </View>
+    </Pressable>
+  );
+});
+
+/**
+ * The bookmark tile. The glyph spins while the toggle is away and draws its
+ * tick as a bookmark lands, then settles on the filled mark.
+ */
+const BookmarkTile = memo(function BookmarkTile({
+  page,
+  saved,
+  saving,
+  onPress,
+}: {
+  page: number;
+  saved: boolean;
+  saving: boolean;
+  onPress: () => void;
+}) {
+  const { colors } = useTheme();
+  const phase = useSavePhase(saving, saved, TICK_HOLD_MS);
+  const showSaved = saved && phase !== 'saving';
+
+  return (
+    <ActionTile
+      icon={Bookmark}
+      label={showSaved ? 'Bookmarked' : 'Bookmark'}
+      detail={page > 0 ? `Page ${page}` : 'This page'}
+      busy={phase === 'saving'}
+      active={showSaved}
+      glyph={
+        <SaveGlyph
+          phase={phase}
+          saved={showSaved}
+          size={16}
+          color={showSaved ? colors.primarySoft : colors.inkSoft}
+        />
+      }
+      onPress={onPress}
+    />
+  );
+});
+
+/**
+ * The download tile. Spins with a live percentage while the book is sealed
+ * onto the device, draws its tick as it lands, then rests as "Downloaded";
+ * a tap on a downloaded book offers to remove it.
+ */
+const DownloadTile = memo(function DownloadTile({
+  downloaded,
+  downloading,
+  progress,
+  onPress,
+}: {
+  downloaded: boolean;
+  downloading: boolean;
+  progress: number | null;
+  onPress: () => void;
+}) {
+  const { colors } = useTheme();
+  const phase = useSavePhase(downloading, downloaded, TICK_HOLD_MS);
+  const showKept = downloaded && phase !== 'saving';
+
+  return (
+    <ActionTile
+      icon={Download}
+      label={
+        phase === 'saving'
+          ? 'Downloading…'
+          : showKept
+            ? 'Downloaded'
+            : 'Download'
+      }
+      detail={
+        phase === 'saving'
+          ? progress != null
+            ? `${progress}%`
+            : 'Preparing…'
+          : showKept
+            ? 'On this device'
+            : 'Keep a copy offline'
+      }
+      busy={phase === 'saving'}
+      active={showKept}
+      glyph={
+        <SaveGlyph
+          icon={Download}
+          phase={phase}
+          saved={false}
+          size={16}
+          color={showKept ? colors.primarySoft : colors.inkSoft}
+        />
+      }
+      onPress={onPress}
+    />
+  );
+});
+
+/**
  * The tone swatches paint their actual page colour, so the choice is made by
- * looking rather than by reading a label.
+ * looking rather than by reading a label. The chosen one carries a green dot.
  */
 const ToneSwatch = memo(function ToneSwatch({
   value,
@@ -223,16 +446,20 @@ const ToneSwatch = memo(function ToneSwatch({
         styles.swatch,
         {
           backgroundColor: preview.background,
-          borderColor: selected ? colors.primaryBright : colors.borderStrong,
-          borderWidth: 2,
+          borderColor: selected ? colors.primaryBright : colors.border,
         },
         pressed && styles.pressed,
       ]}
     >
+      {selected ? (
+        <View
+          style={[styles.swatchDot, { backgroundColor: colors.primaryBright }]}
+        />
+      ) : null}
       <Text
         size={fontSize.captionSmall}
         leading={1}
-        weight="500"
+        weight={selected ? '600' : '500'}
         tone="inherit"
         style={{ color: preview.ink }}
       >
@@ -355,7 +582,8 @@ const BrightnessControl = memo(function BrightnessControl({
 
 const ADJUST_ACTIONS = [{ name: 'increment' }, { name: 'decrement' }] as const;
 
-const ZoomButton = memo(function ZoomButton({
+/** One end of the zoom stepper. */
+const StepButton = memo(function StepButton({
   icon,
   label,
   disabled,
@@ -375,60 +603,20 @@ const ZoomButton = memo(function ZoomButton({
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
+      hitSlop={6}
       style={({ pressed }) => [
-        styles.zoomButton,
+        styles.stepButton,
         { backgroundColor: colors.controlAlt, borderColor: colors.border },
         disabled && styles.disabled,
         pressed && styles.pressed,
       ]}
     >
-      <Icon icon={icon} size={16} tone={disabled ? 'faint' : 'soft'} />
-      <Text
-        size={fontSize.caption}
-        leading={1}
-        weight="500"
+      <Icon
+        icon={icon}
+        size={14}
         tone={disabled ? 'faint' : 'soft'}
-      >
-        {label}
-      </Text>
-    </Pressable>
-  );
-});
-
-const SheetAction = memo(function SheetAction({
-  icon,
-  label,
-  disabled,
-  onPress,
-}: {
-  icon: LucideIcon;
-  label: string;
-  disabled?: boolean;
-  onPress: () => void;
-}) {
-  const { colors } = useTheme();
-
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ disabled }}
-      disabled={disabled}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.action,
-        disabled && styles.disabled,
-        pressed && styles.pressed,
-      ]}
-    >
-      <View
-        style={[styles.actionIcon, { backgroundColor: colors.primaryFillSoft }]}
-      >
-        <Icon icon={icon} size={16} tone="soft" strokeWidth={1.7} />
-      </View>
-      <Text size={11} leading={1} tone="muted">
-        {label}
-      </Text>
+        strokeWidth={2.2}
+      />
     </Pressable>
   );
 });
@@ -446,9 +634,55 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
   },
+  tiles: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  tile: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+  },
+  tileGlyph: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tileText: {
+    flex: 1,
+    gap: 3,
+  },
+  brightnessRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   brightness: {
+    flex: 1,
     // A taller hit area than the 6pt track, so the drag is comfortable.
     paddingVertical: 8,
+  },
+  stepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  stepperValue: {
+    minWidth: 44,
+  },
+  stepButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth * 2,
   },
   jump: {
     flexDirection: 'row',
@@ -460,35 +694,19 @@ const styles = StyleSheet.create({
   },
   swatch: {
     flex: 1,
-    height: 56,
+    height: 52,
     borderRadius: 14,
+    borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  zoomButton: {
-    flex: 1,
-    height: 46,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderRadius: 13,
-    borderWidth: StyleSheet.hairlineWidth * 2,
-  },
-  actions: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  action: {
-    alignItems: 'center',
-    gap: 7,
-  },
-  actionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
+  swatchDot: {
+    position: 'absolute',
+    top: 7,
+    right: 7,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   pressed: {
     opacity: 0.72,

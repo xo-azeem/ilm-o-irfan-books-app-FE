@@ -14,13 +14,16 @@ import {
   toggleHighlight,
   toggleWishlist,
   updateProfile,
+  updateReadingGoal,
   type LibraryProgressBook,
   type LibrarySummary,
+  type ProfileDetails,
   type ProfileForm,
 } from '@/services/account';
 import type { HighlightRow } from '@/services/api/types';
 import { getAvatarUrl, uploadAvatar } from '@/services/avatar';
 import { readBookmarks, writeBookmarks } from '@/services/bookmarkCache';
+import { removeBook, unkeepBook } from '@/services/bookVault';
 import {
   getPosition,
   positionsVersion,
@@ -273,6 +276,48 @@ export function useUpdateProfile() {
   });
 }
 
+/**
+ * Sets this month's goal, optimistic.
+ *
+ * The bar moves to the new target the moment the sheet closes; the server's
+ * answer then replaces the target it holds, and the invalidation behind it
+ * brings back the month's count recounted against it. A failure puts the old
+ * target back.
+ */
+export function useUpdateReadingGoal() {
+  const client = useQueryClient();
+  const userId = useAuthStore(state => state.userId);
+  const queryKey = scoped('profile', userId);
+
+  const patchTarget = (target: number) =>
+    client.setQueryData<ProfileDetails>(queryKey, current =>
+      current
+        ? {
+            ...current,
+            monthlyGoal: target,
+            goal: current.goal ? { ...current.goal, target } : null,
+          }
+        : current,
+    );
+
+  return useMutation({
+    mutationFn: (target: number) => updateReadingGoal(target),
+    onMutate: async (target: number) => {
+      await client.cancelQueries({ queryKey });
+      const previous = client.getQueryData<ProfileDetails>(queryKey);
+      patchTarget(target);
+      return { previous };
+    },
+    onError: (_error, _target, context) => {
+      if (context?.previous) {
+        client.setQueryData<ProfileDetails>(queryKey, context.previous);
+      }
+    },
+    onSuccess: goal => patchTarget(goal.target),
+    onSettled: () => client.invalidateQueries({ queryKey }),
+  });
+}
+
 export function useWishlistMutation(bookId: string) {
   const client = useQueryClient();
   const userId = useAuthStore(state => state.userId);
@@ -281,7 +326,10 @@ export function useWishlistMutation(bookId: string) {
     // the caller's `saved` flag is no longer what performs the write — it is
     // kept in the signature because the button still reads it for its label.
     mutationFn: (_saved: boolean) => toggleWishlist(bookId),
-    onSuccess: () => {
+    onSuccess: saved => {
+      // The endpoint answers with the resulting state, so the button learns
+      // it in the same frame the spinner stops rather than after a refetch.
+      client.setQueryData(scoped('wishlist-item', userId, bookId), saved);
       void client.invalidateQueries({ queryKey: scoped('wishlist', userId) });
       void client.invalidateQueries({
         queryKey: scoped('wishlist-item', userId, bookId),
@@ -309,7 +357,23 @@ export function useRemoveDownload() {
   const client = useQueryClient();
   const userId = useAuthStore(state => state.userId);
   return useMutation({
-    mutationFn: removeDownload,
+    // The device first, then the record. A book gone from the backend but
+    // still sealed on disk would be storage the reader cannot see or reclaim;
+    // the reverse merely re-downloads next time. From inside the open book
+    // the copy is demoted to the cache rather than deleted, because the
+    // renderer is reading it.
+    mutationFn: async (
+      input: string | { bookId: string; local: 'remove' | 'demote' },
+    ) => {
+      const bookId = typeof input === 'string' ? input : input.bookId;
+      const local = typeof input === 'string' ? 'remove' : input.local;
+      if (local === 'demote') {
+        await unkeepBook(bookId);
+      } else {
+        await removeBook(bookId);
+      }
+      await removeDownload(bookId);
+    },
     onSuccess: () =>
       client.invalidateQueries({ queryKey: scoped('library', userId) }),
   });

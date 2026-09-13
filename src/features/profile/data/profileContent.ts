@@ -207,27 +207,6 @@ export const catalogueToggles = [
 // Privacy
 // ---------------------------------------------------------------------------
 
-export const privacyOptions = [
-  {
-    id: 'privacy-profile',
-    label: 'Profile visibility',
-    description: 'Show reading activity to friends',
-    defaultValue: false,
-  },
-  {
-    id: 'privacy-analytics',
-    label: 'Usage analytics',
-    description: 'Help improve the app with anonymous data',
-    defaultValue: true,
-  },
-  {
-    id: 'privacy-biometric',
-    label: 'Biometric lock',
-    description: 'Require Face ID or fingerprint to open',
-    defaultValue: false,
-  },
-];
-
 export const accountSecurityRows = [
   { id: 'change-password', label: 'Change password' },
   { id: 'devices', label: 'Signed-in devices', value: '3' },

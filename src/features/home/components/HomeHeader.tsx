@@ -40,14 +40,14 @@ export const HomeHeader = memo(function HomeHeader({
   onNotificationsPress?: () => void;
 }) {
   const { colors } = useTheme();
-  const firstName = name?.trim().split(/\s+/)[0];
+  const fullName = name?.trim();
 
   return (
     <View style={styles.root}>
       <View style={styles.greeting}>
         <Text size={fontSize.caption} leading={1} tone="soft">
           {greetingFor()}
-          {firstName ? `, ${firstName}` : ''}
+          {fullName ? `, ${fullName}` : ''}
         </Text>
         <Display size={22}>Ready for another chapter?</Display>
       </View>

@@ -188,3 +188,18 @@ export function fontScaleMultiplier(scale: FontScale | undefined): number {
 export function scaleFont(size: number, multiplier: number): number {
   return multiplier === 1 ? size : Math.round(size * multiplier * 2) / 2;
 }
+
+/**
+ * The tightest leading a Latin face can take before its descenders are cut.
+ *
+ * A line box exactly one em tall has no room for the tail of a "g" or "y",
+ * and Android clips whatever falls outside it. Call sites ask for `leading={1}`
+ * wherever a single line should sit flush in a row; this is the floor those
+ * requests are held to, so the row stays tight and the glyphs stay whole.
+ */
+export const MIN_LEADING = 1.25;
+
+/** A line height that honours the requested leading without clipping glyphs. */
+export function lineHeightFor(size: number, leading: number): number {
+  return Math.round(size * Math.max(leading, MIN_LEADING));
+}

@@ -19,6 +19,8 @@ import {
 import { ProfileSubScreenLayout } from '@/features/profile/components/ProfileSubScreenLayout';
 import type { ProfileStackParamList } from '@/features/profile/navigation/types';
 import { useLibrary, useRemoveDownload } from '@/hooks/useAccount';
+import { useVaultVersion } from '@/hooks/useBookVault';
+import { getVaultEntry, vaultUsage } from '@/services/bookVault';
 import { isUrduTitle } from '@/services/script';
 import { fontSize } from '@/theme/typography';
 
@@ -47,29 +49,40 @@ export function DownloadsScreen() {
   const navigation = useNavigation<DownloadsNavigation>();
   const { data: library, isLoading } = useLibrary();
   const removeDownload = useRemoveDownload();
+  // The backend lists what the reader downloaded; the vault knows what is
+  // actually sealed on *this* device. A row is drawn from both, so a book
+  // downloaded on another phone — or lost to a reinstall — says so instead
+  // of promising to open without a connection.
+  const vault = useVaultVersion();
 
   const downloads = useMemo<DownloadEntry[]>(
     () =>
-      (library?.downloads ?? []).map(book => ({
-        id: book.id,
-        title: book.title,
-        author: book.author,
-        coverUrl: book.coverUrl,
-        coverColor: book.coverColor,
-        coverColorDark: book.coverColorDark,
-        isUrdu: isUrduTitle(book.title),
-        detail: `${formatSize(book.sizeBytes)} · available offline`,
-      })),
-    [library?.downloads],
+      (library?.downloads ?? []).map(book => {
+        const local = getVaultEntry(book.id);
+        const onDevice = local?.tier === 'kept';
+        return {
+          id: book.id,
+          title: book.title,
+          author: book.author,
+          coverUrl: book.coverUrl,
+          coverColor: book.coverColor,
+          coverColorDark: book.coverColorDark,
+          isUrdu: isUrduTitle(book.title),
+          detail: onDevice
+            ? `${formatSize(local.bytes)} · available offline`
+            : `${formatSize(book.sizeBytes)} · not on this device`,
+        };
+      }),
+    // `vault` is the dependency that matters even though the body never reads it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [library?.downloads, vault],
   );
 
+  // What is really on disk, not what the backend remembers.
   const usedBytes = useMemo(
-    () =>
-      (library?.downloads ?? []).reduce(
-        (total: number, book) => total + book.sizeBytes,
-        0,
-      ),
-    [library?.downloads],
+    () => vaultUsage().kept,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [vault],
   );
 
   const handleRemove = useCallback(
@@ -124,7 +137,7 @@ export function DownloadsScreen() {
         <View style={styles.empty}>
           <EmptyState
             title="Nothing saved yet."
-            message="Download a book from the reader and it will be here, ready without a connection."
+            message="Open a book and choose Download from its menu; it will be here, sealed on this device and ready without a connection."
             action={{ label: 'Back to profile', onPress: goBack }}
           />
         </View>

@@ -1,57 +1,52 @@
-import { Platform } from 'react-native';
 import ReactNativeBlobUtil from 'react-native-blob-util';
 
-import type { BookPdfSource } from '@/constants/books';
-import { getSignedPdfUrl } from '@/lib/supabase';
-import { syncDownload } from '@/services/account';
-import { keyValueStore } from '@/stores/storage';
-
-// Downloads live in their own MMKV id, away from preferences: clearing one
-// should never disturb the other. Created through the shared factory so a
-// missing native module degrades to memory instead of throwing on import.
-const storage = keyValueStore('ilm-offline-books');
 /**
- * Where downloaded books live: app-private storage, on both platforms.
+ * The network half of getting a book onto the device.
  *
- * On iOS that is `Library`, not `Documents`. `Documents` is the directory iOS
- * exposes through the Files app and syncs to iCloud, which would put a
- * members-only PDF somewhere the reader can copy it out of and a backup can
- * carry it to another device. `Library` is visible only to the app.
- *
- * On Android `DocumentDir` already is the app's internal files directory —
- * private to the app, unlike external storage — so it is the right one there.
- *
- * None of this is the gate. A file sitting on disk is not permission to open it;
- * the reader is gated on `canAccessPremium`, which is why an expired membership
- * locks a book that is fully downloaded.
+ * Nothing here decides where a book lives or for how long — that is the
+ * vault's job (see `bookVault`). This module only knows how to stream a
+ * signed URL to a path without the bytes passing through JavaScript, and how
+ * to tell a PDF from an error page that arrived with a 200.
  */
-const directory = `${
-  Platform.OS === 'ios'
-    ? ReactNativeBlobUtil.fs.dirs.LibraryDir
-    : ReactNativeBlobUtil.fs.dirs.DocumentDir
-}/books`;
+
 const DOWNLOAD_TIMEOUT_MS = 120000;
 /** Anything smaller than this cannot be a PDF, header or not. */
-const MIN_PDF_BYTES = 32;
+export const MIN_PDF_BYTES = 32;
 
-function key(bookId: string) {
-  return `book:${bookId}`;
+export type PdfTransferProgress = {
+  loadedBytes: number;
+  totalBytes: number;
+  percent: number;
+};
+
+export type DownloadOptions = {
+  expectedBytes?: number;
+  onProgress?: (progress: PdfTransferProgress) => void;
+  signal?: AbortSignal;
+};
+
+export function abortError() {
+  return Object.assign(new Error('The PDF download was cancelled.'), {
+    name: 'AbortError',
+  });
 }
 
-function filePath(bookId: string) {
-  return `${directory}/${bookId}.pdf`;
+export function isAbortError(error: unknown): boolean {
+  return (error as { name?: string } | null)?.name === 'AbortError';
 }
 
-/** The local-file member of the union, so callers can read `.uri` directly. */
-type LocalPdfSource = Extract<BookPdfSource, { uri: string }>;
-
-function fileSource(path: string): LocalPdfSource {
-  return { uri: path.startsWith('file://') ? path : `file://${path}` };
+function statusError(status: number) {
+  return new Error(
+    status === 400 || status === 404
+      ? 'This book file is missing from storage.'
+      : `Could not download the PDF (${status}).`,
+  );
 }
 
-function isPdfHeader(bytes: ArrayLike<number>): boolean {
+/** `%PDF` — the four bytes every PDF opens with. */
+export function isPdfHeader(bytes: ArrayLike<number>): boolean {
   return (
-    bytes.length >= 5 &&
+    bytes.length >= 4 &&
     bytes[0] === 0x25 &&
     bytes[1] === 0x50 &&
     bytes[2] === 0x44 &&
@@ -83,37 +78,14 @@ async function hasPdfHeader(path: string): Promise<boolean> {
   }
 }
 
-async function ensureDirectory() {
-  if (!(await ReactNativeBlobUtil.fs.exists(directory))) {
-    await ReactNativeBlobUtil.fs.mkdir(directory);
-  }
-}
-
-export type PdfTransferProgress = {
-  loadedBytes: number;
-  totalBytes: number;
-  percent: number;
-};
-
-type DownloadOptions = {
-  expectedBytes?: number;
-  onProgress?: (progress: PdfTransferProgress) => void;
-  signal?: AbortSignal;
-};
-
-function abortError() {
-  return Object.assign(new Error('The PDF download was cancelled.'), {
-    name: 'AbortError',
-  });
-}
-
-function statusError(status: number) {
-  return new Error(
-    status === 400 || status === 404
-      ? 'This book file is missing from storage.'
-      : `Could not download the PDF (${status}).`,
-  );
-}
+/**
+ * What a book is assumed to weigh when nobody says. A transfer with no
+ * `Content-Length` and no size from the signing call still has to move the
+ * ring, so its bytes are read against a typical book and capped short of the
+ * end — the final 100 is only ever drawn by the file landing whole.
+ */
+const ASSUMED_BOOK_BYTES = 25_000_000;
+const UNKNOWN_TOTAL_CEILING = 90;
 
 function emitTransferProgress(
   loadedBytes: number,
@@ -121,7 +93,25 @@ function emitTransferProgress(
   onProgress: ((progress: PdfTransferProgress) => void) | undefined,
   lastPercent: { value: number },
 ) {
-  if (!onProgress || totalBytes <= 0) {
+  if (!onProgress) {
+    return;
+  }
+
+  if (totalBytes <= 0) {
+    // An estimate that climbs quickly at first and flattens as the bytes pass
+    // what a book usually is, so a large one does not stall at the cap early.
+    const percent = Math.min(
+      UNKNOWN_TOTAL_CEILING,
+      Math.floor(
+        UNKNOWN_TOTAL_CEILING *
+          (1 - Math.exp(-loadedBytes / ASSUMED_BOOK_BYTES)),
+      ),
+    );
+    if (percent === lastPercent.value) {
+      return;
+    }
+    lastPercent.value = percent;
+    onProgress({ loadedBytes, totalBytes: 0, percent });
     return;
   }
 
@@ -142,12 +132,16 @@ function emitTransferProgress(
  * The bytes never enter JavaScript: a book is tens of megabytes, and copying it
  * through the bridge as base64 is what puts the app within reach of an
  * out-of-memory kill on the very screen that needs the memory to render.
+ *
+ * `target` is a plain filesystem path (no `file://`). The download lands in a
+ * `.part` beside it and is only moved into place once it has been checked, so
+ * a path that exists is always a whole, valid PDF.
  */
-async function downloadToPath(
+export async function downloadToPath(
   url: string,
   target: string,
   options: DownloadOptions = {},
-) {
+): Promise<number> {
   const temporary = `${target}.part`;
   await ReactNativeBlobUtil.fs.unlink(temporary).catch(() => undefined);
 
@@ -190,7 +184,8 @@ async function downloadToPath(
   signal?.addEventListener?.('abort', cancel);
 
   try {
-    task.progress({ count: 50 }, (received, total) => {
+    // Every percent, but never more often than the ring can be seen to move.
+    task.progress({ count: 100, interval: 120 }, (received, total) => {
       const totalBytes = Number(total) > 0 ? Number(total) : expectedBytes;
       emitTransferProgress(
         Number(received) || 0,
@@ -226,6 +221,13 @@ async function downloadToPath(
     if (size < MIN_PDF_BYTES || !(await hasPdfHeader(temporary))) {
       throw new Error('This book file is missing or is not a valid PDF.');
     }
+    // A server that reported a size and then sent fewer bytes sent a
+    // truncated book. Pdfium would open it and fail on the missing page.
+    if (expectedBytes > 0 && size < expectedBytes) {
+      throw new Error(
+        'The book did not download completely. Please try again.',
+      );
+    }
 
     if (await ReactNativeBlobUtil.fs.exists(target)) {
       await ReactNativeBlobUtil.fs.unlink(target).catch(() => undefined);
@@ -237,6 +239,7 @@ async function downloadToPath(
       totalBytes: expectedBytes > 0 ? expectedBytes : size,
       percent: 100,
     });
+    return size;
   } catch (error) {
     await ReactNativeBlobUtil.fs.unlink(temporary).catch(() => undefined);
 
@@ -250,79 +253,4 @@ async function downloadToPath(
   } finally {
     signal?.removeEventListener?.('abort', cancel);
   }
-}
-
-export async function getLocalPdf(bookId: string): Promise<string | null> {
-  const path = storage.getString(key(bookId));
-  if (!path || !(await ReactNativeBlobUtil.fs.exists(path))) {
-    if (path) storage.remove(key(bookId));
-    return null;
-  }
-  try {
-    const stats = await ReactNativeBlobUtil.fs.stat(path);
-    if (!Number(stats.size) || Number(stats.size) < MIN_PDF_BYTES) {
-      await ReactNativeBlobUtil.fs.unlink(path).catch(() => undefined);
-      storage.remove(key(bookId));
-      return null;
-    }
-  } catch {
-    storage.remove(key(bookId));
-    return null;
-  }
-  return path.startsWith('file://') ? path : `file://${path}`;
-}
-
-export async function resolvePdfSource(
-  bookId: string,
-  options: Omit<DownloadOptions, 'expectedBytes'> = {},
-): Promise<BookPdfSource> {
-  const local = await getLocalPdf(bookId);
-  if (local) return fileSource(local);
-
-  await ensureDirectory();
-  const target = filePath(bookId);
-  const { url, fileSizeBytes } = await getSignedPdfUrl(bookId);
-  await downloadToPath(url, target, {
-    expectedBytes: fileSizeBytes,
-    onProgress: options.onProgress,
-    signal: options.signal,
-  });
-  storage.set(key(bookId), target);
-  await syncDownload(bookId, 'completed', fileSizeBytes).catch(() => undefined);
-  return fileSource(target);
-}
-
-export async function downloadPdf(
-  bookId: string,
-  options: Omit<DownloadOptions, 'expectedBytes'> = {},
-) {
-  await ensureDirectory();
-  await syncDownload(bookId, 'pending');
-  const target = filePath(bookId);
-  try {
-    const { url, fileSizeBytes } = await getSignedPdfUrl(bookId);
-    await downloadToPath(url, target, {
-      expectedBytes: fileSizeBytes,
-      onProgress: options.onProgress,
-      signal: options.signal,
-    });
-    storage.set(key(bookId), target);
-    const stats = await ReactNativeBlobUtil.fs.stat(target);
-    await syncDownload(
-      bookId,
-      'completed',
-      fileSizeBytes ?? Number(stats.size),
-    );
-    return fileSource(target).uri;
-  } catch (error) {
-    await syncDownload(bookId, 'failed').catch(() => undefined);
-    throw error;
-  }
-}
-
-export async function removeLocalPdf(bookId: string) {
-  const path = storage.getString(key(bookId));
-  if (path && (await ReactNativeBlobUtil.fs.exists(path)))
-    await ReactNativeBlobUtil.fs.unlink(path);
-  storage.remove(key(bookId));
 }

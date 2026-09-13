@@ -21,7 +21,7 @@ import {
 import { useReaderSurface } from '@/features/reader/useReaderSurface';
 
 const EXIT_MS = 220;
-const COMPLETE_HOLD_MS = 280;
+const COMPLETE_HOLD_MS = 180;
 const EASE_OUT = Easing.out(Easing.quad);
 const TIMING = { reduceMotion: ReduceMotion.System } as const;
 

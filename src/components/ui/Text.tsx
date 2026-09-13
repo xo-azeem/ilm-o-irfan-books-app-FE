@@ -10,6 +10,7 @@ import {
 import {
   fonts,
   fontSize,
+  lineHeightFor,
   resolveFamily,
   scaleFont,
   typography,
@@ -168,7 +169,7 @@ export const Display = memo(function Display({
     return {
       ...resolveFamily('display', weight),
       fontSize: resolvedSize,
-      lineHeight: Math.round(resolvedSize * (leading ?? scale.leading)),
+      lineHeight: lineHeightFor(resolvedSize, leading ?? scale.leading),
       letterSpacing: (tracking ?? scale.tracking) * fontScale,
       color: toneColor(tone, colors),
       textAlign: align,
@@ -199,7 +200,7 @@ export const Text = memo(function Text({
     return {
       ...resolveFamily('sans', weight),
       fontSize: resolvedSize,
-      lineHeight: Math.round(resolvedSize * leading),
+      lineHeight: lineHeightFor(resolvedSize, leading),
       letterSpacing: tracking * fontScale,
       color: toneColor(tone, colors),
       textAlign: align,
@@ -240,7 +241,11 @@ export const Label = memo(function Label({
     return {
       fontFamily: fonts.mono,
       fontSize: resolvedSize,
-      lineHeight: Math.round(resolvedSize * leading),
+      // Uppercase has no descenders, so eyebrows and pills may sit as tight as
+      // they ask; only mixed-case labels need the clipping floor.
+      lineHeight: uppercase
+        ? Math.round(resolvedSize * leading)
+        : lineHeightFor(resolvedSize, leading),
       letterSpacing: tracking * fontScale,
       fontWeight: weight,
       color: toneColor(tone, colors),
@@ -287,7 +292,7 @@ export const UrduText = memo(function UrduText({
     return {
       ...resolveFamily('urdu', weight),
       fontSize: resolvedSize,
-      lineHeight: Math.round(resolvedSize * leading),
+      lineHeight: lineHeightFor(resolvedSize, leading),
       letterSpacing: tracking * fontScale,
       color: toneColor(tone, colors),
       textAlign: align,

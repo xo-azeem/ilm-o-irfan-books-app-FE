@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { deviceTimeZone, localDateKey } from '@/lib/timeZone';
 import { ENDPOINTS } from '@/services/api/endpoints';
 import {
   requestData,
@@ -7,6 +8,7 @@ import {
   withEndpoint,
 } from '@/services/api/client';
 import type {
+  AchievementRow,
   DownloadListRow,
   DownloadRow,
   EntitlementRow,
@@ -19,6 +21,8 @@ import type {
   PlanRow,
   ProfileRow,
   ProgressItemRow,
+  ReadingDay,
+  ReadingGoal,
   ReadingProgressRow,
   WishlistItemRow,
   WishlistToggleResult,
@@ -71,6 +75,20 @@ export type ProfileStreak = {
   current: number;
   longest: number;
   lastReadDate: string | null;
+  /**
+   * The last seven days, oldest first, ending today. Empty from a backend
+   * that predates `reading_days` and from the table fallback, in which case
+   * the screen draws the streak as a ramp instead.
+   */
+  recentDays: ReadingDay[];
+};
+
+/** This month's goal, or null where the backend cannot count the month. */
+export type ProfileGoal = {
+  target: number;
+  completed: number;
+  /** `YYYY-MM`, in the zone the request named. */
+  month: string;
 };
 
 export type ProfileDetails = {
@@ -95,6 +113,16 @@ export type ProfileDetails = {
    * Zeroed on the table fallback, which has no second read to spend on it.
    */
   streak: ProfileStreak;
+  /**
+   * From `profile-read` as well. Null on the table fallback, which can read
+   * the target off `profiles.monthly_goal` but has no `finished_at` to count
+   * the month with — the screen approximates from the library then.
+   */
+  goal: ProfileGoal | null;
+  /** The target alone, which the fallback does have. */
+  monthlyGoal: number;
+  /** Null where the backend has not computed them; the screen derives then. */
+  achievements: AchievementRow[] | null;
 };
 
 /**
@@ -102,11 +130,22 @@ export type ProfileDetails = {
  *
  * The avatar is not a form field: it is written by its own upload flow, which
  * records the path as soon as the bytes land rather than waiting for a Save.
+ * The goal has its own write, `updateReadingGoal`.
  */
 export type ProfileForm = Omit<
   ProfileDetails,
-  'memberSince' | 'streak' | 'avatarPath'
+  | 'memberSince'
+  | 'streak'
+  | 'avatarPath'
+  | 'goal'
+  | 'monthlyGoal'
+  | 'achievements'
 >;
+
+/** The default `profiles.monthly_goal`, mirrored for a row that predates it. */
+export const DEFAULT_MONTHLY_GOAL = 4;
+/** `reading-goal-update` rejects anything outside this range. */
+export const MONTHLY_GOAL_RANGE = { min: 1, max: 100 } as const;
 
 /**
  * A book joined onto a per-user row. The author relation is selected without
@@ -248,7 +287,14 @@ function firstOf<T>(value: T | T[] | null | undefined): T | null {
 export async function getProfile(): Promise<ProfileDetails> {
   const row = await withEndpoint(
     ENDPOINTS.profileRead,
-    () => requestData<ProfileRow | null>(ENDPOINTS.profileRead, { auth: true }),
+    () =>
+      // `tz` is the zone the streak days and the goal month are drawn in;
+      // without it the server counts in UTC, and a reader in Karachi would
+      // see a book finished at 3 a.m. land on yesterday.
+      requestData<ProfileRow | null>(ENDPOINTS.profileRead, {
+        auth: true,
+        query: { tz: deviceTimeZone() },
+      }),
     async () => {
       const id = await userId();
       const result = await supabase
@@ -287,7 +333,70 @@ export async function getProfile(): Promise<ProfileDetails> {
       current: row.streak?.current_streak ?? 0,
       longest: row.streak?.longest_streak ?? 0,
       lastReadDate: row.streak?.last_read_date ?? null,
+      recentDays: row.streak?.recent_days ?? [],
     },
+    goal: row.readingGoal
+      ? {
+          target: row.readingGoal.target,
+          completed: row.readingGoal.completedThisMonth,
+          month: row.readingGoal.month,
+        }
+      : null,
+    monthlyGoal:
+      row.readingGoal?.target ?? row.monthly_goal ?? DEFAULT_MONTHLY_GOAL,
+    achievements: row.achievements ?? null,
+  };
+}
+
+/**
+ * Sets this month's target. Answers with the whole goal, recounted, so the
+ * caller can drop it straight into the profile it holds.
+ */
+export async function updateReadingGoal(target: number): Promise<ProfileGoal> {
+  if (
+    !Number.isInteger(target) ||
+    target < MONTHLY_GOAL_RANGE.min ||
+    target > MONTHLY_GOAL_RANGE.max
+  ) {
+    throw new Error(
+      `Goal must be a whole number from ${MONTHLY_GOAL_RANGE.min} to ${MONTHLY_GOAL_RANGE.max}.`,
+    );
+  }
+
+  const goal = await withEndpoint(
+    ENDPOINTS.readingGoalUpdate,
+    () =>
+      requestData<ReadingGoal>(ENDPOINTS.readingGoalUpdate, {
+        method: 'POST',
+        auth: true,
+        body: { target, tz: deviceTimeZone() },
+      }),
+    async () => {
+      // `monthly_goal` is the one column on `profiles` the client may write
+      // directly. The month's count is not knowable from here; the screen
+      // keeps whatever it last had.
+      const id = await userId();
+      const row = check(
+        await supabase
+          .from('profiles')
+          .update({ monthly_goal: target })
+          .eq('id', id)
+          .select('monthly_goal')
+          .single(),
+      ) as Pick<ProfileRow, 'monthly_goal'>;
+      return {
+        target: row.monthly_goal ?? target,
+        completedThisMonth: 0,
+        month: localDateKey().slice(0, 7),
+        timezone: deviceTimeZone(),
+      } satisfies ReadingGoal;
+    },
+  );
+
+  return {
+    target: goal.target,
+    completed: goal.completedThisMonth,
+    month: goal.month,
   };
 }
 
@@ -395,7 +504,7 @@ export async function getSubscription() {
 export async function updateProfile(profile: ProfileForm) {
   const patch = {
     full_name: profile.fullName,
-    phone: profile.phone,
+    phone: profile.phone || null,
     date_of_birth: profile.dateOfBirth || null,
     address_line1: profile.addressLine1 || null,
     address_line2: profile.addressLine2 || null,
@@ -1042,6 +1151,10 @@ export async function saveReadingProgress(
           total_pages: pages,
           progress,
           ...(clientUpdatedAt ? { client_updated_at: clientUpdatedAt } : null),
+          // The streak day and the night-reader hour are drawn in this zone.
+          // `client_updated_at` is a UTC instant, which the server treats as
+          // carrying no offset, so `tz` is what actually places the read.
+          tz: deviceTimeZone(),
         },
       }),
     async () => {

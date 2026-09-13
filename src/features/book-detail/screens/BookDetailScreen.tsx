@@ -3,7 +3,7 @@ import { Alert, StyleSheet, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Bookmark, ChevronLeft, MoreVertical, Play } from 'lucide-react-native';
+import { ChevronLeft, MoreVertical, Play } from 'lucide-react-native';
 
 import type { RootStackParamList } from '@/app/navigation/types';
 import {
@@ -21,6 +21,7 @@ import {
   Display,
   EmptyState,
   IconButton,
+  SaveButton,
   Text,
   TextButton,
   UrduText,
@@ -218,22 +219,12 @@ export function BookDetailScreen() {
           variant="plain"
           accessibilityLabel="Go back"
         />
-        <View style={styles.chromeActions}>
-          <IconButton
-            icon={Bookmark}
-            onPress={handleWishlist}
-            variant={saved ? 'ghost' : 'plain'}
-            accessibilityLabel={
-              saved ? 'Remove from library' : 'Save to library'
-            }
-          />
-          <IconButton
-            icon={MoreVertical}
-            onPress={handleMore}
-            variant="plain"
-            accessibilityLabel="More options"
-          />
-        </View>
+        <IconButton
+          icon={MoreVertical}
+          onPress={handleMore}
+          variant="plain"
+          accessibilityLabel="More options"
+        />
       </View>
 
       <View style={styles.hero}>
@@ -293,11 +284,10 @@ export function BookDetailScreen() {
           size="md"
           style={styles.grow}
         />
-        <Button
-          label={saved ? 'Saved' : 'Save'}
-          variant={saved ? 'ghost' : 'secondary'}
+        <SaveButton
+          saved={Boolean(saved)}
+          saving={wishlistMutation.isPending}
           onPress={handleWishlist}
-          size="md"
           style={styles.grow}
         />
       </View>
@@ -326,10 +316,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  chromeActions: {
-    flexDirection: 'row',
-    gap: 10,
   },
   hero: {
     alignItems: 'center',

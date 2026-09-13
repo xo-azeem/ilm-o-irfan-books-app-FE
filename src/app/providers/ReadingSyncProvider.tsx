@@ -19,6 +19,11 @@ import { useAuthStore } from '@/stores/authStore';
  * knew. The moments are sign-in (and launch with a session) and every return
  * to the foreground, which is also the first chance after a network outage.
  *
+ * Leaving the foreground is a third moment, push only: a reader who turns a
+ * page and swipes the app away has the position on disk already, and the
+ * seconds the OS allows on the way to the background are usually enough to
+ * get it to the server too, rather than waiting for the next launch.
+ *
  * The reader screen does its own, finer-grained push while a book is open;
  * this is the backstop that makes nothing depend on that screen unmounting
  * cleanly.
@@ -50,6 +55,8 @@ export function ReadingSyncProvider({ children }: { children: ReactNode }) {
     const subscription = AppState.addEventListener('change', next => {
       if (next === 'active') {
         void sync();
+      } else if (next === 'background') {
+        void flushPositions(userId as string);
       }
     });
 

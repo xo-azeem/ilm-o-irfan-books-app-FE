@@ -4,6 +4,10 @@
   "expo": {
     "name": "Ilm o Irfan",
     "slug": "ilm-o-irfan",
-    "version": "1.0.0"
+    "version": "1.0.0",
+    "plugins": [
+      "expo-secure-store",
+      "react-native-quick-crypto"
+    ]
   }
 }

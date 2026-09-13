@@ -9,7 +9,7 @@ import Animated, {
   useDerivedValue,
   withTiming,
 } from 'react-native-reanimated';
-import { Bookmark, ChevronLeft, Settings2 } from 'lucide-react-native';
+import { ChevronLeft, Ellipsis } from 'lucide-react-native';
 
 import { IconButton } from '@/components/ui';
 import { LinearGradient, type GradientStop } from '@/components/ui/Gradient';
@@ -41,9 +41,8 @@ export type ReaderChromeProps = {
   /** Chrome is hidden by default; a tap on the page restores it. */
   visible: boolean;
   onBack: () => void;
-  onOpenSettings: () => void;
-  onBookmark: () => void;
-  saved?: boolean;
+  /** Opens the reading sheet — tone, mode, zoom, bookmark and download. */
+  onOpenMenu: () => void;
   /** A chapter or section label, when the document supplies one. */
   chapterLabel?: string;
   /**
@@ -163,9 +162,7 @@ export const ReaderChrome = memo(function ReaderChrome({
   totalPages,
   visible,
   onBack,
-  onOpenSettings,
-  onBookmark,
-  saved = false,
+  onOpenMenu,
   chapterLabel,
   hint = false,
   glass = true,
@@ -250,24 +247,15 @@ export const ReaderChrome = memo(function ReaderChrome({
           ) : null}
         </View>
 
-        <View style={styles.topActions}>
-          <IconButton
-            icon={Bookmark}
-            onPress={onBookmark}
-            variant={saved ? 'ghost' : 'plain'}
-            buttonSize={36}
-            accessibilityLabel={
-              saved ? 'Remove this bookmark' : 'Bookmark this page'
-            }
-          />
-          <IconButton
-            icon={Settings2}
-            onPress={onOpenSettings}
-            variant="plain"
-            buttonSize={36}
-            accessibilityLabel="Reading settings"
-          />
-        </View>
+        {/* One door to everything else — the sheet holds the bookmark, the
+            download and the reading settings, so the bar stays two glyphs. */}
+        <IconButton
+          icon={Ellipsis}
+          onPress={onOpenMenu}
+          variant="plain"
+          buttonSize={36}
+          accessibilityLabel="Reading options"
+        />
       </Animated.View>
 
       {/* Immersed status line — fades out as the chrome fades in. */}
@@ -402,10 +390,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     gap: 3,
-  },
-  topActions: {
-    flexDirection: 'row',
-    gap: 8,
   },
   status: {
     position: 'absolute',

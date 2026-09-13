@@ -1,9 +1,11 @@
 import { memo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Pencil } from 'lucide-react-native';
 
 import {
   Card,
   Display,
+  Icon,
   Label,
   LinearGradient,
   ProgressBar,
@@ -57,26 +59,53 @@ export const StreakCard = memo(function StreakCard({
   );
 });
 
-/** This month's goal — the one place green progress appears on this screen. */
+/**
+ * This month's goal — the one place green progress appears on this screen.
+ * The count is a button when the target can be changed, so the number a
+ * reader wants to adjust is the thing they tap.
+ */
 export const GoalCard = memo(function GoalCard({
   completed,
   target,
   note,
+  onEdit,
 }: {
   completed: number;
   target: number;
   note?: string;
+  onEdit?: () => void;
 }) {
+  const count = `${completed} / ${target} books`;
   return (
     <Card tone="surface" rounded={radius.cardLarge} padded={18} gap={14}>
       <View style={styles.goalHeader}>
         <Display size={17}>This month’s goal</Display>
-        <Label
-          tone="primary"
-          tracking={0.8}
-        >{`${completed} / ${target} books`}</Label>
+        {onEdit ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${count}. Change goal`}
+            hitSlop={8}
+            onPress={onEdit}
+            style={({ pressed }) => [
+              styles.goalEdit,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Label tone="primary" tracking={0.8}>
+              {count}
+            </Label>
+            <Icon icon={Pencil} size={12} tone="primary" />
+          </Pressable>
+        ) : (
+          <Label tone="primary" tracking={0.8}>
+            {count}
+          </Label>
+        )}
       </View>
-      <ProgressBar value={target > 0 ? completed / target : 0} height={8} />
+      <ProgressBar
+        value={target > 0 ? Math.min(1, completed / target) : 0}
+        height={8}
+      />
       {note ? (
         <Text size={12.5} leading={1.3} tone="muted">
           {note}
@@ -94,9 +123,14 @@ export type Achievement = {
   earned: boolean;
   /** Gold for streaks, green for volume. Locked badges are neither. */
   tone?: 'gold' | 'primary';
+  /** How far along a locked badge is; the caption shows it in place of "Locked". */
+  progress?: { current: number; target: number };
 };
 
-/** The achievement rail. Locked badges are dashed and unlabelled by design. */
+/**
+ * The achievement rail. Locked badges are dashed and unnamed by design — the
+ * one thing they give away is how close the reader is.
+ */
 export const AchievementRail = memo(function AchievementRail({
   achievements,
   earnedCount,
@@ -136,7 +170,13 @@ const AchievementBadge = memo(function AchievementBadge({
   achievement: Achievement;
 }) {
   const { colors } = useTheme();
-  const { earned, tone = 'primary' } = achievement;
+  const { earned, tone = 'primary', progress } = achievement;
+
+  const caption = earned
+    ? achievement.label
+    : progress
+      ? `${Math.min(progress.current, progress.target)} of ${progress.target}`
+      : 'Locked';
 
   const fill = !earned
     ? colors.primaryFillSoft
@@ -176,7 +216,7 @@ const AchievementBadge = memo(function AchievementBadge({
         tone={earned ? 'muted' : 'dim'}
         numberOfLines={2}
       >
-        {earned ? achievement.label : 'Locked'}
+        {caption}
       </Text>
     </View>
   );
@@ -248,6 +288,14 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
     justifyContent: 'space-between',
     gap: 12,
+  },
+  goalEdit: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  pressed: {
+    opacity: 0.6,
   },
   achievements: {
     gap: 12,

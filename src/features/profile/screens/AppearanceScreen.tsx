@@ -6,8 +6,6 @@ import {
   Divider,
   Label,
   SegmentedControl,
-  SettingsGroup,
-  SettingsRow,
   Text,
   Toggle,
 } from '@/components/ui';
@@ -42,8 +40,9 @@ const TONES: { value: ReaderTone; label: string }[] = [
 /**
  * Appearance.
  *
- * A live preview sits above the three choices, and the reader's page tone is
- * pulled up here so it is not buried in the reader's own sheet.
+ * The three theme previews are the choices themselves — tapping one selects
+ * it — and the reader's page tone is pulled up here so it is not buried in the
+ * reader's own sheet.
  *
  * The text-size selector needs no preview of its own: the choice applies to
  * every glyph in the app, so this screen resizes under the reader's finger as
@@ -77,27 +76,6 @@ export function AppearanceScreen() {
           />
         ))}
       </View>
-
-      <SettingsGroup>
-        <SettingsRow
-          title="Match device settings"
-          subtitle="Follows your system theme"
-          selected={themePreference === 'system'}
-          onPress={() => setThemePreference('system')}
-        />
-        <SettingsRow
-          title="Always use light mode"
-          subtitle="Better in daylight"
-          selected={themePreference === 'light'}
-          onPress={() => setThemePreference('light')}
-        />
-        <SettingsRow
-          title="Always use dark mode"
-          subtitle="Recommended for night reading"
-          selected={themePreference === 'dark'}
-          onPress={() => setThemePreference('dark')}
-        />
-      </SettingsGroup>
 
       <View style={styles.section}>
         <Label size={fontSize.labelSmall + 0.5} tracking={1.5}>

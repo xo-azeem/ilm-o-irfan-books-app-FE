@@ -525,6 +525,45 @@ export type ProfileRow = {
    * response and from the table fallback.
    */
   streak?: ReadingStreak | null;
+  /** `profiles.monthly_goal` — the one goal field the table fallback can read. */
+  monthly_goal?: number | null;
+  /** This month's target and count, in the `tz` the request named. */
+  readingGoal?: ReadingGoal | null;
+  /** All four, in a fixed order, earned or not. */
+  achievements?: AchievementRow[] | null;
+};
+
+/** `profile-read` / `reading-goal-update` — the month is drawn in `timezone`. */
+export type ReadingGoal = {
+  /** `YYYY-MM`. */
+  month: string;
+  /** 1–100. */
+  target: number;
+  /** The IANA zone the month boundary was drawn in. */
+  timezone: string;
+  /** Rows whose `finished_at` fell inside `month`. */
+  completedThisMonth: number;
+};
+
+export type AchievementId =
+  'first-book' | 'streak-7' | 'books-25' | 'night-reader';
+
+/**
+ * One of the four achievements the backend awards after every progress write.
+ * Once earned it stays earned; `progress` keeps counting past `target`.
+ */
+export type AchievementRow = {
+  id: AchievementId;
+  earned: boolean;
+  earned_at: string | null;
+  progress: { current: number; target: number };
+};
+
+/** One of the seven `recent_days` on the streak — `day` is `YYYY-MM-DD`. */
+export type ReadingDay = {
+  day: string;
+  read: boolean;
+  pages_read: number;
 };
 
 /**
@@ -544,6 +583,11 @@ export type ReadingProgressRow = {
   progress: number | string | null;
   chapter_label: string | null;
   last_read_at: string | null;
+  /**
+   * Set once, server-side, the first time `progress` crosses 0.99, and never
+   * cleared — a reader who flips back to page ten has still finished the book.
+   */
+  finished_at?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
   /**
@@ -650,6 +694,7 @@ export type ProgressItemRow = {
   progress: number | string | null;
   chapter_label: string | null;
   last_read_at: string | null;
+  finished_at?: string | null;
   book: LibraryBookCard | null;
 };
 
@@ -685,8 +730,14 @@ export type LibraryOverviewPayload = {
 export type ReadingStreak = {
   current_streak: number;
   longest_streak: number;
+  /** `YYYY-MM-DD` in the zone of the write that set it. */
   last_read_date: string | null;
   updated_at?: string | null;
+  /**
+   * Exactly seven entries, oldest first, ending on today in the request's
+   * `tz`. Absent from a backend older than the reading-record migration.
+   */
+  recent_days?: ReadingDay[] | null;
 };
 
 /**

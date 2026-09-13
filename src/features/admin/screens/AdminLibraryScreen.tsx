@@ -6,10 +6,7 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   useNavigation,
   useRoute,
@@ -38,6 +35,7 @@ import {
   AdminPageTitle,
   AdminSegments,
   AdminTextAction,
+  useAdminBottomInset,
 } from '@/features/admin/components/AdminUi';
 import { LibraryAuthors } from '@/features/admin/components/LibraryAuthors';
 import {
@@ -108,7 +106,8 @@ export function AdminLibraryScreen() {
     useRoute<RouteProp<AdminLibraryStackParamList, 'AdminLibraryHome'>>();
   const { colors } = useTheme();
   const { scrollEndPadding } = useAppInsets();
-  const insets = useSafeAreaInsets();
+  // The bulk bar is pinned over the list; it must clear the floating tab bar.
+  const bottomInset = useAdminBottomInset();
   const toast = useToast();
 
   const [segment, setSegment] = useState<LibrarySegment>(
@@ -502,7 +501,7 @@ export function AdminLibraryScreen() {
             {
               backgroundColor: colors.surface,
               borderTopColor: colors.borderStrong,
-              paddingBottom: Math.max(insets.bottom, 20) + 14,
+              paddingBottom: bottomInset + 14,
             },
           ]}
         >

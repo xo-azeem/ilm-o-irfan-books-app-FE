@@ -21,6 +21,7 @@ import {
   AdminBackLink,
   AdminButton,
   AdminErrorState,
+  useAdminBottomInset,
 } from '@/features/admin/components/AdminUi';
 import type { AdminLibraryStackParamList } from '@/features/admin/navigation/types';
 import { getSignedPdfUrl } from '@/lib/supabase';
@@ -39,6 +40,7 @@ export function AdminPdfPreviewScreen() {
   const route =
     useRoute<RouteProp<AdminLibraryStackParamList, 'AdminPdfPreview'>>();
   const { colors, isDark } = useTheme();
+  const bottomInset = useAdminBottomInset();
 
   const [uri, setUri] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -136,6 +138,8 @@ export function AdminPdfPreviewScreen() {
           style={[
             styles.panel,
             {
+              // Floats above the tab bar, not under it.
+              bottom: bottomInset + 12,
               backgroundColor: colors.tabBarSurface,
               borderColor: colors.tabBarBorder,
             },
@@ -239,7 +243,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 12,
     right: 12,
-    bottom: 12,
     gap: 11,
     paddingHorizontal: 15,
     paddingVertical: 13,

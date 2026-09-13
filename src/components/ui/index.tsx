@@ -112,6 +112,16 @@ export { ViewToggle, type ViewMode } from './ViewToggle';
 
 export { Sheet, SheetSection, useSheet, type SheetProps } from './Sheet';
 
+export {
+  DialogLayer,
+  showDialog,
+  dismissDialog,
+  type DialogAction,
+  type DialogActionStyle,
+  type DialogOptions,
+  type DialogTone,
+} from './Dialog';
+
 export { EmptyState, DashedShelf, type EmptyStateProps } from './EmptyState';
 
 export {

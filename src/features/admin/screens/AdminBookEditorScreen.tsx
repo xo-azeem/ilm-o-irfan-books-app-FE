@@ -17,7 +17,7 @@ import {
 } from '@react-native-documents/picker';
 import { Copy, ImageUp, Trash2, type LucideIcon } from 'lucide-react-native';
 
-import { BookCover, Display, Icon, Label, Text } from '@/components/ui';
+import { BookCover, Display, Icon, Label, Tag, Text } from '@/components/ui';
 import { ADMIN_ROUTES } from '@/constants/routes';
 import {
   AdminColorField,
@@ -28,6 +28,7 @@ import {
 import { errorMessage, useToast } from '@/features/admin/components/AdminToast';
 import {
   ADMIN_GUTTER,
+  AdminActionBar,
   AdminBackLink,
   AdminButton,
   AdminCard,
@@ -164,8 +165,8 @@ export function AdminBookEditorScreen() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [touched, setTouched] = useState(false);
 
-  const { isDirty, reset } = useDirtyTracker(form);
-  useUnsavedGuard(isDirty);
+  const { isDirty, reset, dirtyRef } = useDirtyTracker(form);
+  useUnsavedGuard(dirtyRef);
 
   const patch = (next: Partial<FormState>) => {
     setForm(current => ({ ...current, ...next }));
@@ -768,43 +769,60 @@ export function AdminBookEditorScreen() {
               </Display>
 
               <View style={styles.stack}>
+                {/* Membership reads as removable tags plus one dashed "add",
+                    so joining a category is a visible tap, never a hunt for
+                    a small "Edit" word. */}
                 <View style={styles.block}>
                   <AdminSectionHeader
                     title="Categories"
                     action={
                       <AdminTextAction
-                        label="Edit"
+                        label="Choose"
                         size={11.5}
                         onPress={() => setShowCategoryPicker(true)}
                       />
                     }
                   />
+                  <View style={styles.wrap}>
+                    {form.categoryIds.map(id => (
+                      <Tag
+                        key={id}
+                        label={
+                          categories.find(item => item.id === id)?.label ??
+                          'Unknown'
+                        }
+                        onRemove={() =>
+                          patch({
+                            categoryIds: form.categoryIds.filter(
+                              item => item !== id,
+                            ),
+                          })
+                        }
+                      />
+                    ))}
+                    <Tag
+                      label={
+                        form.categoryIds.length
+                          ? '+ Add another'
+                          : '+ Add to a category'
+                      }
+                      dashed
+                      onPress={() => setShowCategoryPicker(true)}
+                    />
+                  </View>
                   {form.categoryIds.length === 0 ? (
                     <AdminHelper tone="warning">
                       Not in any category yet — readers will not find it on
                       Explore.
                     </AdminHelper>
                   ) : (
-                    <View style={styles.wrap}>
-                      {form.categoryIds.map(id => (
-                        <AdminChip
-                          key={id}
-                          label={
-                            categories.find(item => item.id === id)?.label ??
-                            'Unknown'
-                          }
-                          selected
-                          compact
-                          onPress={() =>
-                            patch({
-                              categoryIds: form.categoryIds.filter(
-                                item => item !== id,
-                              ),
-                            })
-                          }
-                        />
-                      ))}
-                    </View>
+                    <AdminHelper>
+                      Shown under{' '}
+                      {form.categoryIds.length === 1
+                        ? 'this tile'
+                        : 'these tiles'}{' '}
+                      on Explore and matched by the category filter in search.
+                    </AdminHelper>
                   )}
                 </View>
 
@@ -813,36 +831,42 @@ export function AdminBookEditorScreen() {
                     title="Collections"
                     action={
                       <AdminTextAction
-                        label="Edit"
+                        label="Choose"
                         size={11.5}
                         onPress={() => setShowCollectionPicker(true)}
                       />
                     }
                   />
+                  <View style={styles.wrap}>
+                    {form.collectionIds.map(id => (
+                      <Tag
+                        key={id}
+                        label={
+                          collections.find(item => item.id === id)?.title ??
+                          'Unknown'
+                        }
+                        onRemove={() =>
+                          patch({
+                            collectionIds: form.collectionIds.filter(
+                              item => item !== id,
+                            ),
+                          })
+                        }
+                      />
+                    ))}
+                    <Tag
+                      label={
+                        form.collectionIds.length
+                          ? '+ Add another'
+                          : '+ Add to a collection'
+                      }
+                      dashed
+                      onPress={() => setShowCollectionPicker(true)}
+                    />
+                  </View>
                   {form.collectionIds.length === 0 ? (
                     <AdminHelper>Not on any Home collection.</AdminHelper>
-                  ) : (
-                    <View style={styles.wrap}>
-                      {form.collectionIds.map(id => (
-                        <AdminChip
-                          key={id}
-                          label={
-                            collections.find(item => item.id === id)?.title ??
-                            'Unknown'
-                          }
-                          selected
-                          compact
-                          onPress={() =>
-                            patch({
-                              collectionIds: form.collectionIds.filter(
-                                item => item !== id,
-                              ),
-                            })
-                          }
-                        />
-                      ))}
-                    </View>
-                  )}
+                  ) : null}
                 </View>
 
                 <AdminCard>
@@ -972,58 +996,40 @@ export function AdminBookEditorScreen() {
       </ScrollView>
 
       {/* The two ways out of this screen, and why one of them is closed. */}
-      <View
-        style={[
-          styles.footer,
-          {
-            backgroundColor: colors.chrome,
-            borderTopColor: colors.chromeBorder,
-          },
-        ]}
-      >
-        {form.isPublished ? (
-          <>
-            <View style={styles.grow}>
-              <AdminButton
-                label="Unpublish"
-                variant="secondary"
-                disabled={uploading || saveBook.isPending}
-                onPress={() => save(false, 'Title unpublished.')}
-              />
-            </View>
-            <View style={styles.grow}>
-              <AdminButton
-                label="Save changes"
-                loading={saveBook.isPending}
-                disabled={uploading}
-                onPress={() => save(true, 'Book saved.')}
-              />
-            </View>
-          </>
-        ) : (
-          <>
-            <View style={styles.grow}>
-              <AdminButton
-                label="Save draft"
-                variant="secondary"
-                loading={saveBook.isPending}
-                disabled={uploading}
-                onPress={() =>
-                  save(false, bookId ? 'Draft saved.' : 'Draft created.')
-                }
-              />
-            </View>
-            <View style={styles.grow}>
-              <AdminButton
-                label="Publish"
-                blockedReason={publishBlocker}
-                disabled={uploading}
-                onPress={() => save(true, 'Title published.')}
-              />
-            </View>
-          </>
-        )}
-      </View>
+      {form.isPublished ? (
+        <AdminActionBar>
+          <AdminButton
+            label="Unpublish"
+            variant="secondary"
+            disabled={uploading || saveBook.isPending}
+            onPress={() => save(false, 'Title unpublished.')}
+          />
+          <AdminButton
+            label="Save changes"
+            loading={saveBook.isPending}
+            disabled={uploading}
+            onPress={() => save(true, 'Book saved.')}
+          />
+        </AdminActionBar>
+      ) : (
+        <AdminActionBar>
+          <AdminButton
+            label="Save draft"
+            variant="secondary"
+            loading={saveBook.isPending}
+            disabled={uploading}
+            onPress={() =>
+              save(false, bookId ? 'Draft saved.' : 'Draft created.')
+            }
+          />
+          <AdminButton
+            label="Publish"
+            blockedReason={publishBlocker}
+            disabled={uploading}
+            onPress={() => save(true, 'Title published.')}
+          />
+        </AdminActionBar>
+      )}
 
       <AdminPickerSheet
         visible={showAuthorPicker}
@@ -1282,14 +1288,6 @@ const styles = StyleSheet.create({
   metric: {
     alignItems: 'center',
     gap: 3,
-  },
-  footer: {
-    flexDirection: 'row',
-    gap: 10,
-    paddingHorizontal: ADMIN_GUTTER,
-    paddingTop: 13,
-    paddingBottom: 26,
-    borderTopWidth: StyleSheet.hairlineWidth * 2,
   },
   grow: {
     flex: 1,

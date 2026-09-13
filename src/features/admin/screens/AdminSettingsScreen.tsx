@@ -8,6 +8,7 @@ import { AdminMenuSkeleton } from '@/features/admin/components/AdminSkeletons';
 import { errorMessage, useToast } from '@/features/admin/components/AdminToast';
 import {
   ADMIN_GUTTER,
+  AdminActionBar,
   AdminBackLink,
   AdminButton,
   AdminErrorState,
@@ -239,22 +240,14 @@ export function AdminSettingsScreen() {
         </Text>
       </ScrollView>
 
-      <View
-        style={[
-          styles.footer,
-          {
-            backgroundColor: colors.chrome,
-            borderTopColor: colors.chromeBorder,
-          },
-        ]}
-      >
+      <AdminActionBar>
         <AdminButton
           label="Save settings"
           loading={update.isPending}
           disabled={!dirty}
           onPress={handleSave}
         />
-      </View>
+      </AdminActionBar>
 
       <AdminPickerSheet
         visible={showCollectionPicker}
@@ -321,11 +314,5 @@ const styles = StyleSheet.create({
   note: {
     padding: 14,
     borderRadius: 14,
-  },
-  footer: {
-    paddingHorizontal: ADMIN_GUTTER,
-    paddingTop: 13,
-    paddingBottom: 26,
-    borderTopWidth: StyleSheet.hairlineWidth * 2,
   },
 });

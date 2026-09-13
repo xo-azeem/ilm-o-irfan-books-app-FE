@@ -15,6 +15,7 @@ export type AdminLibraryStackParamList = {
   AdminPdfPreview: { bookId: string; title: string };
   AdminAuthorEditor: { authorId?: string };
   AdminCategoryEditor: { categoryId?: string };
+  AdminCategoryBooks: { categoryId: string };
   AdminCollectionEditor: { collectionId?: string };
 };
 

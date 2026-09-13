@@ -1,11 +1,12 @@
 import { useCallback, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { KeyRound } from 'lucide-react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '@/app/navigation/types';
-import { Button, Text, TextButton } from '@/components/ui';
+import { Button, showDialog, Text, TextButton } from '@/components/ui';
 import { ROUTES } from '@/constants/routes';
 import { AuthDivider } from '@/features/auth/components/AuthDivider';
 import { AuthField } from '@/features/auth/components/AuthField';
@@ -31,12 +32,20 @@ export function LoginScreen() {
 
   const handleSignIn = useCallback(async () => {
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Missing details', 'Please enter your email and password.');
+      showDialog({
+        title: 'Missing details',
+        message: 'Please enter your email and password.',
+        tone: 'warning',
+      });
       return;
     }
 
     if (!isValidEmail(email)) {
-      Alert.alert('Invalid email', 'Please enter a valid email address.');
+      showDialog({
+        title: 'Invalid email',
+        message: 'Please enter a valid email address.',
+        tone: 'warning',
+      });
       return;
     }
 
@@ -53,17 +62,19 @@ export function LoginScreen() {
         error instanceof Error
           ? error.message
           : 'Unable to sign in. Try again.';
-      Alert.alert('Sign in failed', message);
+      showDialog({ title: 'Sign in failed', message, tone: 'danger' });
     } finally {
       setIsSubmitting(false);
     }
   }, [email, navigation, password, returnTo]);
 
   const handleGoogleSignIn = useCallback(() => {
-    Alert.alert(
-      'Coming soon',
-      'Google sign-in will be enabled after OAuth is configured in Supabase.',
-    );
+    showDialog({
+      title: 'Coming soon',
+      message:
+        'Google sign-in will be enabled after OAuth is configured in Supabase.',
+      tone: 'info',
+    });
   }, []);
 
   const handleGuest = useCallback(() => {
@@ -79,10 +90,13 @@ export function LoginScreen() {
   );
 
   const handleForgotPassword = useCallback(() => {
-    Alert.alert(
-      'Reset your password',
-      'Enter your email and we will send a reset link once password recovery is enabled in Supabase.',
-    );
+    showDialog({
+      title: 'Reset your password',
+      message:
+        'Enter your email and we will send a reset link once password recovery is enabled in Supabase.',
+      tone: 'info',
+      icon: KeyRound,
+    });
   }, []);
 
   return (

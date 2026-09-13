@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Trash2 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
@@ -9,6 +10,7 @@ import {
   EmptyState,
   Label,
   ProgressBar,
+  showDialog,
   Text,
 } from '@/components/ui';
 import { DownloadsCatalogSkeleton } from '@/components/skeletons/CatalogSkeletons';
@@ -87,36 +89,39 @@ export function DownloadsScreen() {
 
   const handleRemove = useCallback(
     (entry: DownloadEntry) => {
-      Alert.alert(
-        'Remove download?',
-        `${entry.title} will stay in your library but need a connection to open.`,
-        [
-          { text: 'Cancel', style: 'cancel' },
+      showDialog({
+        title: 'Remove download?',
+        message: `${entry.title} will stay in your library but need a connection to open.`,
+        icon: Trash2,
+        actions: [
+          { label: 'Cancel', style: 'cancel' },
           {
-            text: 'Remove',
+            label: 'Remove',
             style: 'destructive',
             onPress: () => removeDownload.mutate(entry.id),
           },
         ],
-      );
+      });
     },
     [removeDownload],
   );
 
   const handleRemoveAll = useCallback(() => {
-    Alert.alert(
-      'Remove all downloads?',
-      'Every book stays in your library, but you will need a connection to open them.',
-      [
-        { text: 'Cancel', style: 'cancel' },
+    showDialog({
+      title: 'Remove all downloads?',
+      message:
+        'Every book stays in your library, but you will need a connection to open them.',
+      icon: Trash2,
+      actions: [
+        { label: 'Cancel', style: 'cancel' },
         {
-          text: 'Remove all',
+          label: 'Remove all',
           style: 'destructive',
           onPress: () =>
             downloads.forEach(entry => removeDownload.mutate(entry.id)),
         },
       ],
-    );
+    });
   }, [downloads, removeDownload]);
 
   const goBack = useCallback(() => navigation.goBack(), [navigation]);

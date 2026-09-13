@@ -6,10 +6,12 @@ import {
   useRoute,
   type RouteProp,
 } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   Book,
   BookMarked,
   Globe,
+  Library,
   Landmark,
   Scale,
   ScrollText,
@@ -18,6 +20,7 @@ import {
 } from 'lucide-react-native';
 
 import { Icon, Text } from '@/components/ui';
+import { ADMIN_ROUTES } from '@/constants/routes';
 import {
   AdminColorField,
   AdminConfirmSheet,
@@ -25,11 +28,14 @@ import {
 import { errorMessage, useToast } from '@/features/admin/components/AdminToast';
 import {
   ADMIN_GUTTER,
+  AdminActionBar,
   AdminBackLink,
   AdminButton,
   AdminEyebrow,
   AdminField,
   AdminLabel,
+  AdminNavRow,
+  AdminRowGroup,
   AdminScreenTitle,
   AdminTag,
   AdminTextAction,
@@ -75,7 +81,8 @@ function ordinal(position: number): string {
  * the icon and label are judged together instead of imagined apart.
  */
 export function AdminCategoryEditorScreen() {
-  const navigation = useNavigation();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<AdminLibraryStackParamList>>();
   const route =
     useRoute<RouteProp<AdminLibraryStackParamList, 'AdminCategoryEditor'>>();
   const categoryId = route.params?.categoryId;
@@ -97,8 +104,8 @@ export function AdminCategoryEditorScreen() {
   });
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const { isDirty, reset } = useDirtyTracker(form);
-  useUnsavedGuard(isDirty);
+  const { isDirty, reset, dirtyRef } = useDirtyTracker(form);
+  useUnsavedGuard(dirtyRef);
 
   useEffect(() => {
     if (!existing) return;
@@ -235,6 +242,27 @@ export function AdminCategoryEditorScreen() {
           </View>
         </View>
 
+        {/* What sits behind the tile is its own page: a set of books picked
+            from the whole catalog, not one book at a time. Only once the
+            category exists — a new one has nothing to tag yet. */}
+        {categoryId ? (
+          <AdminRowGroup title="Books">
+            <AdminNavRow
+              Icon={Library}
+              label="Books in this category"
+              sublabel={
+                books === 0
+                  ? 'Nothing tagged yet — add one or many'
+                  : `${books} ${books === 1 ? 'book' : 'books'} · add or remove any`
+              }
+              warn={books === 0}
+              onPress={() =>
+                navigation.navigate(ADMIN_ROUTES.CATEGORY_BOOKS, { categoryId })
+              }
+            />
+          </AdminRowGroup>
+        ) : null}
+
         <AdminField
           label="Label"
           value={form.label}
@@ -328,22 +356,14 @@ export function AdminCategoryEditorScreen() {
         ) : null}
       </ScrollView>
 
-      <View
-        style={[
-          styles.footer,
-          {
-            backgroundColor: colors.chrome,
-            borderTopColor: colors.chromeBorder,
-          },
-        ]}
-      >
+      <AdminActionBar>
         <AdminButton
           label={categoryId ? 'Save category' : 'Create category'}
           loading={save.isPending}
           disabled={!form.label.trim()}
           onPress={handleSave}
         />
-      </View>
+      </AdminActionBar>
 
       <AdminConfirmSheet
         visible={confirmDelete}
@@ -425,12 +445,6 @@ const styles = StyleSheet.create({
   deleteBlock: {
     alignItems: 'center',
     paddingTop: 4,
-  },
-  footer: {
-    paddingHorizontal: ADMIN_GUTTER,
-    paddingTop: 13,
-    paddingBottom: 26,
-    borderTopWidth: StyleSheet.hairlineWidth * 2,
   },
   pressed: { opacity: 0.72 },
 });

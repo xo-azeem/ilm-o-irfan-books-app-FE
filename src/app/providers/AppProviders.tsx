@@ -11,6 +11,7 @@ import { AccessProvider } from '@/app/providers/AccessProvider';
 import { AuthSessionProvider } from '@/app/providers/AuthSessionProvider';
 import { ReadingSyncProvider } from '@/app/providers/ReadingSyncProvider';
 import { ThemeProvider } from '@/app/providers/ThemeProvider';
+import { DialogLayer } from '@/components/ui/Dialog';
 import { queryClient } from '@/lib/queryClient';
 import { ThemeStateProvider, useTheme } from '@/theme/ThemeContext';
 
@@ -28,6 +29,8 @@ function AppShell({ children }: PropsWithChildren) {
           translucent={Platform.OS === 'android'}
         />
         {children}
+        {/* Popups draw above the navigator; sheets carry their own layer. */}
+        <DialogLayer root />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

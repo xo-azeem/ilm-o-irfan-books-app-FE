@@ -1,11 +1,12 @@
 import { useCallback, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { MailCheck } from 'lucide-react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '@/app/navigation/types';
-import { Button, Text, TextButton } from '@/components/ui';
+import { Button, showDialog, Text, TextButton } from '@/components/ui';
 import { ROUTES } from '@/constants/routes';
 import { AuthDivider } from '@/features/auth/components/AuthDivider';
 import { AuthField } from '@/features/auth/components/AuthField';
@@ -50,23 +51,43 @@ export function SignUpScreen() {
 
   const validateForm = useCallback((): boolean => {
     if (!form.fullName.trim()) {
-      Alert.alert('Missing details', 'Please enter your full name.');
+      showDialog({
+        title: 'Missing details',
+        message: 'Please enter your full name.',
+        tone: 'warning',
+      });
       return false;
     }
     if (!isValidEmail(form.email)) {
-      Alert.alert('Invalid email', 'Please enter a valid email address.');
+      showDialog({
+        title: 'Invalid email',
+        message: 'Please enter a valid email address.',
+        tone: 'warning',
+      });
       return false;
     }
     if (form.phone.trim().length < 7) {
-      Alert.alert('Invalid phone', 'Please enter a valid phone number.');
+      showDialog({
+        title: 'Invalid phone',
+        message: 'Please enter a valid phone number.',
+        tone: 'warning',
+      });
       return false;
     }
     if (form.password.length < 8) {
-      Alert.alert('Weak password', 'Password must be at least 8 characters.');
+      showDialog({
+        title: 'Weak password',
+        message: 'Password must be at least 8 characters.',
+        tone: 'warning',
+      });
       return false;
     }
     if (form.password !== form.confirmPassword) {
-      Alert.alert('Password mismatch', 'Passwords do not match.');
+      showDialog({
+        title: 'Password mismatch',
+        message: 'Passwords do not match.',
+        tone: 'warning',
+      });
       return false;
     }
     return true;
@@ -104,12 +125,18 @@ export function SignUpScreen() {
       }
 
       if (!data.session) {
-        Alert.alert(
-          'Check your email',
-          'Account created. Confirm your email if required, then sign in.',
-          [
+        // Not dismissable: the only way on is the button, which lands the
+        // reader on sign-in rather than leaving them on a form already sent.
+        showDialog({
+          title: 'Check your email',
+          message:
+            'Account created. Confirm your email if required, then sign in.',
+          tone: 'success',
+          icon: MailCheck,
+          dismissable: false,
+          actions: [
             {
-              text: 'OK',
+              label: 'OK',
               onPress: () =>
                 navigation.navigate(
                   ROUTES.LOGIN,
@@ -117,7 +144,7 @@ export function SignUpScreen() {
                 ),
             },
           ],
-        );
+        });
         return;
       }
 
@@ -131,17 +158,19 @@ export function SignUpScreen() {
         error instanceof Error
           ? error.message
           : 'Unable to create account. Try again.';
-      Alert.alert('Sign up failed', message);
+      showDialog({ title: 'Sign up failed', message, tone: 'danger' });
     } finally {
       setIsSubmitting(false);
     }
   }, [form, navigation, returnTo, validateForm]);
 
   const handleGoogleSignUp = useCallback(() => {
-    Alert.alert(
-      'Coming soon',
-      'Google sign-up will be enabled after OAuth is configured in Supabase.',
-    );
+    showDialog({
+      title: 'Coming soon',
+      message:
+        'Google sign-up will be enabled after OAuth is configured in Supabase.',
+      tone: 'info',
+    });
   }, []);
 
   const goToSignIn = useCallback(

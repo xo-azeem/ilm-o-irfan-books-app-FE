@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import {
   Badge,
@@ -10,11 +10,12 @@ import {
   Icon,
   Label,
   LinearGradient,
+  showDialog,
   StatTile,
   Text,
   TextButton,
 } from '@/components/ui';
-import { Check } from 'lucide-react-native';
+import { Check, CreditCard, Hourglass, Store } from 'lucide-react-native';
 import { MembershipNotice } from '@/features/home/components/MembershipNotice';
 import { MembershipPaywall } from '@/features/profile/components/MembershipPaywall';
 import { ProfileSubScreenLayout } from '@/features/profile/components/ProfileSubScreenLayout';
@@ -95,19 +96,24 @@ export function SubscriptionScreen() {
       purchase.mutate(option.purchasable, {
         onSuccess: outcome => {
           if (outcome.status === 'pending') {
-            Alert.alert(
-              'Payment pending',
-              'Your store is still processing the payment. Your membership unlocks as soon as it clears — there is nothing more to do.',
-            );
+            showDialog({
+              title: 'Payment pending',
+              message:
+                'Your store is still processing the payment. Your membership unlocks as soon as it clears — there is nothing more to do.',
+              tone: 'info',
+              icon: Hourglass,
+            });
           }
           // `purchased` needs no alert: the entitlement has already been
           // re-read, so the screen itself has changed underneath the sheet.
         },
         onError: error =>
-          Alert.alert(
-            'Purchase failed',
-            error instanceof Error ? error.message : 'Please try again.',
-          ),
+          showDialog({
+            title: 'Purchase failed',
+            message:
+              error instanceof Error ? error.message : 'Please try again.',
+            tone: 'danger',
+          }),
       });
     },
     [purchase],
@@ -125,44 +131,51 @@ export function SubscriptionScreen() {
     restore().then(
       ({ restored, granted }) => {
         if (granted) {
-          Alert.alert(
-            'Membership restored',
-            'Your membership is active on this device.',
-          );
+          showDialog({
+            title: 'Membership restored',
+            message: 'Your membership is active on this device.',
+            tone: 'success',
+          });
           return;
         }
-        Alert.alert(
-          restored ? 'Almost there' : 'Nothing to restore',
-          restored
+        showDialog({
+          title: restored ? 'Almost there' : 'Nothing to restore',
+          message: restored
             ? 'We found your purchase and are still applying it. This usually takes a few seconds.'
             : 'No previous membership was found for this store account.',
-        );
+          tone: 'info',
+          icon: restored ? Hourglass : undefined,
+        });
       },
       error =>
-        Alert.alert(
-          'Could not restore',
-          error instanceof Error ? error.message : 'Please try again.',
-        ),
+        showDialog({
+          title: 'Could not restore',
+          message: error instanceof Error ? error.message : 'Please try again.',
+          tone: 'danger',
+        }),
     );
   }, [restore]);
 
   const handleCancel = useCallback(() => {
-    Alert.alert(
-      'Cancel membership?',
-      'You will keep full access until the end of the current period.',
-      [
-        { text: 'Keep membership', style: 'cancel' },
+    showDialog({
+      title: 'Cancel membership?',
+      message: 'You will keep full access until the end of the current period.',
+      actions: [
+        { label: 'Keep membership', style: 'cancel' },
         {
-          text: 'Cancel',
+          label: 'Cancel',
           style: 'destructive',
           onPress: () =>
-            Alert.alert(
-              'Manage in store',
-              'Cancel from your App Store or Play Store subscriptions.',
-            ),
+            showDialog({
+              title: 'Manage in store',
+              message:
+                'Cancel from your App Store or Play Store subscriptions.',
+              tone: 'info',
+              icon: Store,
+            }),
         },
       ],
-    );
+    });
   }, []);
 
   // Server totals, not the length of a capped shelf: "books opened" is every
@@ -317,10 +330,12 @@ export function SubscriptionScreen() {
             label="Payment method"
             tone="muted"
             onPress={() =>
-              Alert.alert(
-                'Payment method',
-                'Managed by your App Store or Play Store account.',
-              )
+              showDialog({
+                title: 'Payment method',
+                message: 'Managed by your App Store or Play Store account.',
+                tone: 'info',
+                icon: CreditCard,
+              })
             }
           />
           <TextButton

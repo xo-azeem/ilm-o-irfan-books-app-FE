@@ -21,6 +21,7 @@ import {
   getAdminDashboardStats,
   getAdminSettings,
   getAdminUserDetail,
+  getCategoryBookIds,
   getCollectionBookIds,
   getStorageAudit,
   listAdminAuthors,
@@ -32,6 +33,7 @@ import {
   listAuditLog,
   listBookOptions,
   reorderCatalog,
+  setCategoryBooks,
   setCollectionPublished,
   setAdminEntitlement,
   setAdminUserRole,
@@ -184,6 +186,29 @@ export function useDeleteAdminCategory() {
   const client = useQueryClient();
   return useMutation({
     mutationFn: deleteAdminCategory,
+    onSuccess: () => invalidateAdmin(client),
+  });
+}
+
+export function useCategoryBookIds(categoryId: string | undefined) {
+  return useQuery({
+    queryKey: ['admin', 'category-books', categoryId],
+    queryFn: () => getCategoryBookIds(categoryId as string),
+    enabled: Boolean(categoryId),
+  });
+}
+
+/** Rewrites which books carry a category, from the category's book page. */
+export function useSetCategoryBooks() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      categoryId,
+      bookIds,
+    }: {
+      categoryId: string;
+      bookIds: string[];
+    }) => setCategoryBooks(categoryId, bookIds),
     onSuccess: () => invalidateAdmin(client),
   });
 }

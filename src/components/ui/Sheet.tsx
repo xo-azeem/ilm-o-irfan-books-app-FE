@@ -26,6 +26,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DialogLayer, dismissDialog } from '@/components/ui/Dialog';
 import { Display } from '@/components/ui/Text';
 import { radius } from '@/theme/palette';
 import { useTheme } from '@/theme/ThemeContext';
@@ -72,6 +73,14 @@ export const Sheet = memo(function Sheet({
     progress.value = withTiming(visible ? 1 : 0, TIMING);
   }, [progress, visible]);
 
+  // A dialog raised from inside the sheet sits above it, so the back button
+  // belongs to the dialog while one is up and to the sheet only after.
+  const handleRequestClose = useCallback(() => {
+    if (!dismissDialog()) {
+      onClose();
+    }
+  }, [onClose]);
+
   useEffect(() => {
     if (!visible) {
       return;
@@ -79,12 +88,12 @@ export const Sheet = memo(function Sheet({
     const subscription = BackHandler.addEventListener(
       'hardwareBackPress',
       () => {
-        onClose();
+        handleRequestClose();
         return true;
       },
     );
     return () => subscription.remove();
-  }, [onClose, visible]);
+  }, [handleRequestClose, visible]);
 
   const scrimStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
 
@@ -111,7 +120,7 @@ export const Sheet = memo(function Sheet({
       transparent
       animationType="none"
       statusBarTranslucent
-      onRequestClose={onClose}
+      onRequestClose={handleRequestClose}
     >
       {/* Padding, not a window resize: a translucent modal is not resized for
           the keyboard on Android, so a sheet with a field would sit under it. */}
@@ -159,6 +168,10 @@ export const Sheet = memo(function Sheet({
           {footer ? <View style={styles.footer}>{footer}</View> : null}
         </Animated.View>
       </KeyboardAvoidingView>
+
+      {/* Dialogs asked for while this sheet is open draw here, above it: a
+          second `Modal` would not be presented on iOS. */}
+      <DialogLayer />
     </Modal>
   );
 });

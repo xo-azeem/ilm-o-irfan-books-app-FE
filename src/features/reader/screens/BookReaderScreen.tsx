@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
+import { CloudOff, Trash2 } from 'lucide-react-native';
 
 import type { RootStackParamList } from '@/app/navigation/types';
-import { useSheet } from '@/components/ui';
+import { showDialog, useSheet } from '@/components/ui';
 import type { BookPdfSource } from '@/constants/books';
 import { ROUTES } from '@/constants/routes';
 import {
@@ -608,20 +609,21 @@ function BookReader() {
    */
   const handleDownload = useCallback(() => {
     if (isKept) {
-      Alert.alert(
-        'Remove download?',
-        `${bookTitle} will stay in your library but need a connection to open.`,
-        [
-          { text: 'Cancel', style: 'cancel' },
+      showDialog({
+        title: 'Remove download?',
+        message: `${bookTitle} will stay in your library but need a connection to open.`,
+        icon: Trash2,
+        actions: [
+          { label: 'Cancel', style: 'cancel' },
           {
-            text: 'Remove',
+            label: 'Remove',
             style: 'destructive',
             onPress: () => {
               removeDownload.mutate({ bookId, local: 'demote' });
             },
           },
         ],
-      );
+      });
       return;
     }
     if (isDownloading) {
@@ -637,12 +639,15 @@ function BookReader() {
       })
       .catch((error: unknown) => {
         // The open document stays up whatever happened to the download.
-        Alert.alert(
-          'Download failed',
-          error instanceof Error && error.message
-            ? error.message
-            : 'The book could not be saved for offline reading. Please try again.',
-        );
+        showDialog({
+          title: 'Download failed',
+          message:
+            error instanceof Error && error.message
+              ? error.message
+              : 'The book could not be saved for offline reading. Please try again.',
+          tone: 'danger',
+          icon: CloudOff,
+        });
       })
       .finally(() => {
         setIsDownloading(false);

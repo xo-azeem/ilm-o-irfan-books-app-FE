@@ -3,6 +3,7 @@ import {
   Fragment,
   isValidElement,
   memo,
+  useContext,
   type PropsWithChildren,
   type ReactNode,
 } from 'react';
@@ -13,7 +14,9 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
+import { BottomTabBarHeightContext } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Check,
   ChevronLeft,
@@ -31,7 +34,7 @@ import {
   TextField,
   Toggle,
 } from '@/components/ui';
-import { radius } from '@/theme/palette';
+import { adminTabBar, radius } from '@/theme/palette';
 import { useTheme, type AppColors } from '@/theme/ThemeContext';
 
 /**
@@ -1504,22 +1507,56 @@ export const AdminErrorState = memo(function AdminErrorState({
 
 // -------------------------------------------------------------------- chrome
 
-/** Sticky action bar pinned to the foot of an editor. */
+/**
+ * The vertical room the floating admin tab bar takes from the bottom of a tab
+ * screen — bar, its gap, and the home indicator under it. Anything pinned to
+ * the foot of a screen pads by this, or the bar sits on top of it.
+ */
+export function useAdminBottomInset() {
+  const insets = useSafeAreaInsets();
+  const hasTabBar = useContext(BottomTabBarHeightContext) !== undefined;
+  const bottomInset = Math.max(insets.bottom, 8);
+  return hasTabBar
+    ? adminTabBar.height + adminTabBar.gap + bottomInset
+    : bottomInset;
+}
+
+/** Breathing room between a pinned bar's buttons and the tab bar below. */
+const ACTION_BAR_CLEARANCE = 12;
+
+/**
+ * Sticky action bar pinned to the foot of an editor.
+ *
+ * It clears the floating tab bar rather than sitting under it, so "Save" and
+ * "Unpublish" are always reachable. In the default row layout every child
+ * shares the width equally; `column` stacks them.
+ */
 export const AdminActionBar = memo(function AdminActionBar({
   children,
   column = false,
 }: PropsWithChildren<{ column?: boolean }>) {
   const { colors } = useTheme();
+  const bottomInset = useAdminBottomInset();
 
   return (
     <View
       style={[
         styles.actionBar,
         column ? styles.actionBarColumn : null,
-        { borderTopColor: colors.chromeBorder, backgroundColor: colors.chrome },
+        {
+          paddingBottom: bottomInset + ACTION_BAR_CLEARANCE,
+          borderTopColor: colors.chromeBorder,
+          backgroundColor: colors.chrome,
+        },
       ]}
     >
-      {children}
+      {column
+        ? children
+        : Children.map(children, child =>
+            child == null || child === false ? null : (
+              <View style={styles.grow}>{child}</View>
+            ),
+          )}
     </View>
   );
 });

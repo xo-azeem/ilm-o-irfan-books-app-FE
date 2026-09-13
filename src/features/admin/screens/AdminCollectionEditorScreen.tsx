@@ -18,6 +18,7 @@ import { AdminOrderableList } from '@/features/admin/components/AdminOrderableLi
 import { errorMessage, useToast } from '@/features/admin/components/AdminToast';
 import {
   ADMIN_GUTTER,
+  AdminActionBar,
   AdminBackLink,
   AdminButton,
   AdminCard,
@@ -112,8 +113,8 @@ export function AdminCollectionEditorScreen() {
   const [showPicker, setShowPicker] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const { isDirty, reset } = useDirtyTracker(form);
-  useUnsavedGuard(isDirty);
+  const { isDirty, reset, dirtyRef } = useDirtyTracker(form);
+  useUnsavedGuard(dirtyRef);
 
   useEffect(() => {
     if (!existing) return;
@@ -401,22 +402,14 @@ export function AdminCollectionEditorScreen() {
         ) : null}
       </ScrollView>
 
-      <View
-        style={[
-          styles.footer,
-          {
-            backgroundColor: colors.chrome,
-            borderTopColor: colors.chromeBorder,
-          },
-        ]}
-      >
+      <AdminActionBar>
         <AdminButton
           label={collectionId ? 'Save collection' : 'Create collection'}
           loading={save.isPending}
           disabled={!form.title.trim()}
           onPress={handleSave}
         />
-      </View>
+      </AdminActionBar>
 
       <AdminPickerSheet
         visible={showPicker}
@@ -479,11 +472,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     paddingTop: 4,
-  },
-  footer: {
-    paddingHorizontal: ADMIN_GUTTER,
-    paddingTop: 13,
-    paddingBottom: 26,
-    borderTopWidth: StyleSheet.hairlineWidth * 2,
   },
 });

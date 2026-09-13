@@ -1,7 +1,19 @@
 import { useCallback } from 'react';
-import { Alert, Linking } from 'react-native';
+import { Linking } from 'react-native';
+import {
+  Download,
+  Hourglass,
+  KeyRound,
+  Smartphone,
+  Trash2,
+} from 'lucide-react-native';
 
-import { Button, SettingsGroup, SettingsRow } from '@/components/ui';
+import {
+  Button,
+  SettingsGroup,
+  SettingsRow,
+  showDialog,
+} from '@/components/ui';
 import { ProfileSubScreenLayout } from '@/features/profile/components/ProfileSubScreenLayout';
 import {
   accountSecurityRows,
@@ -20,50 +32,67 @@ const TERMS_URL = 'https://ilmoirfan.com/terms';
 export function PrivacySecurityScreen() {
   const openUrl = useCallback((url: string) => {
     void Linking.openURL(url).catch(() =>
-      Alert.alert('Could not open link', 'Please try again from a browser.'),
+      showDialog({
+        title: 'Could not open link',
+        message: 'Please try again from a browser.',
+        tone: 'warning',
+      }),
     );
   }, []);
 
   const handleSecurityRow = useCallback((id: string) => {
     switch (id) {
       case 'change-password':
-        Alert.alert(
-          'Change password',
-          'We will email you a secure link once password recovery is enabled.',
-        );
+        showDialog({
+          title: 'Change password',
+          message:
+            'We will email you a secure link once password recovery is enabled.',
+          tone: 'info',
+          icon: KeyRound,
+        });
         break;
       case 'devices':
-        Alert.alert(
-          'Signed-in devices',
-          'Signing out here signs you out everywhere.',
-        );
+        showDialog({
+          title: 'Signed-in devices',
+          message: 'Signing out here signs you out everywhere.',
+          tone: 'info',
+          icon: Smartphone,
+        });
         break;
       case 'export':
-        Alert.alert(
-          'Download my data',
-          'We will email a copy of your profile, library and reading history within 30 days.',
-        );
+        showDialog({
+          title: 'Download my data',
+          message:
+            'We will email a copy of your profile, library and reading history within 30 days.',
+          tone: 'info',
+          icon: Download,
+        });
         break;
     }
   }, []);
 
   const handleDelete = useCallback(() => {
-    Alert.alert(
-      'Delete account?',
-      'This removes your profile, library, downloads and reading history. It cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
+    showDialog({
+      title: 'Delete account?',
+      message:
+        'This removes your profile, library, downloads and reading history. It cannot be undone.',
+      icon: Trash2,
+      actions: [
+        { label: 'Cancel', style: 'cancel' },
         {
-          text: 'Delete',
+          label: 'Delete',
           style: 'destructive',
           onPress: () =>
-            Alert.alert(
-              'Request received',
-              'Your account will be deleted within 30 days. Sign in before then to cancel.',
-            ),
+            showDialog({
+              title: 'Request received',
+              message:
+                'Your account will be deleted within 30 days. Sign in before then to cancel.',
+              tone: 'info',
+              icon: Hourglass,
+            }),
         },
       ],
-    );
+    });
   }, []);
 
   return (

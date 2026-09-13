@@ -14,6 +14,7 @@ import { AdminConfirmSheet } from '@/features/admin/components/AdminControls';
 import { errorMessage, useToast } from '@/features/admin/components/AdminToast';
 import {
   ADMIN_GUTTER,
+  AdminActionBar,
   AdminAvatar,
   AdminBackLink,
   AdminButton,
@@ -72,8 +73,8 @@ export function AdminAuthorEditorScreen() {
   const [uploading, setUploading] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const { isDirty, reset } = useDirtyTracker(form);
-  useUnsavedGuard(isDirty);
+  const { isDirty, reset, dirtyRef } = useDirtyTracker(form);
+  useUnsavedGuard(dirtyRef);
 
   useEffect(() => {
     if (!existing) return;
@@ -275,22 +276,14 @@ export function AdminAuthorEditorScreen() {
         ) : null}
       </ScrollView>
 
-      <View
-        style={[
-          styles.footer,
-          {
-            backgroundColor: colors.chrome,
-            borderTopColor: colors.chromeBorder,
-          },
-        ]}
-      >
+      <AdminActionBar>
         <AdminButton
           label={authorId ? 'Save author' : 'Create author'}
           loading={save.isPending}
           disabled={uploading || !form.name.trim()}
           onPress={handleSave}
         />
-      </View>
+      </AdminActionBar>
 
       <AdminConfirmSheet
         visible={confirmDelete}
@@ -344,11 +337,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     paddingTop: 4,
-  },
-  footer: {
-    paddingHorizontal: ADMIN_GUTTER,
-    paddingTop: 13,
-    paddingBottom: 26,
-    borderTopWidth: StyleSheet.hairlineWidth * 2,
   },
 });

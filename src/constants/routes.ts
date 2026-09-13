@@ -51,6 +51,7 @@ export const ADMIN_ROUTES = {
   PDF_PREVIEW: 'AdminPdfPreview',
   AUTHOR_EDITOR: 'AdminAuthorEditor',
   CATEGORY_EDITOR: 'AdminCategoryEditor',
+  CATEGORY_BOOKS: 'AdminCategoryBooks',
   COLLECTION_EDITOR: 'AdminCollectionEditor',
 
   // People stack — readers and plans as two segments

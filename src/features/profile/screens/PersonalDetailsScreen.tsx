@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
+import { ImageOff } from 'lucide-react-native';
 
 import {
   Avatar,
   ReadOnlyField,
+  showDialog,
   Text,
   TextButton,
   TextField,
@@ -117,10 +119,13 @@ export function PersonalDetailsScreen() {
       { uri: asset.uri, mime: asset.type ?? 'image/jpeg' },
       {
         onError: error =>
-          Alert.alert(
-            'Could not update your photo',
-            error instanceof Error ? error.message : 'Please try again.',
-          ),
+          showDialog({
+            title: 'Could not update your photo',
+            message:
+              error instanceof Error ? error.message : 'Please try again.',
+            tone: 'danger',
+            icon: ImageOff,
+          }),
       },
     );
   }, [avatarUpload]);
@@ -139,7 +144,11 @@ export function PersonalDetailsScreen() {
 
   const handleSave = useCallback(() => {
     if (dateOfBirthError) {
-      Alert.alert('Check the date of birth', dateOfBirthError);
+      showDialog({
+        title: 'Check the date of birth',
+        message: dateOfBirthError,
+        tone: 'warning',
+      });
       return;
     }
     const dateOfBirth = parseDateOfBirth(form.dateOfBirth) ?? '';
@@ -157,13 +166,19 @@ export function PersonalDetailsScreen() {
             ...trimmed,
             dateOfBirth: formatDateOfBirth(dateOfBirth),
           });
-          Alert.alert('Saved', 'Your details have been updated.');
+          showDialog({
+            title: 'Saved',
+            message: 'Your details have been updated.',
+            tone: 'success',
+          });
         },
         onError: error =>
-          Alert.alert(
-            'Could not save',
-            error instanceof Error ? error.message : 'Please try again.',
-          ),
+          showDialog({
+            title: 'Could not save',
+            message:
+              error instanceof Error ? error.message : 'Please try again.',
+            tone: 'danger',
+          }),
       },
     );
   }, [dateOfBirthError, form, updateProfile]);

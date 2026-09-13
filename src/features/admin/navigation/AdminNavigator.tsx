@@ -13,6 +13,7 @@ import { AdminTabBar } from '@/features/admin/navigation/AdminTabBar';
 import { AdminAnalyticsScreen } from '@/features/admin/screens/AdminAnalyticsScreen';
 import { AdminAuthorEditorScreen } from '@/features/admin/screens/AdminAuthorEditorScreen';
 import { AdminBookEditorScreen } from '@/features/admin/screens/AdminBookEditorScreen';
+import { AdminCategoryBooksScreen } from '@/features/admin/screens/AdminCategoryBooksScreen';
 import { AdminCategoryEditorScreen } from '@/features/admin/screens/AdminCategoryEditorScreen';
 import { AdminCollectionEditorScreen } from '@/features/admin/screens/AdminCollectionEditorScreen';
 import { AdminHistoryScreen } from '@/features/admin/screens/AdminHistoryScreen';
@@ -71,6 +72,10 @@ function AdminLibraryNavigator() {
       <LibraryStack.Screen
         name={ADMIN_ROUTES.CATEGORY_EDITOR}
         component={AdminCategoryEditorScreen}
+      />
+      <LibraryStack.Screen
+        name={ADMIN_ROUTES.CATEGORY_BOOKS}
+        component={AdminCategoryBooksScreen}
       />
       <LibraryStack.Screen
         name={ADMIN_ROUTES.COLLECTION_EDITOR}

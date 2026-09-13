@@ -1,9 +1,9 @@
 import { useCallback, useMemo } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { GuestAuthPanel } from '@/components/auth/GuestAuthPanel';
 import { Screen } from '@/components/layout';
-import { Avatar, Badge, Display, useSheet } from '@/components/ui';
+import { Avatar, Badge, Display, showDialog, useSheet } from '@/components/ui';
 import { GoalSheet } from '@/features/profile/components/GoalSheet';
 import {
   AchievementRail,
@@ -141,10 +141,12 @@ export function ProfileScreen() {
       updateGoal.mutate(target, {
         onSuccess: goalSheet.close,
         onError: error =>
-          Alert.alert(
-            'Could not save the goal',
-            error instanceof Error ? error.message : 'Please try again.',
-          ),
+          showDialog({
+            title: 'Could not save the goal',
+            message:
+              error instanceof Error ? error.message : 'Please try again.',
+            tone: 'danger',
+          }),
       });
     },
     [goalSheet.close, updateGoal],

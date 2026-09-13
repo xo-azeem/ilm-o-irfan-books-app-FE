@@ -1,6 +1,6 @@
 import { memo, useCallback, useState } from 'react';
-import { Alert, Linking, Pressable, StyleSheet, View } from 'react-native';
-import { ChevronDown, ChevronUp } from 'lucide-react-native';
+import { Linking, Pressable, StyleSheet, View } from 'react-native';
+import { ChevronDown, ChevronUp, Mail } from 'lucide-react-native';
 
 import {
   Card,
@@ -9,6 +9,7 @@ import {
   SearchField,
   SettingsGroup,
   SettingsRow,
+  showDialog,
   Text,
 } from '@/components/ui';
 import { ProfileSubScreenLayout } from '@/features/profile/components/ProfileSubScreenLayout';
@@ -58,16 +59,22 @@ export function HelpCenterScreen() {
     void Linking.openURL(
       `mailto:${supportEmail}?subject=${encodeURIComponent('Ilm o Irfan support')}`,
     ).catch(() =>
-      Alert.alert('No mail app', `Write to us at ${supportEmail}.`),
+      showDialog({
+        title: 'No mail app',
+        message: `Write to us at ${supportEmail}.`,
+        tone: 'info',
+        icon: Mail,
+      }),
     );
   }, [supportEmail]);
 
   const rateApp = useCallback(() => {
     void Linking.openURL(STORE_REVIEW_URL).catch(() =>
-      Alert.alert(
-        'Could not open the store',
-        'Please search for Ilm o Irfan in your app store.',
-      ),
+      showDialog({
+        title: 'Could not open the store',
+        message: 'Please search for Ilm o Irfan in your app store.',
+        tone: 'warning',
+      }),
     );
   }, []);
 

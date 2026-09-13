@@ -23,6 +23,7 @@ import { AdminOrderableList } from '@/features/admin/components/AdminOrderableLi
 import { errorMessage, useToast } from '@/features/admin/components/AdminToast';
 import {
   ADMIN_GUTTER,
+  AdminActionBar,
   AdminBackLink,
   AdminButton,
   AdminCard,
@@ -96,8 +97,8 @@ export function AdminPlanEditorScreen() {
   const [draftFeature, setDraftFeature] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const { isDirty, reset } = useDirtyTracker(form);
-  useUnsavedGuard(isDirty);
+  const { isDirty, reset, dirtyRef } = useDirtyTracker(form);
+  useUnsavedGuard(dirtyRef);
 
   useEffect(() => {
     if (!existing) return;
@@ -409,22 +410,14 @@ export function AdminPlanEditorScreen() {
         ) : null}
       </ScrollView>
 
-      <View
-        style={[
-          styles.footer,
-          {
-            backgroundColor: colors.chrome,
-            borderTopColor: colors.chromeBorder,
-          },
-        ]}
-      >
+      <AdminActionBar>
         <AdminButton
           label={planId ? 'Save plan' : 'Create plan'}
           loading={save.isPending}
           disabled={!form.name.trim()}
           onPress={handleSave}
         />
-      </View>
+      </AdminActionBar>
 
       <AdminConfirmSheet
         visible={confirmDelete}
@@ -512,11 +505,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     paddingTop: 4,
-  },
-  footer: {
-    paddingHorizontal: ADMIN_GUTTER,
-    paddingTop: 13,
-    paddingBottom: 26,
-    borderTopWidth: StyleSheet.hairlineWidth * 2,
   },
 });

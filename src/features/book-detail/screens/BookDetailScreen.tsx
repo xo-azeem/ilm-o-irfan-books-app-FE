@@ -1,9 +1,9 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ChevronLeft, MoreVertical, Play } from 'lucide-react-native';
+import { ChevronLeft, Lock, MoreVertical, Play } from 'lucide-react-native';
 
 import type { RootStackParamList } from '@/app/navigation/types';
 import {
@@ -22,6 +22,7 @@ import {
   EmptyState,
   IconButton,
   SaveButton,
+  showDialog,
   Text,
   TextButton,
   UrduText,
@@ -106,10 +107,16 @@ export function BookDetailScreen() {
       // whose membership lapsed last week. The reason never decides anything;
       // it only picks the words.
       const copy = reasonCopy(reason);
-      Alert.alert(copy.title, copy.message, [
-        { text: 'Not now', style: 'cancel' },
-        { text: 'View plans', onPress: openPaywall },
-      ]);
+      showDialog({
+        title: copy.title,
+        message: copy.message,
+        tone: 'info',
+        icon: Lock,
+        actions: [
+          { label: 'Not now', style: 'cancel' },
+          { label: 'View plans', onPress: openPaywall },
+        ],
+      });
       return;
     }
     navigation.navigate(ROUTES.BOOK_READER, { bookId: book.id });
@@ -135,13 +142,16 @@ export function BookDetailScreen() {
   }, [book, isAuthenticated, navigation, saved, wishlistMutation]);
 
   const handleMore = useCallback(() => {
-    Alert.alert(book?.title ?? 'Book', undefined, [
-      {
-        text: saved ? 'Remove from library' : 'Save to library',
-        onPress: handleWishlist,
-      },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+    showDialog({
+      title: book?.title ?? 'Book',
+      actions: [
+        {
+          label: saved ? 'Remove from library' : 'Save to library',
+          onPress: handleWishlist,
+        },
+        { label: 'Cancel', style: 'cancel' },
+      ],
+    });
   }, [book?.title, handleWishlist, saved]);
 
   const stats = useMemo<Stat[]>(() => {

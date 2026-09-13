@@ -121,6 +121,34 @@ export async function deleteAdminCategory(id: string) {
   assertOk(await supabase.from('categories').delete().eq('id', id));
 }
 
+/** Every book tagged with a category, for the category's own book page. */
+export async function getCategoryBookIds(
+  categoryId: string,
+): Promise<string[]> {
+  const rows = unwrap(
+    await supabase
+      .from('book_categories')
+      .select('book_id')
+      .eq('category_id', categoryId),
+  ) as Array<{ book_id: string }>;
+
+  return rows.map(row => row.book_id);
+}
+
+/**
+ * Makes a category's membership exactly `bookIds` — books not in the list
+ * lose the tag, books in it gain it. Categories carry no order, so this is a
+ * plain set write, not the ordered one collections use.
+ */
+export async function setCategoryBooks(categoryId: string, bookIds: string[]) {
+  assertOk(
+    await supabase.rpc('admin_set_category_books', {
+      p_category_id: categoryId,
+      p_book_ids: bookIds,
+    }),
+  );
+}
+
 // ------------------------------------------------------------ collections
 
 export async function listAdminCollections(): Promise<AdminCollection[]> {

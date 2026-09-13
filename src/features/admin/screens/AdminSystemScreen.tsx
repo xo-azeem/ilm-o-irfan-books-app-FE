@@ -1,16 +1,17 @@
 import { memo } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   ChartNoAxesColumn,
   Clock,
   Database,
+  LogOut,
   Settings2,
 } from 'lucide-react-native';
 
 import { Screen } from '@/components/layout';
-import { Label, Text } from '@/components/ui';
+import { Label, showDialog, Text } from '@/components/ui';
 import { ADMIN_ROUTES } from '@/constants/routes';
 import {
   ADMIN_GUTTER,
@@ -58,20 +59,21 @@ export function AdminSystemScreen() {
   const lastChange = audit.data?.pages[0]?.rows[0];
 
   const handleSignOut = () => {
-    Alert.alert(
-      'Sign out of admin',
-      'You will land back on the sign-in screen.',
-      [
-        { text: 'Cancel', style: 'cancel' },
+    showDialog({
+      title: 'Sign out of admin',
+      message: 'You will land back on the sign-in screen.',
+      icon: LogOut,
+      actions: [
+        { label: 'Cancel', style: 'cancel' },
         {
-          text: 'Sign out',
+          label: 'Sign out',
           style: 'destructive',
           onPress: () => {
             void signOut();
           },
         },
       ],
-    );
+    });
   };
 
   return (

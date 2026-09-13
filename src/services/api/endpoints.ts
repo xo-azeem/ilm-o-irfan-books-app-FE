@@ -43,6 +43,8 @@ export const ENDPOINTS = {
   libraryOverview: 'library-overview',
   entitlementsStatus: 'entitlements-status',
   signedPdf: 'get-signed-pdf',
+  /** For the books held offline: which still exist, and their file stamp. */
+  vaultCheck: 'vault-check',
 
   // Admin — backend checks `profiles.role = 'admin'` or the `app_role` claim.
   adminBooks: 'admin-books',

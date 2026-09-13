@@ -25,6 +25,8 @@ import { AdminSettingsScreen } from '@/features/admin/screens/AdminSettingsScree
 import { AdminStorageScreen } from '@/features/admin/screens/AdminStorageScreen';
 import { AdminSystemScreen } from '@/features/admin/screens/AdminSystemScreen';
 import { AdminTodayScreen } from '@/features/admin/screens/AdminTodayScreen';
+import { AdminUploadBatchScreen } from '@/features/admin/screens/AdminUploadBatchScreen';
+import { AdminUploadBatchesScreen } from '@/features/admin/screens/AdminUploadBatchesScreen';
 import { AdminUserDetailScreen } from '@/features/admin/screens/AdminUserDetailScreen';
 
 import type {
@@ -80,6 +82,14 @@ function AdminLibraryNavigator() {
       <LibraryStack.Screen
         name={ADMIN_ROUTES.COLLECTION_EDITOR}
         component={AdminCollectionEditorScreen}
+      />
+      <LibraryStack.Screen
+        name={ADMIN_ROUTES.UPLOAD_BATCHES}
+        component={AdminUploadBatchesScreen}
+      />
+      <LibraryStack.Screen
+        name={ADMIN_ROUTES.UPLOAD_BATCH}
+        component={AdminUploadBatchScreen}
       />
     </LibraryStack.Navigator>
   );

@@ -9,7 +9,7 @@ import {
 import { fromByteArray, toByteArray } from 'react-native-quick-base64';
 
 import { getSignedPdfUrl } from '@/lib/supabase';
-import { syncDownload } from '@/services/account';
+import { checkBookFiles, syncDownload } from '@/services/account';
 import {
   abortError,
   downloadToPath,
@@ -17,6 +17,10 @@ import {
   MIN_PDF_BYTES,
   type PdfTransferProgress,
 } from '@/services/pdf';
+import {
+  planReconcile,
+  type RevocationReason,
+} from '@/services/vaultReconcile';
 import { useAccessStore } from '@/stores/accessStore';
 import { keyValueStore } from '@/stores/storage';
 
@@ -87,6 +91,14 @@ export type VaultEntry = {
   openedAt: number;
   /** Which device key sealed it. A file sealed under a lost key is unreadable. */
   keyId: string;
+  /**
+   * Which file this is: the server's `pdf_updated_at` for the book at the
+   * moment it was downloaded. Compared on every reconcile — a different stamp
+   * means the admin replaced the PDF and this copy is the old one. `null` for
+   * a copy made before the stamp existed; it adopts the server's on the first
+   * check rather than being thrown away.
+   */
+  revision: string | null;
 };
 
 function entryKey(bookId: string) {
@@ -116,6 +128,7 @@ function readEntry(bookId: string): VaultEntry | null {
         savedAt: parsed.savedAt ?? 0,
         openedAt: parsed.openedAt ?? 0,
         keyId: parsed.keyId,
+        revision: typeof parsed.revision === 'string' ? parsed.revision : null,
       };
     }
   } catch {
@@ -165,6 +178,26 @@ export function subscribeVault(listener: () => void): () => void {
   listeners.add(listener);
   return () => {
     listeners.delete(listener);
+  };
+}
+
+export type { RevocationReason };
+
+/** A book taken off the device without the reader asking, and why. */
+export type Revocation = { bookId: string; reason: RevocationReason };
+
+type RevocationListener = (revocation: Revocation) => void;
+const revocationListeners = new Set<RevocationListener>();
+
+/**
+ * Fires when the server has said a book on this device is gone or its file
+ * has been replaced, after the copy has been dropped. The reader screen
+ * listens for its own book, so a revocation lands mid-read as well.
+ */
+export function subscribeRevocations(listener: RevocationListener): () => void {
+  revocationListeners.add(listener);
+  return () => {
+    revocationListeners.delete(listener);
   };
 }
 
@@ -628,6 +661,7 @@ export function openBook(
     if (entry && openCopyIsUsable(bookId, entry.bytes)) {
       touch(entry);
       refreshAccessInBackground();
+      reconcileInBackground(bookId);
       report(onProgress, 1, 1);
       return { uri: fileUri(openFile(bookId)), offline: true };
     }
@@ -641,6 +675,7 @@ export function openBook(
           await unseal(sealed, openFile(bookId), key, { onProgress, signal });
           touch(entry);
           refreshAccessInBackground();
+          reconcileInBackground(bookId);
           return { uri: fileUri(openFile(bookId)), offline: true };
         } catch (error) {
           if (signal?.aborted) throw abortError();
@@ -666,7 +701,7 @@ export function openBook(
 
     ensure(readerDirectory());
     const target = openFile(bookId);
-    const { url, fileSizeBytes } = await getSignedPdfUrl(bookId);
+    const { url, fileSizeBytes, pdfUpdatedAt } = await getSignedPdfUrl(bookId);
     // Twice over: the plaintext to read from, and the seal cached behind it.
     ensureSpace((fileSizeBytes ?? 0) * 2);
     await downloadToPath(url, plainPath(target), {
@@ -674,11 +709,21 @@ export function openBook(
       onProgress,
       signal,
     });
+    downloadedRevision.set(bookId, pdfUpdatedAt);
 
     void sealInBackground(bookId, 'cached');
     return { uri: fileUri(target), offline: false };
   });
 }
+
+/**
+ * Which file the plaintext in the cache came from, per book, for the seal
+ * that follows a download. The seal is queued behind the open and may run
+ * a session later than the download (an open that was never sealed reads
+ * fine and is sealed on the next open), so this is the last stamp seen for
+ * the book, and a seal with none to go on leaves the entry unstamped.
+ */
+const downloadedRevision = new Map<string, string | null>();
 
 function touch(entry: VaultEntry) {
   writeEntry({ ...entry, openedAt: Date.now() });
@@ -695,6 +740,16 @@ function refreshAccessInBackground() {
     .getState()
     .refresh()
     .catch(() => undefined);
+}
+
+/**
+ * The same, for the book itself: an open from the vault is the one moment a
+ * deleted or replaced book could still be read, so the server is asked about
+ * it behind the first page. If it is gone, the copy is dropped and the reader
+ * screen hears about it while the book is still on stage.
+ */
+function reconcileInBackground(bookId: string) {
+  void reconcileVault([bookId]).catch(() => undefined);
 }
 
 /** How long the first page gets to itself before the background seal starts. */
@@ -722,6 +777,7 @@ function sealInBackground(bookId: string, tier: VaultTier): Promise<void> {
         keyId: key.id,
         savedAt: Date.now(),
         openedAt: Date.now(),
+        revision: downloadedRevision.get(bookId) ?? null,
       });
       if (tier === 'cached') enforceCacheBudget();
     } catch (error) {
@@ -760,7 +816,8 @@ export function keepBook(
       let bytesFromNetwork: number | undefined;
       if (!openCopyIsUsable(bookId, null)) {
         ensure(readerDirectory());
-        const { url, fileSizeBytes } = await getSignedPdfUrl(bookId);
+        const { url, fileSizeBytes, pdfUpdatedAt } =
+          await getSignedPdfUrl(bookId);
         // Kept twice over: the plaintext to read from now, the seal to keep.
         ensureSpace((fileSizeBytes ?? 0) * 2);
         // The transfer owns the first 85% of the bar; the seal, the rest.
@@ -775,6 +832,7 @@ export function keepBook(
             : undefined,
           signal,
         });
+        downloadedRevision.set(bookId, pdfUpdatedAt);
         source = openFile(bookId);
       }
       const bytes = await seal(source, sealedFile(bookId), key, {
@@ -797,6 +855,7 @@ export function keepBook(
         keyId: key.id,
         savedAt: Date.now(),
         openedAt: Date.now(),
+        revision: downloadedRevision.get(bookId) ?? null,
       };
     } else {
       entry = { ...entry, tier: 'kept', savedAt: Date.now() };
@@ -871,6 +930,87 @@ export function vaultUsage(): { kept: number; cached: number } {
     },
     { kept: 0, cached: 0 },
   );
+}
+
+/* ------------------------------------------------------------------------ */
+/* Reconcile                                                                 */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * Takes a book off the device because the server said so: the sealed copy,
+ * the index row, and any plaintext open right now — the reader screen is
+ * told next and takes the document off stage. Queued behind whatever the
+ * book is in the middle of, so a seal is never cut in half.
+ */
+function revoke(bookId: string, reason: RevocationReason): Promise<void> {
+  return serial(bookId, async () => {
+    remove(openFile(bookId));
+    purge(bookId);
+    downloadedRevision.delete(bookId);
+    if (__DEV__) console.warn(`[vault] ${bookId} revoked (${reason})`);
+    const revocation = { bookId, reason };
+    revocationListeners.forEach(listener => listener(revocation));
+  });
+}
+
+let reconciling: Promise<Revocation[]> | null = null;
+
+/**
+ * Asks the server about the books on this device and drops the ones it no
+ * longer stands behind.
+ *
+ * A book the server does not know any more was deleted by the admin; a book
+ * whose file stamp has moved on had its PDF replaced. Either way the copy
+ * here is not the book any more, and it goes — kept or merely cached. A copy
+ * with no stamp of its own (sealed before stamps existed) takes the server's
+ * as its own, so nothing is thrown away on a guess.
+ *
+ * One round trip for the whole vault, or for the books named. Runs at most
+ * once at a time; a call during a run joins it. Never throws over the
+ * network: offline, the vault stands as it is, and the next foreground or
+ * open asks again. Resolves to what was revoked, so the caller can tidy the
+ * caches the vault does not own.
+ */
+export function reconcileVault(bookIds?: string[]): Promise<Revocation[]> {
+  if (reconciling) return reconciling;
+  reconciling = reconcile(bookIds).finally(() => {
+    reconciling = null;
+  });
+  return reconciling;
+}
+
+async function reconcile(bookIds?: string[]): Promise<Revocation[]> {
+  await bootVault();
+  const entries = allEntries().filter(
+    entry => !bookIds || bookIds.includes(entry.bookId),
+  );
+  if (entries.length === 0) return [];
+
+  let states: Awaited<ReturnType<typeof checkBookFiles>>;
+  try {
+    states = await checkBookFiles(entries.map(entry => entry.bookId));
+  } catch {
+    // Could not ask — offline, signed out, or an older backend. Nothing is
+    // dropped on a question that got no answer.
+    return [];
+  }
+
+  // Judged against the entries as they are now, not as they were when the
+  // request went out: a download that finished meanwhile carries the stamp
+  // of the file it fetched, and that is the one to compare.
+  const held = entries
+    .map(entry => readEntry(entry.bookId))
+    .filter((entry): entry is VaultEntry => entry != null);
+  const plan = planReconcile(held, states);
+
+  for (const { bookId, revision } of plan.adopt) {
+    const current = readEntry(bookId);
+    if (current) writeEntry({ ...current, revision });
+  }
+  for (const { bookId, reason } of plan.revoke) {
+    await revoke(bookId, reason);
+  }
+  return plan.revoke;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -962,6 +1102,9 @@ async function migrateLegacy() {
             keyId: key.id,
             savedAt: Date.now(),
             openedAt: Date.now(),
+            // Nothing to say which file this was; the first check adopts
+            // the server's stamp.
+            revision: null,
           });
         }
         if (file) remove(file);

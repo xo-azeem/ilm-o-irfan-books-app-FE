@@ -26,7 +26,12 @@ import {
   useRemoveDownload,
 } from '@/hooks/useAccount';
 import { useBook } from '@/hooks/useCatalog';
-import { keepBook, openBook, releaseBook } from '@/services/bookVault';
+import {
+  keepBook,
+  openBook,
+  releaseBook,
+  subscribeRevocations,
+} from '@/services/bookVault';
 import { useBookKept } from '@/hooks/useBookVault';
 import { isAbortError } from '@/services/pdf';
 import { readsRightToLeft } from '@/services/script';
@@ -735,6 +740,35 @@ function BookReader() {
   const handleRetry = useCallback(() => {
     setRetryToken(token => token + 1);
   }, []);
+
+  /**
+   * The server has taken this book off the device — deleted, or its file
+   * replaced — while it was open. The vault has already dropped the copy;
+   * this takes the document off stage and says why. A replaced file offers
+   * "try again", which fetches the new one; a deleted book's retry is
+   * refused at the door with the same message.
+   */
+  useEffect(
+    () =>
+      subscribeRevocations(({ bookId: revoked, reason }) => {
+        if (revoked !== bookId) {
+          return;
+        }
+        // The copy behind this is gone too, so it must not be offered.
+        downloadedUri.current = null;
+        setPdfSource(null);
+        setIsLoading(false);
+        setLoaderVisible(false);
+        setHasError(false);
+        setSourceError(true);
+        setErrorMessage(
+          reason === 'replaced'
+            ? 'This book’s file has been updated. Try again to open the new one — and download it again to keep it offline.'
+            : 'This book is no longer available.',
+        );
+      }),
+    [bookId],
+  );
 
   const handleReadDownloaded = useCallback(() => {
     const uri = downloadedUri.current;

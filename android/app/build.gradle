@@ -131,3 +131,19 @@ dependencies {
         implementation jscFlavor
     }
 }
+
+/**
+ * Firebase Cloud Messaging.
+ *
+ * The google-services plugin turns google-services.json (from the Firebase
+ * console - see docs/push-notifications.md) into the resources the Firebase
+ * SDK initialises from. The file is gitignored, so a fresh clone or a CI job
+ * that has not been handed it must still build: without it the plugin is not
+ * applied, Firebase never initialises, and the JS side sees no default app and
+ * keeps push switched off. Nothing else in the app changes.
+ */
+if (file("google-services.json").exists()) {
+    apply plugin: "com.google.gms.google-services"
+} else {
+    logger.warn("[push] android/app/google-services.json is missing - Firebase push is disabled in this build.")
+}

@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { signOut as supabaseSignOut } from '@/lib/supabase/auth';
+import { forgetPushRegistration } from '@/services/push/registry';
 // One shared MMKV handle backs every app preference — see stores/storage.ts.
 import { mmkvStorage } from '@/stores/storage';
 
@@ -86,6 +87,10 @@ export const useAuthStore = create<AuthState>()(
       setViewingAsReader: value => set({ viewingAsReader: value }),
       signOut: async () => {
         try {
+          // While the JWT is still good: the push token row is scoped to
+          // the reader who registered it, and the next reader on this
+          // device must not inherit their notifications.
+          await forgetPushRegistration();
           await supabaseSignOut();
         } finally {
           set({

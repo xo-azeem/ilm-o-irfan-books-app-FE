@@ -1,5 +1,6 @@
 import UIKit
 internal import Expo
+import FirebaseCore
 import React
 import React_RCTAppDelegate
 import ReactAppDependencyProvider
@@ -15,6 +16,15 @@ class AppDelegate: ExpoAppDelegate {
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
+    // Firebase (push notifications). Configured only when the project's
+    // GoogleService-Info.plist is in the bundle, so a checkout without it -
+    // the file is gitignored - still launches; push simply stays off and the
+    // JS side sees no default app. The APNs side (the .p8 key) is uploaded in
+    // the Firebase console, not referenced here; see docs/push-notifications.md.
+    if Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist") != nil {
+      FirebaseApp.configure()
+    }
+
     let delegate = ReactNativeDelegate()
     let factory = ExpoReactNativeFactory(delegate: delegate)
     delegate.dependencyProvider = RCTAppDependencyProvider()

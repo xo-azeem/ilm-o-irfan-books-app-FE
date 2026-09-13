@@ -1,5 +1,6 @@
 export * from './types';
 export { adminCoverUrl, toFriendlyError } from './client';
+export * from './batches';
 export * from './books';
 export * from './catalog';
 export * from './people';

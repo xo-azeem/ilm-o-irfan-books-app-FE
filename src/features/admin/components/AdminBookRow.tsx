@@ -45,6 +45,10 @@ function AdminBookRowBase({
   const blocked = missingPdf || missingCover;
   const isUrdu = isUrduTitle(book.title);
 
+  // The selection row is the same book, read faster: the check leads, the
+  // cover keeps the row recognisable, and the status is the same tags the
+  // full row carries, so what "Publish" will do to a title is visible on the
+  // title itself. A chosen row is tinted and rimmed in green, not only ticked.
   if (selectionMode) {
     return (
       <Pressable
@@ -63,32 +67,58 @@ function AdminBookRowBase({
       >
         <View
           style={[
-            styles.checkbox,
+            styles.check,
             selected
               ? { backgroundColor: colors.primary, borderColor: colors.primary }
-              : { borderColor: colors.borderStrong },
+              : {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.borderStrong,
+                },
           ]}
         >
           {selected ? (
-            <Icon icon={Check} size={12} tone="onPrimary" strokeWidth={3} />
+            <Icon icon={Check} size={13} tone="onPrimary" strokeWidth={3} />
           ) : null}
         </View>
 
         <BookCover
-          width={36}
-          height={52}
+          width={40}
+          height={56}
           rounded={6}
-          coverColor={book.cover_color ?? undefined}
+          coverColor={
+            missingCover ? undefined : (book.cover_color ?? undefined)
+          }
           coverUrl={adminCoverUrl(book.cover_path)}
         />
 
         <View style={styles.selectBody}>
-          <Text size={14} leading={1.25} weight="500" numberOfLines={1}>
-            {book.title}
+          {isUrdu ? (
+            <UrduText size={14.5} numberOfLines={1}>
+              {book.title}
+            </UrduText>
+          ) : (
+            <Text size={14} leading={1.25} weight="500" numberOfLines={1}>
+              {book.title}
+            </Text>
+          )}
+          <Text size={11.5} leading={1.2} tone="muted" numberOfLines={1}>
+            {book.author_name}
           </Text>
-          <Text size={11} leading={1.2} tone="muted" numberOfLines={1}>
-            {`${book.is_published ? 'Live' : 'Draft'} · ${book.is_premium ? 'Premium' : 'Free'}`}
-          </Text>
+          <View style={styles.tags}>
+            <AdminTag
+              label={book.is_published ? 'LIVE' : 'DRAFT'}
+              tone={book.is_published ? 'success' : 'neutral'}
+              small
+            />
+            <AdminTag
+              label={book.is_premium ? 'PREMIUM' : 'FREE'}
+              tone={book.is_premium ? 'premium' : 'neutral'}
+              small
+            />
+            {missingPdf ? (
+              <AdminTag label="NO PDF" tone="warning" small />
+            ) : null}
+          </View>
         </View>
       </Pressable>
     );
@@ -205,15 +235,16 @@ const styles = StyleSheet.create({
   selectRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 11,
-    padding: 12,
+    gap: 12,
+    paddingVertical: 11,
+    paddingHorizontal: 13,
     borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth * 2,
   },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 7,
+  check: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',

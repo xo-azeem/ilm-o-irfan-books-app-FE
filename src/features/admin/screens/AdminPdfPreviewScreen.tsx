@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -12,7 +12,7 @@ import {
   useRoute,
   type RouteProp,
 } from '@react-navigation/native';
-import Pdf from 'react-native-pdf';
+import Pdf, { type PdfRef } from 'react-native-pdf';
 
 import { Label, Text } from '@/components/ui';
 import { errorMessage } from '@/features/admin/components/AdminToast';
@@ -41,6 +41,13 @@ type PreviewError = { stage: 'link' | 'render'; detail: string };
  * The page an operator most wants to see is not page one — it is somewhere in
  * the middle, where a bad scan or a wrong file shows itself. The scrubber is
  * therefore the main control, and it is tappable along its whole length.
+ *
+ * The document view reloads the whole file whenever one of its props changes
+ * (see `BookPageFlip`), so nothing it is handed may move while the operator
+ * scrolls: the page it reports is kept in state for the label and the
+ * scrubber but never fed back in as `page`, a scrubber jump goes through the
+ * imperative `setPage` command instead, and the source, callbacks and style
+ * are all held stable across renders.
  */
 export function AdminPdfPreviewScreen() {
   const navigation = useNavigation();
@@ -51,9 +58,29 @@ export function AdminPdfPreviewScreen() {
 
   const [uri, setUri] = useState<string | null>(null);
   const [error, setError] = useState<PreviewError | null>(null);
+  /** The page under the operator's eye, as the document view reports it. */
   const [page, setPage] = useState(1);
   const [pageCount, setPageCount] = useState(0);
   const trackWidth = useRef(0);
+  const pdfRef = useRef<PdfRef>(null);
+
+  // Held against the link, so a re-render does not hand the viewer a new
+  // source object and have it fetch the file again.
+  const source = useMemo(() => (uri ? { uri, cache: true } : null), [uri]);
+
+  const handleLoadComplete = useCallback(
+    (count: number) => setPageCount(count),
+    [],
+  );
+  const handlePageChanged = useCallback((next: number) => setPage(next), []);
+  const handleRenderError = useCallback(
+    (caught: object) =>
+      setError({
+        stage: 'render',
+        detail: errorMessage(caught, 'This file could not be rendered.'),
+      }),
+    [],
+  );
 
   const load = useCallback(() => {
     setError(null);
@@ -84,7 +111,11 @@ export function AdminPdfPreviewScreen() {
         return;
       }
       const share = Math.max(0, Math.min(1, x / trackWidth.current));
-      setPage(Math.max(1, Math.round(share * pageCount)));
+      const target = Math.max(1, Math.round(share * pageCount));
+      // The knob moves at once; the document view follows through the
+      // command and then reports where it landed, which resyncs `page`.
+      setPage(target);
+      pdfRef.current?.setPage(target);
     },
     [pageCount],
   );
@@ -130,10 +161,14 @@ export function AdminPdfPreviewScreen() {
             onSecondary={() => navigation.goBack()}
           />
         </View>
-      ) : uri ? (
+      ) : source ? (
         <Pdf
-          source={{ uri, cache: true }}
-          page={page}
+          ref={pdfRef}
+          source={source}
+          // Where the file opens — and the only value this prop ever takes.
+          // Feeding the reported page back in here reloaded the document on
+          // every page the operator scrolled past.
+          page={1}
           // This is the one place a remote URL goes straight into the viewer,
           // so the viewer's own downloader runs — and that downloader is
           // react-native-blob-util. The viewer's default `trustAllCerts` sets
@@ -143,14 +178,9 @@ export function AdminPdfPreviewScreen() {
           // is on Supabase Storage behind a public certificate; the platform's
           // trust store is the right one. See `downloadToPath` in services/pdf.
           trustAllCerts={false}
-          onLoadComplete={count => setPageCount(count)}
-          onPageChanged={next => setPage(next)}
-          onError={caught =>
-            setError({
-              stage: 'render',
-              detail: errorMessage(caught, 'This file could not be rendered.'),
-            })
-          }
+          onLoadComplete={handleLoadComplete}
+          onPageChanged={handlePageChanged}
+          onError={handleRenderError}
           style={styles.pdf}
         />
       ) : (

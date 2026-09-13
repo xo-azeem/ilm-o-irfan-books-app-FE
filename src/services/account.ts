@@ -1216,6 +1216,81 @@ export async function syncDownload(
   );
 }
 
+/** What the server knows about one book a device holds offline. */
+export type BookFileState = {
+  /** When the current file was attached. A different stamp is a replaced file. */
+  pdfUpdatedAt: string;
+  hasPdf: boolean;
+  isPublished: boolean;
+};
+
+type VaultCheckPayload = {
+  books?: Array<{
+    bookId: string;
+    pdfUpdatedAt: string;
+    hasPdf: boolean;
+    isPublished: boolean;
+  }>;
+};
+
+/**
+ * Asks, for every book the device holds, whether it still exists and which
+ * file it currently has. One round trip for the whole vault. A book absent
+ * from the answer has been deleted; the caller decides what that means for
+ * the copy on disk. Throws on any failure — the vault must never drop a
+ * book on a guess, so "could not ask" has to be told apart from "gone".
+ */
+export async function checkBookFiles(
+  bookIds: string[],
+): Promise<Map<string, BookFileState>> {
+  if (bookIds.length === 0) {
+    return new Map();
+  }
+
+  const rows = await withEndpoint(
+    ENDPOINTS.vaultCheck,
+    async () => {
+      const payload = await requestData<VaultCheckPayload>(
+        ENDPOINTS.vaultCheck,
+        { method: 'POST', auth: true, body: { bookIds } },
+      );
+      return payload?.books ?? [];
+    },
+    async () => {
+      const result = await supabase.rpc('vault_check', {
+        p_book_ids: bookIds,
+      });
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
+      return (
+        (result.data as Array<{
+          book_id: string;
+          pdf_updated_at: string;
+          has_pdf: boolean;
+          is_published: boolean;
+        }> | null) ?? []
+      ).map(row => ({
+        bookId: row.book_id,
+        pdfUpdatedAt: row.pdf_updated_at,
+        hasPdf: row.has_pdf,
+        isPublished: row.is_published,
+      }));
+    },
+  );
+
+  return new Map(
+    rows.map(row => [
+      row.bookId,
+      {
+        pdfUpdatedAt: row.pdfUpdatedAt,
+        hasPdf: row.hasPdf,
+        isPublished: row.isPublished,
+      },
+    ]),
+  );
+}
+
 /**
  * Direct delete: the backend exposes `downloads-create` but no removal
  * endpoint, and the reader must be able to free up storage offline-first.

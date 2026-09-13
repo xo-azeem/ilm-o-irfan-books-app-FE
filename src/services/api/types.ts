@@ -690,6 +690,13 @@ export type SignedPdfPayload = {
    */
   expiresIn: number;
   fileSizeBytes: number | null;
+  /**
+   * When the file being served was attached to the book — the stamp the
+   * vault keeps beside a downloaded copy and checks against later, so a
+   * replaced PDF is told apart from the one on the device. Absent on an
+   * older deployment.
+   */
+  pdfUpdatedAt?: string | null;
   /** Re-anchors the countdown on every successful open. */
   access?: SignedPdfAccess | null;
 };

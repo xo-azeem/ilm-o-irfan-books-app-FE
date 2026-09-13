@@ -47,6 +47,8 @@ export type AdminBookRow = {
   reader_count: number;
   download_count: number;
   wishlist_count: number;
+  /** The bulk upload this book arrived in, until it is published or detached. */
+  upload_batch_id: string | null;
 };
 
 export type AdminBookDetail = AdminBookRow & {
@@ -74,6 +76,11 @@ export type AdminBookInput = {
   is_published: boolean;
   category_ids: string[];
   collection_ids: string[];
+  /**
+   * The bulk upload to file the book under. Left out, an existing book keeps
+   * whatever batch it has; `null` takes it out of one.
+   */
+  upload_batch_id?: string | null;
 };
 
 export type BookStatusFilter = 'all' | 'published' | 'draft' | 'incomplete';

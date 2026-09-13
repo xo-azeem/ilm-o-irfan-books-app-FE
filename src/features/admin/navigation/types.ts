@@ -11,12 +11,15 @@ export type PeopleSegment = 'readers' | 'plans';
 export type AdminLibraryStackParamList = {
   AdminLibraryHome:
     { segment?: LibrarySegment; status?: BookStatusFilter } | undefined;
-  AdminBookEditor: { bookId?: string };
+  /** `batchId` opens the editor to add a new draft to that bulk upload. */
+  AdminBookEditor: { bookId?: string; batchId?: string };
   AdminPdfPreview: { bookId: string; title: string };
   AdminAuthorEditor: { authorId?: string };
   AdminCategoryEditor: { categoryId?: string };
   AdminCategoryBooks: { categoryId: string };
   AdminCollectionEditor: { collectionId?: string };
+  AdminUploadBatches: undefined;
+  AdminUploadBatch: { batchId: string };
 };
 
 export type AdminPeopleStackParamList = {

@@ -9,11 +9,16 @@ require Pod::Executable.execute_command('node', ['-p',
 platform :ios, '16.4'
 prepare_react_native_project!
 
-linkage = ENV['USE_FRAMEWORKS']
-if linkage != nil
-  Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
-  use_frameworks! :linkage => linkage.to_sym
-end
+# Firebase (push notifications). The Firebase iOS SDK ships Swift and has to be
+# linked as frameworks; static keeps every other pod on the linkage they were
+# tested with. React Native 0.75+ would otherwise resolve Firebase through SPM,
+# which needs *dynamic* frameworks - CocoaPods is the well-trodden path.
+$RNFirebaseDisableSPM = true
+$RNFirebaseAsStaticFramework = true
+
+linkage = ENV['USE_FRAMEWORKS'] || 'static'
+Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
+use_frameworks! :linkage => linkage.to_sym
 
 target 'IlmOIrfanApp' do
   use_expo_modules!

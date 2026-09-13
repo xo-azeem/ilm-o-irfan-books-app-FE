@@ -13,6 +13,11 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { AuthSplash } from '@/app/navigation/AuthSplash';
+import {
+  navigationRef,
+  onNavigationReady,
+  setConsumerShellReady,
+} from '@/app/navigation/navigationRef';
 import { MainTabBar } from '@/components/navigation/MainTabBar';
 import { TAB_TRANSITION } from '@/components/navigation/tabTransition';
 import { ROUTES } from '@/constants/routes';
@@ -30,8 +35,10 @@ import { SearchScreen } from '@/features/search/screens/SearchScreen';
 import { WishlistScreen } from '@/features/wishlist/screens/WishlistScreen';
 import { prefetchHomeCatalog } from '@/hooks/useCatalog';
 import { queryClient } from '@/lib/queryClient';
+import { pushAvailable, requestPushPermission } from '@/services/push';
 import { useAuthStore } from '@/stores/authStore';
 import { useOnboardingStore } from '@/stores/onboardingStore';
+import { usePushStore } from '@/stores/pushStore';
 import { useTheme } from '@/theme/ThemeContext';
 
 import type { RootStackParamList, RootTabParamList } from './types';
@@ -199,6 +206,38 @@ export function RootNavigator() {
   const splashReady =
     sessionReady && (!landsOnHome || homeFeedSettled || feedHoldExpired);
 
+  // ── Push notifications ────────────────────────────────────────────────────
+  // A tapped notification can only land in the reader app: the admin tool
+  // and first-run have none of its routes. The ref parks the intent until
+  // this says the consumer shell is up — and the splash is gone, so a cold
+  // start from a tap does not navigate underneath the logo.
+  const consumerShellUp = sessionReady && !showAdmin && !needsOnboarding;
+  useEffect(() => {
+    setConsumerShellReady(consumerShellUp && !splashVisible);
+    return () => setConsumerShellReady(false);
+  }, [consumerShellUp, splashVisible]);
+
+  // The OS permission prompt, once. Asked after the splash lifts on Home, so
+  // the first thing a reader sees is the app and not a system dialog; and
+  // only over the reader app — an admin who never leaves the tool is never
+  // asked. Declining is remembered by the OS; the Notifications screen
+  // points at the device's settings from then on.
+  useEffect(() => {
+    if (splashVisible || !consumerShellUp || !pushAvailable()) {
+      return;
+    }
+    const push = usePushStore.getState();
+    if (push.promptedAt) {
+      return;
+    }
+    push.markPrompted();
+    void requestPushPermission().then(result => {
+      if (result === 'granted') {
+        usePushStore.getState().requestSync();
+      }
+    });
+  }, [consumerShellUp, splashVisible]);
+
   const navigationTheme = useMemo(
     () => ({
       ...(isDark ? DarkTheme : DefaultTheme),
@@ -225,7 +264,11 @@ export function RootNavigator() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {sessionReady ? (
-        <NavigationContainer theme={navigationTheme}>
+        <NavigationContainer
+          ref={navigationRef}
+          theme={navigationTheme}
+          onReady={onNavigationReady}
+        >
           {/* The three shells are separate trees, so a change of shell is a
               remount. Keyed and faded in, so an admin stepping between the
               tool and the app sees a dissolve rather than a hard cut. At

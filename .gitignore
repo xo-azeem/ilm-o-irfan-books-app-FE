@@ -71,6 +71,11 @@ yarn-error.log
 .env.*
 !.env.example
 
+# Firebase project files (per environment; materialised on EAS by
+# scripts/eas-write-env.js — see docs/push-notifications.md)
+android/app/google-services.json
+ios/IlmOIrfanApp/GoogleService-Info.plist
+
 # Local build outputs
 *.apk
 *.aab

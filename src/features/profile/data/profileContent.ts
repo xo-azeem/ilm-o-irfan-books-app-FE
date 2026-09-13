@@ -112,64 +112,6 @@ export const profileGroups: ProfileGroup[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Notifications
-// ---------------------------------------------------------------------------
-
-export type NotificationToggle = {
-  id: string;
-  label: string;
-  description: string;
-  defaultValue: boolean;
-};
-
-export type NotificationGroup = {
-  id: string;
-  title: string;
-  toggles: NotificationToggle[];
-};
-
-export const notificationGroups: NotificationGroup[] = [
-  {
-    id: 'notif-reading',
-    title: 'Reading',
-    toggles: [
-      {
-        id: 'daily-reminder',
-        label: 'Daily reminder',
-        description: 'A gentle nudge to keep your streak going',
-        defaultValue: true,
-      },
-      {
-        id: 'reading-goals',
-        label: 'Reading goals',
-        description: 'Updates on your weekly progress',
-        defaultValue: true,
-      },
-    ],
-  },
-  {
-    id: 'notif-library',
-    title: 'Library',
-    toggles: [
-      {
-        id: 'new-releases',
-        label: 'New book releases',
-        description: 'When fresh titles are added',
-        defaultValue: true,
-      },
-      {
-        id: 'offers',
-        label: 'Offers & updates',
-        description: 'Occasional news from Ilm o Irfan',
-        defaultValue: false,
-      },
-    ],
-  },
-];
-
-export const quietHoursDefault = { from: '11:00 pm', to: '6:00 am' };
-
-// ---------------------------------------------------------------------------
 // Language
 // ---------------------------------------------------------------------------
 

@@ -53,6 +53,8 @@ export const ADMIN_ROUTES = {
   CATEGORY_EDITOR: 'AdminCategoryEditor',
   CATEGORY_BOOKS: 'AdminCategoryBooks',
   COLLECTION_EDITOR: 'AdminCollectionEditor',
+  UPLOAD_BATCHES: 'AdminUploadBatches',
+  UPLOAD_BATCH: 'AdminUploadBatch',
 
   // People stack — readers and plans as two segments
   PEOPLE_HOME: 'AdminPeopleHome',

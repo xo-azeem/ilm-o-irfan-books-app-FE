@@ -15,7 +15,13 @@ import {
   pick,
   types,
 } from '@react-native-documents/picker';
-import { Copy, ImageUp, Trash2, type LucideIcon } from 'lucide-react-native';
+import {
+  Copy,
+  ImageUp,
+  Layers,
+  Trash2,
+  type LucideIcon,
+} from 'lucide-react-native';
 
 import { BookCover, Display, Icon, Label, Tag, Text } from '@/components/ui';
 import { ADMIN_ROUTES } from '@/constants/routes';
@@ -39,7 +45,9 @@ import {
   AdminField,
   AdminHelper,
   AdminLabel,
+  AdminNavRow,
   AdminPickerField,
+  AdminRowGroup,
   AdminSectionHeader,
   AdminTag,
   AdminTextAction,
@@ -142,6 +150,13 @@ export function AdminBookEditorScreen() {
   const route =
     useRoute<RouteProp<AdminLibraryStackParamList, 'AdminBookEditor'>>();
   const bookId = route.params?.bookId;
+  /**
+   * The bulk upload this book belongs to: the one it is being added to, or
+   * the one it was added to before. In a batch the book is a draft until the
+   * batch is published, so the editor's own Publish is put away and the way
+   * out is "Add to batch".
+   */
+  const batchId = route.params?.batchId ?? null;
   const { colors } = useTheme();
   const { scrollEndPadding } = useAppInsets();
   const toast = useToast();
@@ -237,6 +252,9 @@ export function AdminBookEditorScreen() {
 
   const author = authors.find(item => item.id === form.authorId);
   const uploading = coverProgress !== null || pdfProgress !== null;
+  const inBatch =
+    !form.isPublished && Boolean(batchId ?? existing?.upload_batch_id);
+  const batchToOpen = batchId ?? existing?.upload_batch_id ?? null;
 
   const errors = {
     title: !form.title.trim() ? 'A title is required.' : null,
@@ -350,6 +368,9 @@ export function AdminBookEditorScreen() {
     is_published: isPublished,
     category_ids: form.categoryIds,
     collection_ids: form.collectionIds,
+    // Only a new book is filed under a batch here; an existing one keeps
+    // whatever batch it has, and leaves it only from the batch screen.
+    ...(batchId && !bookId ? { upload_batch_id: batchId } : {}),
   });
 
   const save = (isPublished: boolean, successMessage: string) => {
@@ -435,7 +456,7 @@ export function AdminBookEditorScreen() {
     >
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <AdminBackLink
-          label="Library"
+          label={inBatch ? 'Batch' : 'Library'}
           action={
             <View style={styles.stateBadges}>
               {isDirty ? <AdminTag label="UNSAVED" tone="warning" /> : null}
@@ -513,10 +534,29 @@ export function AdminBookEditorScreen() {
               title={
                 form.isPublished
                   ? 'This title is live'
-                  : 'Before this can go live'
+                  : inBatch
+                    ? 'Before the batch can go live'
+                    : 'Before this can go live'
               }
               items={checklist}
             />
+
+            {inBatch && batchToOpen ? (
+              <AdminRowGroup>
+                <AdminNavRow
+                  Icon={Layers}
+                  label={
+                    bookId ? 'Part of a bulk upload' : 'Being added to a batch'
+                  }
+                  sublabel="It goes live with the rest of the batch, not on its own."
+                  onPress={() =>
+                    navigation.navigate(ADMIN_ROUTES.UPLOAD_BATCH, {
+                      batchId: batchToOpen,
+                    })
+                  }
+                />
+              </AdminRowGroup>
+            ) : null}
 
             {/* Identity */}
             <View style={styles.stack}>
@@ -701,6 +741,14 @@ export function AdminBookEditorScreen() {
                   Up to 100 MB. Stored privately — readers only ever get a
                   short-lived signed link, never the file itself.
                 </AdminHelper>
+
+                {existing?.pdf_path && form.pdfPath !== existing.pdf_path ? (
+                  <AdminHelper tone="warning">
+                    Saving replaces the file for every reader: their offline
+                    copies are removed and they will download this one the next
+                    time they open the book. Reading positions are kept.
+                  </AdminHelper>
+                ) : null}
               </AdminCard>
 
               {bookId && form.pdfPath ? (
@@ -1009,6 +1057,23 @@ export function AdminBookEditorScreen() {
             loading={saveBook.isPending}
             disabled={uploading}
             onPress={() => save(true, 'Book saved.')}
+          />
+        </AdminActionBar>
+      ) : inBatch ? (
+        // One way out: into the batch. Publishing is the batch's to do, so
+        // there is no Publish here to put one title live ahead of the set.
+        <AdminActionBar>
+          <AdminButton
+            label={bookId ? 'Save to batch' : 'Add to batch'}
+            Icon={Layers}
+            loading={saveBook.isPending}
+            disabled={uploading}
+            onPress={() =>
+              save(
+                false,
+                bookId ? 'Saved to the batch.' : 'Added to the batch.',
+              )
+            }
           />
         </AdminActionBar>
       ) : (

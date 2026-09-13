@@ -106,6 +106,8 @@ export async function getSignedPdfUrl(bookId: string) {
   return {
     url: payload.signedUrl,
     fileSizeBytes: payload.fileSizeBytes ?? undefined,
+    /** Which file this is; `null` until the backend sends it. */
+    pdfUpdatedAt: payload.pdfUpdatedAt ?? null,
     /** Seconds this URL is good for — already clamped to the membership. */
     expiresIn: payload.expiresIn,
   };

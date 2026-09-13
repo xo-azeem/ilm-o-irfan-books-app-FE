@@ -5,4 +5,6 @@
       handover between them is invisible.
     -->
     <color name="splash_background">#080B09</color>
+    <!-- Tints the tray icon and title. `palette.green` in src/theme/palette.ts. -->
+    <color name="notification_accent">#2D8A47</color>
 </resources>

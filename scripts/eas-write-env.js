@@ -7,9 +7,46 @@
  *
  * Only public keys belong here (Supabase anon key, RevenueCat public SDK keys).
  * No-op when not running on EAS (EAS_BUILD is unset) or when `.env` already exists.
+ *
+ * The Firebase project files are gitignored too, and land the same way:
+ * GOOGLE_SERVICES_JSON → android/app/google-services.json and
+ * GOOGLE_SERVICE_INFO_PLIST → ios/IlmOIrfanApp/GoogleService-Info.plist. Each
+ * may be an EAS *file* variable (the value is a path on the worker) or the
+ * file's contents base64-encoded. Either is skipped when absent — the native
+ * builds tolerate a missing file and simply leave push off.
  */
 const fs = require('fs');
 const path = require('path');
+
+const FIREBASE_FILES = [
+  ['GOOGLE_SERVICES_JSON', path.join('android', 'app', 'google-services.json')],
+  [
+    'GOOGLE_SERVICE_INFO_PLIST',
+    path.join('ios', 'IlmOIrfanApp', 'GoogleService-Info.plist'),
+  ],
+];
+
+function writeFirebaseFile(envKey, relTarget) {
+  const value = process.env[envKey];
+  if (!value) {
+    console.log(`[eas-write-env] ${envKey} not set, skipping ${relTarget}`);
+    return;
+  }
+  const target = path.join(__dirname, '..', relTarget);
+  if (fs.existsSync(target)) {
+    console.log(`[eas-write-env] ${relTarget} already present, skipping`);
+    return;
+  }
+  let contents;
+  if (fs.existsSync(value)) {
+    contents = fs.readFileSync(value);
+  } else {
+    contents = require('buffer').Buffer.from(value.trim(), 'base64');
+  }
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.writeFileSync(target, contents);
+  console.log(`[eas-write-env] wrote ${relTarget}`);
+}
 
 const KEYS = [
   'SUPABASE_URL',
@@ -25,6 +62,11 @@ if (!process.env.EAS_BUILD) {
   console.log('[eas-write-env] not on EAS, skipping');
   process.exit(0);
 }
+
+for (const [envKey, relTarget] of FIREBASE_FILES) {
+  writeFirebaseFile(envKey, relTarget);
+}
+
 if (fs.existsSync(envPath)) {
   console.log('[eas-write-env] .env already present, skipping');
   process.exit(0);

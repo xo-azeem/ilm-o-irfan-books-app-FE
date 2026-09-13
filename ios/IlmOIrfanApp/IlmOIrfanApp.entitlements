@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  Push Notifications capability. Xcode flips this to "production" when
+	  archiving for the App Store; the APNs authentication key itself lives in
+	  the Firebase console (see docs/push-notifications.md), never in the app.
+	-->
+	<key>aps-environment</key>
+	<string>development</string>
+</dict>
+</plist>

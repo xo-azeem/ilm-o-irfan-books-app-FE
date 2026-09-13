@@ -9,9 +9,12 @@ import {
 
 import { AccessProvider } from '@/app/providers/AccessProvider';
 import { AuthSessionProvider } from '@/app/providers/AuthSessionProvider';
+import { PushProvider } from '@/app/providers/PushProvider';
 import { ReadingSyncProvider } from '@/app/providers/ReadingSyncProvider';
 import { ThemeProvider } from '@/app/providers/ThemeProvider';
+import { VaultSyncProvider } from '@/app/providers/VaultSyncProvider';
 import { DialogLayer } from '@/components/ui/Dialog';
+import { PushBannerLayer } from '@/components/ui/PushBanner';
 import { queryClient } from '@/lib/queryClient';
 import { ThemeStateProvider, useTheme } from '@/theme/ThemeContext';
 
@@ -29,6 +32,8 @@ function AppShell({ children }: PropsWithChildren) {
           translucent={Platform.OS === 'android'}
         />
         {children}
+        {/* A push that arrives while the app is open, drawn in-app. */}
+        <PushBannerLayer />
         {/* Popups draw above the navigator; sheets carry their own layer. */}
         <DialogLayer root />
       </SafeAreaProvider>
@@ -44,7 +49,11 @@ export function AppProviders({ children }: PropsWithChildren) {
           <AuthSessionProvider>
             <AccessProvider>
               <ReadingSyncProvider>
-                <AppShell>{children}</AppShell>
+                <VaultSyncProvider>
+                  <PushProvider>
+                    <AppShell>{children}</AppShell>
+                  </PushProvider>
+                </VaultSyncProvider>
               </ReadingSyncProvider>
             </AccessProvider>
           </AuthSessionProvider>

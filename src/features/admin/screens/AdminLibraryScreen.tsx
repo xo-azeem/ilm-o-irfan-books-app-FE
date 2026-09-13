@@ -13,8 +13,17 @@ import {
   type RouteProp,
 } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import {
+  Crown,
+  Eye,
+  EyeOff,
+  Trash2,
+  Unlock,
+  Upload,
+  type LucideIcon,
+} from 'lucide-react-native';
 
-import { Display, SearchField, Text } from '@/components/ui';
+import { Display, Icon, SearchField, Text } from '@/components/ui';
 import { ADMIN_ROUTES } from '@/constants/routes';
 import { AdminBookListRow } from '@/features/admin/components/AdminBookRow';
 import {
@@ -34,6 +43,7 @@ import {
   AdminPageTitle,
   AdminSegments,
   AdminTextAction,
+  AdminTitleActions,
   useAdminBottomInset,
 } from '@/features/admin/components/AdminUi';
 import { LibraryAuthors } from '@/features/admin/components/LibraryAuthors';
@@ -265,6 +275,15 @@ export function AdminLibraryScreen() {
     setSelected([]);
   }, []);
 
+  // "All" is every title in the list as loaded, not the whole filtered set on
+  // the server — the header says so, so nothing acts on rows nobody has seen.
+  const allSelected = rows.length > 0 && selected.length === rows.length;
+  const selectAll = useCallback(
+    () => setSelected(rows.map(book => book.id)),
+    [rows],
+  );
+  const clearSelection = useCallback(() => setSelected([]), []);
+
   const runBulk = (
     changes: { is_published?: boolean; is_premium?: boolean },
     label: string,
@@ -343,17 +362,46 @@ export function AdminLibraryScreen() {
                   : `${selected.length} selected`}
               </Display>
               <Text size={12} leading={1.3} tone="muted">
-                Tap rows to add or remove
+                {selected.length === 0
+                  ? 'Tap a title to select it'
+                  : `of ${rows.length} ${rows.length === 1 ? 'title' : 'titles'} in the list`}
               </Text>
             </View>
-            <AdminTextAction label="Done" size={12.5} onPress={stopSelecting} />
+            {rows.length > 0 ? (
+              <AdminTextAction
+                label={allSelected ? 'Clear' : 'Select all'}
+                size={12.5}
+                onPress={allSelected ? clearSelection : selectAll}
+              />
+            ) : null}
+            <AdminTextAction
+              label="Cancel"
+              size={12.5}
+              onPress={stopSelecting}
+            />
           </View>
         ) : (
           <>
             <AdminPageTitle
               title="Library"
               subtitle={subtitle}
-              action={<AdminNewButton onPress={createForSegment} />}
+              action={
+                segment === 'books' ? (
+                  <AdminTitleActions>
+                    <AdminNewButton
+                      label="Bulk upload"
+                      Icon={Upload}
+                      secondary
+                      onPress={() =>
+                        navigation.navigate(ADMIN_ROUTES.UPLOAD_BATCHES)
+                      }
+                    />
+                    <AdminNewButton onPress={createForSegment} />
+                  </AdminTitleActions>
+                ) : (
+                  <AdminNewButton onPress={createForSegment} />
+                )
+              }
             />
 
             <AdminSegments
@@ -455,7 +503,7 @@ export function AdminLibraryScreen() {
             windowSize={9}
             contentContainerStyle={{
               paddingHorizontal: ADMIN_GUTTER,
-              paddingBottom: scrollEndPadding + (selecting ? 160 : 20),
+              paddingBottom: scrollEndPadding + (selecting ? 236 : 20),
             }}
             ListEmptyComponent={
               books.isPlaceholderData || books.isFetchingNextPage ? null : (
@@ -477,6 +525,11 @@ export function AdminLibraryScreen() {
                   }
                   onAction={() =>
                     navigation.navigate(ADMIN_ROUTES.BOOK_EDITOR, {})
+                  }
+                  footnote={
+                    query || activeFilters.length
+                      ? undefined
+                      : 'Have a whole set? Use Bulk upload above to add every PDF at once and publish them together.'
                   }
                 />
               )
@@ -520,9 +573,11 @@ export function AdminLibraryScreen() {
         />
       )}
 
-      {/* The bulk bar states the count in words before any destructive action
-          is within reach. */}
-      {selecting && selected.length > 0 ? (
+      {/* The bulk bar is up for the whole of selection mode, with its actions
+          asleep until something is chosen, so the sheet never jumps into place
+          under the first tap. It states the count in words before any
+          destructive action is within reach. */}
+      {selecting ? (
         <View
           style={[
             styles.bulkBar,
@@ -535,34 +590,54 @@ export function AdminLibraryScreen() {
         >
           <View style={styles.bulkHeader}>
             <AdminEyebrow tone="muted">
-              {`Apply to ${selected.length} ${selected.length === 1 ? 'title' : 'titles'}`}
+              {selected.length === 0
+                ? 'Choose titles to act on'
+                : `Apply to ${selected.length} ${selected.length === 1 ? 'title' : 'titles'}`}
             </AdminEyebrow>
             {bulkUpdate.isPending || deleteBooks.isPending ? (
               <ActivityIndicator size="small" color={colors.primary} />
             ) : null}
           </View>
 
-          <View style={styles.bulkActions}>
+          <View style={styles.bulkRow}>
             <BulkButton
               label="Publish"
+              Icon={Eye}
               primary
+              disabled={selected.length === 0}
               onPress={() => runBulk({ is_published: true }, 'published')}
             />
             <BulkButton
               label="Unpublish"
+              Icon={EyeOff}
+              disabled={selected.length === 0}
               onPress={() => runBulk({ is_published: false }, 'unpublished')}
             />
+          </View>
+          <View style={styles.bulkRow}>
             <BulkButton
               label="Mark premium"
+              Icon={Crown}
+              disabled={selected.length === 0}
               onPress={() => runBulk({ is_premium: true }, 'marked premium')}
             />
             <BulkButton
               label="Make free"
+              Icon={Unlock}
+              disabled={selected.length === 0}
               onPress={() => runBulk({ is_premium: false }, 'made free')}
             />
+          </View>
+          <View style={styles.bulkRow}>
             <BulkButton
-              label="Delete"
+              label={
+                selected.length > 1
+                  ? `Delete ${selected.length} titles`
+                  : 'Delete'
+              }
+              Icon={Trash2}
               tone="danger"
+              disabled={selected.length === 0}
               onPress={() => setConfirmDelete(true)}
             />
           </View>
@@ -669,24 +744,38 @@ function ListGap() {
   return <View style={styles.listGap} />;
 }
 
+/**
+ * One action in the selection bar. Each fills its half of a row so the five
+ * actions read as a fixed grid — publish beside unpublish, premium beside
+ * free, delete on its own — rather than a wrapped run of pills that changes
+ * shape with the length of its labels.
+ */
 function BulkButton({
   label,
+  Icon: Glyph,
   onPress,
   tone,
   primary,
+  disabled,
 }: {
   label: string;
+  Icon: LucideIcon;
   onPress: () => void;
   tone?: 'danger';
   /** The affirmative action carries a green fill; the rest stay neutral. */
   primary?: boolean;
+  disabled?: boolean;
 }) {
   const { colors } = useTheme();
   const danger = tone === 'danger';
+  const iconTone = danger ? 'danger' : primary ? 'action' : 'soft';
 
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
         styles.bulkButton,
@@ -702,15 +791,12 @@ function BulkButton({
               ? colors.selectedBorder
               : colors.border,
         },
+        disabled && styles.asleep,
         pressed && styles.pressed,
       ]}
     >
-      <Text
-        size={13}
-        leading={1}
-        weight="500"
-        tone={danger ? 'danger' : primary ? 'action' : 'soft'}
-      >
+      <Icon icon={Glyph} size={15} tone={iconTone} strokeWidth={2} />
+      <Text size={13} leading={1} weight="500" tone={iconTone}>
         {label}
       </Text>
     </Pressable>
@@ -779,16 +865,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
   },
-  bulkActions: {
+  bulkRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 9,
   },
   bulkButton: {
-    paddingHorizontal: 15,
-    paddingVertical: 11,
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    minHeight: 42,
+    paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth * 2,
+  },
+  asleep: {
+    opacity: 0.45,
   },
   pressed: {
     opacity: 0.75,

@@ -10,11 +10,13 @@ import {
   type BookSort,
 } from './types';
 
-const LIST_COLUMNS =
+/** Every column the Library list draws — shared with the batch screen. */
+export const BOOK_LIST_COLUMNS =
   'id,slug,title,author_id,author_name,genre,tag,tags,rating,rating_count,' +
   'price_cents,currency,format,cover_path,cover_color,cover_color_dark,pdf_path,' +
   'file_size_bytes,read_time_minutes,is_premium,is_published,published_at,' +
-  'created_at,updated_at,category_ids,collection_ids,reader_count,download_count,wishlist_count';
+  'created_at,updated_at,category_ids,collection_ids,reader_count,download_count,wishlist_count,' +
+  'upload_batch_id';
 
 /** What the Library search bar promises: titles, authors, slugs. */
 const BOOK_SEARCH_COLUMNS = ['title', 'author_name', 'slug'];
@@ -33,9 +35,10 @@ export type AdminBookPage = {
   nextPage: number | null;
 };
 
-function normalizeRow(row: Record<string, unknown>): AdminBookRow {
+export function normalizeBookRow(row: Record<string, unknown>): AdminBookRow {
   return {
     ...(row as AdminBookRow),
+    upload_batch_id: (row.upload_batch_id as string | null) ?? null,
     rating: num(row.rating),
     tags: (row.tags as string[] | null) ?? [],
     category_ids: (row.category_ids as string[] | null) ?? [],
@@ -52,7 +55,7 @@ export async function listAdminBooks(
 
   let builder = supabase
     .from('admin_book_rows')
-    .select(LIST_COLUMNS, { count: 'exact' })
+    .select(BOOK_LIST_COLUMNS, { count: 'exact' })
     .order(sort.column, { ascending: sort.ascending })
     .range(from, from + ADMIN_PAGE_SIZE - 1);
 
@@ -88,7 +91,7 @@ export async function listAdminBooks(
 
   const rows = (
     (result.data as unknown as Record<string, unknown>[]) ?? []
-  ).map(normalizeRow);
+  ).map(normalizeBookRow);
   const total = result.count ?? rows.length;
 
   return {
@@ -102,13 +105,13 @@ export async function getAdminBook(id: string): Promise<AdminBookDetail> {
   const row = unwrap(
     await supabase
       .from('admin_book_rows')
-      .select(`${LIST_COLUMNS},description`)
+      .select(`${BOOK_LIST_COLUMNS},description`)
       .eq('id', id)
       .single(),
   ) as unknown as Record<string, unknown>;
 
   return {
-    ...normalizeRow(row),
+    ...normalizeBookRow(row),
     description: (row.description as string) ?? '',
   };
 }
@@ -179,6 +182,9 @@ function bookPayload(input: AdminBookInput) {
     is_premium: input.is_premium,
     is_published: input.is_published,
     // published_at is stamped by a database trigger.
+    ...(input.upload_batch_id !== undefined
+      ? { upload_batch_id: input.upload_batch_id }
+      : {}),
   };
 }
 

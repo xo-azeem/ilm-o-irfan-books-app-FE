@@ -156,11 +156,20 @@ export const AdminScreenTitle = memo(function AdminScreenTitle({
 });
 
 /** The green pill that creates whatever the current screen lists. */
+/**
+ * The button beside a page title. Green for the one thing a screen is for —
+ * "New" — and, as `secondary`, a quiet outlined sibling for the next most
+ * useful thing, so a title can carry two actions without two green pills.
+ */
 export const AdminNewButton = memo(function AdminNewButton({
   label = 'New',
+  Icon: Glyph = Plus,
+  secondary = false,
   onPress,
 }: {
   label?: string;
+  Icon?: LucideIcon;
+  secondary?: boolean;
   onPress: () => void;
 }) {
   const { colors } = useTheme();
@@ -172,16 +181,39 @@ export const AdminNewButton = memo(function AdminNewButton({
       onPress={onPress}
       style={({ pressed }) => [
         styles.newButton,
-        { backgroundColor: colors.primary },
+        secondary
+          ? {
+              backgroundColor: colors.control,
+              borderColor: colors.border,
+              borderWidth: StyleSheet.hairlineWidth * 2,
+            }
+          : { backgroundColor: colors.primary },
         pressed && styles.pressed,
       ]}
     >
-      <Icon icon={Plus} size={14} color={colors.onPrimary} strokeWidth={2.4} />
-      <Text size={13} leading={1} weight="500" tone="onPrimary">
+      <Icon
+        icon={Glyph}
+        size={14}
+        color={secondary ? colors.primaryBright : colors.onPrimary}
+        strokeWidth={2.4}
+      />
+      <Text
+        size={13}
+        leading={1}
+        weight="500"
+        tone={secondary ? 'ink' : 'onPrimary'}
+      >
         {label}
       </Text>
     </Pressable>
   );
+});
+
+/** Two title buttons side by side, secondary first. */
+export const AdminTitleActions = memo(function AdminTitleActions({
+  children,
+}: PropsWithChildren) {
+  return <View style={styles.titleActions}>{children}</View>;
 });
 
 export type AdminSegment<T extends string> = { value: T; label: string };
@@ -1688,6 +1720,11 @@ const styles = StyleSheet.create({
   },
   screenTitle: {
     gap: 5,
+  },
+  titleActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   newButton: {
     height: 38,

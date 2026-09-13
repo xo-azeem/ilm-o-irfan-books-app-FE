@@ -11,6 +11,8 @@ import { useMemo } from 'react';
 import {
   bulkUpdateBooks,
   createAdminBook,
+  createUploadBatch,
+  deleteUploadBatch,
   deleteAdminAuthor,
   deleteAdminBooks,
   deleteAdminCategory,
@@ -26,6 +28,7 @@ import {
   getCategoryBookIds,
   getCollectionBookIds,
   getStorageAudit,
+  getUploadBatch,
   listAdminAuthors,
   listAdminBooks,
   listAdminCategories,
@@ -33,7 +36,10 @@ import {
   listAdminPlans,
   listAdminUsers,
   listAuditLog,
+  listBatchBooks,
   listBookOptions,
+  listUploadBatches,
+  publishUploadBatch,
   reorderCatalog,
   setCategoryBooks,
   setCollectionPublished,
@@ -41,6 +47,7 @@ import {
   setAdminUserRole,
   updateAdminBook,
   updateAdminSettings,
+  updateUploadBatch,
   upsertAdminAuthor,
   upsertAdminCategory,
   upsertAdminCollection,
@@ -48,6 +55,7 @@ import {
   type AdminBookFilters,
   type AdminBookInput,
   type AdminUserFilters,
+  type UploadBatchInput,
 } from '@/services/admin';
 
 const STALE = 60_000;
@@ -322,6 +330,77 @@ export function useReorderCatalog() {
       table: 'categories' | 'collections';
       ids: string[];
     }) => reorderCatalog(table, ids),
+    onSuccess: () => invalidateAdmin(client),
+  });
+}
+
+// ------------------------------------------------------------- bulk uploads
+
+export function useUploadBatches() {
+  return useQuery({
+    queryKey: ['admin', 'upload-batches'],
+    queryFn: listUploadBatches,
+    staleTime: STALE,
+  });
+}
+
+export function useUploadBatch(id: string | undefined) {
+  return useQuery({
+    queryKey: ['admin', 'upload-batch', id],
+    queryFn: () => getUploadBatch(id as string),
+    enabled: Boolean(id),
+    staleTime: STALE,
+  });
+}
+
+/**
+ * The batch's books, polled while any of them is still without a file: an
+ * upload attaches the PDF from the batch screen, but a draft opened in the
+ * editor can have one attached there too, and the batch should notice.
+ */
+export function useBatchBooks(batchId: string | undefined) {
+  return useQuery({
+    queryKey: ['admin', 'upload-batch-books', batchId],
+    queryFn: () => listBatchBooks(batchId as string),
+    enabled: Boolean(batchId),
+    staleTime: 15_000,
+  });
+}
+
+export function useCreateUploadBatch() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: UploadBatchInput) => createUploadBatch(input),
+    onSuccess: () => invalidateAdmin(client),
+  });
+}
+
+export function useUpdateUploadBatch() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      patch,
+    }: {
+      id: string;
+      patch: Partial<UploadBatchInput>;
+    }) => updateUploadBatch(id, patch),
+    onSuccess: () => invalidateAdmin(client),
+  });
+}
+
+export function useDeleteUploadBatch() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: deleteUploadBatch,
+    onSuccess: () => invalidateAdmin(client),
+  });
+}
+
+export function usePublishUploadBatch() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: publishUploadBatch,
     onSuccess: () => invalidateAdmin(client),
   });
 }

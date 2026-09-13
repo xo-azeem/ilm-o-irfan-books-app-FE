@@ -220,6 +220,22 @@ export function recordPosition(
 }
 
 /**
+ * Drops a book's position from this device, sent or not.
+ *
+ * For a book the admin has deleted: the server's row went with the book, and
+ * a pending one would only be refused. Nothing else clears a position — a
+ * replaced file keeps its page, since the document view clamps a page past
+ * the new end and the reader is usually nearer the right place than page one.
+ */
+export function forgetPosition(userId: string, bookId: string) {
+  markPending(userId, bookId, false);
+  if (store.getString(positionKey(userId, bookId)) != null) {
+    store.remove(positionKey(userId, bookId));
+    notify();
+  }
+}
+
+/**
  * Merges a row from the server into the cache — newer `last_read_at` wins.
  * The rules are `mergeServerRow`'s; this is the write. Returns the position
  * now in the cache.

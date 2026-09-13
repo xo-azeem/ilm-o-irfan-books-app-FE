@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { StyleSheet } from 'react-native';
 
 import { Badge, Text } from '@/components/ui';
 import { fontSize } from '@/theme/typography';
@@ -58,6 +59,9 @@ export const AccessLabel = memo(function AccessLabel({
         label={label}
         tone={access.kind === 'membership' ? 'gold' : 'primary'}
         bordered
+        // Badge pins itself to the leading edge by default; under a centred
+        // title and author it has to sit on the same axis as they do.
+        style={styles.centred}
       />
     );
   }
@@ -72,4 +76,10 @@ export const AccessLabel = memo(function AccessLabel({
       {label}
     </Text>
   );
+});
+
+const styles = StyleSheet.create({
+  centred: {
+    alignSelf: 'center',
+  },
 });

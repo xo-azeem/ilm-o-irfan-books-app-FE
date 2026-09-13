@@ -14,7 +14,7 @@ import {
 } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-import { Display, Text } from '@/components/ui';
+import { Display, SearchField, Text } from '@/components/ui';
 import { ADMIN_ROUTES } from '@/constants/routes';
 import { AdminBookListRow } from '@/features/admin/components/AdminBookRow';
 import {
@@ -22,7 +22,6 @@ import {
   AdminConfirmSheet,
   AdminFilterButton,
   AdminFilterSheet,
-  AdminSearchBar,
 } from '@/features/admin/components/AdminControls';
 import { AdminRowsSkeleton } from '@/features/admin/components/AdminSkeletons';
 import { errorMessage, useToast } from '@/features/admin/components/AdminToast';
@@ -42,7 +41,6 @@ import {
   LibraryCategories,
   LibraryShelves,
 } from '@/features/admin/components/LibraryCatalog';
-import { useDebouncedValue } from '@/features/admin/hooks/useAdminForm';
 import { useAppInsets } from '@/hooks/useAppInsets';
 import {
   useAdminAuthors,
@@ -115,6 +113,9 @@ export function AdminLibraryScreen() {
   );
 
   // Books
+  // The settled search terms. Each field owns its live text and holds every
+  // keystroke back for its own beat, so the screen re-renders once per
+  // search rather than once per character.
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<BookStatusFilter>(
     route.params?.status ?? 'all',
@@ -129,9 +130,6 @@ export function AdminLibraryScreen() {
   // Authors
   const [authorQuery, setAuthorQuery] = useState('');
 
-  const debouncedQuery = useDebouncedValue(query, 350);
-  const debouncedAuthorQuery = useDebouncedValue(authorQuery, 300);
-
   // The tab stays mounted, so a later jump from Today has to push its filter
   // in rather than relying on this screen's initial state.
   const routeSegment = route.params?.segment;
@@ -145,18 +143,18 @@ export function AdminLibraryScreen() {
 
   const filters = useMemo<AdminBookFilters>(
     () => ({
-      query: debouncedQuery,
+      query,
       status,
       access,
       authorId: null,
       categoryId: null,
       sort,
     }),
-    [access, debouncedQuery, sort, status],
+    [access, query, sort, status],
   );
 
   const books = useAdminBooks(filters);
-  const authors = useAdminAuthors(debouncedAuthorQuery);
+  const authors = useAdminAuthors(authorQuery);
   const categories = useAdminCategories();
   const collections = useAdminCollections();
   const { data: stats } = useAdminStats();
@@ -169,6 +167,21 @@ export function AdminLibraryScreen() {
     [books.data],
   );
   const shown = books.data?.pages[0]?.total ?? 0;
+
+  // Placeholder data is never paged: its `nextPage` belongs to the previous
+  // query. `cancelRefetch: false` lets the repeated `onEndReached` of a
+  // momentum scroll join the page in flight rather than restart it.
+  const {
+    hasNextPage: hasMoreBooks,
+    isFetchingNextPage: fetchingMoreBooks,
+    isPlaceholderData: booksArePlaceholder,
+    fetchNextPage: fetchMoreBooks,
+  } = books;
+  const loadMoreBooks = useCallback(() => {
+    if (hasMoreBooks && !fetchingMoreBooks && !booksArePlaceholder) {
+      void fetchMoreBooks({ cancelRefetch: false });
+    }
+  }, [booksArePlaceholder, fetchMoreBooks, fetchingMoreBooks, hasMoreBooks]);
 
   const categoryById = useMemo(
     () =>
@@ -352,10 +365,14 @@ export function AdminLibraryScreen() {
             {segment === 'books' ? (
               <>
                 <View style={styles.searchRow}>
-                  <AdminSearchBar
-                    value={query}
-                    onChangeText={setQuery}
+                  <SearchField
+                    dense
+                    // The field leaves with its segment; it comes back
+                    // showing the term the list is still narrowed by.
+                    defaultValue={query}
+                    onSearch={setQuery}
                     placeholder="Search titles, authors, slugs"
+                    style={styles.grow}
                   />
                   <AdminFilterButton
                     count={activeFilters.length}
@@ -376,6 +393,9 @@ export function AdminLibraryScreen() {
                       {`${shown} of ${bookTotal} shown`}
                     </Text>
                   ) : null}
+                  {books.isPlaceholderData ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : null}
                   <View style={styles.grow} />
                   {rows.length > 0 ? (
                     <AdminTextAction
@@ -387,9 +407,10 @@ export function AdminLibraryScreen() {
                 </View>
               </>
             ) : segment === 'authors' ? (
-              <AdminSearchBar
-                value={authorQuery}
-                onChangeText={setAuthorQuery}
+              <SearchField
+                dense
+                defaultValue={authorQuery}
+                onSearch={setAuthorQuery}
                 placeholder="Search authors"
               />
             ) : null}
@@ -398,7 +419,7 @@ export function AdminLibraryScreen() {
       </View>
 
       {segment === 'books' ? (
-        books.isLoading ? (
+        books.isPending ? (
           <View style={styles.gutter}>
             <AdminRowsSkeleton count={5} />
           </View>
@@ -419,39 +440,46 @@ export function AdminLibraryScreen() {
             // state lives outside the item it was rendered from.
             extraData={selected}
             ItemSeparatorComponent={ListGap}
-            refreshing={books.isRefetching}
+            // A new term's fetch also counts as a refetch while the old pages
+            // stand in for it; that one is shown by the filter row, not as a
+            // pull.
+            refreshing={books.isRefetching && !books.isPlaceholderData}
             onRefresh={() => void books.refetch()}
-            onEndReachedThreshold={0.4}
-            onEndReached={() => {
-              if (books.hasNextPage && !books.isFetchingNextPage) {
-                void books.fetchNextPage();
-              }
-            }}
+            onEndReachedThreshold={0.8}
+            onEndReached={loadMoreBooks}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            initialNumToRender={10}
+            maxToRenderPerBatch={10}
+            updateCellsBatchingPeriod={50}
+            windowSize={9}
             contentContainerStyle={{
               paddingHorizontal: ADMIN_GUTTER,
               paddingBottom: scrollEndPadding + (selecting ? 160 : 20),
             }}
             ListEmptyComponent={
-              <AdminEmpty
-                title={
-                  query || activeFilters.length
-                    ? 'Nothing matches'
-                    : 'The library is empty'
-                }
-                message={
-                  query || activeFilters.length
-                    ? 'Try a different search, or clear the filters to see the whole catalog.'
-                    : 'Add your first title with a PDF and a cover, and it appears on Home the moment you publish it.'
-                }
-                actionLabel={
-                  query || activeFilters.length
-                    ? undefined
-                    : 'Add the first book'
-                }
-                onAction={() =>
-                  navigation.navigate(ADMIN_ROUTES.BOOK_EDITOR, {})
-                }
-              />
+              books.isPlaceholderData || books.isFetchingNextPage ? null : (
+                <AdminEmpty
+                  title={
+                    query || activeFilters.length
+                      ? 'Nothing matches'
+                      : 'The library is empty'
+                  }
+                  message={
+                    query || activeFilters.length
+                      ? 'Try a different search, or clear the filters to see the whole catalog.'
+                      : 'Add your first title with a PDF and a cover, and it appears on Home the moment you publish it.'
+                  }
+                  actionLabel={
+                    query || activeFilters.length
+                      ? undefined
+                      : 'Add the first book'
+                  }
+                  onAction={() =>
+                    navigation.navigate(ADMIN_ROUTES.BOOK_EDITOR, {})
+                  }
+                />
+              )
             }
             ListFooterComponent={
               books.isFetchingNextPage ? (
@@ -466,7 +494,7 @@ export function AdminLibraryScreen() {
         )
       ) : segment === 'authors' ? (
         <LibraryAuthors
-          query={debouncedAuthorQuery}
+          query={authorQuery}
           onOpen={authorId =>
             navigation.navigate(ADMIN_ROUTES.AUTHOR_EDITOR, { authorId })
           }

@@ -1,4 +1,4 @@
-import { assertOk, supabase, unwrap } from './client';
+import { assertOk, supabase, toFriendlyError, unwrap } from './client';
 import type {
   AdminAnalytics,
   AdminDashboardStats,
@@ -126,15 +126,33 @@ export async function getStorageAudit(): Promise<StorageAudit> {
   };
 }
 
+/**
+ * Removes an orphaned cover or PDF.
+ *
+ * Two steps on purpose. The RPC is the guard — admin, managed bucket, and
+ * nothing (book or author portrait) still pointing at the object — and it
+ * returns whether the object exists. The object itself can only be removed
+ * through the Storage API: Supabase refuses SQL deletes on storage.objects,
+ * which is what used to make every "Delete" here fail. The API call runs as
+ * the admin, under the covers/pdfs admin delete policies.
+ */
 export async function deleteStorageObject(
   bucket: 'covers' | 'pdfs',
   name: string,
 ) {
-  assertOk(
+  const exists = unwrap(
     await supabase.rpc('admin_delete_storage_object', {
       p_bucket: bucket,
       p_name: name,
     }),
-  );
-  await supabase.storage.from(bucket).remove([name]);
+  ) as boolean | null;
+
+  if (!exists) {
+    return;
+  }
+
+  const { error } = await supabase.storage.from(bucket).remove([name]);
+  if (error) {
+    throw new Error(toFriendlyError(error.message));
+  }
 }

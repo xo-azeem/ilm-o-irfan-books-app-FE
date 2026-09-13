@@ -15,7 +15,11 @@
  * a worklet and none of them may reach for anything that is not a number.
  *
  * Coordinates are the page's own: 0,0 is its top-left corner and `W`,`H` its
- * bottom-right. The spine is always the left edge.
+ * bottom-right. The spine is always the left edge — a book bound on the right
+ * is folded in a mirror by the code around this, never by this: the finger is
+ * read reflected across the page's middle and the fold is drawn reflected
+ * back (see `usePaperFlip` and `PaperFold`), so nothing here knows the
+ * difference and nothing here has to.
  */
 
 /** A point on the page. */

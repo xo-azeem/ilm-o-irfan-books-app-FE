@@ -16,6 +16,16 @@ type AuthState = {
   accessCheckedFor: string | null;
   userId: string | null;
   email: string | null;
+  /**
+   * An admin who has stepped out of the admin tool to use the app as a
+   * reader. Only meaningful while `isAdmin` is true — for anyone else the
+   * app is the only view there is, so the flag is simply ignored.
+   *
+   * Persisted, so an admin who closed the app mid-read comes back to the
+   * reader, not to Today. Cleared on sign-out and whenever a different
+   * account signs in, so the choice never outlives the person who made it.
+   */
+  viewingAsReader: boolean;
   /** @deprecated Prefer setSession from auth listener */
   signIn: () => void;
   setSession: (session: Session | null) => void;
@@ -25,6 +35,7 @@ type AuthState = {
     roleResolved: boolean;
     accessCheckedFor: string | null;
   }) => void;
+  setViewingAsReader: (value: boolean) => void;
   signOut: () => Promise<void>;
 };
 
@@ -51,18 +62,28 @@ export const useAuthStore = create<AuthState>()(
       accessCheckedFor: null,
       userId: null,
       email: null,
+      viewingAsReader: false,
       signIn: () => set({ isAuthenticated: true }),
       setSession: session => {
         const user = userFromSession(session);
-        set({
+        set(state => ({
           isAuthenticated: Boolean(session),
           userId: user?.id ?? null,
           email: user?.email ?? null,
-        });
+          // The same session arrives several times over a launch (see
+          // AuthSessionProvider), and each of those must leave the choice
+          // alone. Only a change of identity — another account, or none —
+          // drops it.
+          viewingAsReader:
+            user?.id && user.id === state.userId
+              ? state.viewingAsReader
+              : false,
+        }));
       },
       setHydrated: value => set({ isHydrated: value }),
       setAccessRole: ({ isAdmin, roleResolved, accessCheckedFor }) =>
         set({ isAdmin, roleResolved, accessCheckedFor }),
+      setViewingAsReader: value => set({ viewingAsReader: value }),
       signOut: async () => {
         try {
           await supabaseSignOut();
@@ -74,6 +95,7 @@ export const useAuthStore = create<AuthState>()(
             accessCheckedFor: null,
             userId: null,
             email: null,
+            viewingAsReader: false,
           });
         }
       },
@@ -85,6 +107,7 @@ export const useAuthStore = create<AuthState>()(
         isAuthenticated: state.isAuthenticated,
         userId: state.userId,
         email: state.email,
+        viewingAsReader: state.viewingAsReader,
       }),
       onRehydrateStorage: () => state => {
         state?.setHydrated(true);

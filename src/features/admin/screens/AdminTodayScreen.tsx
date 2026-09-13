@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import {
   ChartNoAxesColumn,
   LayoutGrid,
+  Smartphone,
   Plus,
   Search,
   TriangleAlert,
@@ -22,6 +23,7 @@ import {
   AdminAttentionRow,
   AdminErrorState,
   AdminEyebrow,
+  AdminNavRow,
   AdminPageTitle,
   AdminRowGroup,
   AdminSectionHeader,
@@ -41,7 +43,11 @@ import { useAuthStore } from '@/stores/authStore';
 import type { AuditEntry, TimeSeriesPoint } from '@/services/admin';
 import { useTheme } from '@/theme/ThemeContext';
 
-import type { AdminTabParamList } from '../navigation/types';
+import type {
+  AdminLibraryStackParamList,
+  AdminSystemStackParamList,
+  AdminTabParamList,
+} from '../navigation/types';
 
 type Nav = {
   navigate: <T extends keyof AdminTabParamList>(
@@ -49,6 +55,11 @@ type Nav = {
     params?: AdminTabParamList[T],
   ) => void;
 };
+
+/** The pushable shape of a tab's params — a screen inside it, never raw state. */
+type ScreenTarget<L extends object> = {
+  [K in keyof L]: { screen: K; params?: L[K] };
+}[keyof L];
 
 /**
  * Today.
@@ -60,6 +71,7 @@ type Nav = {
 export function AdminTodayScreen() {
   const navigation = useNavigation() as unknown as Nav;
   const email = useAuthStore(state => state.email);
+  const setViewingAsReader = useAuthStore(state => state.setViewingAsReader);
 
   const stats = useAdminStats();
   // Fourteen days, so this week can be stated against the one before it — a
@@ -83,9 +95,24 @@ export function AdminTodayScreen() {
   const sessions = useWeek(analytics.data?.reads);
   const downloads = useWeek(analytics.data?.downloads);
 
+  // Every jump into another tab's stack carries `initial: false`. Without it
+  // a tab that has never been opened would start its stack *on* the editor,
+  // with no list beneath it — back would do nothing and the hardware back
+  // button would bounce out to Today.
   const openLibrary = useCallback(
-    (params?: AdminTabParamList['AdminLibrary']) =>
-      navigation.navigate(ADMIN_ROUTES.LIBRARY, params),
+    (target: ScreenTarget<AdminLibraryStackParamList>) =>
+      navigation.navigate(ADMIN_ROUTES.LIBRARY, {
+        ...target,
+        initial: false,
+      } as AdminTabParamList['AdminLibrary']),
+    [navigation],
+  );
+  const openSystem = useCallback(
+    (target: ScreenTarget<AdminSystemStackParamList>) =>
+      navigation.navigate(ADMIN_ROUTES.SYSTEM, {
+        ...target,
+        initial: false,
+      } as AdminTabParamList['AdminSystem']),
     [navigation],
   );
 
@@ -158,14 +185,23 @@ export function AdminTodayScreen() {
           <CreateTile
             icon={ChartNoAxesColumn}
             label="Report"
-            onPress={() =>
-              navigation.navigate(ADMIN_ROUTES.SYSTEM, {
-                screen: ADMIN_ROUTES.ANALYTICS,
-              })
-            }
+            onPress={() => openSystem({ screen: ADMIN_ROUTES.ANALYTICS })}
           />
         </View>
       </View>
+
+      {/* Then the app itself. The admin tool shows the catalogue as rows and
+          counts; this is the only way to see what a reader sees — the Home
+          feed, search, a book page, the reader — with this same account. The
+          way back is on the profile tab over there, and the row says so. */}
+      <AdminRowGroup title="Reader view">
+        <AdminNavRow
+          label="Open the app as a reader"
+          sublabel="Home, search, library and profile as readers see them"
+          Icon={Smartphone}
+          onPress={() => setViewingAsReader(true)}
+        />
+      </AdminRowGroup>
 
       {/* Then the week. */}
       <View style={styles.block}>
@@ -175,11 +211,7 @@ export function AdminTodayScreen() {
             <AdminTextAction
               label="See analytics"
               size={11.5}
-              onPress={() =>
-                navigation.navigate(ADMIN_ROUTES.SYSTEM, {
-                  screen: ADMIN_ROUTES.ANALYTICS,
-                })
-              }
+              onPress={() => openSystem({ screen: ADMIN_ROUTES.ANALYTICS })}
             />
           }
         />
@@ -220,11 +252,7 @@ export function AdminTodayScreen() {
           <AdminTextAction
             label="View all"
             size={11.5}
-            onPress={() =>
-              navigation.navigate(ADMIN_ROUTES.SYSTEM, {
-                screen: ADMIN_ROUTES.HISTORY,
-              })
-            }
+            onPress={() => openSystem({ screen: ADMIN_ROUTES.HISTORY })}
           />
         }
       >

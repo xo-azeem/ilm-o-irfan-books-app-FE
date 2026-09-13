@@ -70,7 +70,10 @@ export type FoldState = {
   fy: SharedValue<number>;
   /** Which corner the sheet hinges from: 0 the top, `h` the bottom. */
   cy: SharedValue<number>;
-  /** The page, in points. The spine is the left edge of it. */
+  /**
+   * The page, in points. The spine is the left edge of it — always, even in a
+   * book bound on the right, which is folded in a mirror (see `rtl`).
+   */
   w: SharedValue<number>;
   h: SharedValue<number>;
   /** Set while there is a fold on screen at all. */
@@ -130,9 +133,22 @@ export type PaperFlip = ReturnType<typeof usePaperFlip>;
  * Nor is the zoom. The document view pinches and double-taps on its own, and
  * once it has, a drag pans the page rather than folding it; `setZoom` is how
  * the stage tells this hook so, whichever of the two took the zoom.
+ *
+ * ## A book bound on the right
+ *
+ * An Urdu or Arabic book turns the other way: the free edge of its page is the
+ * left one, forward is a drag to the right, and the leaf hinges on the right.
+ * None of the geometry knows this, and none of it needs to. A right-bound page
+ * is a left-bound page in a mirror, so the finger is read mirrored across the
+ * page's middle (`pageX`) and everything from there on — the heading, the
+ * tether, the commit, the flick — is the same fold measured in the same
+ * coordinates. `PaperFold` draws the result mirrored back. The one thing that
+ * has to cross the mirror the other way is the give at the ends of the book,
+ * which moves the page on the screen rather than in the fold.
  */
 export function usePaperFlip({
   enabled,
+  rtl = false,
   onBegin,
   onEnd,
   onTap,
@@ -140,6 +156,8 @@ export function usePaperFlip({
 }: {
   /** Off in the other reading modes, and while the reader's zoom is up. */
   enabled: boolean;
+  /** The book is bound on the right, and folds in a mirror — see the note above. */
+  rtl?: boolean;
   /** A fold has started. The stage brings the leaf up and moves the document. */
   onBegin: (dir: TurnDirection) => void;
   /** The leaf has landed, turned or not. The stage settles the document view. */
@@ -162,6 +180,15 @@ export function usePaperFlip({
 
   /** The give at either end of the book, in points of sideways travel. */
   const edge = useSharedValue(0);
+
+  /**
+   * Which way the page is held to the fold: 1 as it is, -1 in a mirror. Read
+   * on the UI thread, where the finger is measured.
+   */
+  const mirror = useSharedValue(rtl ? -1 : 1);
+  useEffect(() => {
+    mirror.value = rtl ? -1 : 1;
+  }, [mirror, rtl]);
 
   /** The reader's own zoom. A zoomed page is dragged to be read, not turned. */
   const zoom = useSharedValue(MIN_SCALE);
@@ -215,6 +242,23 @@ export function usePaperFlip({
       return value === 1 ? page.value < total.value : page.value > 1;
     },
     [page, total],
+  );
+
+  /**
+   * A touch's x in the page's own coordinates.
+   *
+   * The page is centred in the area, and the area is inset into the frame the
+   * gesture is attached to. In a right-bound book the same touch is read from
+   * the page's right edge instead, so that the spine is at 0 either way and
+   * nothing measured from here on can tell which way the book is bound.
+   */
+  const pageX = useCallback(
+    (x: number) => {
+      'worklet';
+      const px = x - (areaX.value + (areaW.value - w.value) / 2);
+      return mirror.value === -1 ? w.value - px : px;
+    },
+    [areaW, areaX, mirror, w],
   );
 
   /** Where the corner rests before a fold, and where it lands after one. */
@@ -315,11 +359,9 @@ export function usePaperFlip({
           const touch = event.allTouches[0];
           if (!touch) return;
 
-          // Page coordinates: the page is centred in the area, and the area is
-          // inset into the frame the gesture is attached to.
-          const left = areaX.value + (areaW.value - w.value) / 2;
+          // Page coordinates — in the fold's mirror, going across (`pageX`).
           const top = areaY.value + (areaH.value - h.value) / 2;
-          downX.value = touch.x - left;
+          downX.value = pageX(touch.x);
           downY.value = touch.y - top;
 
           lastX.value = downX.value;
@@ -338,9 +380,8 @@ export function usePaperFlip({
           const touch = event.allTouches[0];
           if (!touch) return;
 
-          const left = areaX.value + (areaW.value - w.value) / 2;
           const top = areaY.value + (areaH.value - h.value) / 2;
-          const px = touch.x - left;
+          const px = pageX(touch.x);
           const py = touch.y - top;
 
           const dx = px - downX.value;
@@ -427,8 +468,6 @@ export function usePaperFlip({
         .onFinalize(release),
     [
       areaH,
-      areaW,
-      areaX,
       areaY,
       began,
       canTurn,
@@ -448,6 +487,7 @@ export function usePaperFlip({
       lastX,
       live,
       moved,
+      pageX,
       release,
       restX,
       startX,
@@ -462,9 +502,13 @@ export function usePaperFlip({
     ],
   );
 
-  /** The whole page stack, giving at either end of the book. */
+  /**
+   * The whole page stack, giving at either end of the book. The give was
+   * measured in the fold's mirror; the page moves on the screen, with the
+   * finger, so it is carried back across.
+   */
   const groupStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: edge.value }],
+    transform: [{ translateX: edge.value * mirror.value }],
   }));
 
   const runAuto = useCallback(

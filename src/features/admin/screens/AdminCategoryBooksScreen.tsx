@@ -14,13 +14,19 @@ import {
   type RouteProp,
 } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ChevronRight, Plus, X } from 'lucide-react-native';
+import { ChevronRight, Plus, Trash2, X } from 'lucide-react-native';
 
-import { BookCover, Divider, Icon, Text } from '@/components/ui';
+import {
+  BookCover,
+  Divider,
+  Icon,
+  LOCAL_SEARCH_DEBOUNCE_MS,
+  SearchField,
+  Text,
+} from '@/components/ui';
 import { ADMIN_ROUTES } from '@/constants/routes';
 import {
   AdminPickerSheet,
-  AdminSearchBar,
   RowBadges,
   type RowBadge,
 } from '@/features/admin/components/AdminControls';
@@ -33,10 +39,10 @@ import {
   AdminButton,
   AdminEmpty,
   AdminHelper,
+  AdminOutlineButton,
   AdminScreenTitle,
   AdminSectionHeader,
   AdminTag,
-  AdminTextAction,
 } from '@/features/admin/components/AdminUi';
 import {
   useDirtyTracker,
@@ -105,6 +111,7 @@ export function AdminCategoryBooksScreen() {
   const save = useSetCategoryBooks();
 
   const [bookIds, setBookIds] = useState<string[]>([]);
+  // The settled filter term; the field owns the live text.
   const [query, setQuery] = useState('');
   const [showPicker, setShowPicker] = useState(false);
 
@@ -247,6 +254,9 @@ export function AdminCategoryBooksScreen() {
       <ScrollView
         style={styles.grow}
         contentContainerStyle={{
+          // Grows to the full height so an empty category can centre its
+          // prompt in the space under the title instead of hugging it.
+          flexGrow: 1,
           paddingHorizontal: ADMIN_GUTTER,
           paddingTop: 16,
           paddingBottom: scrollEndPadding + 80,
@@ -266,29 +276,26 @@ export function AdminCategoryBooksScreen() {
           }
         />
 
-        <AdminButton
-          label="Add books"
-          Icon={Plus}
-          variant="secondary"
-          onPress={() => setShowPicker(true)}
-        />
-
         {isLoading ? (
           <AdminMenuSkeleton count={5} height={64} />
         ) : error ? (
-          <AdminEmpty
-            title="Could not load this category"
-            message={errorMessage(error)}
-            actionLabel="Try again"
-            onAction={() => void refetch()}
-          />
+          <View style={styles.centred}>
+            <AdminEmpty
+              title="Could not load this category"
+              message={errorMessage(error)}
+              actionLabel="Try again"
+              onAction={() => void refetch()}
+            />
+          </View>
         ) : bookIds.length === 0 ? (
-          <AdminEmpty
-            title="No books yet"
-            message="Pick any number of titles from the catalog and they appear under this tile the moment you save."
-            actionLabel="Choose books"
-            onAction={() => setShowPicker(true)}
-          />
+          <View style={styles.centred}>
+            <AdminEmpty
+              title="No books yet"
+              message="Pick any number of titles from the catalog and they appear under this tile the moment you save."
+              actionLabel="Choose books"
+              onAction={() => setShowPicker(true)}
+            />
+          </View>
         ) : (
           <View style={styles.block}>
             <AdminSectionHeader
@@ -298,21 +305,22 @@ export function AdminCategoryBooksScreen() {
                   : 'Tagged with this category'
               }
               action={
-                bookIds.length > 1 ? (
-                  <AdminTextAction
-                    label="Remove all"
-                    destructive
-                    size={11.5}
-                    onPress={() => setBookIds([])}
-                  />
-                ) : undefined
+                <AdminOutlineButton
+                  label="Add books"
+                  Icon={Plus}
+                  small
+                  fullWidth={false}
+                  onPress={() => setShowPicker(true)}
+                />
               }
             />
 
             {bookIds.length > 8 ? (
-              <AdminSearchBar
-                value={query}
-                onChangeText={setQuery}
+              <SearchField
+                dense
+                defaultValue={query}
+                onSearch={setQuery}
+                debounceMs={LOCAL_SEARCH_DEBOUNCE_MS}
                 placeholder="Filter this list"
               />
             ) : null}
@@ -360,6 +368,17 @@ export function AdminCategoryBooksScreen() {
               and its other categories are kept. Drafts keep the tag but stay
               off Explore until published.
             </AdminHelper>
+
+            {bookIds.length > 1 ? (
+              <View style={styles.removeAll}>
+                <AdminOutlineButton
+                  label="Remove all from this category"
+                  Icon={Trash2}
+                  destructive
+                  onPress={() => setBookIds([])}
+                />
+              </View>
+            ) : null}
           </View>
         )}
       </ScrollView>
@@ -458,6 +477,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth * 2,
   },
   grow: { flex: 1 },
+  centred: {
+    flex: 1,
+    justifyContent: 'center',
+  },
   block: { gap: 9 },
   list: {
     borderRadius: 16,
@@ -479,6 +502,9 @@ const styles = StyleSheet.create({
   remove: {
     padding: 3,
     marginLeft: 4,
+  },
+  removeAll: {
+    paddingTop: 6,
   },
   empty: {
     padding: 22,

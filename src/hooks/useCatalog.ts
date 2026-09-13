@@ -6,7 +6,7 @@ import {
   useQueryClient,
   type QueryClient,
 } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 
 import {
   browseCatalog,
@@ -95,18 +95,6 @@ export function useWeeklyTrending(limit = 10) {
   });
 }
 
-/** Holds a value still for `delay` ms — one debounce for the search field. */
-export function useDebounced<T>(value: T, delay = 300): T {
-  const [debounced, setDebounced] = useState(value);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(timer);
-  }, [delay, value]);
-
-  return debounced;
-}
-
 export function useCategories() {
   return useQuery({
     queryKey: ['catalog', 'categories'],
@@ -129,10 +117,13 @@ export function useCategories() {
  * the results in place rather than flashing a skeleton between every word.
  * Callers read `isPlaceholderData` to tell the two apart — and must not page
  * placeholder data, since its `hasNextPage` describes a different query.
+ *
+ * `query` is the settled term, not the live text: `SearchField` holds each
+ * keystroke back for its own beat before reporting, so nothing here waits
+ * again.
  */
 export function useCatalogFeed(query: string, filters: CatalogFilters) {
-  const debounced = useDebounced(query);
-  const term = debounced.trim();
+  const term = query.trim();
 
   return useInfiniteQuery({
     queryKey: ['catalog', 'feed', term.toLowerCase(), filters],

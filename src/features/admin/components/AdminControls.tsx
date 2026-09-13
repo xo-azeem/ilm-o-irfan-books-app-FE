@@ -13,7 +13,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Check, ListFilter, Plus, Search, X } from 'lucide-react-native';
+import { Check, ListFilter, Plus, X } from 'lucide-react-native';
 
 import {
   BookCover,
@@ -21,6 +21,8 @@ import {
   Divider,
   Icon,
   Label,
+  LOCAL_SEARCH_DEBOUNCE_MS,
+  SearchField,
   Sheet,
   Tag,
   Text,
@@ -48,53 +50,7 @@ import {
  * is used, and a destructive one lists exactly what it takes with it.
  */
 
-// ---------------------------------------------------------------- search bar
-
-export const AdminSearchBar = memo(function AdminSearchBar({
-  value,
-  onChangeText,
-  placeholder = 'Search',
-}: {
-  value: string;
-  onChangeText: (text: string) => void;
-  placeholder?: string;
-}) {
-  const { colors } = useTheme();
-
-  return (
-    <View
-      style={[
-        styles.searchBar,
-        { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
-      ]}
-    >
-      <Icon icon={Search} size={15} tone="faint" strokeWidth={2} />
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor={colors.faint}
-        autoCapitalize="none"
-        autoCorrect={false}
-        returnKeyType="search"
-        style={[
-          styles.searchInput,
-          { color: colors.ink, fontFamily: sansFamily('400') },
-        ]}
-      />
-      {value ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Clear search"
-          hitSlop={10}
-          onPress={() => onChangeText('')}
-        >
-          <Icon icon={X} size={15} tone="faint" strokeWidth={2.2} />
-        </Pressable>
-      ) : null}
-    </View>
-  );
-});
+// ------------------------------------------------------------ filter button
 
 /**
  * The square filter button that sits beside a search bar. It carries the count
@@ -386,9 +342,11 @@ export const AdminPickerSheet = memo(function AdminPickerSheet({
       }
     >
       {searchable && items.length > 8 ? (
-        <AdminSearchBar
-          value={query}
-          onChangeText={setQuery}
+        <SearchField
+          dense
+          defaultValue={query}
+          onSearch={setQuery}
+          debounceMs={LOCAL_SEARCH_DEBOUNCE_MS}
           placeholder="Filter"
         />
       ) : null}
@@ -874,25 +832,10 @@ export const AdminSheetBlock = memo(function AdminSheetBlock({
 });
 
 const styles = StyleSheet.create({
-  searchBar: {
-    flex: 1,
-    height: 42,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 9,
-    paddingHorizontal: 13,
-    borderRadius: radius.control,
-    borderWidth: StyleSheet.hairlineWidth * 2,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    padding: 0,
-    includeFontPadding: false,
-  },
+  // The same height as the dense `SearchField` it sits beside.
   filterButton: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     borderRadius: radius.control,
     borderWidth: StyleSheet.hairlineWidth * 2,
     alignItems: 'center',

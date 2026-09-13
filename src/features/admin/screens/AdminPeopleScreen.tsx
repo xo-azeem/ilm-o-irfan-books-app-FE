@@ -16,12 +16,9 @@ import {
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronRight } from 'lucide-react-native';
 
-import { Icon, Label, Text } from '@/components/ui';
+import { Icon, Label, SearchField, Text } from '@/components/ui';
 import { ADMIN_ROUTES } from '@/constants/routes';
-import {
-  AdminChipRow,
-  AdminSearchBar,
-} from '@/features/admin/components/AdminControls';
+import { AdminChipRow } from '@/features/admin/components/AdminControls';
 import {
   AdminMenuSkeleton,
   AdminRowsSkeleton,
@@ -39,15 +36,15 @@ import {
   AdminTag,
   AdminTextAction,
 } from '@/features/admin/components/AdminUi';
-import { useDebouncedValue } from '@/features/admin/hooks/useAdminForm';
 import { formatDate, formatMoney } from '@/features/admin/utils/format';
 import { useAppInsets } from '@/hooks/useAppInsets';
 import { useAdminPlans, useAdminStats, useAdminUsers } from '@/hooks/useAdmin';
 import { useAuthStore } from '@/stores/authStore';
-import type {
-  AdminPlan,
-  AdminUserFilters,
-  AdminUserRow,
+import {
+  EXPIRING_WINDOW_DAYS,
+  type AdminPlan,
+  type AdminUserFilters,
+  type AdminUserRow,
 } from '@/services/admin';
 import { useTheme } from '@/theme/ThemeContext';
 
@@ -70,9 +67,19 @@ const AUDIENCE_OPTIONS: Array<{ value: AudienceFilter; label: string }> = [
   { value: 'admins', label: 'Admins' },
 ];
 
-/** Entitlement states that mean access is about to stop. */
-const AT_RISK = new Set(['billing_issue', 'grace', 'cancelled']);
-const EXPIRING_WINDOW_DAYS = 14;
+/** Each audience as the directory query understands it. */
+const AUDIENCE_FILTERS: Record<
+  AudienceFilter,
+  Pick<AdminUserFilters, 'role' | 'access'>
+> = {
+  everyone: { role: 'all', access: 'all' },
+  subscribers: { role: 'all', access: 'subscriber' },
+  expiring: { role: 'all', access: 'expiring' },
+  admins: { role: 'admin', access: 'all' },
+};
+
+/** Module-level so the list is not handed a new function every render. */
+const keyExtractor = (item: AdminUserRow) => item.id;
 
 /**
  * People.
@@ -81,6 +88,14 @@ const EXPIRING_WINDOW_DAYS = 14;
  * about a person ends at their subscription, so the two were never really
  * separate screens. Access state is the first thing on each row, because it is
  * the reason support opened the list.
+ *
+ * The reader list is one list, paged from the server, with the whole
+ * directory underneath it: the search field narrows it, the audience chips
+ * narrow it further. Every filter is the database's, applied before the page
+ * is cut, so the count under the field is the true number of matches and
+ * paging a filtered list cannot repeat or skip a person. A new term does not
+ * empty the list — the previous pages stand in until the first page of the
+ * new one lands, so typing narrows the results in place.
  */
 export function AdminPeopleScreen() {
   const navigation =
@@ -94,37 +109,46 @@ export function AdminPeopleScreen() {
   const [segment, setSegment] = useState<PeopleSegment>(
     route.params?.segment ?? 'readers',
   );
-  const [query, setQuery] = useState('');
+  // The settled search term. The field owns the live text and holds each
+  // keystroke back for its own beat, so this screen re-renders once per
+  // search rather than once per character.
+  const [term, setTerm] = useState('');
   const [audience, setAudience] = useState<AudienceFilter>('everyone');
 
-  const debounced = useDebouncedValue(query, 350);
-
   const filters = useMemo<AdminUserFilters>(
-    () => ({
-      query: debounced,
-      role: audience === 'admins' ? 'admin' : 'all',
-      access:
-        audience === 'subscribers' || audience === 'expiring'
-          ? 'subscriber'
-          : 'all',
-    }),
-    [audience, debounced],
+    () => ({ query: term, ...AUDIENCE_FILTERS[audience] }),
+    [audience, term],
   );
 
   const users = useAdminUsers(filters);
   const plans = useAdminPlans();
   const { data: stats } = useAdminStats();
 
-  const loaded = useMemo(
+  const rows = useMemo(
     () => users.data?.pages.flatMap(page => page.rows) ?? [],
     [users.data],
   );
 
-  // "Expiring" has no server-side filter — it is a question about dates rather
-  // than a column — so it narrows the subscriber list already on screen.
-  const rows = useMemo(
-    () => (audience === 'expiring' ? loaded.filter(isExpiring) : loaded),
-    [audience, loaded],
+  /** The server's own count of the matches, not the pages fetched so far. */
+  const matchCount = users.data?.pages[0]?.total ?? null;
+  const narrowed = term.length > 0 || audience !== 'everyone';
+
+  // `onEndReached` fires repeatedly through a momentum scroll. `cancelRefetch:
+  // false` makes a second call while a page is in flight join that request
+  // rather than abort and restart it. Placeholder data is never paged: its
+  // `nextPage` belongs to the previous query.
+  const { hasNextPage, isFetchingNextPage, isPlaceholderData, fetchNextPage } =
+    users;
+  const loadMore = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage && !isPlaceholderData) {
+      void fetchNextPage({ cancelRefetch: false });
+    }
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage, isPlaceholderData]);
+
+  const openUser = useCallback(
+    (userId: string) =>
+      navigation.navigate(ADMIN_ROUTES.USER_DETAIL, { userId }),
+    [navigation],
   );
 
   const activePlans = (plans.data ?? []).filter(plan => plan.is_active).length;
@@ -143,12 +167,10 @@ export function AdminPeopleScreen() {
       <PersonRow
         user={item}
         isSelf={item.id === currentUserId}
-        onPress={userId =>
-          navigation.navigate(ADMIN_ROUTES.USER_DETAIL, { userId })
-        }
+        onPress={openUser}
       />
     ),
-    [currentUserId, navigation],
+    [currentUserId, openUser],
   );
 
   return (
@@ -179,9 +201,12 @@ export function AdminPeopleScreen() {
 
         {segment === 'readers' ? (
           <>
-            <AdminSearchBar
-              value={query}
-              onChangeText={setQuery}
+            <SearchField
+              dense
+              // The field leaves with its segment; it comes back showing the
+              // term the list is still narrowed by.
+              defaultValue={term}
+              onSearch={setTerm}
               placeholder="Search by name, email or phone"
             />
             <AdminChipRow
@@ -189,12 +214,24 @@ export function AdminPeopleScreen() {
               value={audience}
               onChange={setAudience}
             />
+            {narrowed || isPlaceholderData ? (
+              <View style={styles.countRow}>
+                {narrowed && matchCount != null ? (
+                  <Text size={11.5} leading={1} tone="faint">
+                    {matchCount === 1 ? '1 match' : `${matchCount} matches`}
+                  </Text>
+                ) : null}
+                {isPlaceholderData ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : null}
+              </View>
+            ) : null}
           </>
         ) : null}
       </View>
 
       {segment === 'readers' ? (
-        users.isLoading ? (
+        users.isPending ? (
           <View style={styles.gutter}>
             <AdminRowsSkeleton count={5} />
           </View>
@@ -209,37 +246,49 @@ export function AdminPeopleScreen() {
         ) : (
           <FlatList
             data={rows}
-            keyExtractor={item => item.id}
+            keyExtractor={keyExtractor}
             renderItem={renderUser}
             ItemSeparatorComponent={ListGap}
-            refreshing={users.isRefetching}
+            // A new term's fetch also counts as a refetch while the old pages
+            // stand in for it; that one is shown under the field, not as a pull.
+            refreshing={users.isRefetching && !isPlaceholderData}
             onRefresh={() => void users.refetch()}
-            onEndReachedThreshold={0.4}
-            onEndReached={() => {
-              if (users.hasNextPage && !users.isFetchingNextPage) {
-                void users.fetchNextPage();
-              }
-            }}
+            // Well before the last row, so the next page lands under the
+            // operator rather than after they hit the bottom and wait for it.
+            onEndReachedThreshold={0.8}
+            onEndReached={loadMore}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            initialNumToRender={10}
+            maxToRenderPerBatch={10}
+            updateCellsBatchingPeriod={50}
+            windowSize={9}
             contentContainerStyle={{
               paddingHorizontal: ADMIN_GUTTER,
               paddingBottom: scrollEndPadding + 20,
             }}
             ListEmptyComponent={
-              <AdminEmpty
-                title={
-                  audience === 'expiring'
-                    ? 'Nothing expiring'
-                    : 'No accounts match'
-                }
-                message={
-                  audience === 'expiring'
-                    ? `No subscription in the loaded list ends within ${EXPIRING_WINDOW_DAYS} days or is in billing trouble.`
-                    : 'Try a different search term, or switch back to Everyone.'
-                }
-              />
+              isPlaceholderData || isFetchingNextPage ? null : (
+                <AdminEmpty
+                  title={
+                    audience === 'expiring'
+                      ? 'Nothing expiring'
+                      : 'No accounts match'
+                  }
+                  message={
+                    audience === 'expiring'
+                      ? `No subscription ends within ${EXPIRING_WINDOW_DAYS} days or is in billing trouble${
+                          term ? ` for “${term}”` : ''
+                        }.`
+                      : term
+                        ? `Nothing matched “${term}”. Try a different name, email or phone.`
+                        : 'Try a different search term, or switch back to Everyone.'
+                  }
+                />
+              )
             }
             ListFooterComponent={
-              users.isFetchingNextPage ? (
+              isFetchingNextPage ? (
                 <ActivityIndicator
                   style={styles.footer}
                   color={colors.primary}
@@ -299,18 +348,6 @@ export function AdminPeopleScreen() {
 
 function ListGap() {
   return <View style={styles.listGap} />;
-}
-
-/** A subscription ending soon, or already failing to bill. */
-function isExpiring(user: AdminUserRow): boolean {
-  if (user.entitlement_status && AT_RISK.has(user.entitlement_status)) {
-    return true;
-  }
-  if (!user.expires_at) {
-    return false;
-  }
-  const days = (new Date(user.expires_at).getTime() - Date.now()) / 86_400_000;
-  return days >= 0 && days <= EXPIRING_WINDOW_DAYS;
 }
 
 /** The one line under a name that says where this account stands. */
@@ -548,6 +585,12 @@ const styles = StyleSheet.create({
   },
   gutter: {
     paddingHorizontal: ADMIN_GUTTER,
+  },
+  countRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    minHeight: 16,
   },
   grow: {
     flex: 1,

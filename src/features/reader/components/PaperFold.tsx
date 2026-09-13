@@ -1,5 +1,11 @@
 import { memo, useCallback, useMemo, useState } from 'react';
-import { Image, StyleSheet, View } from 'react-native';
+import {
+  Image,
+  StyleSheet,
+  View,
+  type ImageStyle,
+  type StyleProp,
+} from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useDerivedValue,
@@ -147,6 +153,17 @@ type PaperFoldProps = {
    * the page they are turning but not on the page underneath it.
    */
   wash?: string | null;
+  /**
+   * The page is bound on the right, and the fold is drawn in a mirror.
+   *
+   * The geometry only knows a spine on the left; a right-bound page is that
+   * page reflected across its middle, and `usePaperFlip` reads the finger in
+   * the same reflection. This turns the picture back: the whole fold is
+   * flipped in x — which puts the spine, the shadows and the curl on the
+   * right, exactly as the maths has them on the left — and the page's own
+   * pictures are flipped again inside it, so that the type still reads.
+   */
+  mirrored?: boolean;
 };
 
 /**
@@ -192,6 +209,7 @@ export const PaperFold = memo(function PaperFold({
   under = null,
   onUnderDrawn,
   wash,
+  mirrored = false,
 }: PaperFoldProps) {
   const { fx, fy, cy, live } = fold;
   const size = sizeFor(width, height);
@@ -330,9 +348,21 @@ export const PaperFold = memo(function PaperFold({
     [size],
   );
   const page = useMemo(() => [styles.page, { width, height }], [height, width]);
+  // The box is what is mirrored, about its own middle: every transform inside
+  // it is laid out in the page's own coordinates and the reflection is applied
+  // last, over all of them. A page's picture wears the same reflection again,
+  // about its own middle — the page's — which undoes it for the type alone.
+  const box = useMemo(
+    () => [styles.box, { width, height }, mirrored ? styles.mirrored : null],
+    [height, mirrored, width],
+  );
+  const picture = useMemo(
+    () => [StyleSheet.absoluteFill, mirrored ? styles.mirrored : null],
+    [mirrored],
+  );
 
   return (
-    <View pointerEvents="none" style={[styles.box, { width, height }]}>
+    <View pointerEvents="none" style={box}>
       {/* 0. The page underneath, when it is a picture: exactly as it was
              photographed, tone and all, so nothing here tints it twice. */}
       {underSource ? (
@@ -342,7 +372,7 @@ export const PaperFold = memo(function PaperFold({
               source={underSource}
               resizeMode="stretch"
               fadeDuration={0}
-              style={StyleSheet.absoluteFill}
+              style={picture}
               onLoad={onUnderDrawn}
               onError={onUnderDrawn}
             />
@@ -369,6 +399,7 @@ export const PaperFold = memo(function PaperFold({
             width={width}
             height={height}
             source={source}
+            picture={picture}
             paper={frontPaper}
             wash={opaque ? bare : null}
             spine={spine}
@@ -390,6 +421,7 @@ export const PaperFold = memo(function PaperFold({
               width={width}
               height={height}
               source={null}
+              picture={picture}
               paper={PAGE_FLIP.paperBack}
               wash={wash}
               spine={spine}
@@ -419,6 +451,7 @@ const Face = memo(function Face({
   width,
   height,
   source,
+  picture,
   paper,
   wash,
   spine,
@@ -429,6 +462,8 @@ const Face = memo(function Face({
   height: number;
   /** The page printed on the face, or null for blank paper. */
   source: { uri: string } | null;
+  /** How the picture is laid on the face: over all of it, and turned back if the fold is mirrored. */
+  picture: StyleProp<ImageStyle>;
   paper: string;
   wash: string | null | undefined;
   spine: number;
@@ -444,7 +479,7 @@ const Face = memo(function Face({
           source={source}
           resizeMode="stretch"
           fadeDuration={0}
-          style={StyleSheet.absoluteFill}
+          style={picture}
           onLoad={onDrawn}
           onError={onFailed}
         />
@@ -466,6 +501,14 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     overflow: 'hidden',
+  },
+  /**
+   * The reflection a right-bound book is drawn in. About the view's own
+   * middle — the default origin — so the box stays where it is and only what
+   * is inside it changes hands.
+   */
+  mirrored: {
+    transform: [{ scaleX: -1 }],
   },
   /**
    * One side of the crease. Every transform in this file assumes the origin

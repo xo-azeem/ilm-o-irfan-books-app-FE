@@ -14,6 +14,14 @@ const FRIENDLY_ERRORS: Array<[RegExp, string]> = [
   [/duplicate key value.*code/i, 'That plan code is already taken.'],
   [/books_published_needs_pdf/i, 'Upload a PDF before publishing this title.'],
   [
+    /still referenced by a book/i,
+    'A book still uses this file. Replace that book’s cover or PDF first.',
+  ],
+  [
+    /still used as an author portrait/i,
+    'An author still uses this portrait. Replace it on the author first.',
+  ],
+  [
     /violates foreign key.*author/i,
     'This author still has books. Reassign or delete them first.',
   ],

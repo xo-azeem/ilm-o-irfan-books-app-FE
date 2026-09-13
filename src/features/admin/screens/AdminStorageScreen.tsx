@@ -17,6 +17,7 @@ import {
   AdminRowGroup,
   AdminScreenTitle,
   AdminSectionHeader,
+  AdminOutlineButton,
   AdminTextAction,
 } from '@/features/admin/components/AdminUi';
 import { formatBytes, formatRelative } from '@/features/admin/utils/format';
@@ -183,10 +184,11 @@ export function AdminStorageScreen() {
                   title={`Orphaned files · ${data.orphans.length}`}
                   tone="warning"
                   action={
-                    <AdminTextAction
+                    <AdminOutlineButton
                       label="Delete all"
-                      size={11.5}
+                      small
                       destructive
+                      fullWidth={false}
                       onPress={() => setConfirmAll(true)}
                     />
                   }
@@ -243,6 +245,9 @@ export function AdminStorageScreen() {
                         navigation.navigate(ADMIN_ROUTES.LIBRARY, {
                           screen: ADMIN_ROUTES.BOOK_EDITOR,
                           params: { bookId: book.book_id },
+                          // Keep the library list beneath the editor even
+                          // if the Library tab has never been opened.
+                          initial: false,
                         })
                       }
                     />
@@ -398,10 +403,11 @@ const OrphanRow = memo(function OrphanRow({
         </Text>
       </View>
 
-      <AdminTextAction
+      <AdminOutlineButton
         label="Delete"
-        size={11.5}
+        small
         destructive
+        fullWidth={false}
         onPress={handleDelete}
       />
     </View>

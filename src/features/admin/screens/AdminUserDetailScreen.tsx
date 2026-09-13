@@ -18,6 +18,7 @@ import {
   AdminErrorState,
   AdminEyebrow,
   AdminMeter,
+  AdminOutlineButton,
   AdminRowGroup,
   AdminStat,
   AdminStatRow,
@@ -391,10 +392,11 @@ export function AdminUserDetailScreen() {
               <Text size={14} leading={1.2} tone="danger" style={styles.grow}>
                 Revoke subscription access
               </Text>
-              <AdminTextAction
+              <AdminOutlineButton
                 label="Revoke"
+                small
                 destructive
-                size={12.5}
+                fullWidth={false}
                 onPress={() => setConfirmRevoke(true)}
               />
             </View>

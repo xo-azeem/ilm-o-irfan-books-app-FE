@@ -74,6 +74,8 @@ export {
   ReadOnlyField,
   SelectField,
   SearchField,
+  LOCAL_SEARCH_DEBOUNCE_MS,
+  SEARCH_DEBOUNCE_MS,
   type SearchFieldProps,
   type TextFieldProps,
 } from './Field';

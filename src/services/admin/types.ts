@@ -195,7 +195,8 @@ export type AdminUserRow = {
 };
 
 export type UserRoleFilter = 'all' | 'admin' | 'user';
-export type UserAccessFilter = 'all' | 'subscriber' | 'free';
+/** `expiring`: access that is failing to bill or runs out within the window. */
+export type UserAccessFilter = 'all' | 'subscriber' | 'free' | 'expiring';
 
 export type AdminUserFilters = {
   query: string;

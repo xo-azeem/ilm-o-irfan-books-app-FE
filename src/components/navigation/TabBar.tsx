@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { StackActions } from '@react-navigation/native';
 import Animated, {
   Easing,
   ReduceMotion,
@@ -155,10 +156,32 @@ const Tab = memo(function Tab({
       canPreventDefault: true,
     });
 
-    if (!isFocused && !event.defaultPrevented) {
+    if (event.defaultPrevented) {
+      return;
+    }
+
+    // A tab is a destination, not a bookmark. Arriving from another tab
+    // lands on its root screen rather than on whatever editor or detail was
+    // left open there, and tapping the tab you are already on walks back to
+    // the root the way iOS tabs do. A screen with unsaved edits still gets
+    // its say: the pop raises `beforeRemove`, and the editor's guard asks
+    // before anything is lost.
+    const nested = route.state;
+    if (
+      nested?.type === 'stack' &&
+      nested.key &&
+      (nested.index ?? nested.routes.length - 1) > 0
+    ) {
+      navigation.dispatch({
+        ...StackActions.popToTop(),
+        target: nested.key,
+      });
+    }
+
+    if (!isFocused) {
       navigation.navigate(route.name);
     }
-  }, [isFocused, navigation, route.key, route.name]);
+  }, [isFocused, navigation, route.key, route.name, route.state]);
 
   const handlePressIn = useCallback(() => {
     pressed.value = 1;

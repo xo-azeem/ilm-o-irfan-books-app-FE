@@ -125,7 +125,12 @@ export function SearchScreen() {
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { colors } = useTheme();
 
+  // `query` is the live text, for the suggestions and the Cancel affordance;
+  // `term` is what the field has settled on and the only thing the server
+  // hears. The field holds each keystroke back for its own beat and reports
+  // the term once — straight away on the return key or the clear button.
   const [query, setQuery] = useState('');
+  const [term, setTerm] = useState('');
   const [focused, setFocused] = useState(false);
   const [subjectsOpen, setSubjectsOpen] = useState(false);
   const filterSheet = useSheet();
@@ -177,7 +182,7 @@ export function SearchScreen() {
     hasNextPage,
     fetchNextPage,
     refetch,
-  } = useCatalogFeed(query, serverFilters);
+  } = useCatalogFeed(term, serverFilters);
 
   const books = useMemo(
     () => data?.pages.flatMap(page => page.data) ?? [],
@@ -282,14 +287,27 @@ export function SearchScreen() {
 
   const handleRefresh = useCallback(() => void refetch(), [refetch]);
 
+  // The term is reset here as well as through the field, so the full
+  // catalogue is back the moment Cancel is tapped rather than a beat later.
   const cancelSearch = useCallback(() => {
     setQuery('');
+    setTerm('');
     setFocused(false);
   }, []);
 
   const handleSuggestion = useCallback((suggestion: Suggestion) => {
     setQuery(suggestion.value);
   }, []);
+
+  const handleFocus = useCallback(() => setFocused(true), []);
+
+  /** The return key files the term under Recent; the search itself is the field's. */
+  const rememberQuery = useCallback(() => {
+    const value = queryRef.current.trim();
+    if (value) {
+      remember(value);
+    }
+  }, [remember]);
 
   const toggleSubjects = useCallback(() => setSubjectsOpen(open => !open), []);
 
@@ -378,11 +396,10 @@ export function SearchScreen() {
         <SearchField
           value={query}
           onChangeText={setQuery}
-          onFocus={() => setFocused(true)}
-          onClear={() => setQuery('')}
+          onSearch={setTerm}
+          onFocus={handleFocus}
           placeholder="Search books, authors, subjects…"
-          returnKeyType="search"
-          onSubmitEditing={() => query.trim() && remember(query.trim())}
+          onSubmitEditing={rememberQuery}
           style={styles.grow}
         />
         {searching ? (

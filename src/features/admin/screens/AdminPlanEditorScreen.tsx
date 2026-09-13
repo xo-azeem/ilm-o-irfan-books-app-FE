@@ -12,7 +12,7 @@ import {
   useRoute,
   type RouteProp,
 } from '@react-navigation/native';
-import { Plus } from 'lucide-react-native';
+import { Plus, Trash2 } from 'lucide-react-native';
 
 import { Icon, Text } from '@/components/ui';
 import {
@@ -33,6 +33,7 @@ import {
   AdminScreenTitle,
   AdminSectionHeader,
   AdminTag,
+  AdminOutlineButton,
   AdminTextAction,
   AdminToggleRow,
 } from '@/features/admin/components/AdminUi';
@@ -397,10 +398,10 @@ export function AdminPlanEditorScreen() {
 
         {planId ? (
           <View style={styles.deleteBlock}>
-            <AdminTextAction
+            <AdminOutlineButton
               label="Delete this plan"
+              Icon={Trash2}
               destructive
-              size={13}
               onPress={() => setConfirmDelete(true)}
             />
             <Text size={11.5} leading={1.4} align="center" tone="faint">
@@ -502,8 +503,7 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
   deleteBlock: {
-    alignItems: 'center',
-    gap: 6,
+    gap: 8,
     paddingTop: 4,
   },
 });

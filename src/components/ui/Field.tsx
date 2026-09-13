@@ -1,6 +1,7 @@
 import {
   memo,
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -13,8 +14,10 @@ import {
   View,
   type BlurEvent,
   type FocusEvent,
+  type NativeSyntheticEvent,
   type StyleProp,
   type TextInputProps,
+  type TextInputSubmitEditingEventData,
   type ViewStyle,
 } from 'react-native';
 import { ChevronDown, Search, X } from 'lucide-react-native';
@@ -285,26 +288,71 @@ export const SelectField = memo(function SelectField({
   );
 });
 
-export type SearchFieldProps = Omit<TextInputProps, 'style'> & {
+/**
+ * How long the field waits after the last keystroke before it reports a term
+ * that goes to the server.
+ */
+export const SEARCH_DEBOUNCE_MS = 300;
+
+/**
+ * The shorter wait for a term that only narrows a list already in memory —
+ * long enough to skip the intermediate keystrokes, short enough to feel live.
+ */
+export const LOCAL_SEARCH_DEBOUNCE_MS = 120;
+
+export type SearchFieldProps = Omit<
+  TextInputProps,
+  'style' | 'value' | 'defaultValue' | 'onChangeText'
+> & {
+  /**
+   * The text, when the caller owns it. Leave it out and the field keeps its
+   * own — a screen that only needs the term then never re-renders on a
+   * keystroke, only when `onSearch` fires.
+   */
+  value?: string;
+  /** The starting text of a field that keeps its own. */
+  defaultValue?: string;
+  /** Every keystroke, untrimmed. */
+  onChangeText?: (text: string) => void;
+  /**
+   * The trimmed term, `debounceMs` after it last changed — and at once on
+   * submit and on clear. Fires only when the term differs from the last one
+   * reported, so a trailing space is not a new search, and never on mount.
+   */
+  onSearch?: (term: string) => void;
+  debounceMs?: number;
   /** Renders as a static, tappable row instead of a live input. */
   readOnly?: boolean;
   onPress?: () => void;
+  /** After the field has emptied itself; the clear is not the caller's to do. */
   onClear?: () => void;
   /** Compact height used across the admin panel. */
   dense?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
-/** The search row used on Discover, Help and every admin list. */
+/**
+ * The search row used on Discover, Help and every admin list.
+ *
+ * The debounce lives here rather than in each screen, so every list in the
+ * app waits the same beat before asking the server and every one of them
+ * flushes it the same way: the return key and the clear button both report
+ * straight away, because the reader has said what they mean.
+ */
 export const SearchField = memo(function SearchField({
+  value,
+  defaultValue = '',
+  onChangeText,
+  onSearch,
+  debounceMs = SEARCH_DEBOUNCE_MS,
   readOnly = false,
   onPress,
   onClear,
   dense = false,
-  value,
   placeholder = 'Search',
   onFocus,
   onBlur,
+  onSubmitEditing,
   style,
   ...rest
 }: SearchFieldProps) {
@@ -312,7 +360,87 @@ export const SearchField = memo(function SearchField({
   const [focused, setFocused] = useState(false);
   const inputRef = useRef<TextInput>(null);
 
+  // Controlled when the caller passes `value`; otherwise the text is ours.
+  const [ownText, setOwnText] = useState(defaultValue);
+  const controlled = value !== undefined;
+  const text = controlled ? value : ownText;
+
+  // The callback is read through a ref so a caller that hands us a new arrow
+  // every render neither restarts the timer nor misses the pending report.
+  const onSearchRef = useRef(onSearch);
+  onSearchRef.current = onSearch;
+
+  // The term last handed to `onSearch`. Seeded with the initial text so mount
+  // is silent — the caller's own state already holds it.
+  const reportedRef = useRef(text.trim());
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const cancelPending = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  const report = useCallback((term: string) => {
+    if (term !== reportedRef.current) {
+      reportedRef.current = term;
+      onSearchRef.current?.(term);
+    }
+  }, []);
+
+  // Restarted on every change to the text, whichever side owns it — so a
+  // suggestion the caller drops into `value` searches just as a keystroke
+  // does. Leaving the screen cancels whatever is pending.
+  useEffect(() => {
+    const term = text.trim();
+    if (!onSearchRef.current || term === reportedRef.current) {
+      return;
+    }
+    // An emptied field is never worth waiting on: the whole list is wanted
+    // back, and it is usually already cached. Reporting it at once also keeps
+    // the record straight when the caller clears `value` from its own button.
+    if (!term) {
+      report(term);
+      return;
+    }
+    timerRef.current = setTimeout(() => {
+      timerRef.current = null;
+      report(term);
+    }, debounceMs);
+    return cancelPending;
+  }, [cancelPending, debounceMs, report, text]);
+
   const focusInput = useCallback(() => inputRef.current?.focus(), []);
+
+  const handleChange = useCallback(
+    (next: string) => {
+      if (!controlled) {
+        setOwnText(next);
+      }
+      onChangeText?.(next);
+    },
+    [controlled, onChangeText],
+  );
+
+  const handleSubmit = useCallback(
+    (event: NativeSyntheticEvent<TextInputSubmitEditingEventData>) => {
+      cancelPending();
+      report(text.trim());
+      onSubmitEditing?.(event);
+    },
+    [cancelPending, onSubmitEditing, report, text],
+  );
+
+  const handleClear = useCallback(() => {
+    cancelPending();
+    if (!controlled) {
+      setOwnText('');
+    }
+    onChangeText?.('');
+    report('');
+    onClear?.();
+  }, [cancelPending, controlled, onChangeText, onClear, report]);
 
   const handleFocus = useCallback(
     (event: FocusEvent) => {
@@ -374,12 +502,18 @@ export const SearchField = memo(function SearchField({
       ) : (
         <TextInput
           ref={inputRef}
-          value={value}
+          value={text}
+          onChangeText={handleChange}
           placeholder={placeholder}
           placeholderTextColor={colors.faint}
           selectionColor={colors.primaryBright}
+          autoCapitalize="none"
+          autoCorrect={false}
+          returnKeyType="search"
+          clearButtonMode="never"
           onFocus={handleFocus}
           onBlur={handleBlur}
+          onSubmitEditing={handleSubmit}
           style={[
             styles.input,
             {
@@ -394,12 +528,12 @@ export const SearchField = memo(function SearchField({
           {...rest}
         />
       )}
-      {onClear && value ? (
+      {!readOnly && text ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Clear search"
           hitSlop={8}
-          onPress={onClear}
+          onPress={handleClear}
         >
           <Icon icon={X} size={15} tone="faint" strokeWidth={2} />
         </Pressable>

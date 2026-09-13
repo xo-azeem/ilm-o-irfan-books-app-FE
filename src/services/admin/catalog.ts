@@ -1,4 +1,5 @@
 import { assertOk, supabase, unwrap } from './client';
+import { likePattern } from './search';
 import {
   uniqueSlug,
   type AdminAuthor,
@@ -17,9 +18,9 @@ export async function listAdminAuthors(query = ''): Promise<AdminAuthor[]> {
     )
     .order('name');
 
-  const trimmed = query.trim();
-  if (trimmed) {
-    builder = builder.ilike('name', `%${trimmed}%`);
+  const pattern = likePattern(query);
+  if (pattern) {
+    builder = builder.ilike('name', pattern);
   }
 
   return unwrap(await builder) as AdminAuthor[];

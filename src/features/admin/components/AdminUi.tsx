@@ -1011,6 +1011,7 @@ export const AdminButton = memo(function AdminButton({
   variant = 'primary',
   Icon: Glyph,
   compact,
+  small,
   blockedReason,
   fullWidth = true,
 }: {
@@ -1021,6 +1022,8 @@ export const AdminButton = memo(function AdminButton({
   variant?: 'primary' | 'secondary' | 'destructive' | 'ghost' | 'ghostDanger';
   Icon?: LucideIcon;
   compact?: boolean;
+  /** Smaller still — for an action that sits inside a row or a header. */
+  small?: boolean;
   /** Renders the button dashed and inert, with this line under the label. */
   blockedReason?: string | null;
   fullWidth?: boolean;
@@ -1068,6 +1071,7 @@ export const AdminButton = memo(function AdminButton({
       style={({ pressed }) => [
         styles.button,
         compact ? styles.buttonCompact : null,
+        small ? styles.buttonSmall : null,
         {
           backgroundColor: fill,
           borderWidth: blocked || outlined ? StyleSheet.hairlineWidth * 2 : 0,
@@ -1082,7 +1086,7 @@ export const AdminButton = memo(function AdminButton({
       {Glyph ? (
         <Icon
           icon={Glyph}
-          size={15}
+          size={small ? 13 : 15}
           color={
             ink === 'onPrimary'
               ? colors.onPrimary
@@ -1096,7 +1100,12 @@ export const AdminButton = memo(function AdminButton({
         />
       ) : null}
       <View style={styles.buttonLabel}>
-        <Text size={compact ? 13 : 14.5} leading={1} weight="500" tone={ink}>
+        <Text
+          size={small ? 12.5 : compact ? 13 : 14.5}
+          leading={1}
+          weight="500"
+          tone={ink}
+        >
           {loading ? 'Saving…' : label}
         </Text>
         {blockedReason ? (
@@ -1106,6 +1115,23 @@ export const AdminButton = memo(function AdminButton({
         ) : null}
       </View>
     </Pressable>
+  );
+});
+
+/**
+ * The outlined page action — the look of "Sign out of admin", for every
+ * standalone action that lives on a page rather than in its footer: delete
+ * this category, remove all books, add books. A bordered button reads as a
+ * button; a bare green word did not. `destructive` swaps the rim to red.
+ */
+export const AdminOutlineButton = memo(function AdminOutlineButton({
+  destructive,
+  ...rest
+}: Omit<Parameters<typeof AdminButton>[0], 'variant' | 'blockedReason'> & {
+  destructive?: boolean;
+}) {
+  return (
+    <AdminButton {...rest} variant={destructive ? 'ghostDanger' : 'ghost'} />
   );
 });
 
@@ -1689,7 +1715,9 @@ const styles = StyleSheet.create({
   },
   sectionHeader: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    // Centred, not baseline: the action may now be a small outlined button,
+    // and a baseline would hang it below the eyebrow.
+    alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
   },
@@ -1782,6 +1810,12 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: radius.control,
     paddingHorizontal: 16,
+  },
+  buttonSmall: {
+    height: 34,
+    borderRadius: radius.control,
+    paddingHorizontal: 13,
+    gap: 6,
   },
   buttonAuto: {
     alignSelf: 'center',

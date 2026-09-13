@@ -83,7 +83,6 @@ export function HelpCenterScreen() {
       <SearchField
         value={query}
         onChangeText={setQuery}
-        onClear={() => setQuery('')}
         placeholder="Search help topics"
       />
 

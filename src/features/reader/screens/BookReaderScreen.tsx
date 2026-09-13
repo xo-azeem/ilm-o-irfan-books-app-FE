@@ -29,6 +29,7 @@ import { useBook } from '@/hooks/useCatalog';
 import { keepBook, openBook, releaseBook } from '@/services/bookVault';
 import { useBookKept } from '@/hooks/useBookVault';
 import { isAbortError } from '@/services/pdf';
+import { readsRightToLeft } from '@/services/script';
 import {
   flushPositions,
   getPosition,
@@ -192,6 +193,11 @@ function BookReader() {
   const isKept = useBookKept(bookId);
   const removeDownload = useRemoveDownload();
   const bookTitle = book?.title?.trim() || 'Book';
+  // Which way the book is bound, which is which way its pages fold: a book
+  // recorded as Urdu or Arabic opens from the right and turns forward to the
+  // right. Every other book — English, or with no language recorded — turns
+  // exactly as it always has.
+  const rtl = readsRightToLeft(book?.language);
   // The zoom the reader asked for. The document view follows it, never the
   // other way round, so the controls can never end up describing a zoom that
   // is not the one on screen.
@@ -436,7 +442,9 @@ function BookReader() {
   const openPaywall = useCallback(() => {
     navigation.navigate(ROUTES.MAIN_TABS, {
       screen: ROUTES.PROFILE,
-      params: { screen: 'Subscription' },
+      // `initial: false` keeps Profile beneath the paywall even when that tab
+      // has never been opened, so back from the plans page has somewhere to go.
+      params: { screen: 'Subscription', initial: false },
     });
   }, [navigation]);
 
@@ -812,6 +820,7 @@ function BookReader() {
               source={pdfSource}
               initialPage={startPage}
               scale={controlScale}
+              rtl={rtl}
               onLoadComplete={handleLoadComplete}
               onLoadProgress={handleLoadProgress}
               onError={handleError}

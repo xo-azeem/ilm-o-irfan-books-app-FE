@@ -86,7 +86,9 @@ export function BookDetailScreen() {
   const openPaywall = useCallback(() => {
     navigation.navigate(ROUTES.MAIN_TABS, {
       screen: ROUTES.PROFILE,
-      params: { screen: 'Subscription' },
+      // `initial: false` keeps Profile beneath the paywall even when that tab
+      // has never been opened, so back from the plans page has somewhere to go.
+      params: { screen: 'Subscription', initial: false },
     });
   }, [navigation]);
 

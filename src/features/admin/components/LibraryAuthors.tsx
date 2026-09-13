@@ -39,7 +39,8 @@ export const LibraryAuthors = memo(function LibraryAuthors({
   const { scrollEndPadding } = useAppInsets();
   const {
     data = [],
-    isLoading,
+    isPending,
+    isPlaceholderData,
     error,
     refetch,
     isRefetching,
@@ -83,7 +84,7 @@ export const LibraryAuthors = memo(function LibraryAuthors({
     [onOpen],
   );
 
-  if (isLoading) {
+  if (isPending) {
     return (
       <View style={styles.gutter}>
         <AdminRowsSkeleton count={4} />
@@ -108,23 +109,29 @@ export const LibraryAuthors = memo(function LibraryAuthors({
       data={groups}
       keyExtractor={item => item.letter}
       renderItem={renderGroup}
-      refreshing={isRefetching}
+      // A new term's fetch also counts as a refetch while the old list
+      // stands in for it; that one is not a pull.
+      refreshing={isRefetching && !isPlaceholderData}
       onRefresh={() => void refetch()}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
       contentContainerStyle={{
         paddingHorizontal: ADMIN_GUTTER,
         paddingBottom: scrollEndPadding + 20,
       }}
       ListEmptyComponent={
-        <AdminEmpty
-          title={query ? 'No authors match' : 'No authors yet'}
-          message={
-            query
-              ? 'Try a shorter search — the list matches on name and slug.'
-              : 'Every book needs an author. Add the first one and it becomes selectable in the book editor.'
-          }
-          actionLabel={query ? undefined : 'Add the first author'}
-          onAction={onCreate}
-        />
+        isPlaceholderData ? null : (
+          <AdminEmpty
+            title={query ? 'No authors match' : 'No authors yet'}
+            message={
+              query
+                ? 'Try a shorter search — the list matches on name and slug.'
+                : 'Every book needs an author. Add the first one and it becomes selectable in the book editor.'
+            }
+            actionLabel={query ? undefined : 'Add the first author'}
+            onAction={onCreate}
+          />
+        )
       }
       style={styles.list}
     />

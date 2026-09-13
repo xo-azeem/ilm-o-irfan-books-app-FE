@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { GuestAuthPanel } from '@/components/auth/GuestAuthPanel';
 import { Screen } from '@/components/layout';
 import { Avatar, Badge, Display, showDialog, useSheet } from '@/components/ui';
+import { AdminSwitchCard } from '@/features/profile/components/AdminSwitchCard';
 import { GoalSheet } from '@/features/profile/components/GoalSheet';
 import {
   AchievementRail,
@@ -61,6 +62,7 @@ const READ_BAR_FLOOR = 0.45;
  */
 export function ProfileScreen() {
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
+  const isAdmin = useAuthStore(state => state.isAdmin);
   const { data: profile } = useProfile();
   const { data: avatarUrl } = useAvatarUrl(profile?.avatarPath);
   const { data: library } = useLibrary();
@@ -180,9 +182,14 @@ export function ProfileScreen() {
 
   const earned = achievements.filter(achievement => achievement.earned).length;
 
-  const planName = subscription?.active
-    ? (subscription.plan?.name ?? 'Premium')
-    : 'Free';
+  // The badge names what opens books for this account. For an admin that is
+  // the role, not a plan — "FREE" beside an account that reads everything
+  // would be the one wrong word on the screen.
+  const planName = isAdmin
+    ? 'Admin'
+    : subscription?.active
+      ? (subscription.plan?.name ?? 'Premium')
+      : 'Free';
 
   if (!isAuthenticated) {
     return (
@@ -229,10 +236,14 @@ export function ProfileScreen() {
             name line — the row's `alignItems` does the work. */}
         <Badge
           label={planName.toUpperCase()}
-          tone={subscription?.active ? 'gold' : 'neutral'}
+          tone={isAdmin ? 'primary' : subscription?.active ? 'gold' : 'neutral'}
           bordered
         />
       </View>
+
+      {/* Nothing for a reader; for an admin, the way back to the admin tool.
+          First, because it is the one thing on this screen an admin came for. */}
+      <AdminSwitchCard />
 
       {/* The longest streak is a real column on `reading_streaks`; it used to
           echo the current one back, which made the record read as if the

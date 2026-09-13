@@ -6,6 +6,7 @@ import {
   useRoute,
   type RouteProp,
 } from '@react-navigation/native';
+import { Plus, Trash2 } from 'lucide-react-native';
 
 import { Text } from '@/components/ui';
 import {
@@ -24,10 +25,10 @@ import {
   AdminCard,
   AdminField,
   AdminHelper,
+  AdminOutlineButton,
   AdminScreenTitle,
   AdminSectionHeader,
   AdminTag,
-  AdminTextAction,
   AdminToggleRow,
 } from '@/features/admin/components/AdminUi';
 import {
@@ -359,9 +360,11 @@ export function AdminCollectionEditorScreen() {
             <AdminSectionHeader
               title="Books, in order"
               action={
-                <AdminTextAction
+                <AdminOutlineButton
                   label="Add books"
-                  size={11.5}
+                  Icon={Plus}
+                  small
+                  fullWidth={false}
                   onPress={() => setShowPicker(true)}
                 />
               }
@@ -389,10 +392,10 @@ export function AdminCollectionEditorScreen() {
 
         {collectionId && !isSystem ? (
           <View style={styles.deleteBlock}>
-            <AdminTextAction
+            <AdminOutlineButton
               label="Delete this collection"
+              Icon={Trash2}
               destructive
-              size={13}
               onPress={() => setConfirmDelete(true)}
             />
             <Text size={11.5} leading={1.4} align="center" tone="faint">
@@ -469,8 +472,7 @@ const styles = StyleSheet.create({
   stack: { gap: 13 },
   block: { gap: 9 },
   deleteBlock: {
-    alignItems: 'center',
-    gap: 6,
+    gap: 8,
     paddingTop: 4,
   },
 });

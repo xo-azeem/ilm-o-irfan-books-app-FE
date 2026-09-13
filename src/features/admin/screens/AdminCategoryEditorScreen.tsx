@@ -16,6 +16,7 @@ import {
   Scale,
   ScrollText,
   Sparkles,
+  Trash2,
   type LucideIcon,
 } from 'lucide-react-native';
 
@@ -35,10 +36,10 @@ import {
   AdminField,
   AdminLabel,
   AdminNavRow,
+  AdminOutlineButton,
   AdminRowGroup,
   AdminScreenTitle,
   AdminTag,
-  AdminTextAction,
 } from '@/features/admin/components/AdminUi';
 import {
   useDirtyTracker,
@@ -342,16 +343,17 @@ export function AdminCategoryEditorScreen() {
 
         {categoryId ? (
           <View style={styles.deleteBlock}>
-            <AdminTextAction
-              label={
-                books > 0
-                  ? `Delete — ${books} ${books === 1 ? 'book loses' : 'books lose'} this tag`
-                  : 'Delete this category'
-              }
+            <AdminOutlineButton
+              label="Delete this category"
+              Icon={Trash2}
               destructive
-              size={13}
               onPress={() => setConfirmDelete(true)}
             />
+            <Text size={11.5} leading={1.4} align="center" tone="faint">
+              {books > 0
+                ? `${books} ${books === 1 ? 'book loses' : 'books lose'} this tag. The books themselves are kept.`
+                : 'Its tile on Explore and its search filter go with it.'}
+            </Text>
           </View>
         ) : null}
       </ScrollView>
@@ -443,7 +445,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth * 2,
   },
   deleteBlock: {
-    alignItems: 'center',
+    gap: 8,
     paddingTop: 4,
   },
   pressed: { opacity: 0.72 },

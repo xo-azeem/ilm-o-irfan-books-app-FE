@@ -1,10 +1,12 @@
 import {
+  keepPreviousData,
   useInfiniteQuery,
   useMutation,
   useQuery,
   useQueryClient,
   type QueryClient,
 } from '@tanstack/react-query';
+import { useMemo } from 'react';
 
 import {
   bulkUpdateBooks,
@@ -50,9 +52,34 @@ import {
 
 const STALE = 60_000;
 
-/** Anything that changes catalog data can move a dashboard number. */
+/**
+ * Anything that changes catalog data can move a dashboard number — and the
+ * reader's Home, Explore and collection pages, which cache under `catalog`
+ * for minutes. Dropping both means a collection saved here is on Home the
+ * next time it is looked at, not after the stale window runs out.
+ */
 function invalidateAdmin(client: QueryClient) {
-  return client.invalidateQueries({ queryKey: ['admin'] });
+  return Promise.all([
+    client.invalidateQueries({ queryKey: ['admin'] }),
+    client.invalidateQueries({ queryKey: ['catalog'] }),
+  ]);
+}
+
+/**
+ * A search term as it sits in a query key: trimmed and lower-cased, so
+ * "Ali", "ali" and "ali " read the same cached page rather than three.
+ * The server's match is case-insensitive already, so nothing is lost.
+ */
+function termKey(query: string): string {
+  return query.trim().toLowerCase();
+}
+
+/**
+ * A searchable list's filters with the term normalised — the object the key
+ * is built from and the one the fetch runs with, so they cannot disagree.
+ */
+function withTermKey<T extends { query: string }>(filters: T): T {
+  return { ...filters, query: termKey(filters.query) };
 }
 
 // ------------------------------------------------------------------ overview
@@ -75,12 +102,24 @@ export function useAdminAnalytics(days: number) {
 
 // --------------------------------------------------------------------- books
 
+/**
+ * The Library's book list, paged from the server with every filter applied
+ * before the page is cut.
+ *
+ * A changed term or filter starts a fresh pagination, but the previous pages
+ * stand in as placeholder data until page one of the new one lands — so the
+ * list narrows in place rather than dropping to a skeleton on every search.
+ * Callers read `isPlaceholderData` to show that a fetch is under way, and
+ * must not page placeholder data: its `nextPage` belongs to the old query.
+ */
 export function useAdminBooks(filters: AdminBookFilters) {
+  const keyed = useMemo(() => withTermKey(filters), [filters]);
   return useInfiniteQuery({
-    queryKey: ['admin', 'books', filters],
-    queryFn: ({ pageParam }) => listAdminBooks(filters, pageParam),
+    queryKey: ['admin', 'books', keyed],
+    queryFn: ({ pageParam }) => listAdminBooks(keyed, pageParam),
     initialPageParam: 0,
     getNextPageParam: last => last.nextPage,
+    placeholderData: keepPreviousData,
     staleTime: STALE,
   });
 }
@@ -94,9 +133,11 @@ export function useAdminBook(id: string | undefined) {
 }
 
 export function useBookOptions(query: string) {
+  const term = termKey(query);
   return useQuery({
-    queryKey: ['admin', 'book-options', query.trim().toLowerCase()],
-    queryFn: () => listBookOptions(query),
+    queryKey: ['admin', 'book-options', term],
+    queryFn: () => listBookOptions(term),
+    placeholderData: keepPreviousData,
     staleTime: STALE,
   });
 }
@@ -143,9 +184,11 @@ export function useBulkUpdateBooks() {
 // ------------------------------------------------------------------- catalog
 
 export function useAdminAuthors(query = '') {
+  const term = termKey(query);
   return useQuery({
-    queryKey: ['admin', 'authors', query.trim().toLowerCase()],
-    queryFn: () => listAdminAuthors(query),
+    queryKey: ['admin', 'authors', term],
+    queryFn: () => listAdminAuthors(term),
+    placeholderData: keepPreviousData,
     staleTime: STALE,
   });
 }
@@ -285,12 +328,19 @@ export function useReorderCatalog() {
 
 // -------------------------------------------------------------------- people
 
+/**
+ * The People directory, paged from the server — the search and every
+ * audience filter are the database's, so the count on page one is the true
+ * number of matches. Same placeholder contract as `useAdminBooks`.
+ */
 export function useAdminUsers(filters: AdminUserFilters) {
+  const keyed = useMemo(() => withTermKey(filters), [filters]);
   return useInfiniteQuery({
-    queryKey: ['admin', 'users', filters],
-    queryFn: ({ pageParam }) => listAdminUsers(filters, pageParam),
+    queryKey: ['admin', 'users', keyed],
+    queryFn: ({ pageParam }) => listAdminUsers(keyed, pageParam),
     initialPageParam: 0,
     getNextPageParam: last => last.nextPage,
+    placeholderData: keepPreviousData,
     staleTime: STALE,
   });
 }

@@ -10,6 +10,7 @@ import {
   NavigationContainer,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { AuthSplash } from '@/app/navigation/AuthSplash';
 import { MainTabBar } from '@/components/navigation/MainTabBar';
@@ -44,6 +45,9 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  * request shows a skeleton rather than a logo that never leaves.
  */
 const FEED_HOLD_MS = 1500;
+
+/** The dissolve between shells when an admin switches to the app and back. */
+const SHELL_FADE_MS = 220;
 
 function renderTabBar(props: BottomTabBarProps) {
   return <MainTabBar {...props} />;
@@ -132,6 +136,7 @@ export function RootNavigator() {
   const isHydrated = useAuthStore(state => state.isHydrated);
   const roleResolved = useAuthStore(state => state.roleResolved);
   const isAdmin = useAuthStore(state => state.isAdmin);
+  const viewingAsReader = useAuthStore(state => state.viewingAsReader);
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   const onboarded = useOnboardingStore(state => state.completed);
   const { isDark, colors } = useTheme();
@@ -139,6 +144,12 @@ export function RootNavigator() {
 
   const sessionReady = isHydrated && roleResolved;
   const hideSplash = useCallback(() => setSplashVisible(false), []);
+
+  // Which shell an admin gets. The role decides whether the admin tool is
+  // available at all; the flag decides whether they are in it right now. An
+  // admin using the app as a reader is still an admin everywhere else —
+  // access, the paywall, the signed-URL function all read `isAdmin` directly.
+  const showAdmin = isAdmin && !viewingAsReader;
 
   // A returning reader never sees first-run, even on a reinstall where the
   // onboarding flag was cleared but the session survived in the keychain.
@@ -170,7 +181,7 @@ export function RootNavigator() {
   // Whether the first screen under the splash is Home. The admin tool and
   // first-run have nothing to wait for. (Sign-in is not a launch destination:
   // `wantsSignIn` is transient and only ever set from first-run, after this.)
-  const landsOnHome = !isAdmin && !needsOnboarding;
+  const landsOnHome = !showAdmin && !needsOnboarding;
 
   // The feed is allowed to hold the splash, but only briefly: past this the
   // skeleton is the honest state, and a slow network should not look like a
@@ -215,13 +226,24 @@ export function RootNavigator() {
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {sessionReady ? (
         <NavigationContainer theme={navigationTheme}>
-          {isAdmin ? (
-            <AdminNavigator />
-          ) : needsOnboarding ? (
-            <OnboardingNavigator />
-          ) : (
-            <ConsumerNavigator />
-          )}
+          {/* The three shells are separate trees, so a change of shell is a
+              remount. Keyed and faded in, so an admin stepping between the
+              tool and the app sees a dissolve rather than a hard cut. At
+              launch the splash is still over this, so the fade costs nothing
+              there. */}
+          <Animated.View
+            key={showAdmin ? 'admin' : needsOnboarding ? 'onboarding' : 'app'}
+            entering={FadeIn.duration(SHELL_FADE_MS)}
+            style={styles.root}
+          >
+            {showAdmin ? (
+              <AdminNavigator />
+            ) : needsOnboarding ? (
+              <OnboardingNavigator />
+            ) : (
+              <ConsumerNavigator />
+            )}
+          </Animated.View>
         </NavigationContainer>
       ) : null}
       {splashVisible ? (

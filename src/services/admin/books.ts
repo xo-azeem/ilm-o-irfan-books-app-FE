@@ -1,4 +1,5 @@
 import { assertOk, num, supabase, unwrap } from './client';
+import { anyColumnLike, likePattern } from './search';
 import {
   ADMIN_PAGE_SIZE,
   uniqueSlug,
@@ -14,6 +15,9 @@ const LIST_COLUMNS =
   'price_cents,currency,format,cover_path,cover_color,cover_color_dark,pdf_path,' +
   'file_size_bytes,read_time_minutes,is_premium,is_published,published_at,' +
   'created_at,updated_at,category_ids,collection_ids,reader_count,download_count,wishlist_count';
+
+/** What the Library search bar promises: titles, authors, slugs. */
+const BOOK_SEARCH_COLUMNS = ['title', 'author_name', 'slug'];
 
 const SORTS: Record<BookSort, { column: string; ascending: boolean }> = {
   updated_desc: { column: 'updated_at', ascending: false },
@@ -52,11 +56,9 @@ export async function listAdminBooks(
     .order(sort.column, { ascending: sort.ascending })
     .range(from, from + ADMIN_PAGE_SIZE - 1);
 
-  const query = filters.query.trim().replace(/[,()]/g, ' ');
-  if (query) {
-    builder = builder.or(
-      `title.ilike.%${query}%,author_name.ilike.%${query}%,slug.ilike.%${query}%`,
-    );
+  const search = anyColumnLike(filters.query, BOOK_SEARCH_COLUMNS);
+  if (search) {
+    builder = builder.or(search);
   }
 
   if (filters.status === 'published') {
@@ -138,9 +140,9 @@ export async function listBookOptions(query = ''): Promise<AdminBookOption[]> {
     .order('title')
     .limit(200);
 
-  const trimmed = query.trim();
-  if (trimmed) {
-    builder = builder.ilike('title', `%${trimmed}%`);
+  const pattern = likePattern(query);
+  if (pattern) {
+    builder = builder.ilike('title', pattern);
   }
 
   return (unwrap(await builder) as Array<Record<string, unknown>>).map(row => ({

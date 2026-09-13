@@ -7,7 +7,7 @@ import {
   type RouteProp,
 } from '@react-navigation/native';
 import { launchImageLibrary } from 'react-native-image-picker';
-import { ImageUp } from 'lucide-react-native';
+import { ImageUp, Trash2 } from 'lucide-react-native';
 
 import { Text } from '@/components/ui';
 import { AdminConfirmSheet } from '@/features/admin/components/AdminControls';
@@ -19,10 +19,9 @@ import {
   AdminBackLink,
   AdminButton,
   AdminField,
-  AdminHelper,
   AdminScreenTitle,
   AdminTag,
-  AdminTextAction,
+  AdminOutlineButton,
 } from '@/features/admin/components/AdminUi';
 import {
   useDirtyTracker,
@@ -256,21 +255,17 @@ export function AdminAuthorEditorScreen() {
 
         {authorId ? (
           <View style={styles.deleteBlock}>
-            <AdminTextAction
-              label={
-                credited > 0
-                  ? `Delete — ${credited} ${credited === 1 ? 'book is' : 'books are'} still credited`
-                  : 'Delete this author'
-              }
+            <AdminOutlineButton
+              label="Delete this author"
+              Icon={Trash2}
               destructive
-              size={13}
               disabled={credited > 0}
               onPress={() => setConfirmDelete(true)}
             />
             {credited > 0 ? (
-              <AdminHelper>
-                Reassign or remove those titles first, then this author can go.
-              </AdminHelper>
+              <Text size={11.5} leading={1.4} align="center" tone="faint">
+                {`${credited} ${credited === 1 ? 'book is' : 'books are'} still credited — reassign or remove those titles first, then this author can go.`}
+              </Text>
             ) : null}
           </View>
         ) : null}
@@ -334,8 +329,7 @@ const styles = StyleSheet.create({
   },
   stack: { gap: 13 },
   deleteBlock: {
-    alignItems: 'center',
-    gap: 6,
+    gap: 8,
     paddingTop: 4,
   },
 });

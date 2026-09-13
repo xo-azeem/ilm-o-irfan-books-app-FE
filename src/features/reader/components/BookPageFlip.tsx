@@ -52,6 +52,13 @@ type BookPageFlipProps = {
   initialPage?: number;
   /** The reader's chosen zoom. The only zoom the controls know about. */
   scale: number;
+  /**
+   * The book is bound on the right — Urdu, Arabic — and its pages turn the
+   * other way: forward is a drag to the right, and the leaf hinges on the
+   * right edge. Only the flip is told. The swipe is the document view's own
+   * pager and the scroll is a column, and neither has a side to be bound on.
+   */
+  rtl?: boolean;
   onLoadComplete: (totalPages: number) => void;
   onLoadProgress?: (percent: number) => void;
   onError: (message?: string) => void;
@@ -285,6 +292,7 @@ export const BookPageFlip = memo(
       source,
       initialPage = 1,
       scale,
+      rtl = false,
       onLoadComplete,
       onLoadProgress,
       onError,
@@ -880,6 +888,7 @@ export const BookPageFlip = memo(
 
     const paperFlip = usePaperFlip({
       enabled: folding && !zoomed,
+      rtl,
       onBegin: handleFoldBegin,
       onEnd: handleFoldEnd,
       onTap: handleSingleTap,
@@ -976,6 +985,18 @@ export const BookPageFlip = memo(
       if (folding && !zoomed) return;
       if (turnRef.current || fold) closeFold(docPageRef.current);
     }, [closeFold, fold, folding, zoomed]);
+
+    /**
+     * The book's binding changed hands — its record landed after its pages
+     * did, as a rule. A fold in flight was measured in the other mirror and
+     * cannot be landed in this one, so it is closed the same way.
+     */
+    const rtlRef = useRef(rtl);
+    useEffect(() => {
+      if (rtlRef.current === rtl) return;
+      rtlRef.current = rtl;
+      if (turnRef.current) closeFold(docPageRef.current);
+    }, [closeFold, rtl]);
 
     useEffect(
       () => () => {
@@ -1334,6 +1355,7 @@ export const BookPageFlip = memo(
                       onLeafDrawn={handleLeafDrawn}
                       onUnderDrawn={handleUnderDrawn}
                       wash={wash}
+                      mirrored={rtl}
                     />
                   ) : null}
                 </Animated.View>

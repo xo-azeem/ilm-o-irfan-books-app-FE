@@ -8,6 +8,7 @@ import {
   Database,
   LogOut,
   Settings2,
+  Smartphone,
 } from 'lucide-react-native';
 
 import { Screen } from '@/components/layout';
@@ -46,6 +47,7 @@ export function AdminSystemScreen() {
 
   const email = useAuthStore(state => state.email);
   const signOut = useAuthStore(state => state.signOut);
+  const setViewingAsReader = useAuthStore(state => state.setViewingAsReader);
 
   const stats = useAdminStats();
   const storage = useStorageAudit();
@@ -155,6 +157,20 @@ export function AdminSystemScreen() {
             state={
               settings.isError ? 'down' : settings.isLoading ? 'checking' : 'up'
             }
+          />
+        </AdminRowGroup>
+      </View>
+
+      {/* This account, as a reader. The same row as on Today, here because
+          this is where the account's other action — leaving — lives. */}
+      <View style={styles.block}>
+        <AdminEyebrow>Account</AdminEyebrow>
+        <AdminRowGroup>
+          <AdminNavRow
+            label="Open the app as a reader"
+            sublabel="Come back from the profile tab"
+            Icon={Smartphone}
+            onPress={() => setViewingAsReader(true)}
           />
         </AdminRowGroup>
       </View>

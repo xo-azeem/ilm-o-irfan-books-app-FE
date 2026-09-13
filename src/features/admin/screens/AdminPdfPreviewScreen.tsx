@@ -29,6 +29,13 @@ import { readerStages } from '@/theme/palette';
 import { useTheme } from '@/theme/ThemeContext';
 
 /**
+ * Which step failed. The link is a call to our own function; the render is
+ * the viewer fetching and drawing the file behind it. They fail for different
+ * reasons, and the operator should be told which one it was.
+ */
+type PreviewError = { stage: 'link' | 'render'; detail: string };
+
+/**
  * The PDF check before publishing.
  *
  * The page an operator most wants to see is not page one — it is somewhere in
@@ -43,17 +50,23 @@ export function AdminPdfPreviewScreen() {
   const bottomInset = useAdminBottomInset();
 
   const [uri, setUri] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<PreviewError | null>(null);
   const [page, setPage] = useState(1);
   const [pageCount, setPageCount] = useState(0);
   const trackWidth = useRef(0);
 
   const load = useCallback(() => {
     setError(null);
+    // A retry after a render failure asks for a fresh link rather than
+    // handing the viewer the same one that just failed.
+    setUri(null);
     void getSignedPdfUrl(route.params.bookId)
       .then(result => setUri(result.url))
       .catch(caught =>
-        setError(errorMessage(caught, 'Could not open this PDF.')),
+        setError({
+          stage: 'link',
+          detail: errorMessage(caught, 'Could not open this PDF.'),
+        }),
       );
   }, [route.params.bookId]);
 
@@ -106,8 +119,12 @@ export function AdminPdfPreviewScreen() {
         <View style={styles.centre}>
           <AdminErrorState
             title="Couldn't open this file"
-            message="The signed link did not come back, so nothing could be rendered."
-            detail={error}
+            message={
+              error.stage === 'link'
+                ? 'The signed link did not come back, so nothing could be rendered.'
+                : 'The signed link came back, but the file behind it could not be fetched or rendered.'
+            }
+            detail={error.detail}
             onRetry={load}
             secondaryLabel="Back to the editor"
             onSecondary={() => navigation.goBack()}
@@ -117,10 +134,22 @@ export function AdminPdfPreviewScreen() {
         <Pdf
           source={{ uri, cache: true }}
           page={page}
+          // This is the one place a remote URL goes straight into the viewer,
+          // so the viewer's own downloader runs — and that downloader is
+          // react-native-blob-util. The viewer's default `trustAllCerts` sets
+          // its `trusty` flag, which in 0.24 means "use the trust manager the
+          // app registered natively"; none is, so the request throws before a
+          // byte moves ("ReactNativeBlobUtil request error"). The signed URL
+          // is on Supabase Storage behind a public certificate; the platform's
+          // trust store is the right one. See `downloadToPath` in services/pdf.
+          trustAllCerts={false}
           onLoadComplete={count => setPageCount(count)}
           onPageChanged={next => setPage(next)}
           onError={caught =>
-            setError(errorMessage(caught, 'This file could not be rendered.'))
+            setError({
+              stage: 'render',
+              detail: errorMessage(caught, 'This file could not be rendered.'),
+            })
           }
           style={styles.pdf}
         />

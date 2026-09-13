@@ -32,10 +32,13 @@ import { useAuthStore } from '@/stores/authStore';
  *     marketing copy: charging from it, or showing it beside a store button,
  *     states a price the store is not about to take.
  *
- * The two are matched on `revenuecat_product_id`, which is exactly how the
- * backend's webhook matches them. When a plan has none, or the product is not in
- * the current offering, the package still stands on its own — the store price is
- * what the reader is paying either way.
+ * The two are matched on `revenuecat_product_id` / `app_store_product_id` /
+ * `play_store_product_id`, which is exactly how the backend webhook matches.
+ * When a plan has none, or the product is not in the current offering, the
+ * package still stands on its own — the store price is what the reader pays.
+ *
+ * Checkout opens the native App Store / Play sheet (Apple Pay / Google Pay
+ * appear there when available). There is no separate wallet SDK in this app.
  */
 
 /** The store's packages. Refetched rarely; prices do not move hour to hour. */

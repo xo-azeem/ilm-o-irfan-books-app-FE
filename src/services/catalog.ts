@@ -32,7 +32,9 @@ import type {
   CategoryRow,
   CollectionInfoRow,
   CollectionRow,
+  CollectionSource,
   HomeFeedPayload,
+  HomeFeedShelfMeta,
   PlanRow,
   TrendingWeeklyPayload,
 } from '@/services/api/types';
@@ -69,12 +71,29 @@ export type CatalogCategory = {
 
 export type CatalogCollection = {
   id: string;
+  slug: string | null;
   title: string;
   subtitle: string;
+  /** Published books only. */
   bookCount: number;
   accent: string;
   kind: string;
+  /** One of Home's own rails, never a card on the collections strip. */
+  isSystem: boolean;
 };
+
+/**
+ * The slugs Home renders as rails of its own.
+ *
+ * The backend already leaves these out of the strip and flags them
+ * `is_system`; the list is kept here only so a deployment that predates the
+ * flag still gets the same strip.
+ */
+const SYSTEM_COLLECTION_SLUGS = new Set([
+  'home-hero',
+  'trending',
+  'new-arrivals',
+]);
 
 const iconByKey: Record<string, LucideIcon> = {
   'book-marked': BookMarked,
@@ -196,12 +215,29 @@ function fromJoinedRow(row: JoinedBookRow): CatalogBook {
 function toCollection(row: CollectionRow): CatalogCollection {
   return {
     id: row.id,
+    slug: row.slug,
     title: row.title,
     subtitle: row.subtitle ?? '',
     bookCount: row.book_count,
     accent: row.accent ?? palette.green,
     kind: row.kind,
+    isSystem:
+      row.is_system ??
+      (row.slug ? SYSTEM_COLLECTION_SLUGS.has(row.slug) : false),
   };
+}
+
+/**
+ * The strip: admin-made collections with something on them.
+ *
+ * The system shelves are rails of their own above the strip, and an empty
+ * collection is what the CMS promises will not be rendered — so neither gets a
+ * card. Order is the editor's `sort_order`, untouched.
+ */
+function stripCollections(rows: CollectionRow[]): CatalogCollection[] {
+  return rows
+    .map(toCollection)
+    .filter(collection => !collection.isSystem && collection.bookCount > 0);
 }
 
 function toCategory(row: CategoryRow): CatalogCategory {
@@ -315,31 +351,80 @@ function toSlide(row: CarouselSlideRow): CatalogSlide {
 }
 
 /**
- * How many books the rails ask for.
+ * How many books the rails draw.
  *
- * Caps, not quotas: the backend sends `hero` and `newArrivals` curated and
- * already backfilled, so a rail is only topped up locally on a deployment that
- * has not shipped that yet. `trending` is the legacy path's cap — the current
- * backend sends the weekly draw at the length it means, and that is drawn.
+ * `trending` and `arrivals` are the size of a Home rail, and also the page size
+ * the full collection is read at: the rail *is* page one of that list, so the
+ * two have to agree or "See all" would re-read what is already on screen.
+ * `hero` is only a cap for the legacy top-up.
  */
-const RAIL_TARGET = { hero: 5, trending: 10, arrivals: 10 } as const;
+export const HOME_RAIL_LIMIT = 10;
+
+/**
+ * The headings of the two rails that double as page one of a collection.
+ *
+ * Kept here rather than on the screen because a collection page seeded from
+ * a rail titles itself from these until the server's own title lands.
+ */
+export const SHELF_COPY = {
+  trending: {
+    title: 'Trending this week',
+    subtitle: 'The same shelf for every reader',
+  },
+  arrivals: {
+    title: 'New arrivals',
+    subtitle: 'Fresh on the shelf',
+  },
+} as const;
+const RAIL_TARGET = {
+  hero: 5,
+  trending: HOME_RAIL_LIMIT,
+  arrivals: HOME_RAIL_LIMIT,
+} as const;
+
+/**
+ * Where a rail's "See all" goes.
+ *
+ * `null` when there is no page to open — the admin has unpublished that shelf,
+ * or the backend degraded the rail to the newest books after a failed read —
+ * in which case the rail draws without an action rather than with one that
+ * would open an empty screen.
+ */
+export type ShelfLink = {
+  collectionId: string;
+  slug: string;
+  /** How many the full page holds; the rail shows the first ten of them. */
+  totalCount: number;
+  source: CollectionSource;
+};
+
+function toShelfLink(meta: HomeFeedShelfMeta | undefined): ShelfLink | null {
+  if (!meta?.collectionId) {
+    return null;
+  }
+  return {
+    collectionId: meta.collectionId,
+    slug: meta.slug,
+    totalCount: meta.totalCount,
+    source: meta.source,
+  };
+}
 
 /**
  * The rails, from whichever shape `home-feed` answered with.
  *
- * With `shelves` present, `hero` and `newArrivals` are the editor's own
- * `home-hero` and `new-arrivals` collections in the order they were put in,
- * each already backfilled server-side with the newest published books — so
- * neither arrives blank, and neither is hidden or re-picked here. The trending
- * rail is the weekly draw, drawn exactly as it arrived: the same books in the
- * same order for every reader until Monday 00:00 UTC, never re-sorted,
- * re-sliced or topped up. A rail that stops shifting under the reader is the
- * whole point of the draw having moved off the client.
+ * With `shelvesMeta` present, `trending` and `newArrivals` are the first page
+ * of exactly what `collection-books` serves for those shelves — the weekly
+ * draw, and the editor's new-arrivals membership or the newest published
+ * books when there is none — already capped at ten server-side. They are
+ * drawn as they arrived: never re-sorted, re-sliced or topped up, and an empty
+ * rail is an admin who hid the shelf, not a gap to fill.
  *
- * The top-up below is only for a deployment that predates that backfill and
- * still answers `hero: []`. Without `shelves` at all, the rails are derived
- * from the book pool exactly as before: highest rated for the hero and for
- * trending, newest first for arrivals.
+ * With `shelves` but no `shelvesMeta` (a deployment that predates the shared
+ * read), `hero` and `newArrivals` are topped up from the catalogue when they
+ * come up blank, as before. Without `shelves` at all, the rails are derived
+ * from the book pool: highest rated for the hero and for trending, newest
+ * first for arrivals.
  */
 function railsFrom(feed: HomeFeedPayload | null, pool: BookListItem[]) {
   const shelves = feed?.shelves;
@@ -350,6 +435,22 @@ function railsFrom(feed: HomeFeedPayload | null, pool: BookListItem[]) {
     fromListItem,
   );
 
+  if (shelves && feed?.shelvesMeta) {
+    return {
+      hero: railOr(
+        shelves.hero,
+        [...catalogue].sort(byRating),
+        RAIL_TARGET.hero,
+      ),
+      trending: (shelves.trending ?? [])
+        .slice(0, RAIL_TARGET.trending)
+        .map(fromListItem),
+      arrivals: (shelves.newArrivals ?? [])
+        .slice(0, RAIL_TARGET.arrivals)
+        .map(fromListItem),
+    };
+  }
+
   if (shelves) {
     return {
       hero: railOr(
@@ -357,7 +458,9 @@ function railsFrom(feed: HomeFeedPayload | null, pool: BookListItem[]) {
         [...catalogue].sort(byRating),
         RAIL_TARGET.hero,
       ),
-      trending: (shelves.trending ?? []).map(fromListItem),
+      trending: (shelves.trending ?? [])
+        .slice(0, RAIL_TARGET.trending)
+        .map(fromListItem),
       arrivals: railOr(shelves.newArrivals, catalogue, RAIL_TARGET.arrivals),
     };
   }
@@ -384,15 +487,19 @@ function railOr(
 /**
  * Whether the feed already drew Home, or the catalogue has to be read for it.
  *
- * Only the curated rails can come up short, and only on a deployment that has
- * not shipped their server-side backfill. The carousel and the trending rail
- * are never asked about: an empty carousel is a deliberate admin state and a
- * short weekly draw is a small catalogue, and reading more books to pad either
- * one is exactly the client-side curation this replaced.
+ * A feed that carries `shelvesMeta` always has: every rail on it is the first
+ * page of its own list, and a short one is a small catalogue or a hidden
+ * shelf, neither of which a second read could change. Before that, only the
+ * curated rails could come up short, and only on a deployment that had not
+ * shipped their server-side backfill. The carousel and the trending rail are
+ * never asked about: an empty carousel is a deliberate admin state and a short
+ * weekly draw is a small catalogue, and reading more books to pad either one
+ * is exactly the client-side curation this replaced.
  */
 function feedIsEnough(feed: HomeFeedPayload | null): boolean {
   const shelves = feed?.shelves;
   if (!shelves) return false;
+  if (feed?.shelvesMeta) return true;
 
   const books = feed?.books?.length ?? 0;
   const arrivals = shelves.newArrivals?.length || books;
@@ -428,7 +535,12 @@ async function homeFromEndpoints(signal?: AbortSignal) {
     // draws both identically.
     carouselSource: feed?.carouselSource ?? null,
     ...railsFrom(feed ?? null, pool),
-    collections: (feed?.collections ?? []).map(toCollection),
+    // Where "See all" on each rail goes. Absent on an older deployment, in
+    // which case the rails draw without one — there is no page that is
+    // guaranteed to hold the same list.
+    trendingLink: toShelfLink(feed?.shelvesMeta?.trending),
+    arrivalsLink: toShelfLink(feed?.shelvesMeta?.newArrivals),
+    collections: stripCollections(feed?.collections ?? []),
     categories: (feed?.categories ?? []).map(toCategory),
     featuredCollectionId: feed?.featuredCollectionId ?? null,
     // `app_settings.support_email`, so Help Center writes to whatever address
@@ -479,9 +591,11 @@ async function homeFromTables() {
     hero: unwrap(hero).map(fromJoinedRow),
     trending: unwrap(trending).map(row => fromViewRow(row as CatalogListRow)),
     arrivals: unwrap(arrivals).map(row => fromViewRow(row as CatalogListRow)),
-    collections: unwrap(collections).map(row =>
-      toCollection(row as CollectionRow),
-    ),
+    // The tables path has no `collection-books` behind it, so there is no full
+    // page for a rail to open.
+    trendingLink: null as ShelfLink | null,
+    arrivalsLink: null as ShelfLink | null,
+    collections: stripCollections(unwrap(collections) as CollectionRow[]),
     categories: unwrap(categories).map(row => toCategory(row as CategoryRow)),
     // The tables path has no `app_settings` grant for `anon`, so the feature
     // slot and the support address stay unset rather than failing the whole
@@ -818,11 +932,18 @@ export type CatalogCollectionInfo = {
   title: string;
   subtitle?: string;
   kind: string;
+  isSystem: boolean;
 };
 
 export type CollectionBooksPage = Page<CatalogBook> & {
   /** `null` only when the collection could not be resolved at all. */
   collection: CatalogCollectionInfo | null;
+  /**
+   * What the list is: the editor's picks, this week's draw, or the newest
+   * books standing in for an uncurated shelf. Copy only — the list is drawn
+   * the same way whichever it is.
+   */
+  source: CollectionSource;
 };
 
 function toCollectionInfo(row: CollectionInfoRow): CatalogCollectionInfo {
@@ -832,6 +953,9 @@ function toCollectionInfo(row: CollectionInfoRow): CatalogCollectionInfo {
     title: row.title,
     subtitle: row.subtitle ?? undefined,
     kind: row.kind,
+    isSystem:
+      row.is_system ??
+      (row.slug ? SYSTEM_COLLECTION_SLUGS.has(row.slug) : false),
   };
 }
 
@@ -845,10 +969,14 @@ function toCollectionInfo(row: CollectionInfoRow): CatalogCollectionInfo {
  *
  * Only published books are counted and paged, so the order given is the order
  * drawn: no re-sorting, no filtering, and an empty collection is a real answer
- * rather than something to backfill.
+ * rather than something to backfill. The two system shelves are special only
+ * on the server: `trending` pages this week's draw and `new-arrivals` pages
+ * the newest books while the editor has curated nothing — the same lists Home
+ * draws the first ten of, which is what lets a rail stand in for page one.
  *
  * There is no table fallback. The junction read would have to re-derive the
- * publish filter and the sort, and get both subtly wrong.
+ * publish filter, the sort and the two stand-ins, and get all of them subtly
+ * wrong.
  */
 export async function getCollectionBooks({
   id,
@@ -863,7 +991,10 @@ export async function getCollectionBooks({
   pageSize?: number;
   signal?: AbortSignal;
 }): Promise<CollectionBooksPage> {
-  type Payload = Page<BookListItem> & { collection?: CollectionInfoRow | null };
+  type Payload = Page<BookListItem> & {
+    collection?: CollectionInfoRow | null;
+    source?: CollectionSource | null;
+  };
 
   try {
     const payload = await request<Payload | null>(ENDPOINTS.collectionBooks, {
@@ -884,6 +1015,7 @@ export async function getCollectionBooks({
       collection: payload?.collection
         ? toCollectionInfo(payload.collection)
         : null,
+      source: payload?.source ?? 'curated',
     };
   } catch (error) {
     // A collection that has been unpublished or renamed is an empty shelf, not
@@ -893,7 +1025,11 @@ export async function getCollectionBooks({
       error.status === 404 &&
       !isEndpointMissing(error)
     ) {
-      return { ...emptyPage<CatalogBook>(page, pageSize), collection: null };
+      return {
+        ...emptyPage<CatalogBook>(page, pageSize),
+        collection: null,
+        source: 'curated',
+      };
     }
     throw error;
   }

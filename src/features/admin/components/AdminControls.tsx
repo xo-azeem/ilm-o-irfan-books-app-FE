@@ -16,6 +16,7 @@ import {
 import { Check, ListFilter, Plus, Search, X } from 'lucide-react-native';
 
 import {
+  BookCover,
   Display,
   Divider,
   Icon,
@@ -34,7 +35,9 @@ import {
   AdminEyebrow,
   AdminLabel,
   AdminSegments,
+  AdminTag,
   AdminTextAction,
+  type AdminTagTone,
 } from './AdminUi';
 
 /**
@@ -300,11 +303,21 @@ export const AdminFilterSheet = memo(function AdminFilterSheet({
 
 // -------------------------------------------------------------- picker sheet
 
+/** A small status tag on a picker or orderable row — DRAFT, PREMIUM, etc. */
+export type RowBadge = { label: string; tone?: AdminTagTone };
+
 export type PickerItem = {
   id: string;
   label: string;
   sublabel?: string;
   accent?: string | null;
+  /**
+   * A book: drawn as a small cover in place of the accent dot. `coverColor`
+   * alone is the same placeholder a coverless book gets everywhere else.
+   */
+  coverUrl?: string;
+  coverColor?: string | null;
+  badges?: RowBadge[];
 };
 
 /**
@@ -435,7 +448,13 @@ const PickerRow = memo(function PickerRow({
         pressed && { backgroundColor: colors.primaryFillSoft },
       ]}
     >
-      {item.accent ? (
+      {item.coverUrl || item.coverColor ? (
+        <BookCover
+          width={30}
+          coverUrl={item.coverUrl}
+          coverColor={item.coverColor ?? undefined}
+        />
+      ) : item.accent ? (
         <View style={[styles.accentDot, { backgroundColor: item.accent }]} />
       ) : null}
       <View style={styles.pickerBody}>
@@ -447,11 +466,35 @@ const PickerRow = memo(function PickerRow({
             {item.sublabel}
           </Text>
         ) : null}
+        <RowBadges badges={item.badges} />
       </View>
       {selected ? (
         <Icon icon={Check} size={18} tone="action" strokeWidth={2.4} />
       ) : null}
     </Pressable>
+  );
+});
+
+/** The tags under a row's label; nothing at all when there are none. */
+export const RowBadges = memo(function RowBadges({
+  badges,
+}: {
+  badges?: RowBadge[];
+}) {
+  if (!badges?.length) {
+    return null;
+  }
+  return (
+    <View style={styles.badgeRow}>
+      {badges.map(badge => (
+        <AdminTag
+          key={badge.label}
+          label={badge.label}
+          tone={badge.tone}
+          small
+        />
+      ))}
+    </View>
   );
 });
 
@@ -935,6 +978,12 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 5,
+    paddingTop: 2,
   },
   sheetEmpty: {
     paddingVertical: 30,

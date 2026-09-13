@@ -3,9 +3,10 @@ import {
   queryOptions,
   useInfiniteQuery,
   useQuery,
+  useQueryClient,
   type QueryClient,
 } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import {
   browseCatalog,
@@ -15,7 +16,12 @@ import {
   getCollectionBooks,
   getHomeCatalog,
   getWeeklyTrending,
+  HOME_RAIL_LIMIT,
+  SHELF_COPY,
+  type CatalogBook,
   type CatalogFilters,
+  type CollectionBooksPage,
+  type ShelfLink,
 } from '@/services/catalog';
 
 /**
@@ -148,12 +154,96 @@ export function useBook(id: string) {
   });
 }
 
+/** Discover's and a collection's page size, when nothing seeds page one. */
+const COLLECTION_PAGE_SIZE = 20;
+
+/**
+ * Page one of a collection, as Home already holds it.
+ *
+ * The Trending and New arrivals rails are the first ten of exactly what
+ * `collection-books` pages for those shelves, so when the reader opens either
+ * one the page has nothing to fetch until they scroll past what was on Home.
+ * The page is read at the rail's size so that page two starts where the rail
+ * stopped — a bigger page one would have re-read the same ten.
+ *
+ * `null` for any other collection, or when Home has not loaded: those read
+ * from the network as usual.
+ */
+function railSeed(
+  client: QueryClient,
+  id: string | null | undefined,
+  slug: string | null | undefined,
+): { page: CollectionBooksPage; updatedAt: number } | null {
+  const state = client.getQueryState(homeCatalogQuery.queryKey);
+  const home = state?.data as
+    Awaited<ReturnType<typeof getHomeCatalog>> | undefined;
+  if (!home || !state?.dataUpdatedAt) {
+    return null;
+  }
+
+  const matches = (link: ShelfLink | null) =>
+    Boolean(link) &&
+    ((id && link?.collectionId === id) || (!id && slug && link?.slug === slug));
+
+  let rail: {
+    link: ShelfLink;
+    books: CatalogBook[];
+    copy: { title: string; subtitle: string };
+  };
+  if (matches(home.trendingLink)) {
+    rail = {
+      link: home.trendingLink as ShelfLink,
+      books: home.trending,
+      copy: SHELF_COPY.trending,
+    };
+  } else if (matches(home.arrivalsLink)) {
+    rail = {
+      link: home.arrivalsLink as ShelfLink,
+      books: home.arrivals,
+      copy: SHELF_COPY.arrivals,
+    };
+  } else {
+    return null;
+  }
+
+  const totalCount = Math.max(rail.link.totalCount, rail.books.length);
+  return {
+    updatedAt: state.dataUpdatedAt,
+    page: {
+      data: rail.books,
+      page: 1,
+      pageSize: HOME_RAIL_LIMIT,
+      totalCount,
+      totalPages: Math.max(1, Math.ceil(totalCount / HOME_RAIL_LIMIT)),
+      hasNextPage: totalCount > rail.books.length,
+      hasPreviousPage: false,
+      // The server's own title replaces this the first time the page is
+      // refetched; until then the heading is the one the reader just tapped.
+      collection: {
+        id: rail.link.collectionId,
+        slug: rail.link.slug,
+        title: rail.copy.title,
+        subtitle: rail.copy.subtitle,
+        kind: 'shelf',
+        isSystem: true,
+      },
+      source: rail.link.source,
+    },
+  };
+}
+
 /**
  * One collection's books, paged.
  *
  * Addressed by whichever handle the caller has — the Home strip carries ids, a
  * deep link would carry a slug. The collection itself rides along on the first
  * page, so the screen has its own title without being told one.
+ *
+ * A collection that is also a Home rail starts from the rail: page one is the
+ * ten books already on screen, aged as Home's own feed is, so a fresh Home
+ * means no request at all and a stale one refreshes in the background behind
+ * the seeded list. The page size is part of the key because the seeded and
+ * the cold reads page at different sizes and must not share pages.
  */
 export function useCollectionBooks({
   id,
@@ -162,13 +252,21 @@ export function useCollectionBooks({
   id?: string | null;
   slug?: string | null;
 }) {
+  const client = useQueryClient();
+  const seed = useMemo(() => railSeed(client, id, slug), [client, id, slug]);
+  const pageSize = seed ? HOME_RAIL_LIMIT : COLLECTION_PAGE_SIZE;
+
   return useInfiniteQuery({
-    queryKey: ['catalog', 'collection', id ?? null, slug ?? null],
+    queryKey: ['catalog', 'collection', id ?? null, slug ?? null, pageSize],
     initialPageParam: 1,
     queryFn: ({ pageParam, signal }) =>
-      getCollectionBooks({ id, slug, page: pageParam, signal }),
+      getCollectionBooks({ id, slug, page: pageParam, pageSize, signal }),
     getNextPageParam: page => (page.hasNextPage ? page.page + 1 : undefined),
     enabled: Boolean(id || slug),
     staleTime: 5 * 60_000,
+    initialData: seed
+      ? () => ({ pages: [seed.page], pageParams: [1] })
+      : undefined,
+    initialDataUpdatedAt: seed?.updatedAt,
   });
 }

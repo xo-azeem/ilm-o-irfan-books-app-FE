@@ -131,7 +131,42 @@ export type AdminCollection = {
   is_published: boolean;
   created_at: string;
   updated_at: string;
+  /** Every book the admin put on the shelf, drafts included. */
   book_count: number;
+  /** The ones readers will actually see. */
+  published_count: number;
+  /**
+   * `home-hero`, `trending` or `new-arrivals`: a rail Home renders by slug.
+   * Can be retitled, reordered and hidden, never deleted or re-slugged.
+   */
+  is_system: boolean;
+};
+
+/**
+ * What each system shelf is, for the editor to say so.
+ *
+ * `trending` in particular has no membership to edit — its books are drawn
+ * weekly by the server — so the editor hides the book list for it.
+ */
+export const SYSTEM_SHELF_NOTE: Record<
+  string,
+  { label: string; note: string; curated: boolean }
+> = {
+  'home-hero': {
+    label: 'Home hero',
+    note: 'The featured rail at the top of Home. When empty, the newest published books stand in.',
+    curated: true,
+  },
+  trending: {
+    label: 'Trending this week',
+    note: 'Ten books drawn by the server once a week, the same for every reader, with a new draw every Monday. There is nothing to pick here.',
+    curated: false,
+  },
+  'new-arrivals': {
+    label: 'New arrivals',
+    note: 'Home shows the first ten, in this order; “See all” opens the whole list. Leave it empty and the newest published books stand in.',
+    curated: true,
+  },
 };
 
 export type EntitlementStatus =

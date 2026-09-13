@@ -159,8 +159,17 @@ export type CategoryRow = {
  */
 export type CollectionInfoRow = Pick<
   CollectionRow,
-  'id' | 'slug' | 'title' | 'subtitle' | 'kind' | 'sort_order'
+  'id' | 'slug' | 'title' | 'subtitle' | 'kind' | 'sort_order' | 'is_system'
 >;
+
+/**
+ * Where a collection's book list comes from.
+ *
+ * `curated` is the editor's own membership in their order; `weekly` is this
+ * week's draw (the `trending` shelf); `newest` is every published book newest
+ * first (the `new-arrivals` shelf while the editor has curated nothing).
+ */
+export type CollectionSource = 'curated' | 'weekly' | 'newest';
 
 /** `public.collection_summaries`. */
 export type CollectionRow = {
@@ -171,7 +180,14 @@ export type CollectionRow = {
   accent: string | null;
   kind: string;
   sort_order: number | null;
+  /** Published books only — a shelf of drafts counts as empty. */
   book_count: number;
+  /**
+   * `home-hero`, `trending` or `new-arrivals`: rendered as rails of their
+   * own on Home, never as a card on the strip. `collections-list` and
+   * `home-feed.collections` already exclude them; absent on an older deployment.
+   */
+  is_system?: boolean;
 };
 
 /**
@@ -317,8 +333,29 @@ export type RecommendationsPayload = {
  */
 export type HomeFeedShelves = {
   hero: BookListItem[];
+  /** The first ten of what `collection-books?id=<shelvesMeta.trending.collectionId>` pages. */
   trending: BookListItem[];
+  /** The first ten of what `collection-books?id=<shelvesMeta.newArrivals.collectionId>` pages. */
   newArrivals: BookListItem[];
+};
+
+/**
+ * Where a rail's "See all" goes and how many it will find there.
+ *
+ * `collectionId` is `null` when the rail has no page to open right now — the
+ * admin unpublished that shelf (its rail is then `[]`), or the read degraded
+ * server-side to the newest books.
+ */
+export type HomeFeedShelfMeta = {
+  collectionId: string | null;
+  slug: string;
+  totalCount: number;
+  source: CollectionSource;
+};
+
+export type HomeFeedShelvesMeta = {
+  trending: HomeFeedShelfMeta;
+  newArrivals: HomeFeedShelfMeta;
 };
 
 export type HomeFeedPayload = {
@@ -329,6 +366,11 @@ export type HomeFeedPayload = {
   featuredCollectionId?: string | null;
   /** Absent on a deployment that predates the curated shelves. */
   shelves?: HomeFeedShelves | null;
+  /**
+   * Present once the rails and `collection-books` read the same list. Its
+   * absence is the signal that the older top-up behaviour still applies.
+   */
+  shelvesMeta?: HomeFeedShelvesMeta | null;
   /** Absent on a deployment that predates the admin-managed carousel. */
   carousel?: CarouselSlideRow[] | null;
   /** Which of the two the backend sent as `carousel`. Informational only. */

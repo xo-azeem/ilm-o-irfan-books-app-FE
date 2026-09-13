@@ -17,7 +17,11 @@ import {
   useAdminCollections,
   useReorderCatalog,
 } from '@/hooks/useAdmin';
-import type { AdminCategory, AdminCollection } from '@/services/admin';
+import {
+  SYSTEM_SHELF_NOTE,
+  type AdminCategory,
+  type AdminCollection,
+} from '@/services/admin';
 import { useTheme } from '@/theme/ThemeContext';
 
 /**
@@ -323,9 +327,9 @@ export const LibraryShelves = memo(function LibraryShelves({
     return (
       <ScrollView style={styles.fill} contentContainerStyle={styles.gutter}>
         <AdminEmpty
-          title="No shelves yet"
-          message="A shelf is a row on Home. Add one, put a few titles in it, and it appears the moment you publish it."
-          actionLabel="Add the first shelf"
+          title="No collections yet"
+          message="A collection is a card on Home's curated strip that opens a reading list. Add one, put a few titles in it, and it appears the moment you publish it."
+          actionLabel="Add the first collection"
           onAction={onCreate}
         />
       </ScrollView>
@@ -354,18 +358,38 @@ export const LibraryShelves = memo(function LibraryShelves({
       ))}
 
       <OrderHint>
-        Move a shelf and readers see the new Home order immediately. A hidden
-        shelf stays linkable but disappears from Home.
+        Move a collection and readers see the new order on Home immediately. A
+        hidden collection stays linkable but disappears from Home. The three
+        Home rails are listed here so they can be retitled or hidden; they
+        cannot be deleted.
       </OrderHint>
     </ScrollView>
   );
 });
 
-const KIND_LABEL: Record<AdminCollection['kind'], string> = {
-  hero: 'Hero',
-  shelf: 'Shelf',
-  carousel: 'Carousel',
-};
+/**
+ * The second line of a collection row.
+ *
+ * A Home rail says which rail it is. Anything else says how many books
+ * readers will find on it — and, when that differs from what the admin put
+ * there, how many are drafts waiting to be published.
+ */
+function collectionDetail(collection: AdminCollection): string {
+  if (collection.is_system) {
+    const rail = SYSTEM_SHELF_NOTE[collection.slug]?.label ?? 'Home rail';
+    if (!SYSTEM_SHELF_NOTE[collection.slug]?.curated) {
+      return `${rail} · drawn weekly`;
+    }
+    return collection.book_count === 0
+      ? `${rail} · newest books stand in`
+      : `${rail} · ${collection.published_count} live`;
+  }
+  const live = `${collection.published_count} ${
+    collection.published_count === 1 ? 'book' : 'books'
+  }`;
+  const drafts = collection.book_count - collection.published_count;
+  return drafts > 0 ? `${live} · ${drafts} in draft` : live;
+}
 
 const ShelfRow = memo(function ShelfRow({
   collection,
@@ -384,7 +408,14 @@ const ShelfRow = memo(function ShelfRow({
 }) {
   const { colors } = useTheme();
   const hidden = !collection.is_published;
-  const empty = collection.book_count === 0;
+  // Empty means empty for readers: a shelf of drafts is not on Home. The two
+  // system shelves that stand in newest books are never empty on Home.
+  const standsIn =
+    collection.is_system &&
+    (SYSTEM_SHELF_NOTE[collection.slug]?.curated === false ||
+      collection.slug === 'home-hero' ||
+      collection.slug === 'new-arrivals');
+  const empty = collection.published_count === 0 && !standsIn;
 
   return (
     <View
@@ -415,9 +446,7 @@ const ShelfRow = memo(function ShelfRow({
           {collection.title}
         </Text>
         <Text size={11} leading={1.2} tone="faint" numberOfLines={1}>
-          {`${KIND_LABEL[collection.kind]} · ${collection.book_count} ${
-            collection.book_count === 1 ? 'book' : 'books'
-          }`}
+          {collectionDetail(collection)}
         </Text>
       </Pressable>
 
@@ -432,6 +461,8 @@ const ShelfRow = memo(function ShelfRow({
         <AdminTag label="HIDDEN" tone="neutral" />
       ) : empty ? (
         <AdminTag label="EMPTY" tone="warning" />
+      ) : collection.is_system ? (
+        <AdminTag label="RAIL" tone="success" />
       ) : (
         <AdminTag label="LIVE" tone="success" />
       )}

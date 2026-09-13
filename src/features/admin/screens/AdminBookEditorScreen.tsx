@@ -66,6 +66,7 @@ import {
   adminCoverUrl,
   isSlugAvailable,
   slugify,
+  SYSTEM_SHELF_NOTE,
   uploadAdminCover,
   uploadAdminPdf,
   validateCoverSize,
@@ -809,7 +810,7 @@ export function AdminBookEditorScreen() {
 
                 <View style={styles.block}>
                   <AdminSectionHeader
-                    title="Shelves"
+                    title="Collections"
                     action={
                       <AdminTextAction
                         label="Edit"
@@ -819,7 +820,7 @@ export function AdminBookEditorScreen() {
                     }
                   />
                   {form.collectionIds.length === 0 ? (
-                    <AdminHelper>Not featured on any Home row.</AdminHelper>
+                    <AdminHelper>Not on any Home collection.</AdminHelper>
                   ) : (
                     <View style={styles.wrap}>
                       {form.collectionIds.map(id => (
@@ -1056,15 +1057,30 @@ export function AdminBookEditorScreen() {
 
       <AdminPickerSheet
         visible={showCollectionPicker}
-        title="Shelves"
+        title="Collections"
         multi
-        items={collections.map(item => ({
-          id: item.id,
-          label: item.title,
-          sublabel: `${item.kind} · ${item.book_count} books`,
-        }))}
+        // Trending has no membership to join — the server draws it weekly —
+        // so it is not offered. The other two Home rails are.
+        items={collections
+          .filter(
+            item =>
+              !item.is_system ||
+              SYSTEM_SHELF_NOTE[item.slug]?.curated !== false,
+          )
+          .map(item => ({
+            id: item.id,
+            label: item.title,
+            sublabel: item.is_system
+              ? `${SYSTEM_SHELF_NOTE[item.slug]?.label ?? 'Home rail'} · ${item.book_count} books`
+              : `${item.book_count} ${item.book_count === 1 ? 'book' : 'books'}${
+                  item.is_published ? '' : ' · hidden'
+                }`,
+            badges: item.is_system
+              ? [{ label: 'HOME RAIL', tone: 'neutral' as const }]
+              : undefined,
+          }))}
         selected={form.collectionIds}
-        emptyLabel="No shelves yet. Add one from Library → Shelves."
+        emptyLabel="No collections yet. Add one from Library → Collections."
         onClose={() => setShowCollectionPicker(false)}
         onChange={next => patch({ collectionIds: next })}
       />
@@ -1078,7 +1094,7 @@ export function AdminBookEditorScreen() {
           `${existing?.download_count ?? 0} downloads on readers' devices`,
           `The uploaded PDF and cover (${formatBytes(form.fileSizeBytes)})`,
           `Its place in ${form.collectionIds.length} ${
-            form.collectionIds.length === 1 ? 'shelf' : 'shelves'
+            form.collectionIds.length === 1 ? 'collection' : 'collections'
           }`,
         ]}
         confirmPhrase={form.isPublished ? form.title : null}

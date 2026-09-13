@@ -79,6 +79,17 @@ export function CollectionScreen() {
   );
   const collection = data?.pages[0]?.collection ?? null;
   const totalCount = data?.pages[0]?.totalCount ?? books.length;
+  const source = data?.pages[0]?.source ?? 'curated';
+
+  // What the list is, in one line under the count. The editor's picks need no
+  // explanation; the two stand-ins do, or a reader could take a rotating draw
+  // for a shelf someone chose.
+  const sourceNote =
+    source === 'weekly'
+      ? 'Drawn once a week, the same for every reader'
+      : source === 'newest'
+        ? 'Newest first'
+        : null;
 
   const openBook = useCallback(
     (book: { id: string }) =>
@@ -110,7 +121,11 @@ export function CollectionScreen() {
         onBack={navigation.goBack}
       />
       {books.length > 0 ? (
-        <Label>{`${totalCount.toLocaleString('en-US')} ${totalCount === 1 ? 'book' : 'books'}`}</Label>
+        <Label>
+          {`${totalCount.toLocaleString('en-US')} ${totalCount === 1 ? 'book' : 'books'}${
+            sourceNote ? ` · ${sourceNote}` : ''
+          }`}
+        </Label>
       ) : null}
       {isPending ? <ListSkeleton count={5} /> : null}
     </View>

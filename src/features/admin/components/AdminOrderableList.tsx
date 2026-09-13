@@ -2,8 +2,10 @@ import { Fragment, memo, useCallback } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { ChevronDown, ChevronUp, GripHorizontal, X } from 'lucide-react-native';
 
-import { Divider, Icon, Text, Toggle } from '@/components/ui';
+import { BookCover, Divider, Icon, Text, Toggle } from '@/components/ui';
 import { useTheme } from '@/theme/ThemeContext';
+
+import { RowBadges, type RowBadge } from './AdminControls';
 
 export type OrderableItem = {
   id: string;
@@ -11,6 +13,10 @@ export type OrderableItem = {
   sublabel?: string;
   /** When present, the row carries a visibility switch instead of a remove. */
   visible?: boolean;
+  /** A book: drawn with its cover, so a shelf reads like the rail it becomes. */
+  coverUrl?: string;
+  coverColor?: string | null;
+  badges?: RowBadge[];
 };
 
 /**
@@ -121,6 +127,14 @@ const OrderableRow = memo(function OrderableRow({
         strokeWidth={2}
       />
 
+      {item.coverUrl || item.coverColor ? (
+        <BookCover
+          width={28}
+          coverUrl={item.coverUrl}
+          coverColor={item.coverColor ?? undefined}
+        />
+      ) : null}
+
       <View style={styles.body}>
         <Text size={13} leading={1.2} numberOfLines={1}>
           {item.label}
@@ -130,6 +144,7 @@ const OrderableRow = memo(function OrderableRow({
             {item.sublabel}
           </Text>
         ) : null}
+        <RowBadges badges={item.badges} />
       </View>
 
       <Pressable

@@ -44,7 +44,13 @@ import { useMembershipOptions } from '@/hooks/useBilling';
 import { useAccess } from '@/lib/access';
 import { useHomeCatalog } from '@/hooks/useCatalog';
 import { useRecommendations } from '@/hooks/useRecommendations';
-import type { CatalogBook, CatalogSlide } from '@/services/catalog';
+import {
+  HOME_RAIL_LIMIT,
+  SHELF_COPY,
+  type CatalogBook,
+  type CatalogSlide,
+  type ShelfLink,
+} from '@/services/catalog';
 import { isUrduTitle } from '@/services/script';
 
 type HomeNavigation = CompositeNavigationProp<
@@ -83,6 +89,31 @@ const COLD_START = {
   title: 'Popular right now',
   subtitle: 'Where other readers are starting',
 } as const;
+
+/**
+ * The "See all" on a rail that is page one of a collection.
+ *
+ * Nothing when the backend sent no page to open — an older deployment, or a
+ * shelf the admin has hidden — rather than a link that would land on an empty
+ * screen. The count is the whole list's, so the label says what the tap gets.
+ */
+function SeeAll({
+  link,
+  onPress,
+}: {
+  link: ShelfLink | null;
+  onPress: (collectionId: string) => void;
+}) {
+  if (!link) {
+    return null;
+  }
+  return (
+    <RailAction
+      label={`See all ${link.totalCount.toLocaleString('en-US')}`}
+      onPress={() => onPress(link.collectionId)}
+    />
+  );
+}
 
 export function HomeScreen() {
   const navigation = useNavigation<HomeNavigation>();
@@ -196,7 +227,8 @@ export function HomeScreen() {
   // `app_settings.featured_collection_id` is the collection an admin has
   // pinned. The rail keeps the editor's own `sort_order` for everything else
   // and simply leads with that one, so the setting shows up on the home screen
-  // rather than only in the CMS.
+  // rather than only in the CMS. The list itself is already the strip's: the
+  // system shelves and empty collections were left out by the catalog.
   const collections = useMemo(() => {
     const rows = data?.collections ?? [];
     const featuredId = data?.featuredCollectionId;
@@ -347,11 +379,15 @@ export function HomeScreen() {
 
           {/* The weekly draw, as it arrived. The same books in the same order
               for every reader until Monday — so the subtitle says exactly that
-              rather than implying the rail was picked for this one. */}
+              rather than implying the rail was picked for this one. "See all"
+              opens the same draw in full; the rail is its first page. */}
           {data?.trending?.length ? (
             <BookRail
-              title="Trending this week"
-              subtitle="The same shelf for every reader"
+              title={SHELF_COPY.trending.title}
+              subtitle={SHELF_COPY.trending.subtitle}
+              action={
+                <SeeAll link={data.trendingLink} onPress={openCollection} />
+              }
             >
               {data.trending.map((book, index) => (
                 <BookCard
@@ -366,11 +402,17 @@ export function HomeScreen() {
 
           {arrivals.length > 0 ? (
             <BookRail
-              title="New arrivals"
-              subtitle="Fresh on the shelf"
+              title={SHELF_COPY.arrivals.title}
+              subtitle={SHELF_COPY.arrivals.subtitle}
+              action={
+                <SeeAll
+                  link={data?.arrivalsLink ?? null}
+                  onPress={openCollection}
+                />
+              }
               gap={14}
             >
-              {arrivals.slice(0, 8).map(book => (
+              {arrivals.slice(0, HOME_RAIL_LIMIT).map(book => (
                 <BookCard
                   key={book.id}
                   book={toSummary(book)}

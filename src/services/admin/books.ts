@@ -111,19 +111,30 @@ export async function getAdminBook(id: string): Promise<AdminBookDetail> {
   };
 }
 
+/**
+ * A title as a picker shows it: enough to recognise the book and to see
+ * whether putting it on a shelf will do anything — a draft on a shelf is
+ * invisible to readers.
+ */
+export type AdminBookOption = {
+  id: string;
+  title: string;
+  author_name: string;
+  cover_path: string | null;
+  cover_color: string | null;
+  is_published: boolean;
+  is_premium: boolean;
+  collection_ids: string[];
+};
+
+const OPTION_COLUMNS =
+  'id,title,author_name,cover_path,cover_color,is_published,is_premium,collection_ids';
+
 /** Titles a picker can choose from, without the heavy list payload. */
-export async function listBookOptions(query = ''): Promise<
-  Array<{
-    id: string;
-    title: string;
-    author_name: string;
-    cover_path: string | null;
-    cover_color: string | null;
-  }>
-> {
+export async function listBookOptions(query = ''): Promise<AdminBookOption[]> {
   let builder = supabase
     .from('admin_book_rows')
-    .select('id,title,author_name,cover_path,cover_color')
+    .select(OPTION_COLUMNS)
     .order('title')
     .limit(200);
 
@@ -132,13 +143,16 @@ export async function listBookOptions(query = ''): Promise<
     builder = builder.ilike('title', `%${trimmed}%`);
   }
 
-  return unwrap(await builder) as Array<{
-    id: string;
-    title: string;
-    author_name: string;
-    cover_path: string | null;
-    cover_color: string | null;
-  }>;
+  return (unwrap(await builder) as Array<Record<string, unknown>>).map(row => ({
+    id: row.id as string,
+    title: row.title as string,
+    author_name: (row.author_name as string) ?? '',
+    cover_path: (row.cover_path as string | null) ?? null,
+    cover_color: (row.cover_color as string | null) ?? null,
+    is_published: Boolean(row.is_published),
+    is_premium: Boolean(row.is_premium),
+    collection_ids: (row.collection_ids as string[] | null) ?? [],
+  }));
 }
 
 function bookPayload(input: AdminBookInput) {

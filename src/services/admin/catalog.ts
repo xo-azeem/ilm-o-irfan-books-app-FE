@@ -124,15 +124,26 @@ export async function deleteAdminCategory(id: string) {
 // ------------------------------------------------------------ collections
 
 export async function listAdminCollections(): Promise<AdminCollection[]> {
-  return unwrap(
+  const rows = unwrap(
     await supabase
       .from('admin_collection_rows')
       .select(
-        'id,slug,title,subtitle,accent,kind,sort_order,is_published,created_at,updated_at,book_count',
+        'id,slug,title,subtitle,accent,kind,sort_order,is_published,created_at,updated_at,book_count,published_count,is_system',
       )
       .order('sort_order')
       .order('title'),
-  ) as AdminCollection[];
+  ) as Array<
+    Omit<AdminCollection, 'published_count' | 'is_system'> & {
+      published_count: number | null;
+      is_system: boolean | null;
+    }
+  >;
+
+  return rows.map(row => ({
+    ...row,
+    published_count: row.published_count ?? row.book_count,
+    is_system: row.is_system ?? false,
+  }));
 }
 
 /** Ordered membership for the collection editor. */

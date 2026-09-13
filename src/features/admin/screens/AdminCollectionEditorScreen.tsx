@@ -12,7 +12,7 @@ import {
   AdminColorField,
   AdminConfirmSheet,
   AdminPickerSheet,
-  AdminSegmented,
+  type RowBadge,
 } from '@/features/admin/components/AdminControls';
 import { AdminOrderableList } from '@/features/admin/components/AdminOrderableList';
 import { errorMessage, useToast } from '@/features/admin/components/AdminToast';
@@ -42,32 +42,47 @@ import {
   useSaveAdminCollection,
 } from '@/hooks/useAdmin';
 import {
-  COLLECTION_KINDS,
+  adminCoverUrl,
   slugify,
-  type AdminCollectionKind,
+  SYSTEM_SHELF_NOTE,
+  type AdminBookOption,
 } from '@/services/admin';
 import { palette } from '@/theme/palette';
 import { useTheme } from '@/theme/ThemeContext';
 
 import type { AdminLibraryStackParamList } from '../navigation/types';
 
-const KIND_OPTIONS = COLLECTION_KINDS.map(kind => ({
-  value: kind,
-  label: kind.charAt(0).toUpperCase() + kind.slice(1),
-}));
-
-const KIND_HELP: Record<AdminCollectionKind, string> = {
-  hero: 'The full-width carousel at the top of Home. Keep it to a handful of titles.',
-  shelf: 'A horizontal cover row inside Home and Explore.',
-  carousel: 'A card row for themed reading lists.',
-};
+/**
+ * The tags a book carries on a shelf row.
+ *
+ * A draft is the one that matters: it sits in the order the admin made but
+ * readers never see it, so a shelf of drafts is an empty shelf on Home.
+ */
+function bookBadges(book: AdminBookOption | undefined): RowBadge[] {
+  if (!book) {
+    return [];
+  }
+  const badges: RowBadge[] = [];
+  if (!book.is_published) {
+    badges.push({ label: 'DRAFT', tone: 'warning' });
+  }
+  if (book.is_premium) {
+    badges.push({ label: 'PREMIUM', tone: 'premium' });
+  }
+  return badges;
+}
 
 /**
- * A shelf.
+ * A collection.
  *
- * The order of the books inside it is the order readers scroll through, so it
- * is edited here as a list rather than as a number, and an empty shelf says
- * plainly that it will not be rendered at all.
+ * On Home it is a card on the "Curated collections" strip; tapping it opens
+ * every published book on it, in the order arranged here. The order is edited
+ * as a list rather than as a number because it is the order readers scroll
+ * through, and an empty shelf says plainly that it will not be rendered.
+ *
+ * The three system shelves — `home-hero`, `trending`, `new-arrivals` — are
+ * Home's own rails. They can be retitled and hidden here, but not deleted or
+ * re-slugged, and Trending has no book list at all: the server draws it.
  */
 export function AdminCollectionEditorScreen() {
   const navigation = useNavigation();
@@ -91,7 +106,6 @@ export function AdminCollectionEditorScreen() {
     slug: '',
     subtitle: '',
     accent: palette.green as string,
-    kind: 'shelf' as AdminCollectionKind,
     isPublished: true,
     bookIds: [] as string[],
   });
@@ -109,7 +123,6 @@ export function AdminCollectionEditorScreen() {
       slug: existing.slug,
       subtitle: existing.subtitle ?? '',
       accent: existing.accent ?? palette.green,
-      kind: existing.kind,
       isPublished: existing.is_published,
     }));
   }, [existing]);
@@ -127,24 +140,72 @@ export function AdminCollectionEditorScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [collectionId, existing, memberIds]);
 
+  const isSystem = existing?.is_system ?? false;
+  const systemNote = isSystem ? SYSTEM_SHELF_NOTE[existing?.slug ?? ''] : null;
+  // Trending's membership is the server's weekly draw; anything picked here
+  // would be written and then ignored, so the list is not offered at all.
+  const hasBookList = !isSystem || (systemNote?.curated ?? true);
+
   const resolvedSlug = form.slug.trim() || slugify(form.title);
+
+  const bookById = useMemo(
+    () => new Map(books.map(book => [book.id, book])),
+    [books],
+  );
 
   const orderedItems = useMemo(
     () =>
       form.bookIds.map(id => {
-        const book = books.find(item => item.id === id);
+        const book = bookById.get(id);
         return {
           id,
           label: book?.title ?? 'Unknown title',
           sublabel: book?.author_name,
+          coverUrl: adminCoverUrl(book?.cover_path),
+          coverColor: book?.cover_color ?? null,
+          badges: bookBadges(book),
         };
       }),
-    [form.bookIds, books],
+    [form.bookIds, bookById],
   );
+
+  const pickerItems = useMemo(
+    () =>
+      books.map(book => ({
+        id: book.id,
+        label: book.title,
+        sublabel: book.author_name,
+        coverUrl: adminCoverUrl(book.cover_path),
+        coverColor: book.cover_color,
+        badges: bookBadges(book),
+      })),
+    [books],
+  );
+
+  const liveCount = useMemo(
+    () =>
+      form.bookIds.filter(id => bookById.get(id)?.is_published ?? true).length,
+    [form.bookIds, bookById],
+  );
+
+  const subtitle = (() => {
+    if (systemNote && !hasBookList) {
+      return `${systemNote.label} · ${form.isPublished ? 'live on Home' : 'hidden from Home'}`;
+    }
+    if (form.bookIds.length === 0) {
+      return systemNote
+        ? `${systemNote.label} · nothing curated, the newest books stand in`
+        : 'Empty collections are not shown on Home.';
+    }
+    const count = `${form.bookIds.length} ${form.bookIds.length === 1 ? 'book' : 'books'}`;
+    const live =
+      liveCount === form.bookIds.length ? '' : ` · ${liveCount} live`;
+    return `${count}${live} · ${form.isPublished ? 'live on Home' : 'hidden from Home'}`;
+  })();
 
   const handleSave = () => {
     if (!form.title.trim()) {
-      toast.error('Enter a shelf title.');
+      toast.error('Enter a collection title.');
       return;
     }
 
@@ -152,20 +213,26 @@ export function AdminCollectionEditorScreen() {
       {
         id: collectionId,
         title: form.title,
-        slug: resolvedSlug,
+        // A system shelf's slug is its contract with Home; the server refuses
+        // to change it, so it is never sent changed.
+        slug: isSystem ? (existing?.slug ?? resolvedSlug) : resolvedSlug,
         subtitle: form.subtitle,
         accent: form.accent,
-        kind: form.kind,
-        // Position on Home is set on the shelf list, where the whole running
-        // order is visible.
+        // `kind` is not something readers see any more: every collection is
+        // a card on the strip. Existing rows keep whatever they have.
+        kind: existing?.kind ?? 'shelf',
+        // Position on Home is set on the collection list, where the whole
+        // running order is visible.
         sort_order: existing?.sort_order ?? collections.length,
         is_published: form.isPublished,
-        book_ids: form.bookIds,
+        book_ids: hasBookList ? form.bookIds : (memberIds ?? []),
       },
       {
         onSuccess: () => {
           reset();
-          toast.success(collectionId ? 'Shelf saved.' : 'Shelf created.');
+          toast.success(
+            collectionId ? 'Collection saved.' : 'Collection created.',
+          );
           navigation.goBack();
         },
         onError: caught => toast.error(errorMessage(caught)),
@@ -180,9 +247,13 @@ export function AdminCollectionEditorScreen() {
     >
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <AdminBackLink
-          label="Shelves"
+          label="Collections"
           action={
-            isDirty ? <AdminTag label="UNSAVED" tone="warning" /> : undefined
+            isDirty ? (
+              <AdminTag label="UNSAVED" tone="warning" />
+            ) : isSystem ? (
+              <AdminTag label="HOME RAIL" tone="neutral" />
+            ) : undefined
           }
         />
       </View>
@@ -199,15 +270,19 @@ export function AdminCollectionEditorScreen() {
         showsVerticalScrollIndicator={false}
       >
         <AdminScreenTitle
-          title={form.title || (collectionId ? 'Edit shelf' : 'New shelf')}
-          subtitle={
-            form.bookIds.length === 0
-              ? 'Empty shelves are not rendered on Home.'
-              : `${form.bookIds.length} ${form.bookIds.length === 1 ? 'book' : 'books'} · ${
-                  form.isPublished ? 'live on Home' : 'hidden from Home'
-                }`
+          title={
+            form.title || (collectionId ? 'Edit collection' : 'New collection')
           }
+          subtitle={subtitle}
         />
+
+        {systemNote ? (
+          <AdminCard>
+            <Text size={12.5} leading={1.5} tone="muted">
+              {systemNote.note}
+            </Text>
+          </AdminCard>
+        ) : null}
 
         <View style={styles.stack}>
           <AdminField
@@ -226,29 +301,32 @@ export function AdminCollectionEditorScreen() {
             }
             placeholder="Hand-picked reading lists"
             maxLength={120}
+            helper="Shown on the card. Left blank, the card shows the book count."
           />
 
-          <View style={styles.block}>
-            <AdminSectionHeader title="Shape" />
-            <AdminSegmented
-              options={KIND_OPTIONS}
-              value={form.kind}
-              onChange={kind => setForm(current => ({ ...current, kind }))}
+          {isSystem ? (
+            <AdminField
+              label="URL key"
+              value={existing?.slug ?? ''}
+              onChangeText={() => undefined}
+              editable={false}
+              autoCapitalize="none"
+              mono
+              helper="Fixed — Home finds this rail by it."
             />
-            <AdminHelper>{KIND_HELP[form.kind]}</AdminHelper>
-          </View>
-
-          <AdminField
-            label="URL key"
-            value={form.slug}
-            onChangeText={value =>
-              setForm(current => ({ ...current, slug: value }))
-            }
-            placeholder={slugify(form.title) || 'auto-from-title'}
-            autoCapitalize="none"
-            mono
-            helper={`Currently “${resolvedSlug || '—'}”.`}
-          />
+          ) : (
+            <AdminField
+              label="URL key"
+              value={form.slug}
+              onChangeText={value =>
+                setForm(current => ({ ...current, slug: value }))
+              }
+              placeholder={slugify(form.title) || 'auto-from-title'}
+              autoCapitalize="none"
+              mono
+              helper={`Currently “${resolvedSlug || '—'}”.`}
+            />
+          )}
 
           <AdminColorField
             label="Accent"
@@ -256,13 +334,17 @@ export function AdminCollectionEditorScreen() {
             onChange={value =>
               setForm(current => ({ ...current, accent: value }))
             }
-            helper="Tints the row header on Home."
+            helper="Tints the card on Home."
           />
 
           <AdminCard>
             <AdminToggleRow
               label="Show on Home"
-              description="A hidden shelf stays linkable but disappears from Home."
+              description={
+                isSystem
+                  ? 'Hidden, the rail comes off Home entirely.'
+                  : 'A hidden collection stays linkable but disappears from Home.'
+              }
               value={form.isPublished}
               onValueChange={value =>
                 setForm(current => ({ ...current, isPublished: value }))
@@ -271,33 +353,43 @@ export function AdminCollectionEditorScreen() {
           </AdminCard>
         </View>
 
-        <View style={styles.block}>
-          <AdminSectionHeader
-            title="Books, in order"
-            action={
-              <AdminTextAction
-                label="Add books"
-                size={11.5}
-                onPress={() => setShowPicker(true)}
-              />
-            }
-          />
-          <AdminOrderableList
-            items={orderedItems}
-            emptyLabel="No books yet — an empty shelf is not rendered on Home."
-            onChange={next =>
-              setForm(current => ({ ...current, bookIds: next.map(i => i.id) }))
-            }
-          />
-          <AdminHelper>
-            Top to bottom here is left to right on Home.
-          </AdminHelper>
-        </View>
+        {hasBookList ? (
+          <View style={styles.block}>
+            <AdminSectionHeader
+              title="Books, in order"
+              action={
+                <AdminTextAction
+                  label="Add books"
+                  size={11.5}
+                  onPress={() => setShowPicker(true)}
+                />
+              }
+            />
+            <AdminOrderableList
+              items={orderedItems}
+              emptyLabel={
+                systemNote
+                  ? 'Nothing curated — the newest published books stand in.'
+                  : 'No books yet — an empty collection is not shown on Home.'
+              }
+              onChange={next =>
+                setForm(current => ({
+                  ...current,
+                  bookIds: next.map(i => i.id),
+                }))
+              }
+            />
+            <AdminHelper>
+              Top to bottom here is the order readers see. Drafts stay in the
+              order but are not shown until published.
+            </AdminHelper>
+          </View>
+        ) : null}
 
-        {collectionId ? (
+        {collectionId && !isSystem ? (
           <View style={styles.deleteBlock}>
             <AdminTextAction
-              label="Delete this shelf"
+              label="Delete this collection"
               destructive
               size={13}
               onPress={() => setConfirmDelete(true)}
@@ -319,7 +411,7 @@ export function AdminCollectionEditorScreen() {
         ]}
       >
         <AdminButton
-          label={collectionId ? 'Save shelf' : 'Create shelf'}
+          label={collectionId ? 'Save collection' : 'Create collection'}
           loading={save.isPending}
           disabled={!form.title.trim()}
           onPress={handleSave}
@@ -328,14 +420,9 @@ export function AdminCollectionEditorScreen() {
 
       <AdminPickerSheet
         visible={showPicker}
-        title="Books on this shelf"
+        title="Books on this collection"
         multi
-        items={books.map(book => ({
-          id: book.id,
-          label: book.title,
-          sublabel: book.author_name,
-          accent: book.cover_color,
-        }))}
+        items={pickerItems}
         selected={form.bookIds}
         emptyLabel="No books in the catalog yet."
         onClose={() => setShowPicker(false)}
@@ -344,17 +431,17 @@ export function AdminCollectionEditorScreen() {
 
       <AdminConfirmSheet
         visible={confirmDelete}
-        title={`Delete ${form.title || 'this shelf'}?`}
+        title={`Delete ${form.title || 'this collection'}?`}
         message="The books themselves are kept. What goes:"
         consequences={[
-          'This row on Home',
+          'Its card on Home',
           `The hand-made order of ${form.bookIds.length} ${
             form.bookIds.length === 1 ? 'title' : 'titles'
           }`,
         ]}
         confirmLabel="Delete"
         destructive
-        footnote="Hiding it keeps the shelf and its order."
+        footnote="Hiding it keeps the collection and its order."
         loading={remove.isPending}
         onCancel={() => setConfirmDelete(false)}
         onConfirm={() =>
@@ -363,7 +450,7 @@ export function AdminCollectionEditorScreen() {
             onSuccess: () => {
               setConfirmDelete(false);
               reset();
-              toast.success('Shelf deleted.');
+              toast.success('Collection deleted.');
               navigation.goBack();
             },
             onError: caught => {

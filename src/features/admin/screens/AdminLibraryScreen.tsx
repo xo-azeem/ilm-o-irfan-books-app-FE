@@ -73,7 +73,7 @@ const SEGMENTS: ReadonlyArray<{ value: LibrarySegment; label: string }> = [
   { value: 'books', label: 'Books' },
   { value: 'authors', label: 'Authors' },
   { value: 'categories', label: 'Categories' },
-  { value: 'shelves', label: 'Shelves' },
+  { value: 'shelves', label: 'Collections' },
 ];
 
 const ACCESS_LABEL: Record<BookAccessFilter, string> = {
@@ -610,7 +610,7 @@ export function AdminLibraryScreen() {
           "Every reader's progress and bookmarks",
           'Downloads already on readers’ devices',
           'The uploaded PDF and cover',
-          'Its place in every shelf',
+          'Its place in every collection',
         ]}
         confirmLabel="Delete"
         destructive

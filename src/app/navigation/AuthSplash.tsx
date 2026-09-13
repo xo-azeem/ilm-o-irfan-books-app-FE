@@ -84,8 +84,13 @@ const FLOAT_PT = 4;
  * ring lands at ~1050ms, which is what this is sized around.
  */
 const MIN_VISIBLE_MS = 1150;
-/** Give the navigator a beat to mount/paint under the splash before exit. */
-const SETTLE_MS = 140;
+/**
+ * How long past the exit's own length the splash waits for the animation to
+ * report back before handing over anyway. Generous on purpose: this is a
+ * safety net for a callback that never comes, not a second clock racing the
+ * first.
+ */
+const FALLBACK_GRACE_MS = 400;
 
 // ── Beat 3: the exit ────────────────────────────────────────────────────────
 // The Netflix exit is three things, and it falls flat without all of them: a
@@ -291,18 +296,39 @@ export function AuthSplash({ ready = false, onFinished }: AuthSplashProps) {
       );
     };
 
-    const wait = Math.max(
-      SETTLE_MS,
-      MIN_VISIBLE_MS - (Date.now() - mountedAt.current),
-    );
-    const timer = setTimeout(playExit, wait);
-    // If the exit's completion callback never fires — an interrupted animation,
-    // a backgrounded app — the splash still hands over rather than sticking.
-    const fallbackTimer = setTimeout(finish, wait + EXIT_MS + 80);
+    // `ready` arrives in the same commit that mounts the whole navigator under
+    // this screen — the heaviest JS work of the launch. A timer armed here
+    // fires late behind that work, and used to fire back to back with the
+    // fallback below, which then unmounted the splash a frame into its own
+    // exit. So the exit waits for the minimum hold, then for two frames: the
+    // first callback runs once the JS thread is free again, the second once
+    // the frame the mount produced has actually been painted. The fade then
+    // reveals a page that is already on the glass, not one still being drawn.
+    let frame = 0;
+    let fallbackTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const exitOncePainted = () => {
+      frame = requestAnimationFrame(() => {
+        frame = requestAnimationFrame(() => {
+          playExit();
+          // If the exit's completion callback never fires — an interrupted
+          // animation, a backgrounded app — the splash still hands over rather
+          // than sticking. Counted from the exit's real start, so it can never
+          // land in the middle of the animation.
+          fallbackTimer = setTimeout(finish, EXIT_MS + FALLBACK_GRACE_MS);
+        });
+      });
+    };
+
+    const wait = Math.max(0, MIN_VISIBLE_MS - (Date.now() - mountedAt.current));
+    const timer = setTimeout(exitOncePainted, wait);
 
     return () => {
       clearTimeout(timer);
-      clearTimeout(fallbackTimer);
+      cancelAnimationFrame(frame);
+      if (fallbackTimer !== undefined) {
+        clearTimeout(fallbackTimer);
+      }
       cancelAnimation(overlayOpacity);
     };
   }, [exitScale, finish, markY, overlayOpacity, pulse, ready, reduceMotion]);

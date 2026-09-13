@@ -1,7 +1,9 @@
 import {
   keepPreviousData,
+  queryOptions,
   useInfiniteQuery,
   useQuery,
+  type QueryClient,
 } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
@@ -16,15 +18,35 @@ import {
   type CatalogFilters,
 } from '@/services/catalog';
 
-/** The carousel, the weekly draw and the rest of Home in one round trip. */
+/**
+ * The carousel, the weekly draw and the rest of Home in one round trip.
+ *
+ * Defined once so the splash can warm exactly the query Home will read: the
+ * key, the function and the stale window have to agree, or the prefetch lands
+ * in a slot Home never looks at and the skeleton shows regardless.
+ */
+export const homeCatalogQuery = queryOptions({
+  queryKey: ['catalog', 'home'],
+  queryFn: ({ signal }) => getHomeCatalog(signal),
+  staleTime: 5 * 60_000,
+  retry: 1,
+  retryDelay: 1_000,
+});
+
 export function useHomeCatalog() {
-  return useQuery({
-    queryKey: ['catalog', 'home'],
-    queryFn: ({ signal }) => getHomeCatalog(signal),
-    staleTime: 5 * 60_000,
-    retry: 1,
-    retryDelay: 1_000,
-  });
+  return useQuery(homeCatalogQuery);
+}
+
+/**
+ * Starts the Home feed request without a screen to read it.
+ *
+ * Fired from under the splash, so the round trip overlaps the session check
+ * instead of waiting behind it. Resolves once the request has settled either
+ * way — a failed feed is Home's error state to draw, not a reason to hold the
+ * splash — and never throws.
+ */
+export function prefetchHomeCatalog(client: QueryClient): Promise<void> {
+  return client.prefetchQuery(homeCatalogQuery);
 }
 
 /**

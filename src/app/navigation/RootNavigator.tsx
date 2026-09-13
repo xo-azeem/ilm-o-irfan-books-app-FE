@@ -27,6 +27,8 @@ import { ProfileNavigator } from '@/features/profile/navigation/ProfileNavigator
 import { BookReaderScreen } from '@/features/reader/screens/BookReaderScreen';
 import { SearchScreen } from '@/features/search/screens/SearchScreen';
 import { WishlistScreen } from '@/features/wishlist/screens/WishlistScreen';
+import { prefetchHomeCatalog } from '@/hooks/useCatalog';
+import { queryClient } from '@/lib/queryClient';
 import { useAuthStore } from '@/stores/authStore';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useTheme } from '@/theme/ThemeContext';
@@ -35,6 +37,13 @@ import type { RootStackParamList, RootTabParamList } from './types';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+/**
+ * The most the Home feed may add to the splash once the session is known.
+ * Long enough for a typical round trip to land, short enough that a stalled
+ * request shows a skeleton rather than a logo that never leaves.
+ */
+const FEED_HOLD_MS = 1500;
 
 function renderTabBar(props: BottomTabBarProps) {
   return <MainTabBar {...props} />;
@@ -135,6 +144,50 @@ export function RootNavigator() {
   // onboarding flag was cleared but the session survived in the keychain.
   const needsOnboarding = !onboarded && !isAuthenticated && !isAdmin;
 
+  // ── Warming Home under the splash ─────────────────────────────────────────
+  // The splash holds for at least a second anyway, and for a signed-in reader
+  // the session check is a network round trip on top of that. The Home feed
+  // used to start only once all of that had finished and Home had mounted —
+  // so the splash lifted onto a skeleton, and the real page dropped in half a
+  // second later, mid-fade. Starting the feed here instead lets it overlap the
+  // session check, and Home draws its first frame with data already in hand.
+  const [homeFeedSettled, setHomeFeedSettled] = useState(false);
+  useEffect(() => {
+    if (!isHydrated || needsOnboarding) {
+      return;
+    }
+    let mounted = true;
+    void prefetchHomeCatalog(queryClient).finally(() => {
+      if (mounted) {
+        setHomeFeedSettled(true);
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [isHydrated, needsOnboarding]);
+
+  // Whether the first screen under the splash is Home. The admin tool and
+  // first-run have nothing to wait for. (Sign-in is not a launch destination:
+  // `wantsSignIn` is transient and only ever set from first-run, after this.)
+  const landsOnHome = !isAdmin && !needsOnboarding;
+
+  // The feed is allowed to hold the splash, but only briefly: past this the
+  // skeleton is the honest state, and a slow network should not look like a
+  // hung app. Counted from the session resolving, not from launch, so a slow
+  // session check does not eat the whole allowance before the feed gets any.
+  const [feedHoldExpired, setFeedHoldExpired] = useState(false);
+  useEffect(() => {
+    if (!sessionReady) {
+      return;
+    }
+    const timer = setTimeout(() => setFeedHoldExpired(true), FEED_HOLD_MS);
+    return () => clearTimeout(timer);
+  }, [sessionReady]);
+
+  const splashReady =
+    sessionReady && (!landsOnHome || homeFeedSettled || feedHoldExpired);
+
   const navigationTheme = useMemo(
     () => ({
       ...(isDark ? DarkTheme : DefaultTheme),
@@ -173,7 +226,7 @@ export function RootNavigator() {
       ) : null}
       {splashVisible ? (
         <View style={styles.splashLayer} pointerEvents="auto">
-          <AuthSplash ready={sessionReady} onFinished={hideSplash} />
+          <AuthSplash ready={splashReady} onFinished={hideSplash} />
         </View>
       ) : null}
     </View>

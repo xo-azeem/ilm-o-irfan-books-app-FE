@@ -1068,8 +1068,11 @@ export async function getPlans(signal?: AbortSignal): Promise<PlanRow[]> {
     async () => {
       const result = await supabase
         .from('plans')
+        // All three SKU columns: the paywall matches the store's own before
+        // the shared alias, the way the webhook does. One literal, because
+        // supabase-js types the result from the string it is given.
         .select(
-          'id,code,name,price_cents,currency,interval,features,revenuecat_product_id,is_active,sort_order',
+          'id,code,name,price_cents,currency,interval,features,revenuecat_product_id,app_store_product_id,play_store_product_id,is_active,sort_order',
         )
         .eq('is_active', true)
         .order('sort_order');

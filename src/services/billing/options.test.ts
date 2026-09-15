@@ -90,6 +90,85 @@ describe('matching a store package to a plan', () => {
     );
   });
 
+  it('prefers this store’s SKU column over the shared alias', () => {
+    // Two plans claim the same string: one as its Apple SKU, the other only as
+    // the shared alias. On iOS the webhook grants the first, so the paywall
+    // must label the package with the first.
+    const collidingPlans: PlanLike[] = [
+      {
+        code: 'premium_yearly',
+        name: 'Yearly',
+        interval: 'year',
+        features: [],
+        revenuecat_product_id: 'shared_alias',
+      },
+      {
+        code: DEFAULT_CODE,
+        name: 'Monthly',
+        interval: 'month',
+        features: [],
+        app_store_product_id: 'shared_alias',
+      },
+    ];
+    const pkg: PackageLike = { ...monthly, productId: 'shared_alias' };
+
+    assert.equal(
+      planForPackage(pkg, collidingPlans, DEFAULT_CODE, 'app_store')?.code,
+      DEFAULT_CODE,
+    );
+    // Unknown store has nothing better to go on and keeps the alias first.
+    assert.equal(
+      planForPackage(pkg, collidingPlans, DEFAULT_CODE)?.code,
+      'premium_yearly',
+    );
+  });
+
+  it('never matches a known store against the other store’s column', () => {
+    // Apple and Play SKUs are independent namespaces, so a hit on the other
+    // store's column is a coincidence. The webhook falls back to the default
+    // plan code rather than believing it; so does this.
+    const playOnly: PlanLike[] = [
+      {
+        code: 'premium_yearly',
+        name: 'Yearly',
+        interval: 'year',
+        features: [],
+        play_store_product_id: 'play_only_sku',
+      },
+      { code: DEFAULT_CODE, name: 'Monthly', interval: 'month', features: [] },
+    ];
+    const applePkg: PackageLike = { ...monthly, productId: 'play_only_sku' };
+
+    assert.equal(
+      planForPackage(applePkg, playOnly, DEFAULT_CODE, 'app_store')?.code,
+      DEFAULT_CODE,
+    );
+    assert.equal(
+      planForPackage(applePkg, playOnly, DEFAULT_CODE, 'play_store')?.code,
+      'premium_yearly',
+    );
+  });
+
+  it('matches nothing on a package with no product id', () => {
+    // A plan carries `undefined` for every column it does not set, so a blank
+    // product id must not be allowed to equal one.
+    const sparse: PlanLike[] = [
+      {
+        code: 'premium_yearly',
+        name: 'Yearly',
+        interval: 'year',
+        features: [],
+      },
+      { code: DEFAULT_CODE, name: 'Monthly', interval: 'month', features: [] },
+    ];
+    const blank: PackageLike = { ...monthly, productId: '' };
+
+    assert.equal(
+      planForPackage(blank, sparse, DEFAULT_CODE, 'app_store')?.code,
+      DEFAULT_CODE,
+    );
+  });
+
   it('falls back to the default plan code, mirroring the webhook', () => {
     const unknown: PackageLike = {
       ...monthly,

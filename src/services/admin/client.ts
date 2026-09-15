@@ -12,6 +12,22 @@ const FRIENDLY_ERRORS: Array<[RegExp, string]> = [
     'That slug is already taken. Try a different one.',
   ],
   [/duplicate key value.*code/i, 'That plan code is already taken.'],
+  // One SKU belongs to one plan: the webhook resolves a purchase by looking
+  // the product id up, so two plans claiming it would make the grant a
+  // coin-toss. The database enforces that with a unique index per column, and
+  // its message names the index rather than the field an operator typed in.
+  [
+    /duplicate key value.*plans_app_store_product_id/i,
+    'Another plan already uses that App Store product id.',
+  ],
+  [
+    /duplicate key value.*plans_play_store_product_id/i,
+    'Another plan already uses that Play Store product id.',
+  ],
+  [
+    /duplicate key value.*plans_revenuecat_product_id/i,
+    'Another plan already uses that shared / RevenueCat product id.',
+  ],
   [/books_published_needs_pdf/i, 'Upload a PDF before publishing this title.'],
   [
     /still referenced by a book/i,

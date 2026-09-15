@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { getPlans } from '@/services/catalog';
 import {
+  BILLING_STORE,
   PREMIUM_PLAN_CODE,
   getBillingOffering,
   isBillingAvailable,
@@ -87,7 +88,12 @@ export function useMembershipOptions() {
 
   const options = useMemo<MembershipOption[]>(
     () =>
-      buildMembershipRows(offering?.packages ?? [], plans, PREMIUM_PLAN_CODE),
+      buildMembershipRows(
+        offering?.packages ?? [],
+        plans,
+        PREMIUM_PLAN_CODE,
+        BILLING_STORE,
+      ),
     [offering?.packages, plans],
   );
 

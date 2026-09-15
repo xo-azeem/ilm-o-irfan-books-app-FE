@@ -48,21 +48,48 @@ export type MembershipRow<P extends PackageLike> = {
   recommended: boolean;
 };
 
-function planClaimsProductId(plan: PlanLike, productId: string): boolean {
-  return (
-    plan.revenuecat_product_id === productId ||
-    plan.app_store_product_id === productId ||
-    plan.play_store_product_id === productId
-  );
+/** Which store the packages came from. `unknown` outside iOS and Android. */
+export type BillingStore = 'app_store' | 'play_store' | 'unknown';
+
+type PlanProductColumn =
+  'revenuecat_product_id' | 'app_store_product_id' | 'play_store_product_id';
+
+/**
+ * The columns a product id may be matched against, in order of preference.
+ *
+ * Quoted from the backend's `preferredPlanProductColumns` so the label beside a
+ * price names the plan the webhook will actually grant. A known store never
+ * falls back to the *other* store's column: App Store and Play SKUs are
+ * independent namespaces, so a match there is a coincidence rather than the
+ * plan the reader is buying. The shared `revenuecat_product_id` alias stays in
+ * every list — it is what a catalogue that has not split its SKUs still uses.
+ */
+function productColumnsFor(store: BillingStore): PlanProductColumn[] {
+  if (store === 'app_store') {
+    return ['app_store_product_id', 'revenuecat_product_id'];
+  }
+  if (store === 'play_store') {
+    return ['play_store_product_id', 'revenuecat_product_id'];
+  }
+  return [
+    'revenuecat_product_id',
+    'app_store_product_id',
+    'play_store_product_id',
+  ];
 }
 
 /**
  * The plan a package belongs to.
  *
- * Matched on any of `revenuecat_product_id` / `app_store_product_id` /
- * `play_store_product_id`, matching the backend webhook. A product no plan
- * claims falls back to the default plan code, mirroring the webhook, and failing
- * that to nothing: the package is still buyable with the store's own title.
+ * Matched the way the backend webhook matches — store-specific SKU first, then
+ * the shared alias — so the copy beside a price describes the plan the purchase
+ * will actually grant. A product no plan claims falls back to the default plan
+ * code, mirroring the webhook's own fallback, and failing that to nothing: the
+ * package is still perfectly buyable, it just carries the store's own title.
+ *
+ * Column order matters rather than merely which columns are searched: a plan
+ * that claims this id on the store's own column wins over one that only claims
+ * it on the shared alias, which is the webhook's resolution too.
  *
  * Apple Pay and Google Pay are payment methods inside the App Store / Play
  * sheets — not separate product ids.
@@ -71,11 +98,21 @@ export function planForPackage<P extends PackageLike, T extends PlanLike>(
   item: P,
   plans: T[] | undefined,
   defaultPlanCode: string,
+  store: BillingStore = 'unknown',
 ): T | undefined {
-  return (
-    plans?.find(plan => planClaimsProductId(plan, item.productId)) ??
-    plans?.find(plan => plan.code === defaultPlanCode)
-  );
+  // A package with no product id matches nothing. Without this an absent id
+  // would equal the `undefined` a plan carries for a column it does not set,
+  // handing the reader the first plan in the list.
+  if (item.productId) {
+    for (const column of productColumnsFor(store)) {
+      const match = plans?.find(plan => plan[column] === item.productId);
+      if (match) {
+        return match;
+      }
+    }
+  }
+
+  return plans?.find(plan => plan.code === defaultPlanCode);
 }
 
 function featuresOf(plan: PlanLike | undefined): string[] {
@@ -89,9 +126,10 @@ export function buildMembershipRows<P extends PackageLike, T extends PlanLike>(
   packages: P[],
   plans: T[] | undefined,
   defaultPlanCode: string,
+  store: BillingStore = 'unknown',
 ): MembershipRow<P>[] {
   return packages.map(item => {
-    const plan = planForPackage(item, plans, defaultPlanCode);
+    const plan = planForPackage(item, plans, defaultPlanCode, store);
 
     return {
       id: item.id,

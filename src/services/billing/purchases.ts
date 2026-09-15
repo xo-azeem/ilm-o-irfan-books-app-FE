@@ -9,6 +9,7 @@ import Purchases, {
 } from 'react-native-purchases';
 
 import { env } from '@/config/env';
+import type { BillingStore } from '@/services/billing/options';
 
 /**
  * Checkout.
@@ -37,6 +38,22 @@ export const PREMIUM_ENTITLEMENT = 'premium';
 
 /** The plan code the backend falls back to when it cannot match a product. */
 export const PREMIUM_PLAN_CODE = 'premium_monthly';
+
+/**
+ * The store this build buys from, in the backend's own vocabulary.
+ *
+ * The paywall matches a package to a plan on the SKU column for this store
+ * before the shared alias, exactly as the webhook does — see
+ * `options.planForPackage`. Anything that is neither iOS nor Android has no
+ * store sheet to open, so it matches the way an event with an unknown store
+ * does.
+ */
+export const BILLING_STORE: BillingStore =
+  Platform.OS === 'ios'
+    ? 'app_store'
+    : Platform.OS === 'android'
+      ? 'play_store'
+      : 'unknown';
 
 /**
  * Whether the store SDK can be used at all.
@@ -258,7 +275,25 @@ export async function purchaseMembership(
     throw new Error('Membership cannot be purchased in this build.');
   }
 
-  const canPay = await Purchases.canMakePayments();
+  // Advisory, never a gate of its own: a device that cannot pay is worth
+  // saying so before opening a sheet that cannot complete, but the probe
+  // failing is not evidence of anything. On some Android builds it throws
+  // outright (no Play Services), and refusing the purchase on that would deny
+  // checkout to readers whose store is perfectly able to take the money. Only
+  // a definite `false` stops us; anything else falls through to the store,
+  // which is the authority either way.
+  let canPay = true;
+  try {
+    canPay = await Purchases.canMakePayments();
+  } catch (error) {
+    if (__DEV__) {
+      console.warn(
+        '[billing] canMakePayments failed; opening the sheet',
+        error,
+      );
+    }
+  }
+
   if (!canPay) {
     throw new Error(
       Platform.OS === 'ios'

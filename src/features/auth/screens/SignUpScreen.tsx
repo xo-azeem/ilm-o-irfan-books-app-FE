@@ -1,6 +1,5 @@
 import { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { MailCheck } from 'lucide-react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -13,7 +12,13 @@ import { AuthField } from '@/features/auth/components/AuthField';
 import { AuthLayout } from '@/features/auth/components/AuthLayout';
 import { GoogleSignInButton } from '@/features/auth/components/GoogleSignInButton';
 import { resumeAfterAuth, waitForAccessCheck } from '@/lib/access';
-import { signInWithEmail, signUpWithEmail } from '@/lib/supabase';
+import {
+  GoogleSignInCancelled,
+  isGoogleSignInAvailable,
+  signInWithEmail,
+  signInWithGoogle,
+  signUpWithEmail,
+} from '@/lib/supabase';
 import { fontSize } from '@/theme/typography';
 
 type SignUpForm = {
@@ -44,6 +49,7 @@ export function SignUpScreen() {
 
   const [form, setForm] = useState<SignUpForm>(initialForm);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleBusy, setIsGoogleBusy] = useState(false);
 
   const updateField = useCallback((key: keyof SignUpForm, value: string) => {
     setForm(current => ({ ...current, [key]: value }));
@@ -107,12 +113,12 @@ export function SignUpScreen() {
         password: form.password,
       });
 
-      // The backend has email confirmation off, so `signUp` normally answers
-      // with a session. When it does not — an older project with confirmation
-      // on, or Supabase's enumeration guard handing back a bare user for an
-      // address that already exists — a password sign-in settles it: it either
-      // lands the reader in the app or fails with the real reason, and only
-      // then is the "check your email" route worth showing.
+      // With email confirmation on, `signUp` answers without a session. It
+      // also does so for Supabase's enumeration guard — a bare user for an
+      // address that already exists — so a password sign-in settles which it
+      // was: it either lands the reader in the app, or fails and the verify
+      // screen takes over (a real duplicate fails there too, with the real
+      // reason, once the reader tries the code).
       if (!data.session) {
         try {
           data = await signInWithEmail({
@@ -125,25 +131,9 @@ export function SignUpScreen() {
       }
 
       if (!data.session) {
-        // Not dismissable: the only way on is the button, which lands the
-        // reader on sign-in rather than leaving them on a form already sent.
-        showDialog({
-          title: 'Check your email',
-          message:
-            'Account created. Confirm your email if required, then sign in.',
-          tone: 'success',
-          icon: MailCheck,
-          dismissable: false,
-          actions: [
-            {
-              label: 'OK',
-              onPress: () =>
-                navigation.navigate(
-                  ROUTES.LOGIN,
-                  returnTo ? { returnTo } : undefined,
-                ),
-            },
-          ],
+        navigation.navigate(ROUTES.VERIFY_EMAIL, {
+          email: form.email.trim(),
+          ...(returnTo ? { returnTo } : null),
         });
         return;
       }
@@ -164,14 +154,40 @@ export function SignUpScreen() {
     }
   }, [form, navigation, returnTo, validateForm]);
 
-  const handleGoogleSignUp = useCallback(() => {
-    showDialog({
-      title: 'Coming soon',
-      message:
-        'Google sign-up will be enabled after OAuth is configured in Supabase.',
-      tone: 'info',
-    });
-  }, []);
+  const handleGoogleSignUp = useCallback(async () => {
+    if (!isGoogleSignInAvailable()) {
+      showDialog({
+        title: 'Google sign-up unavailable',
+        message:
+          'This build has no Google client configured. Create an account with your email instead.',
+        tone: 'info',
+      });
+      return;
+    }
+
+    setIsGoogleBusy(true);
+    try {
+      // Google has already verified the address, so there is no code step;
+      // an existing account with the same email is simply signed in.
+      const data = await signInWithGoogle();
+      const userId = data.user?.id;
+      if (userId) {
+        await waitForAccessCheck(userId);
+      }
+      resumeAfterAuth(navigation, returnTo);
+    } catch (error) {
+      if (error instanceof GoogleSignInCancelled) {
+        return;
+      }
+      showDialog({
+        title: 'Google sign-up failed',
+        message: error instanceof Error ? error.message : 'Please try again.',
+        tone: 'danger',
+      });
+    } finally {
+      setIsGoogleBusy(false);
+    }
+  }, [navigation, returnTo]);
 
   const goToSignIn = useCallback(
     () =>
@@ -269,8 +285,9 @@ export function SignUpScreen() {
       <AuthDivider />
 
       <GoogleSignInButton
-        label="Sign up with Google"
+        label={isGoogleBusy ? 'Opening Google…' : 'Sign up with Google'}
         onPress={handleGoogleSignUp}
+        disabled={isGoogleBusy || isSubmitting}
       />
     </AuthLayout>
   );

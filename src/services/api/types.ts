@@ -418,6 +418,12 @@ export type EntitlementRow = {
   starts_at: string | null;
   expires_at: string | null;
   store: string | null;
+  /**
+   * When the reader last asked, in the app, to cancel. The store confirms by
+   * webhook (`status` → `cancelled`); until then the membership still renews.
+   * Absent on a deployment that predates the cancel flow.
+   */
+  cancel_requested_at?: string | null;
   updated_at: string | null;
   plan?: PlanRow | PlanRow[] | null;
   plans?: PlanRow | PlanRow[] | null;
@@ -532,9 +538,37 @@ export type EntitlementStatus = {
   secondsRemaining?: number | null;
   /** For the paywall's wording, never for the decision. */
   reason?: AccessReason | null;
+  /**
+   * The cancel flow. `store` names the sheet the app opens; a pending request
+   * is one the reader made that the store has not confirmed by webhook yet,
+   * so the membership still renews. All absent on an older deployment.
+   */
+  store?: string | null;
+  cancelRequestedAt?: string | null;
+  cancelPending?: boolean;
   /** The server's own clock, which the countdown is anchored to. */
   serverTime?: string | null;
   realtime?: EntitlementRealtime | null;
+};
+
+/**
+ * What `subscription-cancel` answers: the access state as `entitlements-status`
+ * would now report it, plus what the request did.
+ */
+export type CancellationReceipt = Pick<
+  EntitlementStatus,
+  | 'status'
+  | 'expiresAt'
+  | 'reason'
+  | 'store'
+  | 'cancelRequestedAt'
+  | 'cancelPending'
+> & {
+  /** False when the row was already `cancelled` — nothing was written. */
+  requested: boolean;
+  alreadyCancelled: boolean;
+  /** The store's subscriptions page, for when the native sheet cannot open. */
+  manageUrl?: string | null;
 };
 
 /** The `access` block `get-signed-pdf` returns alongside the signed URL. */

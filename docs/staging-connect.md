@@ -10,6 +10,7 @@
 | `SUPABASE_URL` | `https://rwnmckrepvycydmtgvcq.supabase.co` (staging) |
 | `SUPABASE_ANON_KEY` | Dashboard → Settings → API → anon / public |
 | `REVENUECAT_IOS_KEY` / `REVENUECAT_ANDROID_KEY` | Public SDK keys. Leave empty on a build with no store products — checkout reports itself unavailable and everything else works. |
+| `GOOGLE_WEB_CLIENT_ID` / `GOOGLE_IOS_CLIENT_ID` | Public OAuth client ids for native Google sign-in — see [auth.md](./auth.md). Leave empty to hide Google sign-in. After setting the iOS id run `npm run google:ios-scheme`. |
 
 Never put `service_role` or `REVENUECAT_WEBHOOK_AUTH` in the app.
 

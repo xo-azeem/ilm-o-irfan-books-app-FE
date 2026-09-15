@@ -24,6 +24,9 @@ import { ROUTES } from '@/constants/routes';
 import { AdminNavigator } from '@/features/admin/navigation/AdminNavigator';
 import { LoginScreen } from '@/features/auth/screens/LoginScreen';
 import { SignUpScreen } from '@/features/auth/screens/SignUpScreen';
+import { ForgotPasswordScreen } from '@/features/auth/screens/ForgotPasswordScreen';
+import { ResetPasswordScreen } from '@/features/auth/screens/ResetPasswordScreen';
+import { VerifyEmailScreen } from '@/features/auth/screens/VerifyEmailScreen';
 import { BookDetailScreen } from '@/features/book-detail/screens/BookDetailScreen';
 import { CollectionScreen } from '@/features/collection/screens/CollectionScreen';
 import { HomeScreen } from '@/features/home/screens/HomeScreen';
@@ -113,6 +116,21 @@ function ConsumerNavigator() {
       <Stack.Screen
         name={ROUTES.SIGN_UP}
         component={SignUpScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name={ROUTES.VERIFY_EMAIL}
+        component={VerifyEmailScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name={ROUTES.FORGOT_PASSWORD}
+        component={ForgotPasswordScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name={ROUTES.RESET_PASSWORD}
+        component={ResetPasswordScreen}
         options={{ animation: 'slide_from_right' }}
       />
       <Stack.Screen

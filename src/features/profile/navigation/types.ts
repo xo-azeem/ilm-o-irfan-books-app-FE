@@ -9,6 +9,12 @@ export type ProfileStackParamList = {
   Language: undefined;
   HelpCenter: undefined;
   PrivacySecurity: undefined;
+  /** Email verification state and the Google link. */
+  SignInMethods: undefined;
+  /** New password with an emailed code. */
+  ChangePassword: undefined;
+  /** Every session on the account, and the power to end the others. */
+  Devices: undefined;
 };
 
 export type ProfileStackScreen = Exclude<

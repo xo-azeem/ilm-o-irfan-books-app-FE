@@ -17,22 +17,26 @@ export const GoogleSignInButton = memo(function GoogleSignInButton({
   label = 'Continue with Google',
   /** Guest access is preserved from the current build; it uses the same shell. */
   showLogo = true,
+  disabled = false,
 }: {
   onPress?: () => void;
   label?: string;
   showLogo?: boolean;
+  disabled?: boolean;
 }) {
   const { colors } = useTheme();
 
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={label}
+      accessibilityState={{ disabled }}
       style={({ pressed }) => [
         styles.button,
         { borderColor: colors.borderStrong },
-        pressed && styles.pressed,
+        (pressed || disabled) && styles.pressed,
       ]}
     >
       {showLogo ? <GoogleLogoIcon size={18} /> : null}

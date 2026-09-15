@@ -14,6 +14,19 @@ export type AuthReturnTo = {
 export type RootStackParamList = {
   Login: { returnTo?: AuthReturnTo } | undefined;
   SignUp: { returnTo?: AuthReturnTo } | undefined;
+  /** Sign-up confirmation: the code from the email, or the link opened here. */
+  VerifyEmail: { email: string; returnTo?: AuthReturnTo };
+  ForgotPassword: { email?: string; returnTo?: AuthReturnTo } | undefined;
+  /**
+   * Set a new password. From the forgot-password email: the code plus the new
+   * password. From the recovery link (`viaLink`): the session is already set
+   * by AuthLinkProvider, so only the new password is asked for.
+   */
+  ResetPassword: {
+    email?: string;
+    viaLink?: boolean;
+    returnTo?: AuthReturnTo;
+  };
   MainTabs: NavigatorScreenParams<RootTabParamList> | undefined;
   BookDetail: { bookId: string };
   BookReader: { bookId: string };

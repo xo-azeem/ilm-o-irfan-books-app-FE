@@ -19,14 +19,17 @@ export type PushKind =
   | 'book_file_replaced'
   | 'book_updated'
   | 'membership_activated'
-  | 'membership_expired';
+  | 'membership_expired'
+  | 'account_deletion_approved'
+  | 'account_deletion_rejected';
 
 export type PushIntent =
   | { route: 'book'; bookId: string }
   | { route: 'collection'; collectionId: string }
   | { route: 'home' }
   | { route: 'library' }
-  | { route: 'membership' };
+  | { route: 'membership' }
+  | { route: 'privacy' };
 
 export type PushPayload = {
   kind: PushKind | null;
@@ -47,6 +50,8 @@ const KINDS: ReadonlySet<string> = new Set([
   'book_updated',
   'membership_activated',
   'membership_expired',
+  'account_deletion_approved',
+  'account_deletion_rejected',
 ]);
 
 function text(value: unknown): string | null {
@@ -67,6 +72,8 @@ function parseIntent(data: Record<string, unknown>): PushIntent | null {
       return { route: 'library' };
     case 'membership':
       return { route: 'membership' };
+    case 'privacy':
+      return { route: 'privacy' };
     default:
       return null;
   }
@@ -135,6 +142,12 @@ export function applyPushSideEffects(payload: PushPayload): void {
     case 'membership_expired':
       void useAccessStore.getState().refresh();
       void queryClient.invalidateQueries({ queryKey: ['subscription'] });
+      break;
+
+    case 'account_deletion_approved':
+    case 'account_deletion_rejected':
+      // Privacy & security shows the decision the moment it is looked at.
+      void queryClient.invalidateQueries({ queryKey: ['account', 'deletion'] });
       break;
 
     default:

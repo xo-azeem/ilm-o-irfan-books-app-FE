@@ -10,6 +10,9 @@ export const ROUTES = {
   WISHLIST: 'Wishlist',
   LOGIN: 'Login',
   SIGN_UP: 'SignUp',
+  VERIFY_EMAIL: 'VerifyEmail',
+  FORGOT_PASSWORD: 'ForgotPassword',
+  RESET_PASSWORD: 'ResetPassword',
 } as const;
 
 export type RouteName = (typeof ROUTES)[keyof typeof ROUTES];
@@ -26,6 +29,9 @@ export const ROUTE_LABELS: Record<RouteName, string> = {
   [ROUTES.WISHLIST]: 'Wishlist',
   [ROUTES.LOGIN]: 'Login',
   [ROUTES.SIGN_UP]: 'Sign up',
+  [ROUTES.VERIFY_EMAIL]: 'Verify email',
+  [ROUTES.FORGOT_PASSWORD]: 'Forgot password',
+  [ROUTES.RESET_PASSWORD]: 'Reset password',
 };
 
 /**

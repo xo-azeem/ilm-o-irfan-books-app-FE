@@ -1,9 +1,10 @@
 import { useCallback, useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Linking, StyleSheet, View } from 'react-native';
 
 import {
   Badge,
   Button,
+  Callout,
   Card,
   Display,
   Divider,
@@ -15,30 +16,50 @@ import {
   Text,
   TextButton,
 } from '@/components/ui';
-import { Check, CreditCard, Hourglass, Store } from 'lucide-react-native';
+import {
+  CalendarClock,
+  Check,
+  CreditCard,
+  Hourglass,
+  Mail,
+  Store,
+} from 'lucide-react-native';
 import { MembershipNotice } from '@/features/home/components/MembershipNotice';
 import { MembershipPaywall } from '@/features/profile/components/MembershipPaywall';
 import { ProfileSubScreenLayout } from '@/features/profile/components/ProfileSubScreenLayout';
-import { subscriptionIncludes } from '@/features/profile/data/profileContent';
+import {
+  subscriptionIncludes,
+  supportContact,
+} from '@/features/profile/data/profileContent';
 import { useLibrary, useSubscription } from '@/hooks/useAccount';
 import {
+  useCancelMembership,
   useMembershipOptions,
   usePurchaseMembership,
   useRestorePurchases,
+  useStoreConfirmationWatch,
+  useWithdrawCancellation,
   type MembershipOption,
 } from '@/hooks/useBilling';
+import { useHomeCatalog } from '@/hooks/useCatalog';
 import { useAccess } from '@/lib/access';
+import { ApiError } from '@/services/api/errors';
+import {
+  cancellationAvailability,
+  openManageSubscriptions,
+  storeName,
+} from '@/services/billing';
 import { radius } from '@/theme/palette';
 import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
 
-function formatDate(iso: string | null | undefined): string {
+function formatDate(iso: string | null | undefined): string | null {
   if (!iso) {
-    return '—';
+    return null;
   }
   const date = new Date(iso);
   return Number.isNaN(date.getTime())
-    ? '—'
+    ? null
     : date.toLocaleDateString('en-GB', {
         day: 'numeric',
         month: 'short',
@@ -63,6 +84,14 @@ function formatDate(iso: string | null | undefined): string {
  *     end date and a failing card is inside a period already paid for, so both
  *     still read books. `canAccessPremium` is the only gate, and `reason` only
  *     chooses the words.
+ *
+ * Cancelling is the store's, not ours — neither Apple nor Google lets an app or
+ * its backend stop a subscription renewing. So "Cancel membership" records the
+ * request on the backend, opens the store's own sheet, and the screen then
+ * shows one of three truths: the request is *pending* (the store has not
+ * confirmed; it still renews), the membership is *ending* (the store confirmed;
+ * paid through its date), or the reader kept it. The backend emails the reader
+ * at each step, so nothing here needs to.
  */
 export function SubscriptionScreen() {
   const { colors } = useTheme();
@@ -73,6 +102,11 @@ export function SubscriptionScreen() {
   const { options, features, unavailable } = useMembershipOptions();
   const purchase = usePurchaseMembership();
   const { restore, isPending: isRestoring } = useRestorePurchases();
+  const cancel = useCancelMembership();
+  const withdraw = useWithdrawCancellation();
+  // The address an admin set, falling back to the bundled one offline.
+  const { data: home } = useHomeCatalog();
+  const supportEmail = home?.supportEmail || supportContact.email;
 
   // The CTA follows access, not billing — `get-signed-pdf` serves an admin with
   // no subscription, and offering them a plan would be wrong. The renewal
@@ -156,27 +190,201 @@ export function SubscriptionScreen() {
     );
   }, [restore]);
 
+  /**
+   * Which cancel control to draw. Decided from the subscription itself —
+   * `active`, never `canAccessPremium`, so an admin with no subscription is
+   * offered nothing to cancel — and from the store that bills it.
+   */
+  const availability = cancellationAvailability({
+    active: subscription?.active ?? false,
+    status: subscription?.status ?? null,
+    store: subscription?.store ?? null,
+    cancelRequestedAt: subscription?.cancelRequestedAt ?? null,
+  });
+  const store = subscription?.store ?? null;
+  const storeLabel = storeName(store);
+  // `null` for a lifetime comp — a sentence must not say "until —".
+  const accessUntil = formatDate(expiresAt);
+
+  // While a request is pending, keep asking whether the store has spoken.
+  useStoreConfirmationWatch(availability === 'pending');
+
+  /**
+   * Puts the reader on the store's subscriptions page.
+   *
+   * Used to finish a pending cancellation and to resume an ending one — both
+   * are the store's to do. If neither the sheet nor the browser can open, the
+   * URL is shown so the reader can get there by hand.
+   */
+  const openStore = useCallback(() => {
+    void openManageSubscriptions(store).then(outcome => {
+      if (outcome.status === 'unavailable') {
+        showDialog({
+          title: `Open ${storeLabel}`,
+          message: outcome.url
+            ? `Manage your subscription at ${outcome.url}`
+            : 'Open your subscriptions in the store app to manage your membership.',
+          tone: 'info',
+          icon: Store,
+        });
+      }
+    });
+  }, [store, storeLabel]);
+
+  const emailSupport = useCallback(() => {
+    void Linking.openURL(
+      `mailto:${supportEmail}?subject=${encodeURIComponent('Ilm o Irfan membership')}`,
+    ).catch(() =>
+      showDialog({
+        title: 'No mail app',
+        message: `Write to us at ${supportEmail}.`,
+        tone: 'info',
+        icon: Mail,
+      }),
+    );
+  }, [supportEmail]);
+
+  /**
+   * Explains a refusal from the backend in the reader's terms.
+   *
+   * `NOT_STORE_MANAGED` is the one worth its own words: a comp or a Stripe row
+   * has no store sheet, and sending the reader to look for one would be worse
+   * than saying so. `NO_SUBSCRIPTION` means the screen was stale — the row
+   * lapsed, or was revoked, since it loaded — and a refresh is the fix.
+   */
+  const explainCancelError = useCallback(
+    (error: unknown) => {
+      const code = error instanceof ApiError ? error.code : undefined;
+      if (code === 'NOT_STORE_MANAGED') {
+        showDialog({
+          title: 'Managed by us',
+          message:
+            'This membership is not billed through the App Store or Google Play, so there is nothing to cancel in a store. Write to us and we will sort it out.',
+          tone: 'info',
+          icon: Mail,
+          actions: [
+            { label: 'Not now', style: 'cancel' },
+            { label: 'Email support', onPress: emailSupport },
+          ],
+        });
+        return;
+      }
+      if (code === 'NO_SUBSCRIPTION') {
+        showDialog({
+          title: 'No active membership',
+          message: 'There is no renewing membership on this account to cancel.',
+          tone: 'info',
+        });
+        return;
+      }
+      showDialog({
+        title: 'Could not start the cancellation',
+        message: error instanceof Error ? error.message : 'Please try again.',
+        tone: 'danger',
+      });
+    },
+    [emailSupport],
+  );
+
+  /**
+   * Records the request, then hands the reader to the store.
+   *
+   * The dialog says exactly what will happen, because the words are the
+   * product's one chance to be honest about it: the current period is already
+   * paid for and stays open; the store — not the app — is where the renewal
+   * is switched off; and an email confirms it once the store has said so.
+   */
   const handleCancel = useCallback(() => {
+    if (availability === 'not_store_managed') {
+      explainCancelError(new ApiError('', 409, 'NOT_STORE_MANAGED'));
+      return;
+    }
+
     showDialog({
       title: 'Cancel membership?',
-      message: 'You will keep full access until the end of the current period.',
+      message: [
+        accessUntil
+          ? `You have already paid for the current period, so you keep full access until ${accessUntil}. After that your membership will not renew and you will not be charged again.`
+          : 'You keep full access until the end of the period you have already paid for. After that your membership will not renew and you will not be charged again.',
+        `Your membership is billed by ${storeLabel}, so ${storeLabel} opens next for you to confirm. We will email you once it is done.`,
+      ].join('\n\n'),
+      icon: CalendarClock,
       actions: [
         { label: 'Keep membership', style: 'cancel' },
         {
-          label: 'Cancel',
+          label: 'Continue to cancel',
           style: 'destructive',
           onPress: () =>
-            showDialog({
-              title: 'Manage in store',
-              message:
-                'Cancel from your App Store or Play Store subscriptions.',
-              tone: 'info',
-              icon: Store,
+            cancel.mutate(undefined, {
+              onSuccess: outcome => {
+                if (outcome.status === 'already_cancelled') {
+                  showDialog({
+                    title: 'Already cancelled',
+                    message: accessUntil
+                      ? `Your membership is already set to end on ${accessUntil}.`
+                      : 'Your membership is already set to end.',
+                    tone: 'info',
+                    icon: CalendarClock,
+                  });
+                  return;
+                }
+                if (outcome.opened.status === 'unavailable') {
+                  showDialog({
+                    title: `Finish in ${storeLabel}`,
+                    message: outcome.opened.url
+                      ? `Your request is noted. To stop the renewal, turn off auto-renew at ${outcome.opened.url}`
+                      : 'Your request is noted. To stop the renewal, turn off auto-renew in your subscriptions in the store app.',
+                    tone: 'info',
+                    icon: Store,
+                  });
+                }
+                // The sheet opened: nothing to say. The screen shows the
+                // request as pending the moment the reader is back.
+              },
+              onError: explainCancelError,
             }),
         },
       ],
     });
-  }, []);
+  }, [accessUntil, availability, cancel, explainCancelError, storeLabel]);
+
+  /** The reader changed their mind before the store confirmed. */
+  const handleKeep = useCallback(() => {
+    withdraw.mutate(undefined, {
+      onSuccess: ({ withdrawn }) => {
+        showDialog({
+          title: withdrawn ? 'Membership kept' : 'Nothing to withdraw',
+          message: withdrawn
+            ? 'Your cancellation request has been withdrawn. If you already turned off auto-renew in the store, turn it back on there to keep your membership.'
+            : 'There was no pending request. If the store has already confirmed a cancellation, resume it from the store.',
+          tone: 'success',
+        });
+      },
+      onError: error =>
+        showDialog({
+          title: 'Could not withdraw',
+          message: error instanceof Error ? error.message : 'Please try again.',
+          tone: 'danger',
+        }),
+    });
+  }, [withdraw]);
+
+  /**
+   * Turning auto-renew back on is also the store's. The backend hears it as
+   * an UNCANCELLATION and the membership reads as active again.
+   */
+  const handleResume = useCallback(() => {
+    showDialog({
+      title: 'Resume membership',
+      message: `Turn auto-renew back on in ${storeLabel} and your membership continues without a gap. We will email you once it is confirmed.`,
+      tone: 'info',
+      icon: Store,
+      actions: [
+        { label: 'Not now', style: 'cancel' },
+        { label: `Open ${storeLabel}`, onPress: openStore },
+      ],
+    });
+  }, [openStore, storeLabel]);
 
   // Server totals, not the length of a capped shelf: "books opened" is every
   // title the reader has started, finished ones included.
@@ -267,7 +475,7 @@ export function SubscriptionScreen() {
             ending ? 'Access until' : trialing ? 'Trial ends' : 'Renews on'
           }
           // `null` is a lifetime comp or an admin — nothing to show a date for.
-          value={expiresAt ? formatDate(expiresAt) : 'Never expires'}
+          value={accessUntil ?? 'Never expires'}
         />
         <DetailRow
           label="Billing"
@@ -309,7 +517,46 @@ export function SubscriptionScreen() {
         </View>
       </View>
 
+      {/* The reader asked to cancel and the store has not confirmed. Said
+          plainly, because the membership still renews until it does — and a
+          reader who believes they have cancelled is the one who gets a charge
+          they did not expect. */}
+      {availability === 'pending' ? (
+        <Callout
+          title="Cancellation not finished"
+          message={`${storeLabel} has not confirmed it yet, so your membership still renews${accessUntil ? ` on ${accessUntil}` : ''}. Finish by turning off auto-renew in ${storeLabel} — we will email you once it is confirmed.`}
+          tone="warning"
+          icon={Hourglass}
+          action={
+            <View style={styles.calloutActions}>
+              <Button
+                label={`Open ${storeLabel}`}
+                variant="secondary"
+                size="sm"
+                onPress={openStore}
+              />
+              <TextButton
+                label={withdraw.isPending ? 'Keeping…' : 'Keep my membership'}
+                tone="muted"
+                disabled={withdraw.isPending}
+                onPress={handleKeep}
+              />
+            </View>
+          }
+        />
+      ) : null}
+
       <View style={styles.footer}>
+        {/* The store confirmed: paid through the date above, and the way back
+            is the store's auto-renew switch. */}
+        {availability === 'ending' ? (
+          <Button
+            label="Resume membership"
+            variant="secondary"
+            size="md"
+            onPress={handleResume}
+          />
+        ) : null}
         {/* Only offered when the store is actually selling something else, and
             labelled with that package's own price rather than a saving the app
             has worked out for itself. */}
@@ -344,11 +591,18 @@ export function SubscriptionScreen() {
             disabled={isRestoring}
             onPress={handleRestore}
           />
-          <TextButton
-            label="Cancel subscription"
-            tone="danger"
-            onPress={handleCancel}
-          />
+          {/* Nothing to cancel for an admin without a subscription, a lapsed
+              reader, or one whose request is pending — and a comp gets the
+              support dialog rather than a store sheet with nothing in it. */}
+          {availability === 'cancellable' ||
+          availability === 'not_store_managed' ? (
+            <TextButton
+              label={cancel.isPending ? 'Opening store…' : 'Cancel membership'}
+              tone="danger"
+              disabled={cancel.isPending}
+              onPress={handleCancel}
+            />
+          ) : null}
         </View>
       </View>
     </ProfileSubScreenLayout>
@@ -413,5 +667,10 @@ const styles = StyleSheet.create({
   footerLinks: {
     alignItems: 'center',
     gap: 12,
+  },
+  calloutActions: {
+    alignItems: 'flex-start',
+    gap: 10,
+    marginTop: 4,
   },
 });

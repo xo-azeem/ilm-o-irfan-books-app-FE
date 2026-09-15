@@ -74,6 +74,23 @@ function resolveRevenueCatKey(): string {
   return key?.trim() ?? '';
 }
 
+/**
+ * Google Sign-In client ids. Public by design, like the RevenueCat keys.
+ *
+ * `web` is the OAuth *Web* client from the same Google Cloud project Supabase
+ * is configured with — it is what the native SDK mints the ID token for, on
+ * both platforms, and what Supabase verifies it against. `ios` is the iOS
+ * client; its reversed form must also be an URL scheme in Info.plist
+ * (`scripts/google-ios-scheme.js` writes it). Empty means Google sign-in is
+ * off in this build and the buttons say so instead of failing.
+ */
+function resolveGoogleClientIds(): { web: string; ios: string } {
+  return {
+    web: Config.GOOGLE_WEB_CLIENT_ID?.trim() ?? '',
+    ios: Config.GOOGLE_IOS_CLIENT_ID?.trim() ?? '',
+  };
+}
+
 const supabase = resolveSupabase();
 
 /**
@@ -89,4 +106,11 @@ export const env = {
   supabaseAnonKey: supabase.anonKey,
   /** Public RevenueCat SDK key for this platform; `''` when unconfigured. */
   revenueCatKey: resolveRevenueCatKey(),
+  /** Google OAuth client ids; `web` empty means Google sign-in is off. */
+  google: resolveGoogleClientIds(),
+  /**
+   * The app's own URL scheme. Supabase auth emails (confirmation, recovery)
+   * and identity links redirect here; the backend allow-lists `ilmoirfan://**`.
+   */
+  appScheme: 'ilmoirfan',
 } as const;

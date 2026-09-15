@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Adaptive launcher icon (API 26+): the splash mark on the splash ground, so
+  the icon, the launch window and the JS splash are one continuous surface.
+  The foreground PNGs keep the mark inside the 66dp safe circle; regenerate
+  them from drawable-xxxhdpi/splash_logo.png if the mark changes.
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/splash_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+</adaptive-icon>

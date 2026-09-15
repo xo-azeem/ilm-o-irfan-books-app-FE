@@ -8,6 +8,7 @@ import {
 } from 'react-native-safe-area-context';
 
 import { AccessProvider } from '@/app/providers/AccessProvider';
+import { AuthLinkProvider } from '@/app/providers/AuthLinkProvider';
 import { AuthSessionProvider } from '@/app/providers/AuthSessionProvider';
 import { PushProvider } from '@/app/providers/PushProvider';
 import { ReadingSyncProvider } from '@/app/providers/ReadingSyncProvider';
@@ -47,15 +48,17 @@ export function AppProviders({ children }: PropsWithChildren) {
       <ThemeProvider>
         <ThemeStateProvider>
           <AuthSessionProvider>
-            <AccessProvider>
-              <ReadingSyncProvider>
-                <VaultSyncProvider>
-                  <PushProvider>
-                    <AppShell>{children}</AppShell>
-                  </PushProvider>
-                </VaultSyncProvider>
-              </ReadingSyncProvider>
-            </AccessProvider>
+            <AuthLinkProvider>
+              <AccessProvider>
+                <ReadingSyncProvider>
+                  <VaultSyncProvider>
+                    <PushProvider>
+                      <AppShell>{children}</AppShell>
+                    </PushProvider>
+                  </VaultSyncProvider>
+                </ReadingSyncProvider>
+              </AccessProvider>
+            </AuthLinkProvider>
           </AuthSessionProvider>
         </ThemeStateProvider>
       </ThemeProvider>

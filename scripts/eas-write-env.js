@@ -5,7 +5,8 @@
  * reads `.env` at native build time, so we materialise it here from the EAS
  * environment variables configured in the Expo dashboard / `eas env:create`.
  *
- * Only public keys belong here (Supabase anon key, RevenueCat public SDK keys).
+ * Only public keys belong here (Supabase anon key, RevenueCat public SDK keys,
+ * Google OAuth client ids).
  * No-op when not running on EAS (EAS_BUILD is unset) or when `.env` already exists.
  *
  * The Firebase project files are gitignored too, and land the same way:
@@ -54,6 +55,8 @@ const KEYS = [
   'USE_LOCAL_SUPABASE',
   'REVENUECAT_IOS_KEY',
   'REVENUECAT_ANDROID_KEY',
+  'GOOGLE_WEB_CLIENT_ID',
+  'GOOGLE_IOS_CLIENT_ID',
 ];
 
 const envPath = path.join(__dirname, '..', '.env');
@@ -66,6 +69,10 @@ if (!process.env.EAS_BUILD) {
 for (const [envKey, relTarget] of FIREBASE_FILES) {
   writeFirebaseFile(envKey, relTarget);
 }
+
+// The iOS Google Sign-In URL scheme is derived from GOOGLE_IOS_CLIENT_ID and
+// lives in Info.plist, which cannot read .env — so it is written here too.
+require('./google-ios-scheme');
 
 if (fs.existsSync(envPath)) {
   console.log('[eas-write-env] .env already present, skipping');

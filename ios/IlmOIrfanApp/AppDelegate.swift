@@ -42,6 +42,21 @@ class AppDelegate: ExpoAppDelegate {
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
+
+  // Custom URL schemes. Expo's subscribers go first — Google Sign-In's
+  // adapter claims its reversed-client-id callback there — and everything
+  // else (ilmoirfan://…, the Supabase auth redirects) reaches JS through
+  // React Native's Linking, which AuthLinkProvider listens to.
+  override func application(
+    _ app: UIApplication,
+    open url: URL,
+    options: [UIApplication.OpenURLOptionsKey: Any] = [:]
+  ) -> Bool {
+    if super.application(app, open: url, options: options) {
+      return true
+    }
+    return RCTLinkingManager.application(app, open: url, options: options)
+  }
 }
 
 class ReactNativeDelegate: ExpoReactNativeFactoryDelegate {

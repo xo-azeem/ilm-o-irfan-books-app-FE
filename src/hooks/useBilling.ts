@@ -1,17 +1,24 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import {
+  requestSubscriptionCancellation,
+  withdrawSubscriptionCancellation,
+} from '@/services/account';
 import { getPlans } from '@/services/catalog';
 import {
   BILLING_STORE,
   PREMIUM_PLAN_CODE,
   getBillingOffering,
   isBillingAvailable,
+  openManageSubscriptions,
   purchaseMembership,
   restoreMembership,
   type BillingPackage,
+  type ManageSubscriptionsOutcome,
   type PurchaseOutcome,
 } from '@/services/billing';
+import type { CancellationReceipt } from '@/services/api/types';
 import {
   buildMembershipRows,
   cheapestRow,
@@ -182,4 +189,126 @@ export function useRestorePurchases() {
   const restore = useCallback(() => mutation.mutateAsync(), [mutation]);
 
   return { ...mutation, restore };
+}
+
+/** What "cancel" did. None of these is an error. */
+export type CancelOutcome =
+  /** The request is on record and the store's surface was opened. */
+  | {
+      status: 'opened';
+      receipt: CancellationReceipt;
+      opened: ManageSubscriptionsOutcome;
+    }
+  /** The store had already confirmed; there was nothing to request. */
+  | { status: 'already_cancelled'; receipt: CancellationReceipt };
+
+/**
+ * Cancels — as far as an app can.
+ *
+ * Two steps, in this order and not the other: the request is recorded on the
+ * backend *first*, then the store's manage-subscriptions surface opens. The
+ * store is what actually stops the renewal, and it tells the backend by
+ * webhook; the record is what lets the backend show the request as pending,
+ * and email the reader an hour later if the store never confirms — the case
+ * that otherwise ends in an unexpected charge. Opening the sheet first would
+ * lose the record for every reader who cancels and then closes the app.
+ *
+ * The subscription views are refreshed on the way out so the screen shows
+ * "pending" the moment the reader is back, without waiting for the webhook.
+ */
+export function useCancelMembership() {
+  const client = useQueryClient();
+  const userId = useAuthStore(state => state.userId);
+  const refresh = useAccessStore(state => state.refresh);
+
+  return useMutation({
+    mutationFn: async (): Promise<CancelOutcome> => {
+      const receipt = await requestSubscriptionCancellation();
+
+      if (receipt.alreadyCancelled) {
+        // The store has already confirmed — the screen may simply be stale.
+        await refresh();
+        return { status: 'already_cancelled', receipt };
+      }
+
+      const opened = await openManageSubscriptions(receipt.store);
+      return { status: 'opened', receipt, opened };
+    },
+    onSettled: () => {
+      void client.invalidateQueries({ queryKey: ['subscription', userId] });
+    },
+  });
+}
+
+/** Clears a pending request. The store is not involved. */
+export function useWithdrawCancellation() {
+  const client = useQueryClient();
+  const userId = useAuthStore(state => state.userId);
+  const refresh = useAccessStore(state => state.refresh);
+
+  return useMutation({
+    mutationFn: async () => {
+      const result = await withdrawSubscriptionCancellation();
+      await refresh();
+      return result;
+    },
+    onSettled: () => {
+      void client.invalidateQueries({ queryKey: ['subscription', userId] });
+    },
+  });
+}
+
+/** How often, and for how long, to ask the backend whether the store spoke. */
+const CONFIRMATION_POLL_MS = 15_000;
+const CONFIRMATION_POLL_FOR_MS = 10 * 60_000;
+
+/**
+ * Watches for the store's answer while a cancel request is pending.
+ *
+ * The change feed and the foreground poll already cover the common case: the
+ * reader comes back from the store sheet, the app foregrounds, the backend is
+ * re-read. What they do not cover is the webhook landing thirty seconds
+ * *after* that, on a device whose socket happens to be down — so while the
+ * Membership screen is open with a request pending, the backend is re-read
+ * every fifteen seconds for ten minutes. Bounded, because a reader who backed
+ * out of the sheet is not worth polling for an hour; the reminder email is
+ * what reaches them then.
+ */
+export function useStoreConfirmationWatch(pending: boolean) {
+  const client = useQueryClient();
+  const userId = useAuthStore(state => state.userId);
+  const refresh = useAccessStore(state => state.refresh);
+
+  useEffect(() => {
+    if (!pending || !userId) {
+      return;
+    }
+
+    const startedAt = Date.now();
+    let inFlight = false;
+
+    const timer = setInterval(() => {
+      if (Date.now() - startedAt > CONFIRMATION_POLL_FOR_MS) {
+        clearInterval(timer);
+        return;
+      }
+      if (inFlight) {
+        return;
+      }
+      inFlight = true;
+      void refresh()
+        .then(landed => {
+          if (landed) {
+            void client.invalidateQueries({
+              queryKey: ['subscription', userId],
+            });
+          }
+        })
+        .finally(() => {
+          inFlight = false;
+        });
+    }, CONFIRMATION_POLL_MS);
+
+    return () => clearInterval(timer);
+  }, [client, pending, refresh, userId]);
 }

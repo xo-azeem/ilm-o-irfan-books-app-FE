@@ -23,6 +23,7 @@ import {
   AdminMenuSkeleton,
   AdminRowsSkeleton,
 } from '@/features/admin/components/AdminSkeletons';
+import { AdminDeletionRequests } from '@/features/admin/components/AdminDeletionRequests';
 import { errorMessage } from '@/features/admin/components/AdminToast';
 import {
   ADMIN_GUTTER,
@@ -56,6 +57,7 @@ import type {
 const SEGMENTS: ReadonlyArray<{ value: PeopleSegment; label: string }> = [
   { value: 'readers', label: 'Readers' },
   { value: 'plans', label: 'Plans' },
+  { value: 'deletions', label: 'Deletions' },
 ];
 
 type AudienceFilter = 'everyone' | 'subscribers' | 'expiring' | 'admins';
@@ -158,9 +160,11 @@ export function AdminPeopleScreen() {
       ? `${stats?.user_count ?? 0} readers · ${stats?.subscriber_count ?? 0} subscribed · ${
           stats?.admin_count ?? 0
         } admins`
-      : `${activePlans} ${activePlans === 1 ? 'plan' : 'plans'} live · ${
-          stats?.subscriber_count ?? 0
-        } subscribers`;
+      : segment === 'plans'
+        ? `${activePlans} ${activePlans === 1 ? 'plan' : 'plans'} live · ${
+            stats?.subscriber_count ?? 0
+          } subscribers`
+        : 'Requests to delete an account, awaiting your decision';
 
   const renderUser = useCallback(
     ({ item }: { item: AdminUserRow }) => (
@@ -298,6 +302,8 @@ export function AdminPeopleScreen() {
             style={styles.grow}
           />
         )
+      ) : segment === 'deletions' ? (
+        <AdminDeletionRequests bottomPadding={scrollEndPadding + 20} />
       ) : plans.isLoading ? (
         <View style={styles.gutter}>
           <AdminMenuSkeleton count={3} height={140} />

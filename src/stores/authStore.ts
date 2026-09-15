@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { signOut as supabaseSignOut } from '@/lib/supabase/auth';
+import { forgetGoogleSession } from '@/lib/supabase/googleAuth';
 import { forgetPushRegistration } from '@/services/push/registry';
 // One shared MMKV handle backs every app preference — see stores/storage.ts.
 import { mmkvStorage } from '@/stores/storage';
@@ -92,6 +93,9 @@ export const useAuthStore = create<AuthState>()(
           // device must not inherit their notifications.
           await forgetPushRegistration();
           await supabaseSignOut();
+          // So the next reader on this device gets Google's account picker
+          // rather than the previous reader's account.
+          await forgetGoogleSession();
         } finally {
           set({
             isAuthenticated: false,

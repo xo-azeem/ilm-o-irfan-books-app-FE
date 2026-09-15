@@ -7,3 +7,4 @@ export * from './people';
 export * from './plans';
 export * from './system';
 export * from './uploads';
+export * from './deletions';

@@ -1,6 +1,5 @@
 import { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { KeyRound } from 'lucide-react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -13,7 +12,13 @@ import { AuthField } from '@/features/auth/components/AuthField';
 import { AuthLayout } from '@/features/auth/components/AuthLayout';
 import { GoogleSignInButton } from '@/features/auth/components/GoogleSignInButton';
 import { resumeAfterAuth, waitForAccessCheck } from '@/lib/access';
-import { signInWithEmail } from '@/lib/supabase';
+import {
+  GoogleSignInCancelled,
+  isEmailNotConfirmed,
+  isGoogleSignInAvailable,
+  signInWithEmail,
+  signInWithGoogle,
+} from '@/lib/supabase';
 import { fontSize } from '@/theme/typography';
 
 function isValidEmail(email: string): boolean {
@@ -29,6 +34,7 @@ export function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleBusy, setIsGoogleBusy] = useState(false);
 
   const handleSignIn = useCallback(async () => {
     if (!email.trim() || !password.trim()) {
@@ -58,6 +64,15 @@ export function LoginScreen() {
       }
       resumeAfterAuth(navigation, returnTo);
     } catch (error) {
+      // Confirmations are on: the account exists, the address is not yet
+      // proven. The verify screen resends and takes the code.
+      if (isEmailNotConfirmed(error)) {
+        navigation.navigate(ROUTES.VERIFY_EMAIL, {
+          email: email.trim(),
+          ...(returnTo ? { returnTo } : null),
+        });
+        return;
+      }
       const message =
         error instanceof Error
           ? error.message
@@ -68,14 +83,38 @@ export function LoginScreen() {
     }
   }, [email, navigation, password, returnTo]);
 
-  const handleGoogleSignIn = useCallback(() => {
-    showDialog({
-      title: 'Coming soon',
-      message:
-        'Google sign-in will be enabled after OAuth is configured in Supabase.',
-      tone: 'info',
-    });
-  }, []);
+  const handleGoogleSignIn = useCallback(async () => {
+    if (!isGoogleSignInAvailable()) {
+      showDialog({
+        title: 'Google sign-in unavailable',
+        message:
+          'This build has no Google client configured. Sign in with your email and password.',
+        tone: 'info',
+      });
+      return;
+    }
+
+    setIsGoogleBusy(true);
+    try {
+      const data = await signInWithGoogle();
+      const userId = data.user?.id;
+      if (userId) {
+        await waitForAccessCheck(userId);
+      }
+      resumeAfterAuth(navigation, returnTo);
+    } catch (error) {
+      if (error instanceof GoogleSignInCancelled) {
+        return;
+      }
+      showDialog({
+        title: 'Google sign-in failed',
+        message: error instanceof Error ? error.message : 'Please try again.',
+        tone: 'danger',
+      });
+    } finally {
+      setIsGoogleBusy(false);
+    }
+  }, [navigation, returnTo]);
 
   const handleGuest = useCallback(() => {
     // Guest browsing is preserved from the current build: the catalog is open,
@@ -90,14 +129,11 @@ export function LoginScreen() {
   );
 
   const handleForgotPassword = useCallback(() => {
-    showDialog({
-      title: 'Reset your password',
-      message:
-        'Enter your email and we will send a reset link once password recovery is enabled in Supabase.',
-      tone: 'info',
-      icon: KeyRound,
+    navigation.navigate(ROUTES.FORGOT_PASSWORD, {
+      ...(isValidEmail(email) ? { email: email.trim() } : null),
+      ...(returnTo ? { returnTo } : null),
     });
-  }, []);
+  }, [email, navigation, returnTo]);
 
   return (
     <AuthLayout
@@ -160,7 +196,11 @@ export function LoginScreen() {
       <AuthDivider />
 
       <View style={styles.alternatives}>
-        <GoogleSignInButton onPress={handleGoogleSignIn} />
+        <GoogleSignInButton
+          label={isGoogleBusy ? 'Opening Google…' : 'Continue with Google'}
+          onPress={handleGoogleSignIn}
+          disabled={isGoogleBusy || isSubmitting}
+        />
         <GoogleSignInButton
           label="Continue as guest"
           showLogo={false}

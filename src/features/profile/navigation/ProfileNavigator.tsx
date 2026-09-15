@@ -3,6 +3,8 @@ import { StyleSheet, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { AppearanceScreen } from '@/features/profile/screens/AppearanceScreen';
+import { ChangePasswordScreen } from '@/features/profile/screens/ChangePasswordScreen';
+import { DevicesScreen } from '@/features/profile/screens/DevicesScreen';
 import { DownloadsScreen } from '@/features/profile/screens/DownloadsScreen';
 import { HelpCenterScreen } from '@/features/profile/screens/HelpCenterScreen';
 import { LanguageScreen } from '@/features/profile/screens/LanguageScreen';
@@ -10,6 +12,7 @@ import { NotificationsScreen } from '@/features/profile/screens/NotificationsScr
 import { PersonalDetailsScreen } from '@/features/profile/screens/PersonalDetailsScreen';
 import { PrivacySecurityScreen } from '@/features/profile/screens/PrivacySecurityScreen';
 import { ProfileScreen } from '@/features/profile/screens/ProfileScreen';
+import { SignInMethodsScreen } from '@/features/profile/screens/SignInMethodsScreen';
 import { SubscriptionScreen } from '@/features/profile/screens/SubscriptionScreen';
 import { useTheme } from '@/theme/ThemeContext';
 
@@ -49,6 +52,9 @@ export function ProfileNavigator() {
           name="PrivacySecurity"
           component={PrivacySecurityScreen}
         />
+        <Stack.Screen name="SignInMethods" component={SignInMethodsScreen} />
+        <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+        <Stack.Screen name="Devices" component={DevicesScreen} />
       </Stack.Navigator>
     </View>
   );

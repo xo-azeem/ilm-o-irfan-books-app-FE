@@ -42,6 +42,11 @@ export const ENDPOINTS = {
   highlightsDelete: 'highlights-delete',
   libraryOverview: 'library-overview',
   entitlementsStatus: 'entitlements-status',
+  /**
+   * Records the reader's request to cancel; the store sheet does the rest.
+   * Answers the access state plus `requested` / `alreadyCancelled` / `manageUrl`.
+   */
+  subscriptionCancel: 'subscription-cancel',
   signedPdf: 'get-signed-pdf',
   /** For the books held offline: which still exist, and their file stamp. */
   vaultCheck: 'vault-check',

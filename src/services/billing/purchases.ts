@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import Purchases, {
   LOG_LEVEL,
   PURCHASES_ERROR_CODE,
@@ -9,6 +9,7 @@ import Purchases, {
 } from 'react-native-purchases';
 
 import { env } from '@/config/env';
+import { manageSubscriptionsUrl } from '@/services/billing/cancellation';
 import type { BillingStore } from '@/services/billing/options';
 
 /**
@@ -337,6 +338,61 @@ export async function restoreMembership(): Promise<{ restored: boolean }> {
     return { restored: hasPremiumEntitlement(customerInfo) };
   } catch (error) {
     throw new Error(storeMessage(error));
+  }
+}
+
+/** Where the reader ended up when asked to manage the subscription. */
+export type ManageSubscriptionsOutcome =
+  /** The native sheet (iOS 15+) or the store app opened. */
+  | { status: 'sheet' }
+  /** No sheet on this build; the store's web page was opened instead. */
+  | { status: 'browser'; url: string }
+  /** Nothing could be opened. The caller shows the URL for the reader to visit. */
+  | { status: 'unavailable'; url: string | null };
+
+/**
+ * Opens the store's own manage-subscriptions surface.
+ *
+ * This is the whole of "cancel": neither Apple nor Google lets a backend stop
+ * a subscription renewing, so the reader has to do it in the store, and the
+ * best the app can do is put them on the exact page. On iOS 15+ that is the
+ * in-app StoreKit sheet; on Android it is the Play Store's subscription page
+ * for this package. Both come back to the app afterwards, which is when the
+ * caller re-reads `entitlements-status` — the store's CANCELLATION reaches the
+ * backend by webhook, usually within the minute.
+ *
+ * Nothing here is an error. A build without a store key, or a platform with
+ * no store, falls through to the store's web page; if even that cannot open,
+ * the URL is handed back so a dialog can show it.
+ */
+export async function openManageSubscriptions(
+  store?: string | null,
+): Promise<ManageSubscriptionsOutcome> {
+  const url = manageSubscriptionsUrl(store ?? BILLING_STORE);
+
+  if (configureBilling()) {
+    try {
+      await Purchases.showManageSubscriptions();
+      return { status: 'sheet' };
+    } catch (error) {
+      // The SDK throws when there is no subscription to show, or when the
+      // sheet is not supported on this OS version. Neither stops the reader
+      // getting to the store — the web page is the same list.
+      if (__DEV__) {
+        console.warn('[billing] showManageSubscriptions failed', error);
+      }
+    }
+  }
+
+  if (!url) {
+    return { status: 'unavailable', url: null };
+  }
+
+  try {
+    await Linking.openURL(url);
+    return { status: 'browser', url };
+  } catch {
+    return { status: 'unavailable', url };
   }
 }
 

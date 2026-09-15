@@ -18,11 +18,21 @@ import type { RootStackParamList } from './types';
  */
 export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
-let pending: PushIntent | null = null;
+/**
+ * Where a deep link or a notification wants to go. Push intents come from the
+ * notification payload; the rest are the app's own (a password-recovery link
+ * that has just signed the reader in and needs the new-password screen).
+ */
+export type NavIntent = PushIntent | { route: 'resetPassword' };
+
+let pending: NavIntent | null = null;
 let consumerShellReady = false;
 
-function perform(intent: PushIntent): void {
+function perform(intent: NavIntent): void {
   switch (intent.route) {
+    case 'resetPassword':
+      navigationRef.navigate(ROUTES.RESET_PASSWORD, { viaLink: true });
+      return;
     case 'book':
       navigationRef.navigate(ROUTES.BOOK_DETAIL, { bookId: intent.bookId });
       return;
@@ -41,6 +51,12 @@ function perform(intent: PushIntent): void {
       navigationRef.navigate(ROUTES.MAIN_TABS, {
         screen: ROUTES.PROFILE,
         params: { screen: 'Subscription' },
+      });
+      return;
+    case 'privacy':
+      navigationRef.navigate(ROUTES.MAIN_TABS, {
+        screen: ROUTES.PROFILE,
+        params: { screen: 'PrivacySecurity' },
       });
       return;
   }
@@ -62,7 +78,7 @@ function flush(): void {
 }
 
 /** Navigates to what a notification points at, now or when the app can. */
-export function openPushIntent(intent: PushIntent | null): void {
+export function openPushIntent(intent: NavIntent | null): void {
   if (!intent) {
     return;
   }

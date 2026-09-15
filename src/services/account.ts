@@ -7,8 +7,10 @@ import {
   requestPage,
   withEndpoint,
 } from '@/services/api/client';
+import { ApiError } from '@/services/api/errors';
 import type {
   AchievementRow,
+  CancellationReceipt,
   DownloadListRow,
   DownloadRow,
   EntitlementRow,
@@ -450,11 +452,29 @@ export async function getSubscription() {
     wrapped?.isActive ??
     isEntitlementActive(entitlement?.status, entitlement?.expires_at);
 
+  // The cancel flow's facts. The endpoint states them beside the verdict;
+  // an older deployment and the table fallback carry them on the row, or not
+  // at all — and "not at all" reads as "nothing pending", never as an error.
+  const status = wrapped?.status ?? entitlement?.status ?? null;
+  const store = wrapped?.store ?? entitlement?.store ?? null;
+  const cancelRequestedAt =
+    wrapped?.cancelRequestedAt ?? entitlement?.cancel_requested_at ?? null;
+
   return {
     /** The subscription itself — what the membership badge and paywall read. */
     active,
     /** `profiles.role` or the `app_role` claim, as the server sees it. */
     isAdmin: wrapped?.isAdmin ?? false,
+    /** Raw subscription state, for the cancel control. Never the access gate. */
+    status,
+    /** Which store bills the row — which sheet "cancel" opens. */
+    store,
+    /**
+     * Set by `subscription-cancel` until the store confirms by webhook. While
+     * it is set and the status still renews, the membership is *not* cancelled
+     * yet, and the screen has to say so.
+     */
+    cancelRequestedAt,
     /**
      * What `get-signed-pdf` will actually do, in one flag.
      *
@@ -485,6 +505,71 @@ export async function getSubscription() {
       expiresAt: entitlement?.expires_at ?? null,
     }) as EntitlementStatus,
   };
+}
+
+/**
+ * Records the reader's request to cancel their membership.
+ *
+ * This does not cancel anything — nothing the backend can call does. The App
+ * Store and Google Play are the only parties that can stop a subscription
+ * renewing, so the caller's next step is `openManageSubscriptions`, and the
+ * cancellation itself arrives later, by webhook, as `status: 'cancelled'`.
+ * What this buys is the record: the backend knows the reader meant to cancel,
+ * shows it as pending, and — if the store never confirms — emails them an
+ * hour later so the next renewal is not a surprise.
+ *
+ * The RPC fallback raises its refusals as the message with the sentence in
+ * `details` (the account-deletion convention); both paths surface them as an
+ * `ApiError` whose `code` is the backend's, so the screen can branch on
+ * `NOT_STORE_MANAGED` without parsing prose.
+ */
+export async function requestSubscriptionCancellation(): Promise<CancellationReceipt> {
+  return withEndpoint(
+    ENDPOINTS.subscriptionCancel,
+    () =>
+      requestData<CancellationReceipt>(ENDPOINTS.subscriptionCancel, {
+        method: 'POST',
+        auth: true,
+        body: {},
+      }),
+    async () => {
+      const { data, error } = await supabase.rpc(
+        'request_subscription_cancellation',
+      );
+      if (error) {
+        const code = error.message.trim();
+        throw /^[A-Z_]+$/.test(code)
+          ? new ApiError(
+              error.details?.trim() ||
+                'The request could not be completed. Please try again.',
+              409,
+              code,
+            )
+          : new Error(error.message);
+      }
+      return data as CancellationReceipt;
+    },
+  );
+}
+
+/**
+ * Withdraws a pending cancel request — the reader backed out of the store
+ * sheet, or changed their mind before the store confirmed.
+ *
+ * RPC only: there is no endpoint, because there is nothing to add to it. A
+ * membership the store has *already* marked cancelled is not touched; that
+ * is resumed in the store, and the answer says so with `withdrawn: false`.
+ */
+export async function withdrawSubscriptionCancellation(): Promise<{
+  withdrawn: boolean;
+}> {
+  const { data, error } = await supabase.rpc(
+    'withdraw_subscription_cancellation',
+  );
+  if (error) {
+    throw new Error(error.message);
+  }
+  return { withdrawn: Boolean((data as { withdrawn?: boolean })?.withdrawn) };
 }
 
 /**

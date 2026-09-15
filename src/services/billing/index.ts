@@ -8,9 +8,21 @@ export {
   hasPremiumEntitlement,
   identifyPurchaser,
   isBillingAvailable,
+  openManageSubscriptions,
   purchaseMembership,
   restoreMembership,
   type BillingOffering,
   type BillingPackage,
+  type ManageSubscriptionsOutcome,
   type PurchaseOutcome,
 } from './purchases';
+export {
+  cancellationAvailability,
+  isRenewing,
+  isStoreManaged,
+  manageSubscriptionsUrl,
+  storeName,
+  type CancellationAvailability,
+  type CancellationFacts,
+  type EntitlementStore,
+} from './cancellation';

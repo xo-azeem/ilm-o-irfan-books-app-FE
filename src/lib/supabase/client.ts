@@ -3,6 +3,7 @@ import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
 
 import { env } from '@/config/env';
+import { deviceUserAgent } from '@/lib/device';
 import { supabaseAuthStorage } from '@/lib/supabase/storage';
 
 const REQUEST_TIMEOUT_MS = 12_000;
@@ -33,6 +34,9 @@ function fetchWithTimeout(
 export const supabase = createClient(env.supabaseUrl, env.supabaseAnonKey, {
   global: {
     fetch: fetchWithTimeout,
+    // Stored on the auth session row, which is how Profile → Signed-in
+    // devices can name this phone. See lib/device.ts.
+    headers: { 'User-Agent': deviceUserAgent() },
   },
   auth: {
     storage: supabaseAuthStorage,

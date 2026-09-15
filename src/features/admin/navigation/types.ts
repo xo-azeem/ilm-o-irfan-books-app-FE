@@ -5,8 +5,8 @@ import type { BookStatusFilter } from '@/services/admin';
 /** The four segments of the Library tab. */
 export type LibrarySegment = 'books' | 'authors' | 'categories' | 'shelves';
 
-/** The two segments of the People tab. */
-export type PeopleSegment = 'readers' | 'plans';
+/** The three segments of the People tab. */
+export type PeopleSegment = 'readers' | 'plans' | 'deletions';
 
 export type AdminLibraryStackParamList = {
   AdminLibraryHome:

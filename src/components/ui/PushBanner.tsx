@@ -11,6 +11,7 @@ import {
   BadgeCheck,
   BookOpen,
   Library,
+  ShieldAlert,
   Sparkles,
   X,
   type LucideIcon as LucideGlyph,
@@ -84,6 +85,8 @@ const glyphFor: Record<PushKind, { icon: LucideGlyph; tone: IconTileTone }> = {
   book_updated: { icon: BookOpen, tone: 'primary' },
   membership_activated: { icon: BadgeCheck, tone: 'gold' },
   membership_expired: { icon: BadgeCheck, tone: 'warning' },
+  account_deletion_approved: { icon: ShieldAlert, tone: 'danger' },
+  account_deletion_rejected: { icon: ShieldAlert, tone: 'neutral' },
 };
 
 export const PushBannerLayer = memo(function PushBannerLayer() {

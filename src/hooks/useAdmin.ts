@@ -12,6 +12,7 @@ import {
   bulkUpdateBooks,
   createAdminBook,
   createUploadBatch,
+  decideDeletionRequest,
   deleteUploadBatch,
   deleteAdminAuthor,
   deleteAdminBooks,
@@ -38,9 +39,11 @@ import {
   listAuditLog,
   listBatchBooks,
   listBookOptions,
+  listDeletionRequests,
   listUploadBatches,
   publishUploadBatch,
   reorderCatalog,
+  runDueDeletions,
   setCategoryBooks,
   setCollectionPublished,
   setAdminEntitlement,
@@ -54,6 +57,7 @@ import {
   upsertAdminPlan,
   type AdminBookFilters,
   type AdminBookInput,
+  type AdminDeletionFilter,
   type AdminUserFilters,
   type UploadBatchInput,
 } from '@/services/admin';
@@ -531,5 +535,43 @@ export function useDeleteStorageObject() {
     }) => deleteStorageObject(bucket, name),
     onSuccess: () =>
       client.invalidateQueries({ queryKey: ['admin', 'storage'] }),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Account deletion requests
+// ---------------------------------------------------------------------------
+
+export function useAdminDeletionRequests(filter: AdminDeletionFilter = 'open') {
+  return useQuery({
+    queryKey: ['admin', 'deletions', filter],
+    queryFn: () => listDeletionRequests(filter),
+    staleTime: 15_000,
+    refetchOnWindowFocus: true,
+  });
+}
+
+function invalidateDeletions(client: ReturnType<typeof useQueryClient>) {
+  void client.invalidateQueries({ queryKey: ['admin', 'deletions'] });
+  // A decision is a row in the audit log, and a completed run is one reader
+  // fewer in the directory.
+  void client.invalidateQueries({ queryKey: ['admin', 'audit'] });
+  void client.invalidateQueries({ queryKey: ['admin', 'users'] });
+  void client.invalidateQueries({ queryKey: ['admin', 'stats'] });
+}
+
+export function useDecideDeletionRequest() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: decideDeletionRequest,
+    onSettled: () => invalidateDeletions(client),
+  });
+}
+
+export function useRunDueDeletions() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: runDueDeletions,
+    onSettled: () => invalidateDeletions(client),
   });
 }

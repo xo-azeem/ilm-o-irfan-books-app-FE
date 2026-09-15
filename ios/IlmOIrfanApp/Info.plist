@@ -22,6 +22,35 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<!--
+		  The app's own scheme. Supabase auth emails (confirm, recover) and
+		  identity links come back through ilmoirfan://auth/callback; the
+		  backend allow-lists ilmoirfan://**. Handled by AuthLinkProvider.
+		-->
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>ilmoirfan</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>ilmoirfan</string>
+			</array>
+		</dict>
+		<!--
+		  Google Sign-In returns through the reversed iOS OAuth client id. The
+		  placeholder is replaced from GOOGLE_IOS_CLIENT_ID by
+		  `npm run google:ios-scheme` (and automatically on EAS).
+		-->
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>google-signin</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.REPLACE_WITH_IOS_CLIENT_ID</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>

@@ -238,6 +238,11 @@ function isPending(error: unknown): boolean {
 /**
  * Opens the native payment sheet for one package.
  *
+ * On iOS this is StoreKit (Apple Pay appears when the reader has it set up).
+ * On Android this is Google Play Billing (Google Pay may appear in the Play
+ * sheet). Neither is a separate SDK or Edge Function — RevenueCat opens the
+ * store sheet; our webhook unlocks Premium afterward.
+ *
  * Cancelling and a deferred payment come back as ordinary outcomes rather than
  * thrown errors, because neither is a fault and both have their own copy. Every
  * other failure throws, carrying the store's own message.
@@ -251,6 +256,15 @@ export async function purchaseMembership(
 ): Promise<PurchaseOutcome> {
   if (!configureBilling()) {
     throw new Error('Membership cannot be purchased in this build.');
+  }
+
+  const canPay = await Purchases.canMakePayments();
+  if (!canPay) {
+    throw new Error(
+      Platform.OS === 'ios'
+        ? 'Purchases are not available on this Apple ID / device (check Screen Time or Ask to Buy).'
+        : 'Purchases are not available on this Google Play account / device.',
+    );
   }
 
   try {

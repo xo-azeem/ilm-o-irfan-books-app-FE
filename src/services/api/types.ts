@@ -394,14 +394,15 @@ export type PlanRow = {
   is_active: boolean;
   sort_order: number | null;
   /**
-   * The store product this plan corresponds to.
+   * Store / RevenueCat product ids for this plan.
    *
-   * The webhook matches `event.product_id` against it to decide which plan a
-   * purchase granted, and the paywall matches the same way round to pair the
-   * admin's copy with the store's localized price. `null` on a plan that has not
-   * been connected to a product yet, which is therefore not purchasable.
+   * The webhook and paywall match `event.product_id` / package product id against
+   * any of these (Apple and Play SKUs may differ). `null` when not connected yet.
+   * Apple Pay / Google Pay are not separate product ids.
    */
   revenuecat_product_id?: string | null;
+  app_store_product_id?: string | null;
+  play_store_product_id?: string | null;
 };
 
 /**

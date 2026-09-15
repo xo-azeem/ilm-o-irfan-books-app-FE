@@ -68,8 +68,9 @@ const CURRENCIES = ['PKR', 'USD', 'GBP', 'EUR'];
  *
  * The price field opens with the one thing an operator is most likely to get
  * wrong: a change here does not reprice anybody who has already subscribed.
- * The store product id is the other trap — a plan with no matching product is
- * a plan whose purchases resolve to nothing.
+ * Store product ids are the other trap — Apple and Play SKUs may differ; set
+ * both when they do. Apple Pay / Google Pay are payment methods in those
+ * sheets, not separate product ids.
  */
 export function AdminPlanEditorScreen() {
   const navigation = useNavigation();
@@ -93,6 +94,8 @@ export function AdminPlanEditorScreen() {
     interval: 'month' as AdminPlan['interval'],
     features: [] as string[],
     productId: '',
+    appStoreProductId: '',
+    playStoreProductId: '',
     isActive: true,
   });
   const [draftFeature, setDraftFeature] = useState('');
@@ -111,6 +114,8 @@ export function AdminPlanEditorScreen() {
       interval: existing.interval,
       features: existing.features,
       productId: existing.revenuecat_product_id ?? '',
+      appStoreProductId: existing.app_store_product_id ?? '',
+      playStoreProductId: existing.play_store_product_id ?? '',
       isActive: existing.is_active,
     });
   }, [existing]);
@@ -165,6 +170,8 @@ export function AdminPlanEditorScreen() {
         interval: form.interval,
         features: form.features,
         revenuecat_product_id: form.productId,
+        app_store_product_id: form.appStoreProductId,
+        play_store_product_id: form.playStoreProductId,
         is_active: form.isActive,
         sort_order: existing?.sort_order ?? plans.length,
       },
@@ -295,20 +302,48 @@ export function AdminPlanEditorScreen() {
         </View>
 
         <AdminField
-          label="Store product id"
+          label="Shared / RevenueCat product id"
           value={form.productId}
           onChangeText={value =>
             setForm(current => ({ ...current, productId: value }))
           }
-          placeholder="rc_annual_pk"
+          placeholder="premium_monthly"
           autoCapitalize="none"
           mono
           helper={
-            form.productId
-              ? 'Must match the product configured in RevenueCat, character for character.'
-              : 'Without a product id, purchases of this plan resolve to nothing.'
+            form.productId || form.appStoreProductId || form.playStoreProductId
+              ? 'Webhook matches any of the three SKUs. Apple Pay / Google Pay use the App Store / Play sheets — not separate ids.'
+              : 'Without a product id, purchases of this plan may fall back to the default plan code only.'
           }
-          helperTone={form.productId ? 'faint' : 'warning'}
+          helperTone={
+            form.productId || form.appStoreProductId || form.playStoreProductId
+              ? 'faint'
+              : 'warning'
+          }
+        />
+
+        <AdminField
+          label="App Store product id"
+          value={form.appStoreProductId}
+          onChangeText={value =>
+            setForm(current => ({ ...current, appStoreProductId: value }))
+          }
+          placeholder="com.ilmoirfanapp.premium.monthly"
+          autoCapitalize="none"
+          mono
+          helper="StoreKit / Apple Pay sheet product id when it differs from the shared id."
+        />
+
+        <AdminField
+          label="Play Store product id"
+          value={form.playStoreProductId}
+          onChangeText={value =>
+            setForm(current => ({ ...current, playStoreProductId: value }))
+          }
+          placeholder="premium_monthly"
+          autoCapitalize="none"
+          mono
+          helper="Google Play Billing / Google Pay sheet product id when it differs from the shared id."
         />
 
         <AdminField

@@ -247,6 +247,8 @@ export type AdminPlan = {
   interval: 'month' | 'year' | 'lifetime';
   features: string[];
   revenuecat_product_id: string | null;
+  app_store_product_id: string | null;
+  play_store_product_id: string | null;
   is_active: boolean;
   sort_order: number;
   created_at: string;
@@ -262,6 +264,8 @@ export type AdminPlanInput = {
   interval: AdminPlan['interval'];
   features: string[];
   revenuecat_product_id: string;
+  app_store_product_id?: string;
+  play_store_product_id?: string;
   is_active: boolean;
   sort_order: number;
 };

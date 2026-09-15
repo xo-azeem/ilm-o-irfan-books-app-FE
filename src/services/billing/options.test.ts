@@ -48,13 +48,44 @@ const plans: PlanLike[] = [
 ];
 
 describe('matching a store package to a plan', () => {
-  it('matches on revenuecat_product_id, as the webhook does', () => {
+  it('matches on revenuecat or store-specific product ids, as the webhook does', () => {
     assert.equal(
       planForPackage(yearly, plans, DEFAULT_CODE)?.code,
       'premium_yearly',
     );
     assert.equal(
       planForPackage(monthly, plans, DEFAULT_CODE)?.code,
+      DEFAULT_CODE,
+    );
+  });
+
+  it('matches Apple / Play SKUs when they differ from the shared alias', () => {
+    const dualSkuPlans: PlanLike[] = [
+      {
+        code: DEFAULT_CODE,
+        name: 'Monthly',
+        interval: 'month',
+        features: ['Every book, unlimited'],
+        revenuecat_product_id: 'shared_premium',
+        app_store_product_id: 'com.ilmoirfanapp.premium.monthly',
+        play_store_product_id: 'premium_monthly_play',
+      },
+    ];
+    const applePkg: PackageLike = {
+      ...monthly,
+      productId: 'com.ilmoirfanapp.premium.monthly',
+    };
+    const playPkg: PackageLike = {
+      ...monthly,
+      productId: 'premium_monthly_play',
+    };
+
+    assert.equal(
+      planForPackage(applePkg, dualSkuPlans, DEFAULT_CODE)?.code,
+      DEFAULT_CODE,
+    );
+    assert.equal(
+      planForPackage(playPkg, dualSkuPlans, DEFAULT_CODE)?.code,
       DEFAULT_CODE,
     );
   });

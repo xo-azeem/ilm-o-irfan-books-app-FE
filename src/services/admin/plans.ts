@@ -3,6 +3,7 @@ import type { AdminPlan, AdminPlanInput } from './types';
 
 const PLAN_COLUMNS =
   'id,code,name,price_cents,currency,interval,features,revenuecat_product_id,' +
+  'app_store_product_id,play_store_product_id,' +
   'is_active,sort_order,created_at,updated_at';
 
 /** `features` is jsonb — tolerate both a string array and objects with a label. */
@@ -50,6 +51,8 @@ export async function upsertAdminPlan(input: AdminPlanInput): Promise<string> {
     interval: input.interval,
     features: input.features.map(item => item.trim()).filter(Boolean),
     revenuecat_product_id: input.revenuecat_product_id.trim() || null,
+    app_store_product_id: (input.app_store_product_id ?? '').trim() || null,
+    play_store_product_id: (input.play_store_product_id ?? '').trim() || null,
     is_active: input.is_active,
     sort_order: input.sort_order,
   };

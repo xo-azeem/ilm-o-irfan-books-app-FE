@@ -30,8 +30,10 @@ export type PlanLike = {
   name: string;
   interval: string | null;
   features: string[] | null;
-  /** What the webhook matches `event.product_id` against. */
+  /** Shared / legacy SKU — webhook also checks store-specific columns. */
   revenuecat_product_id?: string | null;
+  app_store_product_id?: string | null;
+  play_store_product_id?: string | null;
 };
 
 export type MembershipRow<P extends PackageLike> = {
@@ -46,14 +48,24 @@ export type MembershipRow<P extends PackageLike> = {
   recommended: boolean;
 };
 
+function planClaimsProductId(plan: PlanLike, productId: string): boolean {
+  return (
+    plan.revenuecat_product_id === productId ||
+    plan.app_store_product_id === productId ||
+    plan.play_store_product_id === productId
+  );
+}
+
 /**
  * The plan a package belongs to.
  *
- * Matched on `revenuecat_product_id`, which is how the backend's webhook decides
- * the same thing — so the copy beside a price describes the plan the purchase
- * will actually grant. A product no plan claims falls back to the default plan
- * code, mirroring the webhook's own fallback, and failing that to nothing: the
- * package is still perfectly buyable, it just carries the store's own title.
+ * Matched on any of `revenuecat_product_id` / `app_store_product_id` /
+ * `play_store_product_id`, matching the backend webhook. A product no plan
+ * claims falls back to the default plan code, mirroring the webhook, and failing
+ * that to nothing: the package is still buyable with the store's own title.
+ *
+ * Apple Pay and Google Pay are payment methods inside the App Store / Play
+ * sheets — not separate product ids.
  */
 export function planForPackage<P extends PackageLike, T extends PlanLike>(
   item: P,
@@ -61,7 +73,7 @@ export function planForPackage<P extends PackageLike, T extends PlanLike>(
   defaultPlanCode: string,
 ): T | undefined {
   return (
-    plans?.find(plan => plan.revenuecat_product_id === item.productId) ??
+    plans?.find(plan => planClaimsProductId(plan, item.productId)) ??
     plans?.find(plan => plan.code === defaultPlanCode)
   );
 }

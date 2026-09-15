@@ -40,8 +40,8 @@ export const AdminSwitchCard = memo(function AdminSwitchCard() {
             You’re using the app as a reader
           </Text>
           <Text size={fontSize.captionSmall} leading={1.45} tone="muted">
-            This is an admin account, so every book opens without a
-            membership. Readers see the paywall where you don’t.
+            This is an admin account, so every book opens without a membership.
+            Readers see the paywall where you don’t.
           </Text>
         </View>
       </View>

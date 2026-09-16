@@ -26,9 +26,11 @@ const RESEND_COOLDOWN_SECONDS = 60;
  *
  * Two ways in, one form. From the email's six-digit code: the code proves the
  * address (a `recovery` OTP, which also signs the reader in) and the password
- * is set on that session. From the email's link opened on this phone:
- * AuthLinkProvider has already set the session, so only the password is
- * asked for. Either way the reader ends up signed in with the new password,
+ * is set on that session — usually on the shared code screen first, which
+ * then lands here with `viaLink` set, since the session already exists; the
+ * inline code fields remain for a reader who arrives with a code in hand.
+ * From the email's link opened on this phone: AuthLinkProvider has already
+ * set the session, so only the password is asked for. Either way the reader ends up signed in with the new password,
  * on every device — Supabase keeps the other sessions, which is why the
  * Signed-in devices screen exists.
  */
@@ -160,7 +162,7 @@ export function ResetPasswordScreen() {
       title="Set a new password."
       subtitle={
         viaLink
-          ? `You opened the reset link for ${sessionEmail ?? 'your account'}. Choose a new password below.`
+          ? `You have confirmed ${sessionEmail ?? initialEmail ?? 'your account'}. Choose a new password below.`
           : `Enter the six-digit code we emailed${initialEmail ? ` to ${initialEmail}` : ''}, then choose a new password.`
       }
       onBack={navigation.canGoBack() ? () => navigation.goBack() : undefined}

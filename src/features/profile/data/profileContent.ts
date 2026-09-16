@@ -151,6 +151,7 @@ export const catalogueToggles = [
 
 export const accountSecurityRows = [
   { id: 'sign-in-methods', label: 'Sign-in methods' },
+  { id: 'change-email', label: 'Change email address' },
   { id: 'change-password', label: 'Change password' },
   { id: 'devices', label: 'Signed-in devices' },
   { id: 'export', label: 'Download my data' },

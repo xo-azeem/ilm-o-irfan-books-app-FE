@@ -310,3 +310,135 @@ export async function exportMyData(): Promise<Record<string, unknown>> {
   }
   return data as Record<string, unknown>;
 }
+
+// ---------------------------------------------------------------------------
+// One-time codes: every auth email carries a six-digit code beside its link
+// ---------------------------------------------------------------------------
+
+/**
+ * Forgot password, step two, code only: proves the address with the
+ * `recovery` code and signs the reader in, leaving the new password to the
+ * next screen. Same two calls as `resetPasswordWithCode`, split so the code
+ * screen and the "choose a new password" screen can be two screens.
+ */
+export async function verifyRecoveryCode(email: string, code: string) {
+  const { data, error } = await supabase.auth.verifyOtp({
+    email: email.trim(),
+    token: code.trim(),
+    type: 'recovery',
+  });
+  if (error) {
+    throw error;
+  }
+  return data;
+}
+
+/**
+ * Passwordless sign-in, step one: emails an existing account a sign-in code
+ * and link. `shouldCreateUser: false` keeps this from quietly creating an
+ * account for a mistyped address — sign-up is its own screen.
+ */
+export async function sendSignInCode(email: string) {
+  const { error } = await supabase.auth.signInWithOtp({
+    email: email.trim(),
+    options: { emailRedirectTo: AUTH_REDIRECT_URL, shouldCreateUser: false },
+  });
+  if (error) {
+    throw error;
+  }
+}
+
+/** Passwordless sign-in, step two: the code from that email. */
+export async function verifySignInCode(email: string, code: string) {
+  const { data, error } = await supabase.auth.verifyOtp({
+    email: email.trim(),
+    token: code.trim(),
+    type: 'email',
+  });
+  if (error) {
+    throw error;
+  }
+  return data;
+}
+
+// ---------------------------------------------------------------------------
+// Change email address — two codes (Secure Email Change is on)
+// ---------------------------------------------------------------------------
+
+/**
+ * Where an email change stands, read off the user record.
+ *
+ * With Secure Email Change on, Supabase emails a code to the current address
+ * and another to the new one, and the change lands only once both have been
+ * entered. `new_email` stays on the record until then; it is the one honest
+ * signal of "not finished yet", so the screen reads it rather than counting
+ * codes it has accepted.
+ */
+export type EmailChangeProgress = {
+  /** The address the account answers to right now. */
+  currentEmail: string | null;
+  /** The address waiting to be confirmed, or null when nothing is pending. */
+  pendingEmail: string | null;
+  /** True once `currentEmail` is the address that was asked for. */
+  complete: boolean;
+};
+
+export function readEmailChangeProgress(
+  user: { email?: string | null; new_email?: string | null } | null,
+  requestedEmail: string,
+): EmailChangeProgress {
+  const currentEmail = user?.email ?? null;
+  const wanted = requestedEmail.trim().toLowerCase();
+  const complete = (currentEmail ?? '').toLowerCase() === wanted;
+  return {
+    currentEmail,
+    pendingEmail: complete ? null : (user?.new_email ?? null),
+    complete,
+  };
+}
+
+/**
+ * Change email, step one: asks Supabase to move the account to `newEmail`.
+ * Two emails go out — one to the current address, one to the new — each with
+ * its own code and link. Nothing changes until both are confirmed.
+ */
+export async function requestEmailChange(newEmail: string) {
+  const { data, error } = await supabase.auth.updateUser(
+    { email: newEmail.trim() },
+    { emailRedirectTo: AUTH_REDIRECT_URL },
+  );
+  if (error) {
+    throw error;
+  }
+  return data.user;
+}
+
+/**
+ * Change email, steps two and three: one call per code, each with the
+ * address that code was sent to. The order does not matter to Supabase; the
+ * screen asks for the current address's code first because that is the one
+ * the reader can already read.
+ */
+export async function verifyEmailChangeCode(email: string, code: string) {
+  const { data, error } = await supabase.auth.verifyOtp({
+    email: email.trim(),
+    token: code.trim(),
+    type: 'email_change',
+  });
+  if (error) {
+    throw error;
+  }
+  return data;
+}
+
+/** Sends both email-change codes again. Supabase keys the resend on the new address. */
+export async function resendEmailChangeCodes(newEmail: string) {
+  const { error } = await supabase.auth.resend({
+    type: 'email_change',
+    email: newEmail.trim(),
+    options: { emailRedirectTo: AUTH_REDIRECT_URL },
+  });
+  if (error) {
+    throw error;
+  }
+}

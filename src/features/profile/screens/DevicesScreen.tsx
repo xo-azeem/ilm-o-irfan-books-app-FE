@@ -71,9 +71,12 @@ export function DevicesScreen() {
     (session: AuthSession) => {
       const label = parseDeviceUserAgent(session.userAgent);
       showDialog({
-        title: `Sign out ${label}?`,
-        message:
-          'That device will need to sign in again. It may keep working for up to an hour.',
+        title: session.isCurrent
+          ? 'Sign out this device?'
+          : `Sign out ${label}?`,
+        message: session.isCurrent
+          ? 'This session will be ended on the server and you will be signed out here.'
+          : 'That device will need to sign in again. It may keep working for up to an hour.',
         actions: [
           { label: 'Keep', style: 'cancel' },
           {
@@ -142,7 +145,12 @@ export function DevicesScreen() {
             {rows
               .filter(session => session.isCurrent)
               .map(session => (
-                <DeviceRow key={session.id} session={session} />
+                <DeviceRow
+                  key={session.id}
+                  session={session}
+                  onSignOut={() => handleRevoke(session)}
+                  busy={revoke.isPending}
+                />
               ))}
           </SettingsGroup>
 

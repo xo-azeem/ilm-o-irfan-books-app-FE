@@ -44,31 +44,49 @@ missing.
    into `Info.plist` as an URL scheme (EAS runs it in `eas-build-pre-install`).
    Rebuild natively; `react-native-config` bakes `.env` in.
 
-## Email verification
+## Auth emails are code-first
 
-Supabase → Authentication → Providers → Email → **Confirm email: on** (already
-on for hosted staging). Then:
+The backend sends every auth email through its Send Email Hook (Resend).
+Each one carries a **6-digit code** and an "Open secure link" button. On a
+phone the code is the primary path; the link is the fallback for the same
+phone. Every call that sends an email passes
+`emailRedirectTo: 'ilmoirfan://auth/callback'` (`AUTH_REDIRECT_URL`), and
+`AuthLinkProvider` turns that link into a session: `?code=` →
+`exchangeCodeForSession`, `#access_token` → `setSession`, `?error` → a
+dialog with `error_description`.
 
-- Sign-up lands on `VerifyEmailScreen`; sign-in with an unconfirmed address is
-  refused by Supabase with `email_not_confirmed` and lands there too.
-- The screen takes the **6-digit code** from the email
-  (`supabase.auth.verifyOtp`), and the **link** in the same email works when
-  opened on the phone (`ilmoirfan://auth/callback…` → `AuthLinkProvider` →
-  `setSession`). Resend has a 60 s cooldown.
-- Profile → Privacy & security → Sign-in methods shows the verified state and
-  can resend.
+One component draws every code screen — `features/auth/components/CodeEntry`
+(six cells, paste, auto-submit on the sixth digit, Resend with a **30 s**
+cooldown, invalid/expired state from `describeOtpError`). What differs per
+flow is only the `verifyOtp` type:
 
-### Email template (required for the code)
+| Flow | Send | Verify | Screen |
+| --- | --- | --- | --- |
+| Sign up | `signUp({ options: { emailRedirectTo } })` | `type: 'signup'` | `EnterCode` (`flow: 'signup'`; `VerifyEmail` forwards here) |
+| Forgot password | `resetPasswordForEmail(email, { redirectTo })` | `type: 'recovery'` | `EnterCode` (`flow: 'recovery'`) → `ResetPassword` (`viaLink`) |
+| Sign in by code | `signInWithOtp({ options: { emailRedirectTo, shouldCreateUser: false } })` | `type: 'email'` | `EnterCode` (`flow: 'signin'`), from "Email me a sign-in code" on Login |
+| Change email | `updateUser({ email }, { emailRedirectTo })` | `type: 'email_change'` **twice** | `ChangeEmail` (profile stack) |
+| Change password | `reauthenticate()` | `updateUser({ password, nonce })` | `ChangePassword` |
 
-Supabase → Authentication → Email templates → **Confirm signup**. The default
-template has only a link. Add the code:
+Resend: `resend({ type: 'signup' })`, `resetPasswordForEmail` again,
+`signInWithOtp` again, `resend({ type: 'email_change', email: newEmail })`.
 
-```html
-<h2>Confirm your email</h2>
-<p>Enter this code in the Ilm o Irfan app:</p>
-<p style="font-size:28px;letter-spacing:6px"><strong>{{ .Token }}</strong></p>
-<p>Or, on your phone, <a href="{{ .ConfirmationURL }}">tap to confirm</a>.</p>
-```
+### Email verification
+
+Supabase → Authentication → Providers → Email → **Confirm email: on**.
+Sign-up lands on the code screen; sign-in with an unconfirmed address is
+refused with `email_not_confirmed` and lands there too. Profile → Privacy &
+security → Sign-in methods shows the verified state and can resend.
+
+### Change email — two codes
+
+**Secure email change** is on, so `updateUser({ email })` sends one email to
+the *current* address and one to the *new* one, each with its own code. The
+screen asks for them one at a time (current first) and after each accepted
+code re-reads `getUser()`: the change is complete only when `user.email` is
+the new address — one code leaves `new_email` pending, and the screen says
+so rather than declaring victory. Both links opened on the phone do the same
+job (`type=email_change` → `AuthLinkProvider` refreshes the account).
 
 ### Sending email — what is free
 
@@ -98,11 +116,37 @@ Profile → Privacy & security → **Sign-in methods** (`SignInMethodsScreen`).
 
 ## Account deletion
 
-Profile → Privacy & security → **Request account deletion**. A request, not a
+Profile → Privacy & security → **Request deletion**. A request, not a
 button: the backend decides whether it may be filed, an admin approves it in
 the CMS (People → Deletions), and it runs after a **7-day grace period** during
-which the reader can withdraw. The reader is pushed on approve / decline
-(`account_deletion_approved` / `_rejected`, tap → Privacy & security).
+which the reader can cancel. The reader is pushed on approve / decline
+(`account_deletion_approved` / `_rejected`, route Home; the app also refetches
+`account_deletion_status()` on either).
+
+The screen name matters: the backend's emails literally say "Profile →
+Privacy & security", so deletion, signed-in devices, data export and
+membership cancellation all live there.
+
+RPCs (user JWT): `account_deletion_status()` → the current request or
+`null`; `request_account_deletion({ p_reason })` → the request;
+`cancel_account_deletion_request()` → the request it withdrew (status reads
+`null` afterwards). Refusals arrive as PostgREST errors whose `message` is a
+token and whose `details` is the sentence; `services/accountDeletion.ts`
+turns them into `DeletionRequestError { code, message: details }` and no
+screen ever shows the token:
+
+| Token | Screen |
+| --- | --- |
+| `SUBSCRIPTION_ACTIVE`, `BILLING_UNRESOLVED` | blocked, with "Manage subscription" (store page) |
+| `ADMIN_ACCOUNT` | blocked |
+| `REQUEST_EXISTS`, `REQUEST_NOT_OPEN` | not an error — refetch status |
+| `REASON_TOO_LONG` | inline; the form also stops at 1000 characters |
+
+States: none → explain + optional reason + **Request deletion**; `pending`
+→ "Your request is with our team" + **Withdraw request**; `approved` →
+"Scheduled for <date>" + **Cancel deletion**; `rejected` → decision note +
+**Request again**; `processing` / `failed` → read-only "In progress";
+`completed` → the app signs out.
 
 Rules (all in the database; the app only shows them):
 
@@ -129,16 +173,28 @@ App side: `src/services/accountDeletion.ts`, `src/hooks/useAccountDeletion.ts`,
 `PrivacySecurityScreen`; admin: `src/services/admin/deletions.ts`,
 `AdminDeletionRequests`.
 
+## Membership cancellation
+
+Also on Privacy & security (and on Subscription).
+`request_subscription_cancellation()` records the intent and starts the
+reminder emails; `withdraw_subscription_cancellation()` clears it. Neither
+cancels anything — the app then opens the store's subscriptions page
+(`https://play.google.com/store/account/subscriptions` /
+`https://apps.apple.com/account/subscriptions`) where the renewal is
+actually stopped, and the store confirms by webhook. Access is gated on
+`canAccessPremium` only.
+
 ## Forgot password / change password
 
 Both are Supabase Auth; the app sends nothing but the reader's inputs.
 
 - **Forgot** (sign-in → *Forgot password?*): `resetPasswordForEmail(email,
-  { redirectTo: 'ilmoirfan://auth/callback' })`. The reader lands on
-  `ResetPasswordScreen` and either types the **6-digit code** from the email
-  plus a new password (`verifyOtp({ type: 'recovery' })` → `updateUser`), or
-  opens the **link** on the phone — `AuthLinkProvider` sets the session from
-  it and routes to the same screen with only the password to fill in.
+  { redirectTo: 'ilmoirfan://auth/callback' })`. The reader lands on the
+  code screen (`EnterCode`, `flow: 'recovery'`); the **6-digit code**
+  (`verifyOtp({ type: 'recovery' })`) signs them in and hands over to
+  `ResetPasswordScreen` for the new password (`updateUser`). Opening the
+  **link** on the phone instead — `AuthLinkProvider` sets the session from
+  it and routes straight to the new-password screen.
 - **Change** (Profile → Privacy & security → Change password):
   `reauthenticate()` emails the account a code (the *Reauthentication*
   template), then `updateUser({ password, nonce })`. No old password is asked
@@ -161,8 +217,9 @@ from `my_sessions()` (BE migration `20260923120000_account_sessions_export.sql`)
 which reads `auth.sessions`. The app sends a User-Agent of the form
 `IlmOIrfan/<version> (<model> · Android 14)` on every Supabase request
 (`src/lib/device.ts`) so each row names the phone. Sign one out =
-`revoke_session(id)` (deletes the session; its refresh tokens go with it; the
-access token it holds lasts up to an hour). Sign out all others =
+`revoke_session({ p_session_id })` (deletes the session; its refresh tokens
+go with it; the access token it holds lasts up to an hour). Revoking the
+current device's own session signs the app out. Sign out all others =
 `supabase.auth.signOut({ scope: 'others' })`.
 
 ## Download my data
@@ -170,7 +227,8 @@ access token it holds lasts up to an hour). Sign out all others =
 Profile → Privacy & security → Download my data. `my_data_export()` builds one
 JSON document server-side (account, profile, membership, reading record,
 highlights, wishlist, downloads with book titles, devices, deletion requests);
-the app writes it to cache and opens the system **save-as** sheet
-(`@react-native-documents/picker` `saveDocuments`), then deletes the cached
-copy. One export per 10 minutes; each is logged in `data_export_log`. Nothing
+the app writes it to cache and offers either the system **save-as** sheet
+(`@react-native-documents/picker` `saveDocuments`) or the OS **share** sheet
+(`Share.share`), then deletes the cached copy. There is no server download
+URL. One export per 10 minutes; each is logged in `data_export_log`. Nothing
 is emailed and nothing waits.

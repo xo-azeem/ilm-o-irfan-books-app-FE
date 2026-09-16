@@ -4,7 +4,9 @@ import { Linking } from 'react-native';
 import { openPushIntent } from '@/app/navigation/navigationRef';
 import { showDialog } from '@/components/ui';
 import { env } from '@/config/env';
+import { queryClient } from '@/lib/queryClient';
 import { supabase } from '@/lib/supabase';
+import { useAuthStore } from '@/stores/authStore';
 
 /**
  * Turns `ilmoirfan://auth/callback…` links into a session.
@@ -49,6 +51,39 @@ function isAuthLink(url: string): boolean {
   return url.startsWith(`${env.appScheme}://auth`);
 }
 
+/**
+ * What to do once the link has become a session, by the flow that sent it.
+ *
+ * `type` rides on the implicit-flow fragment (and on the query when the
+ * backend's redirect adds it). A PKCE `?code=` may carry none, in which case
+ * the session is simply set and the screen that is up decides what it means.
+ */
+async function routeAfterLink(type: string | null): Promise<void> {
+  if (type === 'recovery') {
+    // A recovery link signs the reader in so they can set a new password;
+    // that screen is the point of the link, not a side effect.
+    openPushIntent({ route: 'resetPassword' });
+    return;
+  }
+
+  if (type === 'email_change') {
+    // One or both halves of a change of address just landed. Everything
+    // that shows the address re-reads the user record; the store is told
+    // directly because its copy otherwise waits for the next token refresh.
+    const { data } = await supabase.auth.getUser();
+    if (data.user) {
+      useAuthStore.setState({ email: data.user.email ?? null });
+    }
+    void queryClient.invalidateQueries({ queryKey: ['account'] });
+    void queryClient.invalidateQueries({ queryKey: ['profile'] });
+    return;
+  }
+
+  // Sign-up confirmation, magic link, or a PKCE code with no type: the
+  // session is set and the auth listener carries the rest of the app along.
+  // The code screen, if it is up, notices the session and moves on.
+}
+
 async function consumeAuthLink(url: string): Promise<void> {
   const params = parseParams(url);
 
@@ -69,9 +104,7 @@ async function consumeAuthLink(url: string): Promise<void> {
     if (error) {
       throw error;
     }
-    if (params.get('type') === 'recovery') {
-      openPushIntent({ route: 'resetPassword' });
-    }
+    await routeAfterLink(params.get('type'));
     return;
   }
 
@@ -85,11 +118,7 @@ async function consumeAuthLink(url: string): Promise<void> {
     if (error) {
       throw error;
     }
-    // A recovery link signs the reader in so they can set a new password;
-    // that screen is the point of the link, not a side effect.
-    if (params.get('type') === 'recovery') {
-      openPushIntent({ route: 'resetPassword' });
-    }
+    await routeAfterLink(params.get('type'));
     return;
   }
 

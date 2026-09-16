@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { ImageOff } from 'lucide-react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import {
   Avatar,
@@ -12,6 +14,7 @@ import {
   TextField,
 } from '@/components/ui';
 import { ProfileSubScreenLayout } from '@/features/profile/components/ProfileSubScreenLayout';
+import type { ProfileStackParamList } from '@/features/profile/navigation/types';
 import {
   useAvatarUpload,
   useAvatarUrl,
@@ -68,6 +71,8 @@ const EMPTY_FORM: Form = {
  * active once something has actually changed.
  */
 export function PersonalDetailsScreen() {
+  const navigation =
+    useNavigation<NativeStackNavigationProp<ProfileStackParamList>>();
   const { data: profile } = useProfile();
   const updateProfile = useUpdateProfile();
   const avatarUpload = useAvatarUpload();
@@ -232,11 +237,21 @@ export function PersonalDetailsScreen() {
           textContentType="name"
         />
 
-        <ReadOnlyField
-          label="Email"
-          value={form.email || '—'}
-          note="Verified"
-        />
+        <View style={styles.emailRow}>
+          <View style={styles.grow}>
+            <ReadOnlyField
+              label="Email"
+              value={form.email || '—'}
+              note="Verified"
+            />
+          </View>
+          {/* An account operation, not a form edit: two emailed codes, on its own screen. */}
+          <TextButton
+            label="Change"
+            onPress={() => navigation.navigate('ChangeEmail')}
+            style={styles.emailAction}
+          />
+        </View>
 
         <TextField
           label="Phone"
@@ -321,6 +336,14 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     gap: 11,
+  },
+  emailRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 11,
+  },
+  emailAction: {
+    paddingBottom: 17,
   },
   grow: {
     flex: 1,

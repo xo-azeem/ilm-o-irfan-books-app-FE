@@ -24,6 +24,7 @@ import { ROUTES } from '@/constants/routes';
 import { AdminNavigator } from '@/features/admin/navigation/AdminNavigator';
 import { LoginScreen } from '@/features/auth/screens/LoginScreen';
 import { SignUpScreen } from '@/features/auth/screens/SignUpScreen';
+import { EnterCodeScreen } from '@/features/auth/screens/EnterCodeScreen';
 import { ForgotPasswordScreen } from '@/features/auth/screens/ForgotPasswordScreen';
 import { ResetPasswordScreen } from '@/features/auth/screens/ResetPasswordScreen';
 import { VerifyEmailScreen } from '@/features/auth/screens/VerifyEmailScreen';
@@ -121,6 +122,11 @@ function ConsumerNavigator() {
       <Stack.Screen
         name={ROUTES.VERIFY_EMAIL}
         component={VerifyEmailScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name={ROUTES.ENTER_CODE}
+        component={EnterCodeScreen}
         options={{ animation: 'slide_from_right' }}
       />
       <Stack.Screen

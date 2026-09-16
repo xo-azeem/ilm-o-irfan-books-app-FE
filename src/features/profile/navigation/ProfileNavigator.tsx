@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { AppearanceScreen } from '@/features/profile/screens/AppearanceScreen';
+import { ChangeEmailScreen } from '@/features/profile/screens/ChangeEmailScreen';
 import { ChangePasswordScreen } from '@/features/profile/screens/ChangePasswordScreen';
 import { DevicesScreen } from '@/features/profile/screens/DevicesScreen';
 import { DownloadsScreen } from '@/features/profile/screens/DownloadsScreen';
@@ -54,6 +55,7 @@ export function ProfileNavigator() {
         />
         <Stack.Screen name="SignInMethods" component={SignInMethodsScreen} />
         <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+        <Stack.Screen name="ChangeEmail" component={ChangeEmailScreen} />
         <Stack.Screen name="Devices" component={DevicesScreen} />
       </Stack.Navigator>
     </View>

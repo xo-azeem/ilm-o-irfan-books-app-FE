@@ -16,6 +16,7 @@ import {
   GoogleSignInCancelled,
   isEmailNotConfirmed,
   isGoogleSignInAvailable,
+  sendSignInCode,
   signInWithEmail,
   signInWithGoogle,
 } from '@/lib/supabase';
@@ -35,6 +36,7 @@ export function LoginScreen() {
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleBusy, setIsGoogleBusy] = useState(false);
+  const [isSendingCode, setIsSendingCode] = useState(false);
 
   const handleSignIn = useCallback(async () => {
     if (!email.trim() || !password.trim()) {
@@ -128,6 +130,51 @@ export function LoginScreen() {
     [navigation, returnTo],
   );
 
+  /**
+   * Sign in without a password: Supabase emails the address a six-digit code
+   * and a link, and the code screen takes either. Only for an account that
+   * already exists — a mistyped address gets the same neutral answer rather
+   * than a fresh account.
+   */
+  const handleEmailCode = useCallback(async () => {
+    if (!isValidEmail(email)) {
+      showDialog({
+        title: 'Enter your email',
+        message:
+          'Type the address you signed up with and we will email a code.',
+        tone: 'warning',
+      });
+      return;
+    }
+    setIsSendingCode(true);
+    try {
+      await sendSignInCode(email);
+      navigation.navigate(ROUTES.ENTER_CODE, {
+        flow: 'signin',
+        email: email.trim(),
+        ...(returnTo ? { returnTo } : null),
+      });
+    } catch (error) {
+      // `shouldCreateUser: false` refuses an unknown address as "signups not
+      // allowed" — Supabase's words for "no such account".
+      const unknown =
+        error instanceof Error && /signups? not allowed/i.test(error.message);
+      showDialog({
+        title: unknown
+          ? 'No account for that address'
+          : 'Could not send a code',
+        message: unknown
+          ? 'Check the spelling, or create an account with it.'
+          : error instanceof Error
+            ? error.message
+            : 'Please wait a minute and try again.',
+        tone: unknown ? 'warning' : 'danger',
+      });
+    } finally {
+      setIsSendingCode(false);
+    }
+  }, [email, navigation, returnTo]);
+
   const handleForgotPassword = useCallback(() => {
     navigation.navigate(ROUTES.FORGOT_PASSWORD, {
       ...(isValidEmail(email) ? { email: email.trim() } : null),
@@ -200,6 +247,12 @@ export function LoginScreen() {
           label={isGoogleBusy ? 'Opening Google…' : 'Continue with Google'}
           onPress={handleGoogleSignIn}
           disabled={isGoogleBusy || isSubmitting}
+        />
+        <GoogleSignInButton
+          label={isSendingCode ? 'Sending code…' : 'Email me a sign-in code'}
+          showLogo={false}
+          onPress={handleEmailCode}
+          disabled={isSendingCode || isSubmitting}
         />
         <GoogleSignInButton
           label="Continue as guest"

@@ -1,3 +1,4 @@
+import { Platform, Share } from 'react-native';
 import {
   errorCodes,
   isErrorWithCode,
@@ -19,17 +20,7 @@ import { exportMyData } from '@/lib/supabase';
  * `saved` is false when they dismissed the sheet; that is not an error.
  */
 export async function exportMyDataToFile(): Promise<{ saved: boolean }> {
-  const data = await exportMyData();
-
-  const stamp = new Date().toISOString().slice(0, 10);
-  const fileName = `ilm-o-irfan-my-data-${stamp}.json`;
-  const file = new File(Paths.cache, fileName);
-
-  if (file.exists) {
-    file.delete();
-  }
-  file.create();
-  file.write(JSON.stringify(data, null, 2));
+  const { file, fileName } = await writeExportToCache();
 
   try {
     const result = await saveDocuments({
@@ -49,12 +40,53 @@ export async function exportMyDataToFile(): Promise<{ saved: boolean }> {
     }
     throw error;
   } finally {
-    try {
-      if (file.exists) {
-        file.delete();
-      }
-    } catch {
-      // The cache is the OS's to sweep if we could not.
+    discard(file);
+  }
+}
+
+/**
+ * Share my data: the same document, handed to the OS share sheet instead of
+ * the save-as picker — Drive, Mail, AirDrop, whatever the phone offers. iOS
+ * shares the file itself; Android's sheet takes text, so the JSON goes as
+ * the message. `shared` is false when the sheet was dismissed.
+ */
+export async function shareMyData(): Promise<{ shared: boolean }> {
+  const { file, fileName, json } = await writeExportToCache();
+  try {
+    const result = await Share.share(
+      Platform.OS === 'ios'
+        ? { url: file.uri, title: fileName }
+        : { message: json, title: fileName },
+      { dialogTitle: 'Share my data', subject: fileName },
+    );
+    return { shared: result.action === Share.sharedAction };
+  } finally {
+    discard(file);
+  }
+}
+
+async function writeExportToCache() {
+  const data = await exportMyData();
+  const json = JSON.stringify(data, null, 2);
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  const fileName = `ilm-o-irfan-my-data-${stamp}.json`;
+  const file = new File(Paths.cache, fileName);
+
+  if (file.exists) {
+    file.delete();
+  }
+  file.create();
+  file.write(json);
+  return { file, fileName, json };
+}
+
+function discard(file: File) {
+  try {
+    if (file.exists) {
+      file.delete();
     }
+  } catch {
+    // The cache is the OS's to sweep if we could not.
   }
 }

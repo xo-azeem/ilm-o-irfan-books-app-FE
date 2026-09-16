@@ -11,6 +11,8 @@ export const ROUTES = {
   LOGIN: 'Login',
   SIGN_UP: 'SignUp',
   VERIFY_EMAIL: 'VerifyEmail',
+  /** The six-digit code from an auth email: sign-up, password reset, sign-in. */
+  ENTER_CODE: 'EnterCode',
   FORGOT_PASSWORD: 'ForgotPassword',
   RESET_PASSWORD: 'ResetPassword',
 } as const;
@@ -30,6 +32,7 @@ export const ROUTE_LABELS: Record<RouteName, string> = {
   [ROUTES.LOGIN]: 'Login',
   [ROUTES.SIGN_UP]: 'Sign up',
   [ROUTES.VERIFY_EMAIL]: 'Verify email',
+  [ROUTES.ENTER_CODE]: 'Enter code',
   [ROUTES.FORGOT_PASSWORD]: 'Forgot password',
   [ROUTES.RESET_PASSWORD]: 'Reset password',
 };

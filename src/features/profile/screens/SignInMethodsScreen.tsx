@@ -1,6 +1,8 @@
 import { useCallback } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { KeyRound, Link2, MailCheck, MailWarning } from 'lucide-react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import {
   Button,
@@ -12,6 +14,7 @@ import {
 } from '@/components/ui';
 import { GoogleLogoIcon } from '@/features/auth/components/GoogleLogoIcon';
 import { ProfileSubScreenLayout } from '@/features/profile/components/ProfileSubScreenLayout';
+import type { ProfileStackParamList } from '@/features/profile/navigation/types';
 import { useSignInMethods } from '@/hooks/useSignInMethods';
 import { GoogleSignInCancelled, isGoogleSignInAvailable } from '@/lib/supabase';
 import { fontSize } from '@/theme/typography';
@@ -26,6 +29,8 @@ import { fontSize } from '@/theme/typography';
  * Google sees that, and can drop it only while a password remains.
  */
 export function SignInMethodsScreen() {
+  const navigation =
+    useNavigation<NativeStackNavigationProp<ProfileStackParamList>>();
   const { methods, link, unlink, resendVerification } = useSignInMethods();
   const data = methods.data;
   const googleAvailable = isGoogleSignInAvailable();
@@ -178,6 +183,11 @@ export function SignInMethodsScreen() {
           icon={data?.emailVerified ? MailCheck : MailWarning}
           iconTone={data?.emailVerified ? 'primary' : 'warning'}
           chevron={false}
+        />
+        <SettingsRow
+          title="Change email address"
+          subtitle="A code to your current address and one to the new"
+          onPress={() => navigation.navigate('ChangeEmail')}
         />
       </SettingsGroup>
 

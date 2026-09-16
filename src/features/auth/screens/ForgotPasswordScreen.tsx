@@ -46,7 +46,8 @@ export function ForgotPasswordScreen() {
     setIsSending(true);
     try {
       await requestPasswordReset(email);
-      navigation.replace(ROUTES.RESET_PASSWORD, {
+      navigation.replace(ROUTES.ENTER_CODE, {
+        flow: 'recovery',
         email: email.trim(),
         ...(returnTo ? { returnTo } : null),
       });
@@ -113,12 +114,21 @@ export function ForgotPasswordScreen() {
         <TextButton
           label="I already have a code"
           tone="muted"
-          onPress={() =>
-            navigation.navigate(ROUTES.RESET_PASSWORD, {
+          onPress={() => {
+            if (!isValidEmail(email)) {
+              showDialog({
+                title: 'Enter your email',
+                message: 'Type the address the code was sent to first.',
+                tone: 'warning',
+              });
+              return;
+            }
+            navigation.navigate(ROUTES.ENTER_CODE, {
+              flow: 'recovery',
               email: email.trim(),
               ...(returnTo ? { returnTo } : null),
-            })
-          }
+            });
+          }}
         />
       </View>
     </AuthLayout>

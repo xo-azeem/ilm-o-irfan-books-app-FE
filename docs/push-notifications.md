@@ -34,7 +34,17 @@ Full backend contract: `Ilm-o-Irfan-App-BE/docs/api-endpoints.md → Push notifi
 - `src/app/providers/PushProvider.tsx` — listeners. Foreground message →
   in-app banner (`components/ui/PushBanner.tsx`) + cache invalidation
   (`services/push/payload.ts`); tap on a background/killed-state notification →
-  `navigationRef.openPushIntent()`, which waits for the reader shell.
+  `navigationRef.openPushIntent()`, which waits for the reader shell. Routing
+  is by `data.route`: `book` → book detail (`data.bookId`), `collection` →
+  collection page (`data.collectionId`), anything else → Home.
+  `account_deletion_approved` / `_rejected` also refetch
+  `account_deletion_status()`. A targeted push (membership, deletion, a held
+  book) that arrives with no session — the account signed out or was deleted
+  — is dropped silently (`pushIsForCurrentUser`).
+- `register_push_token` sends `p_device_name` as the same label Signed-in
+  devices shows (`lib/device.ts`), and is re-called with the new
+  `p_notify_library` / `p_notify_membership` whenever a switch on the
+  Notifications screen flips.
 - `RootNavigator` asks for the OS permission once, after the splash, only over
   the reader app (never over the admin tool).
 - Android: three notification channels are created in

@@ -79,6 +79,38 @@ function parseIntent(data: Record<string, unknown>): PushIntent | null {
   }
 }
 
+/** The kinds addressed to a person rather than to every install. */
+const TARGETED_KINDS: ReadonlySet<string> = new Set([
+  'book_deleted',
+  'book_file_replaced',
+  'book_updated',
+  'membership_activated',
+  'membership_expired',
+  'account_deletion_approved',
+  'account_deletion_rejected',
+]);
+
+/**
+ * Whether a delivery is for whoever is signed in right now.
+ *
+ * A targeted push can outlive its reader: the account signed out, or was
+ * deleted, between the send and the tap. With no session there is nothing
+ * to refresh and nowhere personal to go, so such a message is dropped
+ * rather than routed. Topic announcements are for every install and pass.
+ */
+export function pushIsForCurrentUser(
+  payload: PushPayload,
+  userId: string | null,
+): boolean {
+  if (!payload.kind || !TARGETED_KINDS.has(payload.kind)) {
+    return true;
+  }
+  return Boolean(userId);
+}
+
+/** Where a tap lands when the payload names nowhere in particular. */
+export const DEFAULT_PUSH_INTENT: PushIntent = { route: 'home' };
+
 /** Reads a delivered message. Unknown or foreign messages parse to nulls. */
 export function parsePush(
   message: RemoteMessage | null | undefined,

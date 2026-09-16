@@ -27,8 +27,19 @@ export function useSessions() {
     refetchOnWindowFocus: true,
   });
 
+  const signOut = useAuthStore(state => state.signOut);
+
   const revoke = useMutation({
-    mutationFn: (sessionId: string) => revokeSession(sessionId),
+    mutationFn: async (sessionId: string) => {
+      const current = sessions.data?.find(session => session.id === sessionId);
+      const next = await revokeSession(sessionId);
+      // Revoking this device's own session is a sign-out: the server has
+      // already dropped it, so the app's own state follows.
+      if (current?.isCurrent) {
+        await signOut();
+      }
+      return next;
+    },
     onSuccess: (next: AuthSession[]) => client.setQueryData(key(userId), next),
     onError: () => void sessions.refetch(),
   });

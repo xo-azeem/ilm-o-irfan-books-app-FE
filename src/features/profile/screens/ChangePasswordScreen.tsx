@@ -7,17 +7,22 @@ import {
   Button,
   Callout,
   Card,
+  Label,
   showDialog,
   Text,
   TextField,
 } from '@/components/ui';
+import { RESEND_COOLDOWN_SECONDS } from '@/features/auth/components/CodeEntry';
+import { CODE_LENGTH, CodeInput } from '@/features/auth/components/CodeInput';
 import { ProfileSubScreenLayout } from '@/features/profile/components/ProfileSubScreenLayout';
 import { useSignInMethods } from '@/hooks/useSignInMethods';
-import { sendPasswordChangeCode, setNewPassword } from '@/lib/supabase';
+import {
+  describeOtpError,
+  sendPasswordChangeCode,
+  setNewPassword,
+} from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import { fontSize } from '@/theme/typography';
-
-const RESEND_COOLDOWN_SECONDS = 60;
 
 /**
  * Change password.
@@ -41,6 +46,8 @@ export function ChangePasswordScreen() {
   const [isSending, setIsSending] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+  // A refused code, explained under the cells rather than in a dialog.
+  const [codeProblem, setCodeProblem] = useState<string | null>(null);
 
   useEffect(() => {
     if (cooldown <= 0) {
@@ -58,14 +65,19 @@ export function ChangePasswordScreen() {
     try {
       await sendPasswordChangeCode();
       setCodeSent(true);
+      setCode('');
+      setCodeProblem(null);
       setCooldown(RESEND_COOLDOWN_SECONDS);
     } catch (error) {
+      const described = describeOtpError(error);
+      if (described.kind === 'rate_limited') {
+        // A code is already in the inbox; the cells may as well be open.
+        setCodeSent(true);
+        setCooldown(RESEND_COOLDOWN_SECONDS);
+      }
       showDialog({
         title: 'Could not send the code',
-        message:
-          error instanceof Error
-            ? error.message
-            : 'Please wait a minute and try again.',
+        message: described.message,
         tone: 'danger',
       });
     } finally {
@@ -75,12 +87,8 @@ export function ChangePasswordScreen() {
 
   const handleSave = useCallback(async () => {
     const digits = code.replace(/\D/g, '');
-    if (digits.length < 6) {
-      showDialog({
-        title: 'Enter the code',
-        message: 'Type the six-digit code from the email we sent you.',
-        tone: 'warning',
-      });
+    if (digits.length < CODE_LENGTH) {
+      setCodeProblem(`Enter all ${CODE_LENGTH} digits from the email.`);
       return;
     }
     if (password.length < 8) {
@@ -113,12 +121,15 @@ export function ChangePasswordScreen() {
         actions: [{ label: 'Done', onPress: () => navigation.goBack() }],
       });
     } catch (error) {
+      const described = describeOtpError(error);
+      if (described.kind === 'invalid' || described.kind === 'expired') {
+        setCodeProblem(described.message);
+        setCode('');
+        return;
+      }
       showDialog({
         title: 'Could not change the password',
-        message:
-          error instanceof Error
-            ? error.message
-            : 'The code may be wrong or expired. Request a new one.',
+        message: described.message,
         tone: 'danger',
       });
     } finally {
@@ -173,19 +184,23 @@ export function ChangePasswordScreen() {
           <Text size={fontSize.bodySmall} weight="600">
             2. Choose the new password
           </Text>
-          <TextField
-            label="Code from the email"
-            value={code}
-            onChangeText={value =>
-              setCode(value.replace(/\D/g, '').slice(0, 6))
-            }
-            placeholder="123456"
-            keyboardType="number-pad"
-            textContentType="oneTimeCode"
-            autoComplete="one-time-code"
-            maxLength={6}
-            editable={!isSaving}
-          />
+          <View style={styles.code}>
+            <Label size={fontSize.labelSmall + 0.5}>Code from the email</Label>
+            <CodeInput
+              value={code}
+              onChange={next => {
+                setCode(next);
+                setCodeProblem(null);
+              }}
+              editable={!isSaving && codeSent}
+              invalid={Boolean(codeProblem)}
+            />
+            {codeProblem ? (
+              <Text size={fontSize.captionSmall} leading={1.4} tone="danger">
+                {codeProblem}
+              </Text>
+            ) : null}
+          </View>
           <TextField
             label="New password"
             value={password}
@@ -230,5 +245,8 @@ export function ChangePasswordScreen() {
 const styles = StyleSheet.create({
   step: {
     gap: 12,
+  },
+  code: {
+    gap: 8,
   },
 });

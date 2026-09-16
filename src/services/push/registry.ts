@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 
 import appConfig from '../../../app.json';
+import { deviceLabel } from '@/lib/device';
 import { supabase } from '@/lib/supabase/client';
 import { usePushStore, type PushRegistration } from '@/stores/pushStore';
 
@@ -144,7 +145,9 @@ async function syncRegistration(
     p_token: token,
     p_platform: Platform.OS === 'ios' ? 'ios' : 'android',
     p_app_version: APP_VERSION,
-    p_device_name: null,
+    // The same name Signed-in devices shows, so an admin can match a token
+    // row to a session row.
+    p_device_name: deviceLabel(),
     p_notify_library: next.libraryUpdates,
     p_notify_membership: next.membershipUpdates,
   });

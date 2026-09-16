@@ -16,6 +16,16 @@ export type RootStackParamList = {
   SignUp: { returnTo?: AuthReturnTo } | undefined;
   /** Sign-up confirmation: the code from the email, or the link opened here. */
   VerifyEmail: { email: string; returnTo?: AuthReturnTo };
+  /**
+   * The six-digit code from an auth email. `signup` confirms a new account,
+   * `recovery` proves the address before a new password is chosen, `signin`
+   * signs an existing account in without a password.
+   */
+  EnterCode: {
+    flow: 'signup' | 'recovery' | 'signin';
+    email: string;
+    returnTo?: AuthReturnTo;
+  };
   ForgotPassword: { email?: string; returnTo?: AuthReturnTo } | undefined;
   /**
    * Set a new password. From the forgot-password email: the code plus the new

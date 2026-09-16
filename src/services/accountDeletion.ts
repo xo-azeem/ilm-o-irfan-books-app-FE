@@ -9,6 +9,16 @@ import { supabase } from '@/lib/supabase/client';
  * The app renders the answer; it never works it out on its own, because the
  * same rules gate the admin's approval and the executor's run, and three
  * copies of a billing rule are two too many.
+ *
+ * Three RPCs, one shape:
+ *
+ *   account_deletion_status()                → the current request, or null
+ *   request_account_deletion({ p_reason })   → the request
+ *   cancel_account_deletion_request()        → the request it withdrew
+ *
+ * A refusal is a PostgREST error whose `message` is a stable token
+ * (`SUBSCRIPTION_ACTIVE`, `REQUEST_EXISTS`, …) and whose `details` is the
+ * sentence to show. The token is never shown; see `DeletionRequestError`.
  */
 
 export type DeletionRequestStatus =
@@ -18,6 +28,7 @@ export type DeletionRequestStatus =
   | 'completed'
   | 'failed'
   | 'rejected'
+  /** Withdrawn by the reader. Older deployments report it; current ones answer null. */
   | 'cancelled';
 
 export type DeletionRequest = {
@@ -37,7 +48,7 @@ export type DeletionRequest = {
   attempts: number;
   lastAttemptAt: string | null;
   lastError: string | null;
-  snapshot: {
+  snapshot?: {
     entitlementStatus?: string | null;
     expiresAt?: string | null;
     store?: string | null;
@@ -61,21 +72,27 @@ export type DeletionNotice<C extends string = string> = {
   count?: number;
 };
 
+/** The longest reason the backend accepts; the form stops at the same count. */
+export const DELETION_REASON_MAX_LENGTH = 1000;
+
+/** The grace period between approval and the run, unless an admin shortens it. */
+export const DELETION_GRACE_DAYS = 7;
+
 export type DeletionStatus = {
-  /** The latest request of any status, or null when there has never been one. */
+  /** The latest request of any status, or null when there is none. */
   request: DeletionRequest | null;
-  /** True when no request is open and nothing blocks a new one. */
+  /** True when no request is open. A blocker still surfaces on the request itself. */
   canRequest: boolean;
+  /** Known ahead of time only on a deployment that pre-checks; otherwise empty. */
   blockers: DeletionNotice<DeletionBlockerCode>[];
   warnings: DeletionNotice<DeletionWarningCode>[];
   graceDays: number;
 };
 
 /**
- * Open = the reader is somewhere in the flow and may still cancel. `failed`
- * counts: an approved run the executor could not complete (a membership
- * bought during the grace period) waits for an admin, and until then the
- * reader may still withdraw.
+ * Open = the reader is somewhere in the flow. `pending` and `approved` may
+ * still be withdrawn; `processing` and `failed` are the executor's — the
+ * reader only watches.
  */
 export function isOpenDeletionRequest(
   request: DeletionRequest | null | undefined,
@@ -86,6 +103,13 @@ export function isOpenDeletionRequest(
     request?.status === 'processing' ||
     request?.status === 'failed'
   );
+}
+
+/** The two states the reader may still back out of. */
+export function isWithdrawableDeletionRequest(
+  request: DeletionRequest | null | undefined,
+): boolean {
+  return request?.status === 'pending' || request?.status === 'approved';
 }
 
 /**
@@ -103,6 +127,25 @@ export class DeletionRequestError extends Error {
   }
 }
 
+/** True for the two refusals that mean "the screen is stale", not "it failed". */
+export function isStaleDeletionState(error: unknown): boolean {
+  return (
+    error instanceof DeletionRequestError &&
+    (error.code === 'REQUEST_EXISTS' ||
+      error.code === 'REQUEST_NOT_OPEN' ||
+      error.code === 'NO_OPEN_REQUEST')
+  );
+}
+
+/** The refusals that point at the store rather than at this screen. */
+export function isBillingBlocker(error: unknown): boolean {
+  return (
+    error instanceof DeletionRequestError &&
+    (error.code === 'SUBSCRIPTION_ACTIVE' ||
+      error.code === 'BILLING_UNRESOLVED')
+  );
+}
+
 function toError(error: {
   message: string;
   details?: string | null;
@@ -118,17 +161,53 @@ function toError(error: {
   return new Error(error.message);
 }
 
+/** Fallback sentences, for a refusal that arrives without `details`. Never the token. */
 function defaultMessage(code: string): string {
   switch (code) {
     case 'REQUEST_EXISTS':
       return 'A deletion request is already open for this account.';
+    case 'REQUEST_NOT_OPEN':
     case 'NO_OPEN_REQUEST':
-      return 'There is no deletion request to cancel.';
+      return 'There is no deletion request to withdraw.';
     case 'REASON_TOO_LONG':
-      return 'Keep the reason under 1000 characters.';
+      return `Keep the reason under ${DELETION_REASON_MAX_LENGTH} characters.`;
+    case 'SUBSCRIPTION_ACTIVE':
+      return 'Cancel your membership in the App Store or Google Play first, then request deletion.';
+    case 'BILLING_UNRESOLVED':
+      return 'The store is still settling a payment on your membership. Resolve it there first.';
+    case 'ADMIN_ACCOUNT':
+      return 'Admin accounts cannot be deleted from the app.';
     default:
       return 'The request could not be completed.';
   }
+}
+
+/**
+ * One status from either answer the RPCs have given.
+ *
+ * Current deployments answer with the request row itself (or null); the
+ * previous ones wrapped it as `{ request, canRequest, blockers, warnings,
+ * graceDays }`. Both are accepted so the screen reads one shape.
+ */
+function toStatus(data: unknown): DeletionStatus {
+  const wrapped =
+    data && typeof data === 'object' && 'request' in (data as object)
+      ? (data as Partial<DeletionStatus>)
+      : null;
+
+  const request = wrapped
+    ? (wrapped.request ?? null)
+    : data && typeof data === 'object' && 'status' in (data as object)
+      ? (data as DeletionRequest)
+      : null;
+
+  return {
+    request,
+    canRequest: wrapped?.canRequest ?? !isOpenDeletionRequest(request),
+    blockers: wrapped?.blockers ?? [],
+    warnings: wrapped?.warnings ?? [],
+    graceDays: wrapped?.graceDays ?? DELETION_GRACE_DAYS,
+  };
 }
 
 export async function getDeletionStatus(): Promise<DeletionStatus> {
@@ -136,19 +215,26 @@ export async function getDeletionStatus(): Promise<DeletionStatus> {
   if (error) {
     throw toError(error);
   }
-  return data as DeletionStatus;
+  return toStatus(data);
 }
 
 export async function requestAccountDeletion(
   reason: string,
 ): Promise<DeletionStatus> {
+  const trimmed = reason.trim();
+  if (trimmed.length > DELETION_REASON_MAX_LENGTH) {
+    throw new DeletionRequestError(
+      'REASON_TOO_LONG',
+      defaultMessage('REASON_TOO_LONG'),
+    );
+  }
   const { data, error } = await supabase.rpc('request_account_deletion', {
-    p_reason: reason.trim() || null,
+    p_reason: trimmed || null,
   });
   if (error) {
     throw toError(error);
   }
-  return data as DeletionStatus;
+  return toStatus(data);
 }
 
 export async function cancelAccountDeletion(): Promise<DeletionStatus> {
@@ -156,5 +242,5 @@ export async function cancelAccountDeletion(): Promise<DeletionStatus> {
   if (error) {
     throw toError(error);
   }
-  return data as DeletionStatus;
+  return toStatus(data);
 }

@@ -18,6 +18,8 @@ import { supabase, toFriendlyError, unwrap } from './client';
  */
 
 export type AdminDeletionRequest = DeletionRequest & {
+  /** The membership as it stood when the request was filed. Always sent to admins. */
+  snapshot: NonNullable<DeletionRequest['snapshot']>;
   /** Why approving would be refused right now. Empty on closed rows. */
   blockers: DeletionNotice<DeletionBlockerCode>[];
   /** False once the account is gone (completed) — or was never there. */

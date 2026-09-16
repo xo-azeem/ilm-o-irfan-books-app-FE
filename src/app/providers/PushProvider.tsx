@@ -5,9 +5,11 @@ import { openPushIntent } from '@/app/navigation/navigationRef';
 import { showPushBanner } from '@/components/ui/PushBanner';
 import {
   applyPushSideEffects,
+  DEFAULT_PUSH_INTENT,
   firebaseMessaging,
   messaging,
   parsePush,
+  pushIsForCurrentUser,
   syncPush,
   type RemoteMessage,
 } from '@/services/push';
@@ -67,6 +69,11 @@ export function PushProvider({ children }: { children: ReactNode }) {
 
     const onForeground = (message: RemoteMessage) => {
       const payload = parsePush(message);
+      // A targeted push for an account that is no longer signed in here is
+      // dropped without a trace.
+      if (!pushIsForCurrentUser(payload, useAuthStore.getState().userId)) {
+        return;
+      }
       applyPushSideEffects(payload);
       if (payload.title) {
         showPushBanner({
@@ -84,8 +91,12 @@ export function PushProvider({ children }: { children: ReactNode }) {
         return;
       }
       const payload = parsePush(message);
+      if (!pushIsForCurrentUser(payload, useAuthStore.getState().userId)) {
+        return;
+      }
       applyPushSideEffects(payload);
-      openPushIntent(payload.intent);
+      // `book` and `collection` go to their pages; anything else is Home.
+      openPushIntent(payload.intent ?? DEFAULT_PUSH_INTENT);
     };
 
     const unsubscribers: Array<() => void> = [];

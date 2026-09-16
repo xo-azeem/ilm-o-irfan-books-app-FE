@@ -13,6 +13,8 @@ export type ProfileStackParamList = {
   SignInMethods: undefined;
   /** New password with an emailed code. */
   ChangePassword: undefined;
+  /** Move the account to a new address — a code to each address. */
+  ChangeEmail: undefined;
   /** Every session on the account, and the power to end the others. */
   Devices: undefined;
 };

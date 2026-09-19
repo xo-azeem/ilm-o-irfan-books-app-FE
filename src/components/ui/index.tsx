@@ -125,6 +125,7 @@ export {
 } from './Dialog';
 
 export { EmptyState, DashedShelf, type EmptyStateProps } from './EmptyState';
+export { MedalIcon, type MedalTone } from './MedalIcon';
 
 export {
   BookCover,

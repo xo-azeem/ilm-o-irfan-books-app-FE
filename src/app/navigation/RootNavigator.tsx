@@ -152,20 +152,27 @@ function ConsumerNavigator() {
         component={ResetPasswordScreen}
         options={{ animation: 'slide_from_right' }}
       />
+      {/* One screen per record: `navigate` to a book that is already in the
+          stack goes back to it, and to a different book pushes above — so a
+          collection opened from a book page can open another book without
+          collapsing onto the first. */}
       <Stack.Screen
         name={ROUTES.BOOK_DETAIL}
         component={BookDetailScreen}
         options={{ animation: 'slide_from_right' }}
+        getId={({ params }) => params.bookId}
       />
       <Stack.Screen
         name={ROUTES.BOOK_READER}
         component={BookReaderScreen}
         options={{ animation: 'slide_from_right' }}
+        getId={({ params }) => params.bookId}
       />
       <Stack.Screen
         name={ROUTES.COLLECTION}
         component={CollectionScreen}
         options={{ animation: 'slide_from_right' }}
+        getId={({ params }) => params.collectionId ?? params.slug}
       />
       <Stack.Screen
         name={ROUTES.WISHLIST}

@@ -193,8 +193,17 @@ export function HomeScreen() {
   // The bell was landing on the reading record, same as the avatar. There is no
   // notification inbox behind it yet, so it opens the notification settings —
   // the one screen in the app that is actually about notifications.
+  //
+  // `initial: false` on every jump into another tab's stack: without it, a
+  // tab that has not been opened yet is *created* with the target as its
+  // only route, so the settings page becomes the Profile tab's root and every
+  // later tap on the tab lands there with no way back to the profile.
   const openNotifications = useCallback(
-    () => navigation.navigate(ROUTES.PROFILE, { screen: 'Notifications' }),
+    () =>
+      navigation.navigate(ROUTES.PROFILE, {
+        screen: 'Notifications',
+        initial: false,
+      }),
     [navigation],
   );
   const openLibrary = useCallback(
@@ -203,7 +212,11 @@ export function HomeScreen() {
   );
 
   const openMembership = useCallback(
-    () => navigation.navigate(ROUTES.PROFILE, { screen: 'Subscription' }),
+    () =>
+      navigation.navigate(ROUTES.PROFILE, {
+        screen: 'Subscription',
+        initial: false,
+      }),
     [navigation],
   );
 

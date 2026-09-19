@@ -73,16 +73,20 @@ function perform(intent: NavIntent): void {
     case 'library':
       navigationRef.navigate(ROUTES.MAIN_TABS, { screen: ROUTES.MY_LIBRARY });
       return;
+    // `initial: false` on both: a cold start from a tap creates the Profile
+    // tab on the way in, and without it the target page would become that
+    // tab's root — no profile beneath it, and every later tap on the tab
+    // landing on the same page.
     case 'membership':
       navigationRef.navigate(ROUTES.MAIN_TABS, {
         screen: ROUTES.PROFILE,
-        params: { screen: 'Subscription' },
+        params: { screen: 'Subscription', initial: false },
       });
       return;
     case 'privacy':
       navigationRef.navigate(ROUTES.MAIN_TABS, {
         screen: ROUTES.PROFILE,
-        params: { screen: 'PrivacySecurity' },
+        params: { screen: 'PrivacySecurity', initial: false },
       });
       return;
   }

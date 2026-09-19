@@ -8,6 +8,7 @@ import {
   Icon,
   Label,
   LinearGradient,
+  MedalIcon,
   ProgressBar,
   SectionHeader,
   StatTile,
@@ -128,8 +129,10 @@ export type Achievement = {
 };
 
 /**
- * The achievement rail. Locked badges are dashed and unnamed by design — the
- * one thing they give away is how close the reader is.
+ * The achievement rail. An earned badge is a medal — gold for a streak, the
+ * app's green for volume — with its numeral on the disc. Locked badges are
+ * dashed and unnamed by design: the one thing they give away is how close
+ * the reader is.
  */
 export const AchievementRail = memo(function AchievementRail({
   achievements,
@@ -164,6 +167,17 @@ export const AchievementRail = memo(function AchievementRail({
   );
 });
 
+/** The medal's disc centre and inner face, as fractions of its box. */
+const MEDAL_SIZE = 64;
+const MEDAL_DISC_CENTER_Y = 392 / 512;
+const MEDAL_FACE = 142 / 512;
+
+/** Ink dark enough to read on the bright disc, in either metal. */
+const MEDAL_INK: Record<'gold' | 'primary', string> = {
+  gold: '#4A3508',
+  primary: '#0F3A1B',
+};
+
 const AchievementBadge = memo(function AchievementBadge({
   achievement,
 }: {
@@ -178,37 +192,53 @@ const AchievementBadge = memo(function AchievementBadge({
       ? `${Math.min(progress.current, progress.target)} of ${progress.target}`
       : 'Locked';
 
-  const fill = !earned
-    ? colors.primaryFillSoft
-    : tone === 'gold'
-      ? colors.goldFill
-      : colors.primaryFill;
-
-  const border = !earned
-    ? colors.borderStrong
-    : tone === 'gold'
-      ? colors.goldBorder
-      : colors.selectedBorder;
-
   return (
     <View style={styles.badge}>
-      <View
-        style={[
-          styles.badgeMark,
-          {
-            backgroundColor: fill,
-            borderColor: border,
-            borderStyle: earned ? 'solid' : 'dashed',
-          },
-        ]}
-      >
-        <Display
-          size={earned ? 19 : 15}
-          tone={earned ? (tone === 'gold' ? 'gold' : 'primary') : 'dim'}
+      {earned ? (
+        <View
+          style={styles.medal}
+          accessibilityLabel={`${achievement.label} medal`}
         >
-          {earned ? achievement.mark : '?'}
-        </Display>
-      </View>
+          <MedalIcon size={MEDAL_SIZE} tone={tone} />
+          {/* The numeral sits on the disc, not on the ribbon. */}
+          <View
+            style={[
+              styles.medalFace,
+              {
+                top:
+                  MEDAL_SIZE * MEDAL_DISC_CENTER_Y -
+                  (MEDAL_SIZE * MEDAL_FACE) / 2,
+                width: MEDAL_SIZE * MEDAL_FACE,
+                height: MEDAL_SIZE * MEDAL_FACE,
+              },
+            ]}
+          >
+            <Display
+              size={achievement.mark.length > 1 ? 10 : 12}
+              weight="700"
+              tone="inherit"
+              style={{ color: MEDAL_INK[tone] }}
+            >
+              {achievement.mark}
+            </Display>
+          </View>
+        </View>
+      ) : (
+        <View
+          style={[
+            styles.badgeMark,
+            {
+              backgroundColor: colors.primaryFillSoft,
+              borderColor: colors.borderStrong,
+              borderStyle: 'dashed',
+            },
+          ]}
+        >
+          <Display size={15} tone="dim">
+            ?
+          </Display>
+        </View>
+      )}
       <Text
         size={10}
         leading={1.2}
@@ -306,9 +336,19 @@ const styles = StyleSheet.create({
     gap: 18,
   },
   badge: {
-    width: 62,
+    width: 64,
     alignItems: 'center',
     gap: 7,
+  },
+  medal: {
+    width: MEDAL_SIZE,
+    height: MEDAL_SIZE,
+  },
+  medalFace: {
+    position: 'absolute',
+    alignSelf: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   badgeMark: {
     width: 56,

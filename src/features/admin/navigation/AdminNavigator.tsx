@@ -47,6 +47,21 @@ const STACK_OPTIONS = {
   animation: 'slide_from_right',
 } as const;
 
+/**
+ * A record screen is one screen *per record*.
+ *
+ * `navigate` to a route name that is already in the stack goes back to it and
+ * swaps its params. Without an id, opening book B from a batch while book A's
+ * editor sits underneath would turn A's editor into B's — form still full of
+ * A, unsaved edits gone, no guard asked. With the id, A and B are different
+ * screens: B is pushed above A, and A keeps its say on the way back. "New"
+ * is one id, so two taps on "New book" reuse one empty editor.
+ */
+const byId =
+  <K extends string>(key: K) =>
+  ({ params }: { params?: Partial<Record<K, string>> }) =>
+    params?.[key] ?? 'new';
+
 function renderTabBar(props: BottomTabBarProps) {
   return <AdminTabBar {...props} />;
 }
@@ -62,26 +77,32 @@ function AdminLibraryNavigator() {
       <LibraryStack.Screen
         name={ADMIN_ROUTES.BOOK_EDITOR}
         component={AdminBookEditorScreen}
+        getId={byId('bookId')}
       />
       <LibraryStack.Screen
         name={ADMIN_ROUTES.PDF_PREVIEW}
         component={AdminPdfPreviewScreen}
+        getId={byId('bookId')}
       />
       <LibraryStack.Screen
         name={ADMIN_ROUTES.AUTHOR_EDITOR}
         component={AdminAuthorEditorScreen}
+        getId={byId('authorId')}
       />
       <LibraryStack.Screen
         name={ADMIN_ROUTES.CATEGORY_EDITOR}
         component={AdminCategoryEditorScreen}
+        getId={byId('categoryId')}
       />
       <LibraryStack.Screen
         name={ADMIN_ROUTES.CATEGORY_BOOKS}
         component={AdminCategoryBooksScreen}
+        getId={byId('categoryId')}
       />
       <LibraryStack.Screen
         name={ADMIN_ROUTES.COLLECTION_EDITOR}
         component={AdminCollectionEditorScreen}
+        getId={byId('collectionId')}
       />
       <LibraryStack.Screen
         name={ADMIN_ROUTES.UPLOAD_BATCHES}
@@ -90,6 +111,7 @@ function AdminLibraryNavigator() {
       <LibraryStack.Screen
         name={ADMIN_ROUTES.UPLOAD_BATCH}
         component={AdminUploadBatchScreen}
+        getId={byId('batchId')}
       />
     </LibraryStack.Navigator>
   );
@@ -106,10 +128,12 @@ function AdminPeopleNavigator() {
       <PeopleStack.Screen
         name={ADMIN_ROUTES.USER_DETAIL}
         component={AdminUserDetailScreen}
+        getId={byId('userId')}
       />
       <PeopleStack.Screen
         name={ADMIN_ROUTES.PLAN_EDITOR}
         component={AdminPlanEditorScreen}
+        getId={byId('planId')}
       />
     </PeopleStack.Navigator>
   );

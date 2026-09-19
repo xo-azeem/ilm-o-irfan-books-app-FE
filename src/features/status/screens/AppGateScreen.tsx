@@ -5,10 +5,21 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Sparkles, Wrench } from 'lucide-react-native';
 
 import { AppLogo } from '@/components/brand';
-import { EmptyState, IconTile, showDialog, Text } from '@/components/ui';
+import {
+  EmptyState,
+  IconTile,
+  showDialog,
+  Text,
+  TextButton,
+} from '@/components/ui';
 import { APP_VERSION } from '@/config/appVersion';
 import { supportContact } from '@/features/profile/data/profileContent';
-import { refetchAppStatus, useAppStatus } from '@/hooks/useAppStatus';
+import {
+  refetchAppStatus,
+  useAppStatus,
+  useAppStatusPolling,
+} from '@/hooks/useAppStatus';
+import { useAuthStore } from '@/stores/authStore';
 import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
 
@@ -41,20 +52,61 @@ const DEFAULT_MAINTENANCE_MESSAGE =
  */
 export const AppGateScreen = memo(function AppGateScreen({
   gate,
+  onAdminSignIn,
 }: {
   gate: 'maintenance' | 'update';
+  /**
+   * Lifts the gate just far enough to reach the sign-in screens. The
+   * switches that put this notice up live in the admin tool, and an admin
+   * who is signed out has to be able to get back to them.
+   */
+  onAdminSignIn: () => void;
 }) {
   const { colors } = useTheme();
   const client = useQueryClient();
   const status = useAppStatus();
+  // While this screen is up the flags are re-read every few seconds, so the
+  // notice lifts on its own once the admin turns it off. This screen
+  // unmounting the moment that happens is what makes the poll stop.
+  useAppStatusPolling();
   const [checking, setChecking] = useState(false);
+  // "Try again" that comes back still closed needs to say it looked, or the
+  // tap feels ignored.
+  const [checkedAt, setCheckedAt] = useState<Date | null>(null);
 
   const supportEmail = status.supportEmail || supportContact.email;
+
+  // A reader's session on this phone would be signed out to make room for
+  // the admin's. On a shared device that is somebody else's account, so it
+  // is asked, not assumed.
+  const signedInEmail = useAuthStore(state =>
+    state.isAuthenticated ? state.email : null,
+  );
+  const adminSignIn = useCallback(() => {
+    if (!signedInEmail) {
+      onAdminSignIn();
+      return;
+    }
+    showDialog({
+      title: 'Sign out first?',
+      message: `${signedInEmail} is signed in on this phone. Admin sign-in signs that account out; it can sign back in once the library reopens.`,
+      tone: 'warning',
+      actions: [
+        { label: 'Keep it', style: 'cancel' },
+        {
+          label: 'Sign out and continue',
+          style: 'destructive',
+          onPress: onAdminSignIn,
+        },
+      ],
+    });
+  }, [onAdminSignIn, signedInEmail]);
 
   const retry = useCallback(async () => {
     setChecking(true);
     try {
       await refetchAppStatus(client);
+      setCheckedAt(new Date());
     } finally {
       setChecking(false);
     }
@@ -116,7 +168,14 @@ export const AppGateScreen = memo(function AppGateScreen({
           title={maintenance ? 'Back in a moment.' : 'A newer app is waiting.'}
           message={
             maintenance
-              ? (status.maintenanceMessage ?? DEFAULT_MAINTENANCE_MESSAGE)
+              ? `${status.maintenanceMessage ?? DEFAULT_MAINTENANCE_MESSAGE}${
+                  checkedAt
+                    ? ` Still closed — checked at ${checkedAt.toLocaleTimeString(
+                        undefined,
+                        { hour: 'numeric', minute: '2-digit' },
+                      )}. This page opens by itself the moment the library is back.`
+                    : ''
+                }`
               : `This version (${APP_VERSION}) is no longer supported. Update to keep reading — your books, progress and downloads carry over.`
           }
           action={
@@ -131,19 +190,30 @@ export const AppGateScreen = memo(function AppGateScreen({
                 }
               : { label: 'Update the app', onPress: () => void openStore() }
           }
-          link={{ label: 'Contact support', onPress: () => void contactSupport() }}
+          link={{
+            label: 'Contact support',
+            onPress: () => void contactSupport(),
+          }}
         />
       </View>
 
-      <Text
-        size={fontSize.captionSmall}
-        leading={1.4}
-        align="center"
-        tone="faint"
-        style={styles.footer}
-      >
-        {`${supportEmail} · version ${APP_VERSION}`}
-      </Text>
+      <View style={styles.footer}>
+        <Text
+          size={fontSize.captionSmall}
+          leading={1.4}
+          align="center"
+          tone="faint"
+        >
+          {`${supportEmail} · version ${APP_VERSION}`}
+        </Text>
+        <TextButton
+          label="Admin sign-in"
+          tone="muted"
+          size={fontSize.captionSmall}
+          onPress={adminSignIn}
+          accessibilityHint="Opens the sign-in screen for admin accounts"
+        />
+      </View>
     </SafeAreaView>
   );
 });
@@ -162,6 +232,8 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   footer: {
+    alignItems: 'center',
+    gap: 10,
     paddingHorizontal: 24,
     paddingBottom: 12,
   },

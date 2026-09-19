@@ -63,6 +63,16 @@ const FEED_HOLD_MS = 1500;
 /** The dissolve between shells when an admin switches to the app and back. */
 const SHELL_FADE_MS = 220;
 
+/** The screens the maintenance notice stands aside for, and no others. */
+const AUTH_ROUTES: ReadonlySet<string> = new Set([
+  ROUTES.LOGIN,
+  ROUTES.SIGN_UP,
+  ROUTES.VERIFY_EMAIL,
+  ROUTES.ENTER_CODE,
+  ROUTES.FORGOT_PASSWORD,
+  ROUTES.RESET_PASSWORD,
+]);
+
 function renderTabBar(props: BottomTabBarProps) {
   return <MainTabBar {...props} />;
 }
@@ -185,9 +195,16 @@ export function RootNavigator() {
   // access, the paywall, the signed-URL function all read `isAdmin` directly.
   const showAdmin = isAdmin && !viewingAsReader;
 
+  // Set by "Admin sign-in" on the maintenance notice; see "The admin's way
+  // through the door" below.
+  const [signingInThroughGate, setSigningInThroughGate] = useState(false);
+
   // A returning reader never sees first-run, even on a reinstall where the
   // onboarding flag was cleared but the session survived in the keychain.
-  const needsOnboarding = !onboarded && !isAuthenticated && !isAdmin;
+  // Someone coming through the maintenance notice to sign in is not on
+  // first-run either — they asked for a screen, not a tour.
+  const needsOnboarding =
+    !onboarded && !isAuthenticated && !isAdmin && !signingInThroughGate;
 
   // ── The door ─────────────────────────────────────────────────────────────
   // Maintenance and the version floor are read under the splash, in the same
@@ -196,8 +213,65 @@ export function RootNavigator() {
   // switches can always be reached to turn them off. The splash waits for
   // the answer (within the same cap as the feed) so a reader is never shown
   // Home for a beat before the notice slides over it.
-  const gate = useAppGate();
+  const appGate = useAppGate();
   const [appStatusSettled, setAppStatusSettled] = useState(false);
+
+  // ── The admin's way through the door ────────────────────────────────────
+  // The notice replaces the reader shell, sign-in screens included — so a
+  // signed-out admin could never reach the switch that lifts it. "Admin
+  // sign-in" on the notice mounts the reader shell on Login instead, and
+  // the gate stays down only while the sign-in screens are in front: it
+  // comes back the moment the route leaves them (guest, back) or a session
+  // resolves as a reader. An admin session takes the admin shell anyway.
+  const userId = useAuthStore(state => state.userId);
+  const accessCheckedFor = useAuthStore(state => state.accessCheckedFor);
+  const gate = signingInThroughGate ? null : appGate;
+
+  const signInThroughGate = useCallback(() => {
+    const auth = useAuthStore.getState();
+    // A reader is already signed in: the admin has to replace that session.
+    const start = () => {
+      useOnboardingStore.getState().requestSignIn();
+      setSigningInThroughGate(true);
+    };
+    if (auth.isAuthenticated) {
+      void auth.signOut().finally(start);
+    } else {
+      start();
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!signingInThroughGate) {
+      return;
+    }
+    const readerSignedIn =
+      isAuthenticated && !isAdmin && accessCheckedFor === userId;
+    if (isAdmin || readerSignedIn) {
+      setSigningInThroughGate(false);
+    }
+  }, [
+    accessCheckedFor,
+    isAdmin,
+    isAuthenticated,
+    signingInThroughGate,
+    userId,
+  ]);
+
+  const onNavigationStateChange = useCallback(() => {
+    if (!signingInThroughGate) {
+      return;
+    }
+    const current = navigationRef.getCurrentRoute()?.name;
+    if (current && !AUTH_ROUTES.has(current)) {
+      setSigningInThroughGate(false);
+    }
+  }, [signingInThroughGate]);
+
+  // Re-run on every change of account, not just once: the session provider
+  // clears the whole query cache when the signed-in user changes, and the
+  // observers above do not refetch on their own after a clear. Until this
+  // lands the readers hold the last answer they had, so nothing blinks.
   useEffect(() => {
     if (!isHydrated) {
       return;
@@ -211,7 +285,7 @@ export function RootNavigator() {
     return () => {
       mounted = false;
     };
-  }, [isHydrated]);
+  }, [isHydrated, userId]);
 
   // ── Warming Home under the splash ─────────────────────────────────────────
   // The splash holds for at least a second anyway, and for a signed-in reader
@@ -333,6 +407,7 @@ export function RootNavigator() {
           ref={navigationRef}
           theme={navigationTheme}
           onReady={onNavigationReady}
+          onStateChange={onNavigationStateChange}
         >
           {/* The three shells are separate trees, so a change of shell is a
               remount. Keyed and faded in, so an admin stepping between the
@@ -355,7 +430,7 @@ export function RootNavigator() {
             {showAdmin ? (
               <AdminNavigator />
             ) : gate ? (
-              <AppGateScreen gate={gate} />
+              <AppGateScreen gate={gate} onAdminSignIn={signInThroughGate} />
             ) : needsOnboarding ? (
               <OnboardingNavigator />
             ) : (

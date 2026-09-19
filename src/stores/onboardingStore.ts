@@ -29,6 +29,8 @@ type OnboardingState = {
   complete: () => void;
   /** Leaves first-run and asks the app stack to open on sign-in. */
   completeWithSignIn: () => void;
+  /** Asks the app stack to open on sign-in without touching first-run. */
+  requestSignIn: () => void;
   clearSignInIntent: () => void;
   reset: () => void;
 };
@@ -55,6 +57,7 @@ export const useOnboardingStore = create<OnboardingState>()(
       setRhythm: rhythm => set({ rhythm }),
       complete: () => set({ completed: true }),
       completeWithSignIn: () => set({ completed: true, wantsSignIn: true }),
+      requestSignIn: () => set({ wantsSignIn: true }),
       clearSignInIntent: () => set({ wantsSignIn: false }),
       reset: () =>
         set({

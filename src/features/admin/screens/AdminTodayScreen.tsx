@@ -10,7 +10,9 @@ import {
   Search,
   TriangleAlert,
   User,
+  UserLock,
   UserX,
+  Wrench,
   type LucideIcon,
 } from 'lucide-react-native';
 
@@ -39,6 +41,7 @@ import { formatRelative } from '@/features/admin/utils/format';
 import {
   useAdminAnalytics,
   useAdminDeletionRequests,
+  useAdminSettings,
   useAdminStats,
   useAuditLog,
   useStorageAudit,
@@ -93,6 +96,12 @@ export function AdminTodayScreen() {
   // opened this costs nothing extra.
   const deletions = useAdminDeletionRequests('open');
   const storage = useStorageAudit();
+  // The two switches that are easy to leave on. An admin is never held out
+  // by them, which is exactly why this screen has to say so — from inside
+  // the tool nothing else looks any different.
+  const settings = useAdminSettings();
+  const maintenanceOn = settings.data?.maintenance_mode === true;
+  const signupsClosed = settings.data?.signup_enabled === false;
 
   const refreshProps = useAdminRefresh(stats.isRefetching, () => {
     void stats.refetch();
@@ -100,6 +109,7 @@ export function AdminTodayScreen() {
     void audit.refetch();
     void deletions.refetch();
     void storage.refetch();
+    void settings.refetch();
   });
 
   const recent = audit.data?.pages[0]?.rows.slice(0, 3) ?? [];
@@ -120,6 +130,8 @@ export function AdminTodayScreen() {
   const brokenFiles = storage.data?.broken.length ?? 0;
 
   const attentionCount =
+    (maintenanceOn ? 1 : 0) +
+    (signupsClosed ? 1 : 0) +
     (deletionAttention > 0 ? 1 : 0) +
     (blocked > 0 ? 1 : 0) +
     (brokenFiles > 0 ? 1 : 0);
@@ -181,6 +193,24 @@ export function AdminTodayScreen() {
           account is on a legal clock; a draft without a PDF is not. */}
       {attentionCount > 0 ? (
         <AdminAttentionGroup title={`Needs you · ${attentionCount}`}>
+          {maintenanceOn ? (
+            <AdminAttentionRow
+              icon={Wrench}
+              title="Maintenance mode is on"
+              detail="Readers see the notice instead of the app. Admins are not affected — turn it off when the work is done."
+              actionLabel="Settings"
+              onPress={() => openSystem({ screen: ADMIN_ROUTES.SETTINGS })}
+            />
+          ) : null}
+          {signupsClosed ? (
+            <AdminAttentionRow
+              icon={UserLock}
+              title="Sign-ups are closed"
+              detail="No new accounts can be created — not from the app, not with Google. Existing readers are unaffected."
+              actionLabel="Settings"
+              onPress={() => openSystem({ screen: ADMIN_ROUTES.SETTINGS })}
+            />
+          ) : null}
           {deletionAttention > 0 ? (
             <AdminAttentionRow
               icon={UserX}

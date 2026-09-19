@@ -21,7 +21,7 @@ Answers the reader-visible columns of `app_settings` (`id = 1`):
 }
 ```
 
-- Public, cacheable for ~60 s (`Cache-Control: public, max-age=60`).
+- Public, **not** cached: the app appends `?t=<now>` to every read.
 - snake_case keys are accepted too; blank strings read as `null`.
 - **Never** include `featured_collection_id` logic here — Home already gets
   that from `home-feed`.
@@ -30,15 +30,21 @@ Answers the reader-visible columns of `app_settings` (`id = 1`):
 
 | Field | Reader app | Admin |
 | --- | --- | --- |
-| `maintenanceMode` + `maintenanceMessage` | Replaces every reader shell with a full-screen notice (`features/status/screens/AppGateScreen.tsx`) with "Try again" and "Contact support". | Never held out — admins bypass so the switch can always be turned off. |
+| `maintenanceMode` + `maintenanceMessage` | Replaces every reader shell with a full-screen notice (`features/status/screens/AppGateScreen.tsx`) with "Try again" and "Contact support". | Never held out — admins bypass so the switch can always be turned off. A signed-out admin uses **Admin sign-in** on the notice: it mounts the reader shell on Login (signing out a reader session first), and the notice returns as soon as the route leaves the auth screens or a session resolves as a reader. |
 | `minSupportedVersion` | If `app.json → expo.version` is older, the same screen asks to update and links the store. Wins over maintenance. Unparseable values are ignored. | Bypassed. The settings screen warns when the floor is above the build it is running on. |
 | `signupEnabled` | `false` hides "Create an account" on Login and the guest panels; the Sign-up screen explains and offers sign-in / browse. | — |
 | `supportEmail` | The gate screen's contact address (Help Center keeps reading it from `home-feed`). | — |
 
 Read on launch (`prefetchAppStatus`, under the splash, in parallel with the
-feed) and refetched on every return to the foreground (`hooks/useAppStatus.ts`,
-stale after 60 s). A project without the endpoint deployed gets the defaults —
-everything open — via `withEndpoint`.
+feed), on every return to the foreground (always, regardless of staleness),
+once a minute while the app is open, and every 20 s while the notice is up
+(`hooks/useAppStatus.ts`) — so maintenance turned off lets every held reader
+back in within about 20 s with their session intact, and maintenance turned on
+reaches a reader mid-session within a minute. The last server answer is kept
+in a store outside the query cache, so the account-change cache clear (sign-in,
+sign-out) never makes the gate blink off. A project without the endpoint
+deployed gets the defaults — everything open — via `withEndpoint`; an offline
+read keeps the last answer.
 
 **`app.json → expo.version` must be bumped with every store release**: it is
 what the version floor is compared against, and what push registration

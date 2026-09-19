@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { AppErrorBoundary } from '@/app/AppErrorBoundary';
 import { RootNavigator } from '@/app/navigation/RootNavigator';
 import { AppProviders } from '@/app/providers/AppProviders';
 import { bootVault } from '@/services/bookVault';
@@ -26,7 +27,9 @@ function AppRoot() {
 export function App() {
   return (
     <AppProviders>
-      <AppRoot />
+      <AppErrorBoundary>
+        <AppRoot />
+      </AppErrorBoundary>
     </AppProviders>
   );
 }

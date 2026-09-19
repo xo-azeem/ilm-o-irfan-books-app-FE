@@ -1,7 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <!--
+      No READ_MEDIA_IMAGES: the admin cover picker uses the system photo
+      picker on Android 13+, which needs no permission, and Play's photo
+      policy would otherwise want a justification. Older devices keep the
+      legacy read permission for the same picker.
+    -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <!-- Android 13+: the tray is opt-in; the app asks after the splash. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />

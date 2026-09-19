@@ -56,7 +56,11 @@ react {
     //
     // Added by install-expo-modules
     entryFile = file(["node", "-e", "require('expo/scripts/resolveAppEntry')", rootDir.getAbsoluteFile().getParentFile().getAbsolutePath(), "android", "absolute"].execute(null, rootDir).text.trim())
-    cliFile = new File(["node", "--print", "require.resolve('@expo/cli')"].execute(null, rootDir).text.trim())
+    // Resolved from expo's own directory, not the project root: npm does not
+    // always hoist @expo/cli, and a failed resolve here prints nothing, which
+    // makes cliFile the app directory itself and every release task an
+    // "undeclared producer" of the bundle's inputs under Gradle 9.
+    cliFile = new File(["node", "--print", "require.resolve('@expo/cli', { paths: [require('path').dirname(require.resolve('expo/package.json'))] })"].execute(null, rootDir).text.trim())
     bundleCommand = "export:embed"
 }
 

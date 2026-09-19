@@ -56,7 +56,9 @@ Full backend contract: `Ilm-o-Irfan-App-BE/docs/api-endpoints.md → Push notifi
   `MainApplication.kt` — `catalog` (default importance), `library` and
   `account` (high) — so readers can mute "new books" in the OS while keeping
   "a book you hold was removed". Small icon `res/drawable/ic_notification.xml`,
-  accent `@color/notification_accent`, defaults in `firebase.json`.
+  accent `@color/notification_accent` and default channel as `<meta-data>` in
+  `AndroidManifest.xml` (not `firebase.json`: RNFB would put them in the
+  library manifest, whose release resource check cannot see the app colour).
 - iOS: `FirebaseApp.configure()` in `AppDelegate.swift` (guarded on the plist
   being bundled), `remote-notification` background mode, entitlements file
   with `aps-environment`. Podfile pins CocoaPods mode with static frameworks

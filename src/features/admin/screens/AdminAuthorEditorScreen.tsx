@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -6,10 +6,12 @@ import {
   useRoute,
   type RouteProp,
 } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { launchImageLibrary } from 'react-native-image-picker';
-import { ImageUp, Trash2 } from 'lucide-react-native';
+import { ImageUp, Library, Trash2 } from 'lucide-react-native';
 
 import { Text } from '@/components/ui';
+import { ADMIN_ROUTES } from '@/constants/routes';
 import { AdminConfirmSheet } from '@/features/admin/components/AdminControls';
 import { errorMessage, useToast } from '@/features/admin/components/AdminToast';
 import {
@@ -19,6 +21,8 @@ import {
   AdminBackLink,
   AdminButton,
   AdminField,
+  AdminNavRow,
+  AdminRowGroup,
   AdminScreenTitle,
   AdminTag,
   AdminOutlineButton,
@@ -27,6 +31,7 @@ import {
   useDirtyTracker,
   useUnsavedGuard,
 } from '@/features/admin/hooks/useAdminForm';
+import { useStorageCleanup } from '@/features/admin/hooks/useStorageCleanup';
 import { useAppInsets } from '@/hooks/useAppInsets';
 import {
   useAdminAuthors,
@@ -50,7 +55,8 @@ import type { AdminLibraryStackParamList } from '../navigation/types';
  * the delete action says so with the number rather than failing on tap.
  */
 export function AdminAuthorEditorScreen() {
-  const navigation = useNavigation();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<AdminLibraryStackParamList>>();
   const route =
     useRoute<RouteProp<AdminLibraryStackParamList, 'AdminAuthorEditor'>>();
   const authorId = route.params?.authorId;
@@ -74,9 +80,15 @@ export function AdminAuthorEditorScreen() {
 
   const { isDirty, reset, dirtyRef } = useDirtyTracker(form);
   useUnsavedGuard(dirtyRef);
+  // A portrait is uploaded the moment it is picked. Until the author is
+  // saved it belongs to nobody, and it is removed if the screen is left
+  // without saving — or replaced by a second pick.
+  const uploads = useStorageCleanup();
+  const savedAvatar = useRef<string | null>(null);
 
   useEffect(() => {
     if (!existing) return;
+    savedAvatar.current = existing.avatar_path;
     setForm({
       name: existing.name,
       slug: existing.slug,
@@ -117,6 +129,7 @@ export function AdminAuthorEditorScreen() {
         resolvedSlug || 'author',
         asset.type ?? 'image/jpeg',
       );
+      uploads.replacePending(form.avatarPath, path);
       setForm(current => ({ ...current, avatarPath: path }));
       toast.success('Portrait uploaded.');
     } catch (caught) {
@@ -142,6 +155,10 @@ export function AdminAuthorEditorScreen() {
       },
       {
         onSuccess: () => {
+          // The new portrait is the author's now; the one it replaced is
+          // nobody's, unless another record still points at it.
+          uploads.commit([form.avatarPath], [savedAvatar.current]);
+          savedAvatar.current = form.avatarPath;
           reset();
           toast.success(authorId ? 'Author saved.' : 'Author created.');
           navigation.goBack();
@@ -220,6 +237,29 @@ export function AdminAuthorEditorScreen() {
             />
           </View>
         </View>
+
+        {/* The author's titles live on the Books segment, one filter away.
+            Only once the author exists — a new one has nothing yet. */}
+        {authorId && existing ? (
+          <AdminRowGroup title="Books">
+            <AdminNavRow
+              Icon={Library}
+              label="Books by this author"
+              sublabel={
+                credited === 0
+                  ? 'Nothing credited yet — pick this author on a book'
+                  : `${credited} ${credited === 1 ? 'title' : 'titles'} · ${existing.published_count} live`
+              }
+              warn={credited === 0}
+              onPress={() =>
+                navigation.navigate(ADMIN_ROUTES.LIBRARY_HOME, {
+                  segment: 'books',
+                  authorId,
+                })
+              }
+            />
+          </AdminRowGroup>
+        ) : null}
 
         <View style={styles.stack}>
           <AdminField

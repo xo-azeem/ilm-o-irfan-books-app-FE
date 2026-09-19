@@ -11,6 +11,7 @@ import { AuthDivider } from '@/features/auth/components/AuthDivider';
 import { AuthField } from '@/features/auth/components/AuthField';
 import { AuthLayout } from '@/features/auth/components/AuthLayout';
 import { GoogleSignInButton } from '@/features/auth/components/GoogleSignInButton';
+import { useSignupOpen } from '@/hooks/useAppStatus';
 import { resumeAfterAuth, waitForAccessCheck } from '@/lib/access';
 import {
   GoogleSignInCancelled,
@@ -46,6 +47,9 @@ export function SignUpScreen() {
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'SignUp'>>();
   const returnTo = route.params?.returnTo;
+  // An admin can close sign-ups from System → App settings. The screen still
+  // exists — a link may point here — but it explains rather than accepts.
+  const signupOpen = useSignupOpen();
 
   const [form, setForm] = useState<SignUpForm>(initialForm);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -194,6 +198,37 @@ export function SignUpScreen() {
       navigation.navigate(ROUTES.LOGIN, returnTo ? { returnTo } : undefined),
     [navigation, returnTo],
   );
+
+  if (!signupOpen) {
+    return (
+      <AuthLayout
+        title="Sign-ups are paused."
+        subtitle="New accounts are not being created right now. Existing accounts work as usual, and the whole catalogue is open to browse."
+        onBack={() => navigation.goBack()}
+        footer={
+          <View style={styles.footer}>
+            <Text size={fontSize.bodySmall} leading={1} tone="muted">
+              Already have an account?
+            </Text>
+            <TextButton
+              label="Sign in"
+              onPress={goToSignIn}
+              size={fontSize.bodySmall}
+            />
+          </View>
+        }
+      >
+        <Button label="Sign in instead" onPress={goToSignIn} />
+        <Button
+          label="Browse the library"
+          variant="secondary"
+          onPress={() =>
+            navigation.reset({ index: 0, routes: [{ name: ROUTES.MAIN_TABS }] })
+          }
+        />
+      </AuthLayout>
+    );
+  }
 
   return (
     <AuthLayout

@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from 'react';
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -288,6 +289,9 @@ export const AdminPickerSheet = memo(function AdminPickerSheet({
   multi,
   searchable = true,
   emptyLabel = 'Nothing to choose yet.',
+  onSearch,
+  searching = false,
+  footnote,
   onClose,
   onChange,
 }: {
@@ -298,6 +302,16 @@ export const AdminPickerSheet = memo(function AdminPickerSheet({
   multi?: boolean;
   searchable?: boolean;
   emptyLabel?: string;
+  /**
+   * Hands the term to the caller instead of filtering `items` here — for a
+   * list the server cuts, where the match has to happen on the server too.
+   * The field is always shown when this is set.
+   */
+  onSearch?: (term: string) => void;
+  /** A server search is in flight; the old list stands in meanwhile. */
+  searching?: boolean;
+  /** A line under the list — "showing the first 200; search to narrow". */
+  footnote?: string;
   onClose: () => void;
   onChange: (next: string[]) => void;
 }) {
@@ -306,7 +320,7 @@ export const AdminPickerSheet = memo(function AdminPickerSheet({
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    if (!needle) {
+    if (!needle || onSearch) {
       return items;
     }
     return items.filter(
@@ -314,7 +328,15 @@ export const AdminPickerSheet = memo(function AdminPickerSheet({
         item.label.toLowerCase().includes(needle) ||
         item.sublabel?.toLowerCase().includes(needle),
     );
-  }, [items, query]);
+  }, [items, onSearch, query]);
+
+  const handleSearch = useCallback(
+    (term: string) => {
+      setQuery(term);
+      onSearch?.(term);
+    },
+    [onSearch],
+  );
 
   const toggle = useCallback(
     (id: string) => {
@@ -341,14 +363,20 @@ export const AdminPickerSheet = memo(function AdminPickerSheet({
         <AdminTextAction label="Done" onPress={onClose} size={12.5} />
       }
     >
-      {searchable && items.length > 8 ? (
-        <SearchField
-          dense
-          defaultValue={query}
-          onSearch={setQuery}
-          debounceMs={LOCAL_SEARCH_DEBOUNCE_MS}
-          placeholder="Filter"
-        />
+      {onSearch || (searchable && items.length > 8) ? (
+        <View style={styles.sheetSearch}>
+          <SearchField
+            dense
+            defaultValue={query}
+            onSearch={handleSearch}
+            debounceMs={onSearch ? undefined : LOCAL_SEARCH_DEBOUNCE_MS}
+            placeholder={onSearch ? 'Search titles and authors' : 'Filter'}
+            style={styles.grow}
+          />
+          {searching ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : null}
+        </View>
       ) : null}
 
       {filtered.length === 0 ? (
@@ -359,7 +387,7 @@ export const AdminPickerSheet = memo(function AdminPickerSheet({
           tone="muted"
           style={styles.sheetEmpty}
         >
-          {emptyLabel}
+          {query.trim() ? 'Nothing matches that search.' : emptyLabel}
         </Text>
       ) : (
         <View
@@ -380,6 +408,18 @@ export const AdminPickerSheet = memo(function AdminPickerSheet({
           ))}
         </View>
       )}
+
+      {footnote && filtered.length > 0 ? (
+        <Text
+          size={11.5}
+          leading={1.4}
+          align="center"
+          tone="faint"
+          style={styles.sheetFootnote}
+        >
+          {footnote}
+        </Text>
+      ) : null}
     </Sheet>
   );
 });
@@ -930,6 +970,15 @@ const styles = StyleSheet.create({
   },
   sheetEmpty: {
     paddingVertical: 30,
+  },
+  sheetSearch: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+  },
+  sheetFootnote: {
+    paddingTop: 10,
+    paddingHorizontal: 12,
   },
   swatchRow: {
     flexDirection: 'row',

@@ -23,7 +23,7 @@ import {
 } from '@/features/admin/components/AdminUi';
 import { useAppInsets } from '@/hooks/useAppInsets';
 import { useAuditLog } from '@/hooks/useAdmin';
-import type { AuditEntry } from '@/services/admin';
+import type { AuditEntry, AuditScope } from '@/services/admin';
 import { useTheme } from '@/theme/ThemeContext';
 
 type Scope = 'all' | 'books' | 'people' | 'deletions';
@@ -35,12 +35,12 @@ const SCOPES: Array<{ value: Scope; label: string }> = [
   { value: 'deletions', label: 'Deletions' },
 ];
 
-/** Which entity table each scope reads from. Deletions cut across all of them. */
-const SCOPE_ENTITY: Record<Scope, string | null> = {
-  all: null,
-  books: 'books',
-  people: 'profiles',
-  deletions: null,
+/** What each chip asks the server for. Deletions cut across every table. */
+const SCOPE_QUERY: Record<Scope, AuditScope> = {
+  all: { entityType: null, action: null },
+  books: { entityType: 'books', action: null },
+  people: { entityType: 'profiles', action: null },
+  deletions: { entityType: null, action: 'delete' },
 };
 
 const ACTION_LABEL: Record<AuditEntry['action'], string> = {
@@ -73,20 +73,13 @@ export function AdminHistoryScreen() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useAuditLog(SCOPE_ENTITY[scope]);
+  } = useAuditLog(SCOPE_QUERY[scope]);
 
   const sections = useMemo<Section[]>(() => {
     const rows = data?.pages.flatMap(page => page.rows) ?? [];
-    // "Deletions" is a question about the action, not the table, so it narrows
-    // what is already loaded rather than asking the server for a column it
-    // does not filter on.
-    const filtered =
-      scope === 'deletions'
-        ? rows.filter(row => row.action === 'delete')
-        : rows;
 
     const byDay = new Map<string, AuditEntry[]>();
-    for (const entry of filtered) {
+    for (const entry of rows) {
       const key = dayKey(entry.created_at);
       const bucket = byDay.get(key);
       if (bucket) {
@@ -101,7 +94,7 @@ export function AdminHistoryScreen() {
       title: dayTitle(entries[0].created_at),
       entries,
     }));
-  }, [data?.pages, scope]);
+  }, [data?.pages]);
 
   const renderSection = useCallback(
     ({ item }: { item: Section }) => (
@@ -163,7 +156,7 @@ export function AdminHistoryScreen() {
               title={scope === 'all' ? 'Nothing recorded yet' : 'Nothing here'}
               message={
                 scope === 'deletions'
-                  ? 'No deletion appears in the history loaded so far. Scroll the full log to look further back.'
+                  ? 'Nothing has been deleted yet.'
                   : 'Every create, edit and delete lands here with the account that made it.'
               }
             />

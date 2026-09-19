@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 
-import appConfig from '../../../app.json';
+import { APP_VERSION } from '@/config/appVersion';
 import { deviceLabel } from '@/lib/device';
 import { supabase } from '@/lib/supabase/client';
 import { usePushStore, type PushRegistration } from '@/stores/pushStore';
@@ -33,9 +33,6 @@ const CATALOG_TOPIC = 'catalog';
 
 /** Re-register at least daily so `last_seen_at` stays honest for pruning. */
 const REGISTRATION_TTL_MS = 24 * 60 * 60 * 1000;
-
-const APP_VERSION: string =
-  (appConfig as { expo?: { version?: string } }).expo?.version ?? '0';
 
 let chain: Promise<void> = Promise.resolve();
 

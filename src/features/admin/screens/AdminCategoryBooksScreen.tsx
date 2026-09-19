@@ -52,10 +52,15 @@ import { useAppInsets } from '@/hooks/useAppInsets';
 import {
   useAdminCategories,
   useBookOptions,
+  useBookOptionsByIds,
   useCategoryBookIds,
   useSetCategoryBooks,
 } from '@/hooks/useAdmin';
-import { adminCoverUrl, type AdminBookOption } from '@/services/admin';
+import {
+  adminCoverUrl,
+  BOOK_OPTIONS_LIMIT,
+  type AdminBookOption,
+} from '@/services/admin';
 import { useTheme } from '@/theme/ThemeContext';
 
 import type { AdminLibraryStackParamList } from '../navigation/types';
@@ -107,13 +112,19 @@ export function AdminCategoryBooksScreen() {
     error,
     refetch,
   } = useCategoryBookIds(categoryId);
-  const { data: books = [] } = useBookOptions('');
   const save = useSetCategoryBooks();
 
   const [bookIds, setBookIds] = useState<string[]>([]);
   // The settled filter term; the field owns the live text.
   const [query, setQuery] = useState('');
   const [showPicker, setShowPicker] = useState(false);
+  // The picker's term goes to the server: the catalogue can be any size, the
+  // picker shows one page of it. The category's own members are fetched by
+  // id so every row has a title and a cover wherever it sits.
+  const [pickerQuery, setPickerQuery] = useState('');
+  const options = useBookOptions(pickerQuery);
+  const memberOptions = useBookOptionsByIds(bookIds);
+  const books = useMemo(() => options.data ?? [], [options.data]);
 
   // Membership is a set: dropping a book and adding it back is no change.
   const membership = useMemo(() => [...bookIds].sort(), [bookIds]);
@@ -134,10 +145,12 @@ export function AdminCategoryBooksScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [memberIds]);
 
-  const bookById = useMemo(
-    () => new Map(books.map(book => [book.id, book])),
-    [books],
-  );
+  const bookById = useMemo(() => {
+    const map = new Map<string, AdminBookOption>();
+    for (const book of options.data ?? []) map.set(book.id, book);
+    for (const book of memberOptions.data ?? []) map.set(book.id, book);
+    return map;
+  }, [memberOptions.data, options.data]);
 
   // Alphabetical by title, the way readers meet a category on Explore. Books
   // that have not loaded their option row yet sink to the end rather than
@@ -399,6 +412,13 @@ export function AdminCategoryBooksScreen() {
         items={pickerItems}
         selected={bookIds}
         emptyLabel="No books in the catalog yet."
+        onSearch={setPickerQuery}
+        searching={options.isFetching}
+        footnote={
+          books.length >= BOOK_OPTIONS_LIMIT
+            ? `Showing the first ${BOOK_OPTIONS_LIMIT} titles by name. Search to reach the rest.`
+            : undefined
+        }
         onClose={() => setShowPicker(false)}
         onChange={setBookIds}
       />

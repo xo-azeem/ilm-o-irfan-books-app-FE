@@ -21,7 +21,9 @@ export type PushKind =
   | 'membership_activated'
   | 'membership_expired'
   | 'account_deletion_approved'
-  | 'account_deletion_rejected';
+  | 'account_deletion_rejected'
+  /** To admins only: a reader has asked for their account to be deleted. */
+  | 'account_deletion_requested';
 
 export type PushIntent =
   | { route: 'book'; bookId: string }
@@ -29,7 +31,9 @@ export type PushIntent =
   | { route: 'home' }
   | { route: 'library' }
   | { route: 'membership' }
-  | { route: 'privacy' };
+  | { route: 'privacy' }
+  /** Admin tool: People → Deletions. Dropped for anyone who is not an admin. */
+  | { route: 'adminDeletions' };
 
 export type PushPayload = {
   kind: PushKind | null;
@@ -52,6 +56,7 @@ const KINDS: ReadonlySet<string> = new Set([
   'membership_expired',
   'account_deletion_approved',
   'account_deletion_rejected',
+  'account_deletion_requested',
 ]);
 
 function text(value: unknown): string | null {
@@ -74,6 +79,8 @@ function parseIntent(data: Record<string, unknown>): PushIntent | null {
       return { route: 'membership' };
     case 'privacy':
       return { route: 'privacy' };
+    case 'adminDeletions':
+      return { route: 'adminDeletions' };
     default:
       return null;
   }
@@ -88,6 +95,7 @@ const TARGETED_KINDS: ReadonlySet<string> = new Set([
   'membership_expired',
   'account_deletion_approved',
   'account_deletion_rejected',
+  'account_deletion_requested',
 ]);
 
 /**
@@ -180,6 +188,12 @@ export function applyPushSideEffects(payload: PushPayload): void {
     case 'account_deletion_rejected':
       // Privacy & security shows the decision the moment it is looked at.
       void queryClient.invalidateQueries({ queryKey: ['account', 'deletion'] });
+      break;
+
+    case 'account_deletion_requested':
+      // The admin's queue, and the count Today draws it from.
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'deletions'] });
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'stats'] });
       break;
 
     default:

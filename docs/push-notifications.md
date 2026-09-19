@@ -15,6 +15,8 @@ when a push arrives in the foreground, and routes a tap.
 | “Book” has a new edition (PDF replaced) | the same readers | the book |
 | “Book” was updated (title, description, author, cover, …) | the same readers | the book |
 | Welcome to Premium / Your membership has ended | that reader | Home / Membership |
+| Your deletion request was approved / declined | that reader | Privacy & security |
+| A reader asked to delete their account | **admins** (`kind: account_deletion_requested`, `route: adminDeletions`) | admin tool → People → Deletions |
 
 Full backend contract: `Ilm-o-Irfan-App-BE/docs/api-endpoints.md → Push notifications`.
 
@@ -34,9 +36,12 @@ Full backend contract: `Ilm-o-Irfan-App-BE/docs/api-endpoints.md → Push notifi
 - `src/app/providers/PushProvider.tsx` — listeners. Foreground message →
   in-app banner (`components/ui/PushBanner.tsx`) + cache invalidation
   (`services/push/payload.ts`); tap on a background/killed-state notification →
-  `navigationRef.openPushIntent()`, which waits for the reader shell. Routing
-  is by `data.route`: `book` → book detail (`data.bookId`), `collection` →
-  collection page (`data.collectionId`), anything else → Home.
+  `navigationRef.openPushIntent()`, which waits for the shell the intent
+  belongs in. Routing is by `data.route`: `book` → book detail
+  (`data.bookId`), `collection` → collection page (`data.collectionId`),
+  `adminDeletions` → the admin tool's People → Deletions (an admin using the
+  app as a reader is switched back to the tool first; a non-admin drops it),
+  anything else → Home.
   `account_deletion_approved` / `_rejected` also refetch
   `account_deletion_status()`. A targeted push (membership, deletion, a held
   book) that arrives with no session — the account signed out or was deleted
@@ -45,8 +50,8 @@ Full backend contract: `Ilm-o-Irfan-App-BE/docs/api-endpoints.md → Push notifi
   devices shows (`lib/device.ts`), and is re-called with the new
   `p_notify_library` / `p_notify_membership` whenever a switch on the
   Notifications screen flips.
-- `RootNavigator` asks for the OS permission once, after the splash, only over
-  the reader app (never over the admin tool).
+- `RootNavigator` asks for the OS permission once, after the splash, over
+  the reader app or the admin tool — admins have a push of their own.
 - Android: three notification channels are created in
   `MainApplication.kt` — `catalog` (default importance), `library` and
   `account` (high) — so readers can mute "new books" in the OS while keeping

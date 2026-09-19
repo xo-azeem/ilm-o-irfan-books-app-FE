@@ -96,8 +96,14 @@ const SORT_LABEL: Record<BookSort, string> = {
   downloads_desc: 'Most downloads',
 };
 
-/** The three sorts an operator actually reaches for, in the board's order. */
-const SORT_OPTIONS: BookSort[] = ['updated_desc', 'title_asc', 'readers_desc'];
+/** Every sort the list can do, the everyday three first. */
+const SORT_OPTIONS: BookSort[] = [
+  'updated_desc',
+  'title_asc',
+  'readers_desc',
+  'created_desc',
+  'downloads_desc',
+];
 
 /**
  * Library.
@@ -132,6 +138,10 @@ export function AdminLibraryScreen() {
   );
   const [access, setAccess] = useState<BookAccessFilter>('all');
   const [sort, setSort] = useState<BookSort>('updated_desc');
+  // Set only by a jump from an author's page; cleared like any other chip.
+  const [authorId, setAuthorId] = useState<string | null>(
+    route.params?.authorId ?? null,
+  );
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
@@ -140,31 +150,45 @@ export function AdminLibraryScreen() {
   // Authors
   const [authorQuery, setAuthorQuery] = useState('');
 
-  // The tab stays mounted, so a later jump from Today has to push its filter
-  // in rather than relying on this screen's initial state.
+  // The tab stays mounted, so a later jump from Today or an author's page
+  // has to push its filter in rather than relying on this screen's initial
+  // state. Each param is consumed and then cleared, so the same jump made
+  // twice — Fix, clear the chip, Fix again — lands both times rather than
+  // only when the value differs from the last one.
   const routeSegment = route.params?.segment;
   const routeStatus = route.params?.status;
+  const routeAuthorId = route.params?.authorId;
   useEffect(() => {
+    if (!routeSegment && !routeStatus && !routeAuthorId) {
+      return;
+    }
     if (routeSegment) setSegment(routeSegment);
-  }, [routeSegment]);
-  useEffect(() => {
     if (routeStatus) setStatus(routeStatus);
-  }, [routeStatus]);
+    if (routeAuthorId) setAuthorId(routeAuthorId);
+    navigation.setParams({
+      segment: undefined,
+      status: undefined,
+      authorId: undefined,
+    });
+  }, [navigation, routeAuthorId, routeSegment, routeStatus]);
 
   const filters = useMemo<AdminBookFilters>(
     () => ({
       query,
       status,
       access,
-      authorId: null,
+      authorId,
       categoryId: null,
       sort,
     }),
-    [access, query, sort, status],
+    [access, authorId, query, sort, status],
   );
 
   const books = useAdminBooks(filters);
   const authors = useAdminAuthors(authorQuery);
+  // The unfiltered list, for naming the author chip whatever the Authors
+  // segment is searching for. Same cache entry the editors read.
+  const allAuthors = useAdminAuthors();
   const categories = useAdminCategories();
   const collections = useAdminCollections();
   const { data: stats } = useAdminStats();
@@ -211,8 +235,24 @@ export function AdminLibraryScreen() {
     author => author.book_count === 0,
   ).length;
 
+  const authorName = useMemo(
+    () =>
+      authorId
+        ? (allAuthors.data?.find(author => author.id === authorId)?.name ??
+          'one author')
+        : null,
+    [allAuthors.data, authorId],
+  );
+
   const activeFilters = useMemo(() => {
     const list: Array<{ id: string; label: string; clear: () => void }> = [];
+    if (authorId) {
+      list.push({
+        id: 'author',
+        label: `By ${authorName}`,
+        clear: () => setAuthorId(null),
+      });
+    }
     if (status !== 'all') {
       list.push({
         id: 'status',
@@ -233,11 +273,12 @@ export function AdminLibraryScreen() {
       });
     }
     return list;
-  }, [access, status]);
+  }, [access, authorId, authorName, status]);
 
   const clearFilters = useCallback(() => {
     setStatus('all');
     setAccess('all');
+    setAuthorId(null);
     setSort('updated_desc');
   }, []);
 

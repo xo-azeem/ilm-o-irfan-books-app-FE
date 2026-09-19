@@ -3,12 +3,14 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import {
   ChartNoAxesColumn,
+  FileWarning,
   LayoutGrid,
   Smartphone,
   Plus,
   Search,
   TriangleAlert,
   User,
+  UserX,
   type LucideIcon,
 } from 'lucide-react-native';
 
@@ -36,15 +38,22 @@ import {
 import { formatRelative } from '@/features/admin/utils/format';
 import {
   useAdminAnalytics,
+  useAdminDeletionRequests,
   useAdminStats,
   useAuditLog,
+  useStorageAudit,
 } from '@/hooks/useAdmin';
 import { useAuthStore } from '@/stores/authStore';
-import type { AuditEntry, TimeSeriesPoint } from '@/services/admin';
+import type {
+  AdminDeletionRequest,
+  AuditEntry,
+  TimeSeriesPoint,
+} from '@/services/admin';
 import { useTheme } from '@/theme/ThemeContext';
 
 import type {
   AdminLibraryStackParamList,
+  AdminPeopleStackParamList,
   AdminSystemStackParamList,
   AdminTabParamList,
 } from '../navigation/types';
@@ -78,11 +87,19 @@ export function AdminTodayScreen() {
   // bare "128 new readers" says nothing without the number it replaced.
   const analytics = useAdminAnalytics(14);
   const audit = useAuditLog(null);
+  // The two queues that run on somebody else's clock: a reader waiting on a
+  // decision about their account, and a title pointing at a file that is
+  // gone. Both are cached with their own screens, so once either has been
+  // opened this costs nothing extra.
+  const deletions = useAdminDeletionRequests('open');
+  const storage = useStorageAudit();
 
   const refreshProps = useAdminRefresh(stats.isRefetching, () => {
     void stats.refetch();
     void analytics.refetch();
     void audit.refetch();
+    void deletions.refetch();
+    void storage.refetch();
   });
 
   const recent = audit.data?.pages[0]?.rows.slice(0, 3) ?? [];
@@ -90,6 +107,22 @@ export function AdminTodayScreen() {
   const missingPdf = stats.data?.missing_pdf_count ?? 0;
   const missingCover = stats.data?.missing_cover_count ?? 0;
   const blocked = missingPdf + missingCover;
+
+  const deletionCounts = deletions.data?.counts ?? {};
+  const awaitingDecision = deletionCounts.pending ?? 0;
+  const failedRuns = deletionCounts.failed ?? 0;
+  const dueNow = useMemo(
+    () => (deletions.data?.rows ?? []).filter(isDueToRun).length,
+    [deletions.data?.rows],
+  );
+  const deletionAttention = awaitingDecision + failedRuns + dueNow;
+
+  const brokenFiles = storage.data?.broken.length ?? 0;
+
+  const attentionCount =
+    (deletionAttention > 0 ? 1 : 0) +
+    (blocked > 0 ? 1 : 0) +
+    (brokenFiles > 0 ? 1 : 0);
 
   const readers = useWeek(analytics.data?.signups);
   const sessions = useWeek(analytics.data?.reads);
@@ -115,6 +148,14 @@ export function AdminTodayScreen() {
       } as AdminTabParamList['AdminSystem']),
     [navigation],
   );
+  const openPeople = useCallback(
+    (target: ScreenTarget<AdminPeopleStackParamList>) =>
+      navigation.navigate(ADMIN_ROUTES.PEOPLE, {
+        ...target,
+        initial: false,
+      } as AdminTabParamList['AdminPeople']),
+    [navigation],
+  );
 
   return (
     <Screen padding={ADMIN_GUTTER} gap={16} scrollViewProps={refreshProps}>
@@ -135,21 +176,54 @@ export function AdminTodayScreen() {
         }
       />
 
-      {/* What is blocked, first. Nothing else on this screen asks for a tap. */}
-      {blocked > 0 ? (
-        <AdminAttentionGroup title="Needs you · 1">
-          <AdminAttentionRow
-            icon={TriangleAlert}
-            title={`${blocked} ${blocked === 1 ? 'title' : 'titles'} can't go live yet`}
-            detail={describeBlockers(missingPdf, missingCover)}
-            actionLabel="Fix"
-            onPress={() =>
-              openLibrary({
-                screen: ADMIN_ROUTES.LIBRARY_HOME,
-                params: { segment: 'books', status: 'incomplete' },
-              })
-            }
-          />
+      {/* What is blocked, first. Nothing else on this screen asks for a tap.
+          People before files: a reader waiting on a decision about their
+          account is on a legal clock; a draft without a PDF is not. */}
+      {attentionCount > 0 ? (
+        <AdminAttentionGroup title={`Needs you · ${attentionCount}`}>
+          {deletionAttention > 0 ? (
+            <AdminAttentionRow
+              icon={UserX}
+              title={describeDeletions(awaitingDecision, dueNow, failedRuns)}
+              detail={
+                awaitingDecision > 0
+                  ? 'Readers are told the answer the moment you decide.'
+                  : dueNow > 0
+                    ? 'The grace period has passed. Run them now, or they wait for the next tick.'
+                    : 'A run failed. Open the request to see why, then retry.'
+              }
+              actionLabel="Review"
+              onPress={() =>
+                openPeople({
+                  screen: ADMIN_ROUTES.PEOPLE_HOME,
+                  params: { segment: 'deletions' },
+                })
+              }
+            />
+          ) : null}
+          {blocked > 0 ? (
+            <AdminAttentionRow
+              icon={TriangleAlert}
+              title={`${blocked} ${blocked === 1 ? 'title' : 'titles'} can't go live yet`}
+              detail={describeBlockers(missingPdf, missingCover)}
+              actionLabel="Fix"
+              onPress={() =>
+                openLibrary({
+                  screen: ADMIN_ROUTES.LIBRARY_HOME,
+                  params: { segment: 'books', status: 'incomplete' },
+                })
+              }
+            />
+          ) : null}
+          {brokenFiles > 0 ? (
+            <AdminAttentionRow
+              icon={FileWarning}
+              title={`${brokenFiles} ${brokenFiles === 1 ? 'book points' : 'books point'} at a missing file`}
+              detail="The cover or PDF is gone from storage. Readers get an error until it is replaced."
+              actionLabel="Open"
+              onPress={() => openSystem({ screen: ADMIN_ROUTES.STORAGE })}
+            />
+          ) : null}
         </AdminAttentionGroup>
       ) : null}
 
@@ -305,6 +379,30 @@ function today(): string {
     day: 'numeric',
     month: 'short',
   });
+}
+
+/** An approved request whose grace period has run out and is waiting on a tick. */
+function isDueToRun(row: AdminDeletionRequest): boolean {
+  return (
+    row.status === 'approved' &&
+    row.scheduledFor !== null &&
+    new Date(row.scheduledFor).getTime() <= Date.now()
+  );
+}
+
+/** The people first, then the runs — one sentence for whichever is waiting. */
+function describeDeletions(
+  awaiting: number,
+  due: number,
+  failed: number,
+): string {
+  if (awaiting > 0) {
+    return `${awaiting} ${awaiting === 1 ? 'reader has' : 'readers have'} asked to delete their account`;
+  }
+  if (due > 0) {
+    return `${due} approved ${due === 1 ? 'deletion is' : 'deletions are'} due to run`;
+  }
+  return `${failed} account ${failed === 1 ? 'deletion' : 'deletions'} failed to run`;
 }
 
 /** "2 missing a PDF · 1 missing a cover" — the sentence, not the counter. */

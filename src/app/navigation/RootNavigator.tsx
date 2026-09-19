@@ -16,6 +16,7 @@ import { AuthSplash } from '@/app/navigation/AuthSplash';
 import {
   navigationRef,
   onNavigationReady,
+  setAdminShellReady,
   setConsumerShellReady,
 } from '@/app/navigation/navigationRef';
 import { MainTabBar } from '@/components/navigation/MainTabBar';
@@ -36,7 +37,9 @@ import { OnboardingNavigator } from '@/features/onboarding/navigation/Onboarding
 import { ProfileNavigator } from '@/features/profile/navigation/ProfileNavigator';
 import { BookReaderScreen } from '@/features/reader/screens/BookReaderScreen';
 import { SearchScreen } from '@/features/search/screens/SearchScreen';
+import { AppGateScreen } from '@/features/status/screens/AppGateScreen';
 import { WishlistScreen } from '@/features/wishlist/screens/WishlistScreen';
+import { prefetchAppStatus, useAppGate } from '@/hooks/useAppStatus';
 import { prefetchHomeCatalog } from '@/hooks/useCatalog';
 import { queryClient } from '@/lib/queryClient';
 import { pushAvailable, requestPushPermission } from '@/services/push';
@@ -186,6 +189,30 @@ export function RootNavigator() {
   // onboarding flag was cleared but the session survived in the keychain.
   const needsOnboarding = !onboarded && !isAuthenticated && !isAdmin;
 
+  // ── The door ─────────────────────────────────────────────────────────────
+  // Maintenance and the version floor are read under the splash, in the same
+  // hold as the feed, and refreshed on every return to the foreground. Either
+  // replaces the reader shells wholesale; admins are never held out, so the
+  // switches can always be reached to turn them off. The splash waits for
+  // the answer (within the same cap as the feed) so a reader is never shown
+  // Home for a beat before the notice slides over it.
+  const gate = useAppGate();
+  const [appStatusSettled, setAppStatusSettled] = useState(false);
+  useEffect(() => {
+    if (!isHydrated) {
+      return;
+    }
+    let mounted = true;
+    void prefetchAppStatus(queryClient).finally(() => {
+      if (mounted) {
+        setAppStatusSettled(true);
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [isHydrated]);
+
   // ── Warming Home under the splash ─────────────────────────────────────────
   // The splash holds for at least a second anyway, and for a signed-in reader
   // the session check is a network round trip on top of that. The Home feed
@@ -228,26 +255,40 @@ export function RootNavigator() {
   }, [sessionReady]);
 
   const splashReady =
-    sessionReady && (!landsOnHome || homeFeedSettled || feedHoldExpired);
+    sessionReady &&
+    (!landsOnHome || (homeFeedSettled && appStatusSettled) || feedHoldExpired);
 
   // ── Push notifications ────────────────────────────────────────────────────
   // A tapped notification can only land in the reader app: the admin tool
   // and first-run have none of its routes. The ref parks the intent until
   // this says the consumer shell is up — and the splash is gone, so a cold
   // start from a tap does not navigate underneath the logo.
-  const consumerShellUp = sessionReady && !showAdmin && !needsOnboarding;
+  const consumerShellUp =
+    sessionReady && !showAdmin && !needsOnboarding && gate === null;
   useEffect(() => {
     setConsumerShellReady(consumerShellUp && !splashVisible);
     return () => setConsumerShellReady(false);
   }, [consumerShellUp, splashVisible]);
 
-  // The OS permission prompt, once. Asked after the splash lifts on Home, so
-  // the first thing a reader sees is the app and not a system dialog; and
-  // only over the reader app — an admin who never leaves the tool is never
-  // asked. Declining is remembered by the OS; the Notifications screen
-  // points at the device's settings from then on.
+  // The admin tool has one push of its own — a reader asking to delete their
+  // account — and it lands on People → Deletions. Same parking rule.
+  const adminShellUp = sessionReady && showAdmin;
   useEffect(() => {
-    if (splashVisible || !consumerShellUp || !pushAvailable()) {
+    setAdminShellReady(adminShellUp && !splashVisible);
+    return () => setAdminShellReady(false);
+  }, [adminShellUp, splashVisible]);
+
+  // The OS permission prompt, once. Asked after the splash lifts on Home, so
+  // the first thing a reader sees is the app and not a system dialog — or
+  // over the admin tool, which has a push of its own to receive. Declining
+  // is remembered by the OS; the Notifications screen points at the
+  // device's settings from then on.
+  useEffect(() => {
+    if (
+      splashVisible ||
+      !(consumerShellUp || adminShellUp) ||
+      !pushAvailable()
+    ) {
       return;
     }
     const push = usePushStore.getState();
@@ -260,7 +301,7 @@ export function RootNavigator() {
         usePushStore.getState().requestSync();
       }
     });
-  }, [consumerShellUp, splashVisible]);
+  }, [adminShellUp, consumerShellUp, splashVisible]);
 
   const navigationTheme = useMemo(
     () => ({
@@ -299,12 +340,22 @@ export function RootNavigator() {
               launch the splash is still over this, so the fade costs nothing
               there. */}
           <Animated.View
-            key={showAdmin ? 'admin' : needsOnboarding ? 'onboarding' : 'app'}
+            key={
+              showAdmin
+                ? 'admin'
+                : gate
+                  ? `gate:${gate}`
+                  : needsOnboarding
+                    ? 'onboarding'
+                    : 'app'
+            }
             entering={FadeIn.duration(SHELL_FADE_MS)}
             style={styles.root}
           >
             {showAdmin ? (
               <AdminNavigator />
+            ) : gate ? (
+              <AppGateScreen gate={gate} />
             ) : needsOnboarding ? (
               <OnboardingNavigator />
             ) : (

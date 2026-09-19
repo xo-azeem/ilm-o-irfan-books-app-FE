@@ -46,10 +46,18 @@ function useLocalOrder<T extends { id: string }>(data: T[]) {
   const [order, setOrder] = useState<T[]>(data);
   const latest = useRef(order);
   latest.current = order;
+  const server = useRef(data);
+  server.current = data;
 
   useEffect(() => {
     setOrder(data);
   }, [data]);
+
+  /** Back to the server's order — a failed write must not stay on screen. */
+  const revert = useCallback(() => {
+    latest.current = server.current;
+    setOrder(server.current);
+  }, []);
 
   const move = useCallback(
     (index: number, delta: number, commit: (ids: string[]) => void) => {
@@ -69,7 +77,7 @@ function useLocalOrder<T extends { id: string }>(data: T[]) {
     [],
   );
 
-  return { order, move };
+  return { order, move, revert };
 }
 
 const MoveControls = memo(function MoveControls({
@@ -137,15 +145,20 @@ export const LibraryCategories = memo(function LibraryCategories({
 
   const { data = [], isLoading, error, refetch } = useAdminCategories();
   const reorder = useReorderCatalog();
-  const { order, move } = useLocalOrder(data);
+  const { order, move, revert } = useLocalOrder(data);
 
   const commit = useCallback(
     (ids: string[]) =>
       reorder.mutate(
         { table: 'categories', ids },
-        { onError: caught => toast.error(errorMessage(caught)) },
+        {
+          onError: caught => {
+            revert();
+            toast.error(errorMessage(caught));
+          },
+        },
       ),
-    [reorder, toast],
+    [reorder, revert, toast],
   );
 
   if (isLoading) {
@@ -292,15 +305,20 @@ export const LibraryShelves = memo(function LibraryShelves({
 
   const { data = [], isLoading, error, refetch } = useAdminCollections();
   const reorder = useReorderCatalog();
-  const { order, move } = useLocalOrder(data);
+  const { order, move, revert } = useLocalOrder(data);
 
   const commit = useCallback(
     (ids: string[]) =>
       reorder.mutate(
         { table: 'collections', ids },
-        { onError: caught => toast.error(errorMessage(caught)) },
+        {
+          onError: caught => {
+            revert();
+            toast.error(errorMessage(caught));
+          },
+        },
       ),
-    [reorder, toast],
+    [reorder, revert, toast],
   );
 
   if (isLoading) {

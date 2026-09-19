@@ -11,6 +11,7 @@ import { AuthDivider } from '@/features/auth/components/AuthDivider';
 import { AuthField } from '@/features/auth/components/AuthField';
 import { AuthLayout } from '@/features/auth/components/AuthLayout';
 import { GoogleSignInButton } from '@/features/auth/components/GoogleSignInButton';
+import { useSignupOpen } from '@/hooks/useAppStatus';
 import { resumeAfterAuth, waitForAccessCheck } from '@/lib/access';
 import {
   GoogleSignInCancelled,
@@ -129,6 +130,9 @@ export function LoginScreen() {
       navigation.navigate(ROUTES.SIGN_UP, returnTo ? { returnTo } : undefined),
     [navigation, returnTo],
   );
+  // With sign-ups closed the footer offers nothing: a link to a screen that
+  // only says no is worse than no link.
+  const signupOpen = useSignupOpen();
 
   /**
    * Sign in without a password: Supabase emails the address a six-digit code
@@ -188,16 +192,18 @@ export function LoginScreen() {
       subtitle="Your shelf is where you left it."
       onBack={navigation.canGoBack() ? () => navigation.goBack() : undefined}
       footer={
-        <View style={styles.footer}>
-          <Text size={fontSize.bodySmall} leading={1} tone="muted">
-            New here?
-          </Text>
-          <TextButton
-            label="Create an account"
-            onPress={goToSignUp}
-            size={fontSize.bodySmall}
-          />
-        </View>
+        signupOpen ? (
+          <View style={styles.footer}>
+            <Text size={fontSize.bodySmall} leading={1} tone="muted">
+              New here?
+            </Text>
+            <TextButton
+              label="Create an account"
+              onPress={goToSignUp}
+              size={fontSize.bodySmall}
+            />
+          </View>
+        ) : undefined
       }
     >
       <View style={styles.fields}>

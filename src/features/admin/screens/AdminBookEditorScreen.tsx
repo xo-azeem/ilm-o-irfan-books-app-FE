@@ -60,6 +60,7 @@ import {
   useDirtyTracker,
   useUnsavedGuard,
 } from '@/features/admin/hooks/useAdminForm';
+import { useStorageCleanup } from '@/features/admin/hooks/useStorageCleanup';
 import { formatBytes, formatDate } from '@/features/admin/utils/format';
 import { useAppInsets } from '@/hooks/useAppInsets';
 import {
@@ -182,6 +183,10 @@ export function AdminBookEditorScreen() {
 
   const { isDirty, reset, dirtyRef } = useDirtyTracker(form);
   useUnsavedGuard(dirtyRef);
+  // Files go to Storage the moment they are picked. Until the book is saved
+  // they belong to nobody, and they are removed if the screen is left
+  // without saving — or superseded by a second pick before the save.
+  const uploads = useStorageCleanup();
 
   const patch = (next: Partial<FormState>) => {
     setForm(current => ({ ...current, ...next }));
@@ -290,6 +295,7 @@ export function AdminBookEditorScreen() {
         asset.type ?? 'image/jpeg',
         setCoverProgress,
       );
+      uploads.replacePending(form.coverPath, path);
       patch({ coverPath: path });
       toast.success('Cover uploaded.');
     } catch (caught) {
@@ -332,6 +338,7 @@ export function AdminBookEditorScreen() {
         file.size,
         setPdfProgress,
       );
+      uploads.replacePending(form.pdfPath, uploaded.path);
       patch({ pdfPath: uploaded.path, fileSizeBytes: uploaded.sizeBytes });
       toast.success('PDF uploaded.');
     } catch (caught) {
@@ -389,6 +396,14 @@ export function AdminBookEditorScreen() {
       { id: bookId, input: buildInput(isPublished) },
       {
         onSuccess: () => {
+          // The files on the form are the book's now. Anything else uploaded
+          // during this edit is nobody's; the files the record pointed at
+          // before are offered to the guarded delete, which keeps any that
+          // a duplicate still shares.
+          uploads.commit(
+            [form.coverPath, form.pdfPath],
+            [existing?.cover_path, existing?.pdf_path],
+          );
           patch({ isPublished });
           reset();
           toast.success(successMessage);

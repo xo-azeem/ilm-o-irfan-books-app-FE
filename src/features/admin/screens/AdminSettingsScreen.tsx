@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Text } from '@/components/ui';
+import { APP_VERSION, isBelowMinimum } from '@/config/appVersion';
 import { AdminPickerSheet } from '@/features/admin/components/AdminControls';
 import { AdminMenuSkeleton } from '@/features/admin/components/AdminSkeletons';
 import { errorMessage, useToast } from '@/features/admin/components/AdminToast';
@@ -20,6 +21,10 @@ import {
   AdminTag,
   AdminToggleRow,
 } from '@/features/admin/components/AdminUi';
+import {
+  useDirtyTracker,
+  useUnsavedGuard,
+} from '@/features/admin/hooks/useAdminForm';
 import { useAppInsets } from '@/hooks/useAppInsets';
 import {
   useAdminCollections,
@@ -32,7 +37,13 @@ import { useTheme } from '@/theme/ThemeContext';
  * App settings.
  *
  * Every switch is written as what a reader will see, not as the column it
- * sets. There is deliberately no PDF-access switch: `get-signed-pdf` grants a
+ * sets — and every one of them is read by the reader app through
+ * `app-status`, on launch and on each return to the foreground, so what it
+ * says here is what happens there within a minute. Admins are never held
+ * out by any of it: the maintenance notice and the version floor apply to
+ * readers only, so the switch can always be reached to turn it off.
+ *
+ * There is deliberately no PDF-access switch: `get-signed-pdf` grants a
  * file to the admin role or an active entitlement and to nothing else, so
  * there is no flag here that could contradict it.
  */
@@ -55,6 +66,11 @@ export function AdminSettingsScreen() {
   });
   const [showCollectionPicker, setShowCollectionPicker] = useState(false);
 
+  // Same guard as every editor: the tag in the header, and a back gesture
+  // that asks before it throws edits away.
+  const { isDirty: dirty, reset, dirtyRef } = useDirtyTracker(form);
+  useUnsavedGuard(dirtyRef);
+
   useEffect(() => {
     if (!data) return;
     setForm({
@@ -67,17 +83,22 @@ export function AdminSettingsScreen() {
     });
   }, [data]);
 
-  const dirty = useMemo(() => {
-    if (!data) return false;
-    return (
-      form.maintenanceMode !== data.maintenance_mode ||
-      form.maintenanceMessage !== (data.maintenance_message ?? '') ||
-      form.signupEnabled !== data.signup_enabled ||
-      form.minVersion !== (data.min_supported_version ?? '') ||
-      form.supportEmail !== (data.support_email ?? '') ||
-      form.featuredCollectionId !== data.featured_collection_id
-    );
-  }, [data, form]);
+  // Snapshot once the row has landed so the guard starts clean.
+  useEffect(() => {
+    if (data) {
+      reset();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
+
+  // A floor above this very build would hold every reader on it at the door.
+  // Admins are exempt, so this is a warning rather than a block — but it is
+  // the one mistake here that locks readers out, and it says so.
+  const versionTrimmed = form.minVersion.trim();
+  const versionLooksValid =
+    !versionTrimmed || /^v?\d+(\.\d+)*$/i.test(versionTrimmed);
+  const versionAboveThisBuild =
+    versionLooksValid && isBelowMinimum(versionTrimmed, APP_VERSION);
 
   const featured = collections.find(
     item => item.id === form.featuredCollectionId,
@@ -94,7 +115,10 @@ export function AdminSettingsScreen() {
         featured_collection_id: form.featuredCollectionId,
       },
       {
-        onSuccess: () => toast.success('Settings saved.'),
+        onSuccess: () => {
+          reset();
+          toast.success('Settings saved. Readers pick it up within a minute.');
+        },
         onError: caught => toast.error(errorMessage(caught)),
       },
     );
@@ -154,7 +178,7 @@ export function AdminSettingsScreen() {
               label="Maintenance mode"
               description={
                 form.maintenanceMode
-                  ? 'On — everyone sees the notice below instead of the app.'
+                  ? 'On — readers see the notice below instead of the app. Admins are never held out.'
                   : 'Off — the app opens normally for everyone.'
               }
               value={form.maintenanceMode}
@@ -169,7 +193,7 @@ export function AdminSettingsScreen() {
               description={
                 form.signupEnabled
                   ? 'Open — anyone can create an account.'
-                  : 'Closed — the sign-up form is hidden and existing accounts still work.'
+                  : 'Closed — the sign-up form is hidden in the app and existing accounts still work.'
               }
               value={form.signupEnabled}
               onValueChange={value =>
@@ -220,7 +244,17 @@ export function AdminSettingsScreen() {
             placeholder="1.2.0"
             autoCapitalize="none"
             mono
-            helper="Older builds are asked to update before reading."
+            error={
+              !versionLooksValid
+                ? 'Enter a version like 1.2.0. Anything else is ignored by the app.'
+                : null
+            }
+            helper={
+              versionAboveThisBuild
+                ? `Higher than this build (${APP_VERSION}) — every reader on it will be asked to update. Make sure that version is in the stores first.`
+                : `Older builds are asked to update before reading. This build is ${APP_VERSION}. Leave empty for no floor.`
+            }
+            helperTone={versionAboveThisBuild ? 'warning' : undefined}
           />
         </View>
 

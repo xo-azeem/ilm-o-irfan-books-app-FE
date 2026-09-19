@@ -39,6 +39,7 @@ import {
   listAuditLog,
   listBatchBooks,
   listBookOptions,
+  listBookOptionsByIds,
   listDeletionRequests,
   listUploadBatches,
   publishUploadBatch,
@@ -59,6 +60,7 @@ import {
   type AdminBookInput,
   type AdminDeletionFilter,
   type AdminUserFilters,
+  type AuditScope,
   type UploadBatchInput,
 } from '@/services/admin';
 
@@ -149,6 +151,23 @@ export function useBookOptions(query: string) {
   return useQuery({
     queryKey: ['admin', 'book-options', term],
     queryFn: () => listBookOptions(term),
+    placeholderData: keepPreviousData,
+    staleTime: STALE,
+  });
+}
+
+/**
+ * Option rows for the titles already on a shelf or in a category, so each
+ * member draws with its cover and badges even when it sits past the
+ * picker's first page. Keyed on the sorted ids: adding a book fetches once
+ * more; reordering does not.
+ */
+export function useBookOptionsByIds(ids: string[]) {
+  const key = useMemo(() => [...ids].sort().join(','), [ids]);
+  return useQuery({
+    queryKey: ['admin', 'book-options-by-id', key],
+    queryFn: () => listBookOptionsByIds(key ? key.split(',') : []),
+    enabled: key.length > 0,
     placeholderData: keepPreviousData,
     staleTime: STALE,
   });
@@ -358,9 +377,10 @@ export function useUploadBatch(id: string | undefined) {
 }
 
 /**
- * The batch's books, polled while any of them is still without a file: an
- * upload attaches the PDF from the batch screen, but a draft opened in the
- * editor can have one attached there too, and the batch should notice.
+ * The batch's books. A short stale window rather than a poll: a draft
+ * saved from the editor invalidates every admin query on its way out, so
+ * the batch notices the moment it is returned to, and a return to the
+ * foreground refetches anything older than this.
  */
 export function useBatchBooks(batchId: string | undefined) {
   return useQuery({
@@ -505,10 +525,15 @@ export function useUpdateAdminSettings() {
   });
 }
 
-export function useAuditLog(entityType: string | null) {
+/** Every entry, newest first. Pass a scope to narrow by table or by action. */
+export function useAuditLog(scope: AuditScope | null = null) {
+  const resolved = useMemo<AuditScope>(
+    () => scope ?? { entityType: null, action: null },
+    [scope],
+  );
   return useInfiniteQuery({
-    queryKey: ['admin', 'audit', entityType],
-    queryFn: ({ pageParam }) => listAuditLog(entityType, pageParam),
+    queryKey: ['admin', 'audit', resolved.entityType, resolved.action],
+    queryFn: ({ pageParam }) => listAuditLog(resolved, pageParam),
     initialPageParam: 0,
     getNextPageParam: last => last.nextPage,
     staleTime: 15_000,

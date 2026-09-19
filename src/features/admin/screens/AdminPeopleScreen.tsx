@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -111,6 +111,18 @@ export function AdminPeopleScreen() {
   const [segment, setSegment] = useState<PeopleSegment>(
     route.params?.segment ?? 'readers',
   );
+
+  // The tab stays mounted, so a jump from Today or a tapped notification
+  // has to push its segment in. The param is consumed and cleared, so the
+  // same jump made twice — Deletions, back to Readers, Deletions again —
+  // lands both times rather than only when the value changes.
+  const routeSegment = route.params?.segment;
+  useEffect(() => {
+    if (routeSegment) {
+      setSegment(routeSegment);
+      navigation.setParams({ segment: undefined });
+    }
+  }, [navigation, routeSegment]);
   // The settled search term. The field owns the live text and holds each
   // keystroke back for its own beat, so this screen re-renders once per
   // search rather than once per character.

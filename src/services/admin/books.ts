@@ -1,5 +1,5 @@
 import { assertOk, num, supabase, unwrap } from './client';
-import { anyColumnLike, likePattern } from './search';
+import { anyColumnLike } from './search';
 import {
   ADMIN_PAGE_SIZE,
   uniqueSlug,
@@ -135,20 +135,18 @@ export type AdminBookOption = {
 const OPTION_COLUMNS =
   'id,title,author_name,cover_path,cover_color,is_published,is_premium,collection_ids';
 
-/** Titles a picker can choose from, without the heavy list payload. */
-export async function listBookOptions(query = ''): Promise<AdminBookOption[]> {
-  let builder = supabase
-    .from('admin_book_rows')
-    .select(OPTION_COLUMNS)
-    .order('title')
-    .limit(200);
+/**
+ * The most titles one picker read returns. Past this the picker says so and
+ * asks for a search term; the term is matched by the server, so a catalogue
+ * of any size stays reachable.
+ */
+export const BOOK_OPTIONS_LIMIT = 200;
 
-  const pattern = likePattern(query);
-  if (pattern) {
-    builder = builder.ilike('title', pattern);
-  }
+/** What the picker matches a term against: the title or the author. */
+const OPTION_SEARCH_COLUMNS = ['title', 'author_name'];
 
-  return (unwrap(await builder) as Array<Record<string, unknown>>).map(row => ({
+function toOption(row: Record<string, unknown>): AdminBookOption {
+  return {
     id: row.id as string,
     title: row.title as string,
     author_name: (row.author_name as string) ?? '',
@@ -157,7 +155,61 @@ export async function listBookOptions(query = ''): Promise<AdminBookOption[]> {
     is_published: Boolean(row.is_published),
     is_premium: Boolean(row.is_premium),
     collection_ids: (row.collection_ids as string[] | null) ?? [],
-  }));
+  };
+}
+
+/** Titles a picker can choose from, without the heavy list payload. */
+export async function listBookOptions(query = ''): Promise<AdminBookOption[]> {
+  let builder = supabase
+    .from('admin_book_rows')
+    .select(OPTION_COLUMNS)
+    .order('title')
+    .limit(BOOK_OPTIONS_LIMIT);
+
+  const search = anyColumnLike(query, OPTION_SEARCH_COLUMNS);
+  if (search) {
+    builder = builder.or(search);
+  }
+
+  return (unwrap(await builder) as Array<Record<string, unknown>>).map(
+    toOption,
+  );
+}
+
+/** PostgREST puts the whole list in the URL; a chunk keeps it well inside. */
+const ID_CHUNK = 100;
+
+/**
+ * The option rows for a known set of ids — a shelf's or a category's
+ * members — however far down the alphabet they sit. Order is the caller's.
+ */
+export async function listBookOptionsByIds(
+  ids: string[],
+): Promise<AdminBookOption[]> {
+  const unique = [...new Set(ids)];
+  if (unique.length === 0) {
+    return [];
+  }
+
+  const chunks: string[][] = [];
+  for (let start = 0; start < unique.length; start += ID_CHUNK) {
+    chunks.push(unique.slice(start, start + ID_CHUNK));
+  }
+
+  const pages = await Promise.all(
+    chunks.map(async chunk =>
+      (
+        unwrap(
+          await supabase
+            .from('admin_book_rows')
+            .select(OPTION_COLUMNS)
+            .in('id', chunk),
+        ) as Array<Record<string, unknown>>
+      ).map(toOption),
+    ),
+  );
+
+  return pages.flat();
 }
 
 function bookPayload(input: AdminBookInput) {

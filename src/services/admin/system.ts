@@ -88,8 +88,15 @@ export type AuditPage = {
   nextPage: number | null;
 };
 
+export type AuditScope = {
+  /** One table, or every table. */
+  entityType: string | null;
+  /** One kind of change, or every kind. */
+  action: AuditEntry['action'] | null;
+};
+
 export async function listAuditLog(
-  entityType: string | null,
+  scope: AuditScope,
   page = 0,
 ): Promise<AuditPage> {
   const from = page * AUDIT_PAGE_SIZE;
@@ -102,8 +109,11 @@ export async function listAuditLog(
     .order('created_at', { ascending: false })
     .range(from, from + AUDIT_PAGE_SIZE - 1);
 
-  if (entityType) {
-    builder = builder.eq('entity_type', entityType);
+  if (scope.entityType) {
+    builder = builder.eq('entity_type', scope.entityType);
+  }
+  if (scope.action) {
+    builder = builder.eq('action', scope.action);
   }
 
   const rows = unwrap(await builder) as AuditEntry[];

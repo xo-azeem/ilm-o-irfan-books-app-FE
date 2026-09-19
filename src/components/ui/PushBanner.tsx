@@ -87,6 +87,7 @@ const glyphFor: Record<PushKind, { icon: LucideGlyph; tone: IconTileTone }> = {
   membership_expired: { icon: BadgeCheck, tone: 'warning' },
   account_deletion_approved: { icon: ShieldAlert, tone: 'danger' },
   account_deletion_rejected: { icon: ShieldAlert, tone: 'neutral' },
+  account_deletion_requested: { icon: ShieldAlert, tone: 'warning' },
 };
 
 export const PushBannerLayer = memo(function PushBannerLayer() {

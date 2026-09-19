@@ -7,6 +7,11 @@
  */
 export const ENDPOINTS = {
   // Public catalog — backend `verify_jwt = false`.
+  /**
+   * The product flags every install checks before it draws anything:
+   * maintenance, signups, the oldest allowed build, the support address.
+   */
+  appStatus: 'app-status',
   homeFeed: 'home-feed',
   booksList: 'books-list',
   bookDetail: 'book-detail',

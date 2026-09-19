@@ -9,8 +9,14 @@ export type LibrarySegment = 'books' | 'authors' | 'categories' | 'shelves';
 export type PeopleSegment = 'readers' | 'plans' | 'deletions';
 
 export type AdminLibraryStackParamList = {
+  /**
+   * Every param is a one-shot instruction the list consumes and clears, so
+   * a later jump with the same value still lands. `authorId` narrows the
+   * Books segment to one author's titles.
+   */
   AdminLibraryHome:
-    { segment?: LibrarySegment; status?: BookStatusFilter } | undefined;
+    | { segment?: LibrarySegment; status?: BookStatusFilter; authorId?: string }
+    | undefined;
   /** `batchId` opens the editor to add a new draft to that bulk upload. */
   AdminBookEditor: { bookId?: string; batchId?: string };
   AdminPdfPreview: { bookId: string; title: string };

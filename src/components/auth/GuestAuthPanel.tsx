@@ -6,6 +6,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AuthReturnTo, RootStackParamList } from '@/app/navigation/types';
 import { Button, DashedShelf, Display, Text } from '@/components/ui';
 import { ROUTES } from '@/constants/routes';
+import { useSignupOpen } from '@/hooks/useAppStatus';
 import { fontSize } from '@/theme/typography';
 
 /**
@@ -25,6 +26,7 @@ export function GuestAuthPanel({
 }) {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const signupOpen = useSignupOpen();
 
   const signIn = useCallback(
     () =>
@@ -56,12 +58,14 @@ export function GuestAuthPanel({
 
       <View style={styles.actions}>
         <Button label="Sign in" onPress={signIn} size="md" />
-        <Button
-          label="Create an account"
-          variant="secondary"
-          onPress={createAccount}
-          size="md"
-        />
+        {signupOpen ? (
+          <Button
+            label="Create an account"
+            variant="secondary"
+            onPress={createAccount}
+            size="md"
+          />
+        ) : null}
       </View>
     </View>
   );

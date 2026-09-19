@@ -39,12 +39,14 @@ import { useAppInsets } from '@/hooks/useAppInsets';
 import {
   useAdminCollections,
   useBookOptions,
+  useBookOptionsByIds,
   useCollectionBookIds,
   useDeleteAdminCollection,
   useSaveAdminCollection,
 } from '@/hooks/useAdmin';
 import {
   adminCoverUrl,
+  BOOK_OPTIONS_LIMIT,
   slugify,
   SYSTEM_SHELF_NOTE,
   type AdminBookOption,
@@ -97,7 +99,6 @@ export function AdminCollectionEditorScreen() {
 
   const { data: collections = [] } = useAdminCollections();
   const { data: memberIds } = useCollectionBookIds(collectionId);
-  const { data: books = [] } = useBookOptions('');
   const existing = collections.find(item => item.id === collectionId);
 
   const save = useSaveAdminCollection();
@@ -113,6 +114,12 @@ export function AdminCollectionEditorScreen() {
   });
   const [showPicker, setShowPicker] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // The picker's term goes to the server: the catalogue can be any size, the
+  // picker shows one page of it. The shelf's own members are fetched by id
+  // so every row on it has a title and a cover wherever it sits.
+  const [pickerQuery, setPickerQuery] = useState('');
+  const options = useBookOptions(pickerQuery);
+  const members = useBookOptionsByIds(form.bookIds);
 
   const { isDirty, reset, dirtyRef } = useDirtyTracker(form);
   useUnsavedGuard(dirtyRef);
@@ -150,10 +157,13 @@ export function AdminCollectionEditorScreen() {
 
   const resolvedSlug = form.slug.trim() || slugify(form.title);
 
-  const bookById = useMemo(
-    () => new Map(books.map(book => [book.id, book])),
-    [books],
-  );
+  const books = useMemo(() => options.data ?? [], [options.data]);
+  const bookById = useMemo(() => {
+    const map = new Map<string, AdminBookOption>();
+    for (const book of options.data ?? []) map.set(book.id, book);
+    for (const book of members.data ?? []) map.set(book.id, book);
+    return map;
+  }, [members.data, options.data]);
 
   const orderedItems = useMemo(
     () =>
@@ -421,6 +431,13 @@ export function AdminCollectionEditorScreen() {
         items={pickerItems}
         selected={form.bookIds}
         emptyLabel="No books in the catalog yet."
+        onSearch={setPickerQuery}
+        searching={options.isFetching}
+        footnote={
+          books.length >= BOOK_OPTIONS_LIMIT
+            ? `Showing the first ${BOOK_OPTIONS_LIMIT} titles by name. Search to reach the rest.`
+            : undefined
+        }
         onClose={() => setShowPicker(false)}
         onChange={next => setForm(current => ({ ...current, bookIds: next }))}
       />

@@ -130,6 +130,18 @@ android {
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
     }
+    // Windows: the default .cxx path under the project blows past MAX_PATH
+    // (260 chars) once codegen object files are nested under it, and ninja
+    // fails with "Filename longer than 260 characters". A short staging root
+    // keeps release builds working on a Windows checkout; other platforms are
+    // left alone.
+    if (System.getProperty('os.name').toLowerCase().contains('windows')) {
+        externalNativeBuild {
+            cmake {
+                buildStagingDirectory "D:/.cxx/ioi"
+            }
+        }
+    }
     packagingOptions {
         pickFirst 'lib/x86/libc++_shared.so'
         pickFirst 'lib/x86_64/libjsc.so'

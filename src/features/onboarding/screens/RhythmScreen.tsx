@@ -5,7 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Display, Text, TextButton } from '@/components/ui';
 import { ChoiceCard } from '@/features/onboarding/components/ChoiceCard';
 import { OnboardingProgress } from '@/features/onboarding/components/OnboardingProgress';
-import { READING_RHYTHMS } from '@/features/onboarding/data/onboardingContent';
+import { readingRhythms } from '@/features/onboarding/data/onboardingContent';
+import { useStrings } from '@/i18n';
 import {
   useOnboardingStore,
   type ReadingRhythm,
@@ -22,6 +23,7 @@ import { useTheme } from '@/theme/ThemeContext';
 export function RhythmScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const s = useStrings();
 
   const rhythm = useOnboardingStore(state => state.rhythm);
   const setRhythm = useOnboardingStore(state => state.setRhythm);
@@ -47,14 +49,14 @@ export function RhythmScreen() {
         <OnboardingProgress step={2} />
 
         <View style={styles.heading}>
-          <Display size="title">What kind of reader are you?</Display>
+          <Display size="title">{s.onboarding.rhythm.title}</Display>
           <Text size={fontSize.bodySmall} leading={1.6} tone="muted">
-            Sets your daily goal and when we nudge you.
+            {s.onboarding.rhythm.subtitle}
           </Text>
         </View>
 
         <View style={styles.choices}>
-          {READING_RHYTHMS.map(option => (
+          {readingRhythms(s).map(option => (
             <ChoiceCard
               key={option.value}
               value={option.value}
@@ -76,9 +78,13 @@ export function RhythmScreen() {
           },
         ]}
       >
-        <Button label="Continue" onPress={finish} disabled={!rhythm} />
+        <Button
+          label={s.onboarding.rhythm.continue}
+          onPress={finish}
+          disabled={!rhythm}
+        />
         <TextButton
-          label="Skip for now"
+          label={s.onboarding.rhythm.skip}
           tone="muted"
           onPress={finish}
           style={styles.skip}

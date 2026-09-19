@@ -12,8 +12,10 @@ import { AuthField } from '@/features/auth/components/AuthField';
 import { AuthLayout } from '@/features/auth/components/AuthLayout';
 import { GoogleSignInButton } from '@/features/auth/components/GoogleSignInButton';
 import { useSignupOpen } from '@/hooks/useAppStatus';
+import { useStrings } from '@/i18n';
 import { resumeAfterAuth, waitForAccessCheck } from '@/lib/access';
 import {
+  describeAuthError,
   GoogleSignInCancelled,
   isGoogleSignInAvailable,
   signInWithEmail,
@@ -50,6 +52,7 @@ export function SignUpScreen() {
   // An admin can close sign-ups from System → App settings. The screen still
   // exists — a link may point here — but it explains rather than accepts.
   const signupOpen = useSignupOpen();
+  const s = useStrings();
 
   const [form, setForm] = useState<SignUpForm>(initialForm);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -62,46 +65,46 @@ export function SignUpScreen() {
   const validateForm = useCallback((): boolean => {
     if (!form.fullName.trim()) {
       showDialog({
-        title: 'Missing details',
-        message: 'Please enter your full name.',
+        title: s.auth.missingDetails,
+        message: s.auth.enterFullName,
         tone: 'warning',
       });
       return false;
     }
     if (!isValidEmail(form.email)) {
       showDialog({
-        title: 'Invalid email',
-        message: 'Please enter a valid email address.',
+        title: s.auth.invalidEmail,
+        message: s.auth.enterValidEmail,
         tone: 'warning',
       });
       return false;
     }
     if (form.phone.trim().length < 7) {
       showDialog({
-        title: 'Invalid phone',
-        message: 'Please enter a valid phone number.',
+        title: s.auth.invalidPhone,
+        message: s.auth.enterValidPhone,
         tone: 'warning',
       });
       return false;
     }
     if (form.password.length < 8) {
       showDialog({
-        title: 'Weak password',
-        message: 'Password must be at least 8 characters.',
+        title: s.auth.weakPassword,
+        message: s.auth.passwordTooShort,
         tone: 'warning',
       });
       return false;
     }
     if (form.password !== form.confirmPassword) {
       showDialog({
-        title: 'Password mismatch',
-        message: 'Passwords do not match.',
+        title: s.auth.passwordMismatch,
+        message: s.auth.passwordsDoNotMatch,
         tone: 'warning',
       });
       return false;
     }
     return true;
-  }, [form]);
+  }, [form, s]);
 
   const handleCreateAccount = useCallback(async () => {
     if (!validateForm()) {
@@ -148,22 +151,21 @@ export function SignUpScreen() {
       }
       resumeAfterAuth(navigation, returnTo);
     } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Unable to create account. Try again.';
-      showDialog({ title: 'Sign up failed', message, tone: 'danger' });
+      showDialog({
+        title: s.auth.signUp.failedTitle,
+        message: describeAuthError(error, s.auth.signUp.failedFallback),
+        tone: 'danger',
+      });
     } finally {
       setIsSubmitting(false);
     }
-  }, [form, navigation, returnTo, validateForm]);
+  }, [form, navigation, returnTo, s, validateForm]);
 
   const handleGoogleSignUp = useCallback(async () => {
     if (!isGoogleSignInAvailable()) {
       showDialog({
-        title: 'Google sign-up unavailable',
-        message:
-          'This build has no Google client configured. Create an account with your email instead.',
+        title: s.auth.signUp.googleUnavailableTitle,
+        message: s.auth.signUp.googleUnavailable,
         tone: 'info',
       });
       return;
@@ -184,14 +186,14 @@ export function SignUpScreen() {
         return;
       }
       showDialog({
-        title: 'Google sign-up failed',
-        message: error instanceof Error ? error.message : 'Please try again.',
+        title: s.auth.signUp.googleFailedTitle,
+        message: describeAuthError(error, s.common.pleaseTryAgain),
         tone: 'danger',
       });
     } finally {
       setIsGoogleBusy(false);
     }
-  }, [navigation, returnTo]);
+  }, [navigation, returnTo, s]);
 
   const goToSignIn = useCallback(
     () =>
@@ -202,25 +204,25 @@ export function SignUpScreen() {
   if (!signupOpen) {
     return (
       <AuthLayout
-        title="Sign-ups are paused."
-        subtitle="New accounts are not being created right now. Existing accounts work as usual, and the whole catalogue is open to browse."
+        title={s.auth.signUp.pausedTitle}
+        subtitle={s.auth.signUp.pausedSubtitle}
         onBack={() => navigation.goBack()}
         footer={
           <View style={styles.footer}>
             <Text size={fontSize.bodySmall} leading={1} tone="muted">
-              Already have an account?
+              {s.auth.signUp.alreadyHaveAccount}
             </Text>
             <TextButton
-              label="Sign in"
+              label={s.common.signIn}
               onPress={goToSignIn}
               size={fontSize.bodySmall}
             />
           </View>
         }
       >
-        <Button label="Sign in instead" onPress={goToSignIn} />
+        <Button label={s.auth.signUp.signInInstead} onPress={goToSignIn} />
         <Button
-          label="Browse the library"
+          label={s.auth.signUp.browseLibrary}
           variant="secondary"
           onPress={() =>
             navigation.reset({ index: 0, routes: [{ name: ROUTES.MAIN_TABS }] })
@@ -232,16 +234,16 @@ export function SignUpScreen() {
 
   return (
     <AuthLayout
-      title="Start your shelf."
-      subtitle="A few details, then seven decades of Ilm-o-Irfan are yours to browse."
+      title={s.auth.signUp.title}
+      subtitle={s.auth.signUp.subtitle}
       onBack={() => navigation.goBack()}
       footer={
         <View style={styles.footer}>
           <Text size={fontSize.bodySmall} leading={1} tone="muted">
-            Already have an account?
+            {s.auth.signUp.alreadyHaveAccount}
           </Text>
           <TextButton
-            label="Sign in"
+            label={s.common.signIn}
             onPress={goToSignIn}
             size={fontSize.bodySmall}
           />
@@ -250,10 +252,10 @@ export function SignUpScreen() {
     >
       <View style={styles.fields}>
         <AuthField
-          label="Full name"
+          label={s.auth.fullName}
           value={form.fullName}
           onChangeText={value => updateField('fullName', value)}
-          placeholder="Your full name"
+          placeholder={s.auth.fullNamePlaceholder}
           autoCapitalize="words"
           textContentType="name"
           autoComplete="name"
@@ -262,10 +264,10 @@ export function SignUpScreen() {
         />
 
         <AuthField
-          label="Email"
+          label={s.auth.email}
           value={form.email}
           onChangeText={value => updateField('email', value)}
-          placeholder="name@example.com"
+          placeholder={s.auth.emailPlaceholder}
           keyboardType="email-address"
           textContentType="emailAddress"
           autoComplete="email"
@@ -274,10 +276,10 @@ export function SignUpScreen() {
         />
 
         <AuthField
-          label="Phone"
+          label={s.auth.phone}
           value={form.phone}
           onChangeText={value => updateField('phone', value)}
-          placeholder="+92 300 123 4567"
+          placeholder={s.auth.phonePlaceholder}
           keyboardType="phone-pad"
           textContentType="telephoneNumber"
           autoComplete="tel"
@@ -286,10 +288,10 @@ export function SignUpScreen() {
         />
 
         <AuthField
-          label="Password"
+          label={s.auth.password}
           value={form.password}
           onChangeText={value => updateField('password', value)}
-          placeholder="At least 8 characters"
+          placeholder={s.auth.atLeastEightCharacters}
           secure
           textContentType="newPassword"
           autoComplete="password-new"
@@ -298,10 +300,10 @@ export function SignUpScreen() {
         />
 
         <AuthField
-          label="Confirm password"
+          label={s.auth.confirmPassword}
           value={form.confirmPassword}
           onChangeText={value => updateField('confirmPassword', value)}
-          placeholder="Repeat your password"
+          placeholder={s.auth.confirmPasswordPlaceholder}
           secure
           textContentType="newPassword"
           autoComplete="password-new"
@@ -312,7 +314,7 @@ export function SignUpScreen() {
       </View>
 
       <Button
-        label={isSubmitting ? 'Creating account…' : 'Create account'}
+        label={isSubmitting ? s.auth.signUp.creating : s.auth.signUp.create}
         onPress={handleCreateAccount}
         loading={isSubmitting}
       />
@@ -320,7 +322,7 @@ export function SignUpScreen() {
       <AuthDivider />
 
       <GoogleSignInButton
-        label={isGoogleBusy ? 'Opening Google…' : 'Sign up with Google'}
+        label={isGoogleBusy ? s.auth.openingGoogle : s.auth.signUp.withGoogle}
         onPress={handleGoogleSignUp}
         disabled={isGoogleBusy || isSubmitting}
       />

@@ -43,12 +43,14 @@ import {
 } from '@/services/readingPosition';
 import { useAccess } from '@/lib/access';
 import type { AccessReason } from '@/services/api/types';
+import { strings } from '@/i18n/strings';
 import { reasonCopy } from '@/services/entitlements';
 import { useAccessStore } from '@/stores/accessStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useThemeStore } from '@/stores/themeStore';
 import { useKeepScreenAwake } from '@/features/reader/useKeepScreenAwake';
 import { useReaderSurface } from '@/features/reader/useReaderSurface';
+import { useStrings } from '@/i18n';
 
 /** How close two reported taps have to be before the second is a duplicate. */
 const TOGGLE_GUARD_MS = 220;
@@ -127,16 +129,17 @@ type PdfError = {
  * for a draft's id cannot confirm it exists. One message serves both.
  */
 function pdfErrorMessage(error: PdfError): string {
+  const s = strings().reader;
   if (
     error?.code === 'PDF_NOT_AVAILABLE' ||
     error?.code === 'PDF_NOT_IN_STORAGE'
   ) {
-    return 'This book’s file is missing from our library. Nothing is wrong with your membership — please report it and we will restore it.';
+    return s.fileMissing;
   }
   if (error?.status === 404) {
-    return 'This book is no longer available.';
+    return s.noLongerAvailable;
   }
-  return error?.message || 'Unable to open this book.';
+  return error?.message || s.unableToOpen;
 }
 
 /**
@@ -187,6 +190,7 @@ function BookReader() {
   const bookId = route.params.bookId;
   const { data: book } = useBook(bookId);
   const userId = useAuthStore(state => state.userId);
+  const s = useStrings();
 
   const [pdfSource, setPdfSource] = useState<BookPdfSource | null>(null);
   const [sourceError, setSourceError] = useState(false);
@@ -197,7 +201,7 @@ function BookReader() {
   // Whether this book is kept offline — live, so the tile flips as it lands.
   const isKept = useBookKept(bookId);
   const removeDownload = useRemoveDownload();
-  const bookTitle = book?.title?.trim() || 'Book';
+  const bookTitle = book?.title?.trim() || s.reader.fallbackTitle;
   // Which way the book is bound, which is which way its pages fold: a book
   // recorded as Urdu or Arabic opens from the right and turns forward to the
   // right. Every other book — English, or with no language recorded — turns
@@ -578,12 +582,15 @@ function BookReader() {
     [bookId, userId],
   );
 
-  const handleError = useCallback((message?: string) => {
-    setHasError(true);
-    setErrorMessage(message || 'This PDF could not be displayed.');
-    setIsLoading(false);
-    setLoaderVisible(false);
-  }, []);
+  const handleError = useCallback(
+    (message?: string) => {
+      setHasError(true);
+      setErrorMessage(message || s.reader.pdfNotDisplayed);
+      setIsLoading(false);
+      setLoaderVisible(false);
+    },
+    [s],
+  );
 
   const hideLoader = useCallback(() => {
     setLoaderVisible(false);
@@ -623,13 +630,13 @@ function BookReader() {
   const handleDownload = useCallback(() => {
     if (isKept) {
       showDialog({
-        title: 'Remove download?',
-        message: `${bookTitle} will stay in your library but need a connection to open.`,
+        title: s.reader.removeDownloadTitle,
+        message: s.reader.removeDownloadMessage(bookTitle),
         icon: Trash2,
         actions: [
-          { label: 'Cancel', style: 'cancel' },
+          { label: s.common.cancel, style: 'cancel' },
           {
-            label: 'Remove',
+            label: s.common.remove,
             style: 'destructive',
             onPress: () => {
               removeDownload.mutate({ bookId, local: 'demote' });
@@ -653,11 +660,11 @@ function BookReader() {
       .catch((error: unknown) => {
         // The open document stays up whatever happened to the download.
         showDialog({
-          title: 'Download failed',
+          title: s.reader.downloadFailedTitle,
           message:
             error instanceof Error && error.message
               ? error.message
-              : 'The book could not be saved for offline reading. Please try again.',
+              : s.reader.downloadFailedMessage,
           tone: 'danger',
           icon: CloudOff,
         });
@@ -666,7 +673,7 @@ function BookReader() {
         setIsDownloading(false);
         setDownloadProgress(null);
       });
-  }, [bookId, bookTitle, isDownloading, isKept, removeDownload]);
+  }, [bookId, bookTitle, isDownloading, isKept, removeDownload, s]);
 
   /** The bookmark on the page in view, if the reader has already set one. */
   const bookmark = useMemo(
@@ -763,11 +770,11 @@ function BookReader() {
         setSourceError(true);
         setErrorMessage(
           reason === 'replaced'
-            ? 'This book’s file has been updated. Try again to open the new one — and download it again to keep it offline.'
-            : 'This book is no longer available.',
+            ? s.reader.fileUpdated
+            : s.reader.noLongerAvailable,
         );
       }),
-    [bookId],
+    [bookId, s],
   );
 
   const handleReadDownloaded = useCallback(() => {

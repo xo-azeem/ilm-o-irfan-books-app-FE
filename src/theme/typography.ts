@@ -158,14 +158,11 @@ export const fontSize = {
  */
 export type FontScale = 'small' | 'default' | 'large' | 'xlarge';
 
-export const FONT_SCALES: Record<
-  FontScale,
-  { label: string; multiplier: number }
-> = {
-  small: { label: 'Small', multiplier: 0.9 },
-  default: { label: 'Default', multiplier: 1 },
-  large: { label: 'Large', multiplier: 1.12 },
-  xlarge: { label: 'Largest', multiplier: 1.25 },
+export const FONT_SCALES: Record<FontScale, { multiplier: number }> = {
+  small: { multiplier: 0.9 },
+  default: { multiplier: 1 },
+  large: { multiplier: 1.12 },
+  xlarge: { multiplier: 1.25 },
 };
 
 /** Smallest to largest — the order the Appearance selector draws them in. */

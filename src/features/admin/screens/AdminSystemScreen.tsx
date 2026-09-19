@@ -33,6 +33,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useTheme } from '@/theme/ThemeContext';
 
 import type { AdminSystemStackParamList } from '../navigation/types';
+import { useStrings } from '@/i18n';
 
 /**
  * System.
@@ -42,6 +43,8 @@ import type { AdminSystemStackParamList } from '../navigation/types';
  * is wrong is not a menu, it is four more taps.
  */
 export function AdminSystemScreen() {
+  const s = useStrings();
+  const words = s.admin.system;
   const navigation =
     useNavigation<NativeStackNavigationProp<AdminSystemStackParamList>>();
 
@@ -62,13 +65,13 @@ export function AdminSystemScreen() {
 
   const handleSignOut = () => {
     showDialog({
-      title: 'Sign out of admin',
-      message: 'You will land back on the sign-in screen.',
+      title: words.signOutTitle,
+      message: words.signOutMessage,
       icon: LogOut,
       actions: [
-        { label: 'Cancel', style: 'cancel' },
+        { label: s.admin.ui.cancel, style: 'cancel' },
         {
-          label: 'Sign out',
+          label: words.signOut,
           style: 'destructive',
           onPress: () => {
             void signOut();
@@ -81,52 +84,50 @@ export function AdminSystemScreen() {
   return (
     <Screen padding={ADMIN_GUTTER} gap={17}>
       <AdminPageTitle
-        title="System"
-        subtitle={`Signed in as ${email || 'admin'}`}
+        title={words.title}
+        subtitle={words.signedInAs(email || s.admin.ui.admin)}
       />
 
       <AdminRowGroup>
         <AdminNavRow
-          label="Analytics"
-          sublabel="Reading, signups, downloads"
+          label={words.analytics}
+          sublabel={words.analyticsHint}
           Icon={ChartNoAxesColumn}
           onPress={() => navigation.navigate(ADMIN_ROUTES.ANALYTICS)}
         />
         <AdminNavRow
-          label="Storage"
+          label={words.storage}
           sublabel={
             orphans > 0
-              ? `${orphans} ${orphans === 1 ? 'file is' : 'files are'} not linked to a book · ${formatBytes(
-                  storageBytes,
-                )} used`
-              : `${formatBytes(storageBytes)} used · nothing to clean up`
+              ? words.storageOrphans(orphans, formatBytes(storageBytes))
+              : words.storageClean(formatBytes(storageBytes))
           }
           warn={orphans > 0}
           Icon={Database}
           onPress={() => navigation.navigate(ADMIN_ROUTES.STORAGE)}
         />
         <AdminNavRow
-          label="Change history"
+          label={words.history}
           sublabel={
             lastChange
-              ? `Last change ${formatRelative(lastChange.created_at)} by ${
-                  lastChange.actor_email ?? 'system'
-                }`
-              : 'Nothing recorded yet'
+              ? words.lastChange(
+                  formatRelative(lastChange.created_at),
+                  lastChange.actor_email ?? s.admin.ui.system,
+                )
+              : words.nothingRecorded
           }
           Icon={Clock}
           onPress={() => navigation.navigate(ADMIN_ROUTES.HISTORY)}
         />
         <AdminNavRow
-          label="App settings"
+          label={words.appSettings}
           sublabel={
             settings.data
-              ? `${settings.data.signup_enabled ? 'Signups open' : 'Signups closed'} · ${
-                  settings.data.maintenance_mode
-                    ? 'maintenance on'
-                    : 'maintenance off'
-                }`
-              : 'Availability, notices and versions'
+              ? words.settingsSummary(
+                  settings.data.signup_enabled,
+                  settings.data.maintenance_mode,
+                )
+              : words.settingsHint
           }
           warn={settings.data?.maintenance_mode ?? false}
           Icon={Settings2}
@@ -140,20 +141,20 @@ export function AdminSystemScreen() {
         than a status page and a truthful one.
       */}
       <View style={styles.block}>
-        <AdminEyebrow>Health</AdminEyebrow>
+        <AdminEyebrow>{words.health}</AdminEyebrow>
         <AdminRowGroup>
           <HealthRow
-            label="Database"
+            label={words.database}
             state={stats.isError ? 'down' : stats.isLoading ? 'checking' : 'up'}
           />
           <HealthRow
-            label="File storage"
+            label={words.fileStorage}
             state={
               storage.isError ? 'down' : storage.isLoading ? 'checking' : 'up'
             }
           />
           <HealthRow
-            label="App settings"
+            label={words.appSettings}
             state={
               settings.isError ? 'down' : settings.isLoading ? 'checking' : 'up'
             }
@@ -164,11 +165,11 @@ export function AdminSystemScreen() {
       {/* This account, as a reader. The same row as on Today, here because
           this is where the account's other action — leaving — lives. */}
       <View style={styles.block}>
-        <AdminEyebrow>Account</AdminEyebrow>
+        <AdminEyebrow>{words.account}</AdminEyebrow>
         <AdminRowGroup>
           <AdminNavRow
-            label="Open the app as a reader"
-            sublabel="Come back from the profile tab"
+            label={s.admin.today.openAsReader}
+            sublabel={words.comeBack}
             Icon={Smartphone}
             onPress={() => setViewingAsReader(true)}
           />
@@ -177,17 +178,19 @@ export function AdminSystemScreen() {
 
       <View style={styles.signOut}>
         <AdminButton
-          label="Sign out of admin"
+          label={words.signOutTitle}
           variant="ghostDanger"
           onPress={handleSignOut}
         />
       </View>
 
       <Text size={11.5} leading={1.45} align="center" tone="dim">
-        {`${stats.data?.user_count ?? 0} accounts · ${
+        {words.footer(
+          stats.data?.user_count ?? 0,
           (stats.data?.book_published_count ?? 0) +
-          (stats.data?.book_draft_count ?? 0)
-        } titles · ${stats.data?.plan_count ?? 0} plans`}
+            (stats.data?.book_draft_count ?? 0),
+          stats.data?.plan_count ?? 0,
+        )}
       </Text>
     </Screen>
   );
@@ -201,6 +204,7 @@ const HealthRow = memo(function HealthRow({
   state: 'up' | 'down' | 'checking';
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
 
   const dot =
     state === 'down'
@@ -223,10 +227,10 @@ const HealthRow = memo(function HealthRow({
         tone={state === 'down' ? 'danger' : 'faint'}
       >
         {state === 'down'
-          ? 'not responding'
+          ? s.admin.system.notResponding
           : state === 'checking'
-            ? 'checking'
-            : 'responding'}
+            ? s.admin.system.checking
+            : s.admin.system.responding}
       </Label>
     </View>
   );

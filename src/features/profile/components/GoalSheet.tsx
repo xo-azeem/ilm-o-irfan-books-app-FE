@@ -13,6 +13,7 @@ import {
 import { MONTHLY_GOAL_RANGE } from '@/services/account';
 import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
+import { useStrings } from '@/i18n';
 
 /**
  * The goal sheet.
@@ -38,6 +39,7 @@ export const GoalSheet = memo(function GoalSheet({
   saving?: boolean;
   onSave: (target: number) => void;
 }) {
+  const s = useStrings();
   const [draft, setDraft] = useState(target);
 
   // Reopening the sheet starts from the saved target again, not from a draft
@@ -65,18 +67,18 @@ export const GoalSheet = memo(function GoalSheet({
     <Sheet
       visible={visible}
       onClose={onClose}
-      title="This month’s goal"
+      title={s.profile.goal.title}
       scrollable={false}
       footer={
         <View style={styles.actions}>
           <Button
-            label="Save goal"
+            label={s.profile.goal.save}
             loading={saving}
             disabled={unchanged}
             onPress={() => onSave(draft)}
           />
           <Button
-            label="Cancel"
+            label={s.common.cancel}
             variant="ghost"
             disabled={saving}
             onPress={onClose}
@@ -87,7 +89,7 @@ export const GoalSheet = memo(function GoalSheet({
       <View style={styles.stepper}>
         <StepButton
           icon={Minus}
-          label="Fewer books"
+          label={s.profile.goal.fewer}
           disabled={draft <= MONTHLY_GOAL_RANGE.min}
           onPress={() => step(-1)}
         />
@@ -96,20 +98,20 @@ export const GoalSheet = memo(function GoalSheet({
             {String(draft)}
           </Display>
           <Text size={fontSize.captionSmall} tone="muted">
-            {draft === 1 ? 'book a month' : 'books a month'}
+            {s.profile.goal.perMonth(draft)}
           </Text>
         </View>
         <StepButton
           icon={Plus}
-          label="More books"
+          label={s.profile.goal.more}
           disabled={draft >= MONTHLY_GOAL_RANGE.max}
           onPress={() => step(1)}
         />
       </View>
       <Text size={fontSize.bodySmall} leading={1.45} tone="muted">
         {completed >= draft
-          ? `You have already finished ${completed} this month — this goal is done the moment you save it.`
-          : `${completed} finished so far this month. ${draft - completed} more would reach this goal.`}
+          ? s.profile.goal.alreadyDone(completed)
+          : s.profile.goal.soFar(completed, draft - completed)}
       </Text>
     </Sheet>
   );

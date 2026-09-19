@@ -1,3 +1,4 @@
+import { strings } from '@/i18n/strings';
 import type {
   AccessEventRow,
   AccessReason,
@@ -157,64 +158,28 @@ export function mergeSignedPdfAccess(
   };
 }
 
-/** Paywall wording. The reason never decides anything — it only explains. */
-export const REASON_COPY: Record<
-  AccessReason,
-  { title: string; message: string; soft: boolean }
-> = {
-  active: {
-    title: 'Membership active',
-    message: 'You have full access to the library.',
-    soft: true,
-  },
-  admin: {
-    title: 'Staff access',
-    message: 'You can open any book, with or without a membership.',
-    soft: true,
-  },
-  trial: {
-    title: 'You are on a trial',
-    message:
-      'Enjoy the full library. Your trial end date is shown in Membership.',
-    soft: true,
-  },
-  grace: {
-    title: 'We are retrying your payment',
-    message:
-      'Keep reading — nothing is interrupted while the retry is in progress.',
-    soft: true,
-  },
-  billing_issue_paid_through: {
-    title: 'Your card needs attention',
-    message:
-      'Your membership is paid through the current period, so keep reading. Update your card to avoid losing access.',
-    soft: true,
-  },
-  cancelled_paid_through: {
-    title: 'Your membership is ending',
-    message:
-      'You keep full access until it ends. Resubscribe any time to continue after that.',
-    soft: true,
-  },
-  lapsed: {
-    title: 'Your membership has ended',
-    message:
-      'Renew to pick up exactly where you left off — your library is untouched.',
-    soft: false,
-  },
-  expired: {
-    title: 'Your membership has ended',
-    message:
-      'Renew to pick up exactly where you left off — your library is untouched.',
-    soft: false,
-  },
-  none: {
-    title: 'Read the whole library',
-    message: 'Every book in Ilm o Irfan is included with a membership.',
-    soft: false,
-  },
+/**
+ * Which reasons are notices rather than walls. The reason never decides
+ * anything — it only explains — and the wording is in the dictionary, so
+ * the paywall reads in the interface language.
+ */
+export const REASON_SOFT: Record<AccessReason, boolean> = {
+  active: true,
+  admin: true,
+  trial: true,
+  grace: true,
+  billing_issue_paid_through: true,
+  cancelled_paid_through: true,
+  lapsed: false,
+  expired: false,
+  none: false,
 };
 
-export function reasonCopy(reason: AccessReason | null) {
-  return REASON_COPY[reason ?? 'none'] ?? REASON_COPY.none;
+export function reasonCopy(reason: AccessReason | null): {
+  title: string;
+  message: string;
+  soft: boolean;
+} {
+  const key: AccessReason = reason && reason in REASON_SOFT ? reason : 'none';
+  return { ...strings().access.reasons[key], soft: REASON_SOFT[key] };
 }

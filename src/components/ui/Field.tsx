@@ -27,6 +27,7 @@ import { Label, Text } from '@/components/ui/Text';
 import { radius } from '@/theme/palette';
 import { fonts, fontSize, sansFamily, scaleFont } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
+import { useStrings } from '@/i18n';
 
 /**
  * Inputs.
@@ -247,7 +248,7 @@ export const SelectField = memo(function SelectField({
   label,
   value,
   onPress,
-  placeholder = 'Select',
+  placeholder,
 }: {
   label?: string;
   value?: string;
@@ -255,6 +256,7 @@ export const SelectField = memo(function SelectField({
   placeholder?: string;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
 
   return (
     <Field label={label}>
@@ -280,7 +282,7 @@ export const SelectField = memo(function SelectField({
           tone={value ? 'ink' : 'faint'}
           style={styles.grow}
         >
-          {value ?? placeholder}
+          {value ?? placeholder ?? s.common.select}
         </Text>
         <Icon icon={ChevronDown} size={13} tone="faint" strokeWidth={2} />
       </Pressable>
@@ -349,7 +351,7 @@ export const SearchField = memo(function SearchField({
   onPress,
   onClear,
   dense = false,
-  placeholder = 'Search',
+  placeholder,
   onFocus,
   onBlur,
   onSubmitEditing,
@@ -357,6 +359,7 @@ export const SearchField = memo(function SearchField({
   ...rest
 }: SearchFieldProps) {
   const { colors, fontScale } = useTheme();
+  const s = useStrings();
   const [focused, setFocused] = useState(false);
   const inputRef = useRef<TextInput>(null);
 
@@ -497,14 +500,14 @@ export const SearchField = memo(function SearchField({
           tone="faint"
           style={styles.grow}
         >
-          {placeholder}
+          {placeholder ?? s.common.search}
         </Text>
       ) : (
         <TextInput
           ref={inputRef}
           value={text}
           onChangeText={handleChange}
-          placeholder={placeholder}
+          placeholder={placeholder ?? s.common.search}
           placeholderTextColor={colors.faint}
           selectionColor={colors.primaryBright}
           autoCapitalize="none"
@@ -531,7 +534,7 @@ export const SearchField = memo(function SearchField({
       {!readOnly && text ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Clear search"
+          accessibilityLabel={s.common.clearSearch}
           hitSlop={8}
           onPress={handleClear}
         >

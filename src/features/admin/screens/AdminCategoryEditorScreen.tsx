@@ -56,6 +56,7 @@ import { palette } from '@/theme/palette';
 import { useTheme } from '@/theme/ThemeContext';
 
 import type { AdminLibraryStackParamList } from '../navigation/types';
+import { useStrings } from '@/i18n';
 
 /** Only these keys have a matching glyph in the reader app. */
 const ICONS: Record<string, LucideIcon> = {
@@ -67,12 +68,6 @@ const ICONS: Record<string, LucideIcon> = {
   'scroll-text': ScrollText,
   globe: Globe,
 };
-
-const ORDINALS = ['1st', '2nd', '3rd'];
-
-function ordinal(position: number): string {
-  return ORDINALS[position - 1] ?? `${position}th`;
-}
 
 /**
  * A category.
@@ -88,6 +83,8 @@ export function AdminCategoryEditorScreen() {
     useRoute<RouteProp<AdminLibraryStackParamList, 'AdminCategoryEditor'>>();
   const categoryId = route.params?.categoryId;
   const { colors } = useTheme();
+  const s = useStrings();
+  const words = s.adminLibrary.category;
   const { scrollEndPadding } = useAppInsets();
   const toast = useToast();
 
@@ -139,7 +136,7 @@ export function AdminCategoryEditorScreen() {
 
   const handleSave = () => {
     if (!form.label.trim()) {
-      toast.error('Enter a category label.');
+      toast.error(words.enterLabel);
       return;
     }
 
@@ -158,7 +155,7 @@ export function AdminCategoryEditorScreen() {
       {
         onSuccess: () => {
           reset();
-          toast.success(categoryId ? 'Category saved.' : 'Category created.');
+          toast.success(categoryId ? words.saved : words.created);
           navigation.goBack();
         },
         onError: caught => toast.error(errorMessage(caught)),
@@ -173,9 +170,11 @@ export function AdminCategoryEditorScreen() {
     >
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <AdminBackLink
-          label="Categories"
+          label={words.categories}
           action={
-            isDirty ? <AdminTag label="UNSAVED" tone="warning" /> : undefined
+            isDirty ? (
+              <AdminTag label={s.admin.ui.unsaved} tone="warning" />
+            ) : undefined
           }
         />
       </View>
@@ -192,13 +191,16 @@ export function AdminCategoryEditorScreen() {
         showsVerticalScrollIndicator={false}
       >
         <AdminScreenTitle
-          title={form.label || (categoryId ? 'Edit category' : 'New category')}
+          title={
+            form.label || (categoryId ? words.editCategory : words.newCategory)
+          }
           subtitle={
             categoryId
-              ? `${books} ${books === 1 ? 'book' : 'books'}${
-                  position ? ` · shown ${ordinal(position)} on Explore` : ''
-                }`
-              : 'A tile on Explore and a filter in search.'
+              ? words.shownOnExplore(
+                  s.adminLibrary.counts.books(books),
+                  position ? words.ordinal(position) : null,
+                )
+              : words.tileAndFilter
           }
         />
 
@@ -209,7 +211,7 @@ export function AdminCategoryEditorScreen() {
             { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
           ]}
         >
-          <AdminEyebrow>How readers see it</AdminEyebrow>
+          <AdminEyebrow>{words.howReadersSee}</AdminEyebrow>
           <View
             style={[
               styles.previewTile,
@@ -234,10 +236,10 @@ export function AdminCategoryEditorScreen() {
             </View>
             <View style={styles.grow}>
               <Text size={14} leading={1.2} weight="500" numberOfLines={1}>
-                {form.label || 'Category'}
+                {form.label || words.category}
               </Text>
               <Text size={11} leading={1.2} tone="muted">
-                {`${books} ${books === 1 ? 'book' : 'books'}`}
+                {s.adminLibrary.counts.books(books)}
               </Text>
             </View>
           </View>
@@ -247,14 +249,14 @@ export function AdminCategoryEditorScreen() {
             from the whole catalog, not one book at a time. Only once the
             category exists — a new one has nothing to tag yet. */}
         {categoryId ? (
-          <AdminRowGroup title="Books">
+          <AdminRowGroup title={words.books}>
             <AdminNavRow
               Icon={Library}
-              label="Books in this category"
+              label={words.booksInCategory}
               sublabel={
                 books === 0
-                  ? 'Nothing tagged yet — add one or many'
-                  : `${books} ${books === 1 ? 'book' : 'books'} · add or remove any`
+                  ? words.nothingTagged
+                  : words.addOrRemove(s.adminLibrary.counts.books(books))
               }
               warn={books === 0}
               onPress={() =>
@@ -265,7 +267,7 @@ export function AdminCategoryEditorScreen() {
         ) : null}
 
         <AdminField
-          label="Label"
+          label={words.label}
           value={form.label}
           onChangeText={value =>
             setForm(current => ({ ...current, label: value }))
@@ -274,7 +276,7 @@ export function AdminCategoryEditorScreen() {
         />
 
         <View style={styles.block}>
-          <AdminLabel>Icon</AdminLabel>
+          <AdminLabel>{words.icon}</AdminLabel>
           <View style={styles.iconGrid}>
             {CATEGORY_ICON_KEYS.map(key => {
               const Glyph = ICONS[key] ?? BookMarked;
@@ -314,27 +316,27 @@ export function AdminCategoryEditorScreen() {
         </View>
 
         <AdminField
-          label="URL key"
+          label={words.urlKey}
           value={form.slug}
           onChangeText={value =>
             setForm(current => ({ ...current, slug: value }))
           }
-          placeholder={slugify(form.label) || 'auto-from-label'}
+          placeholder={slugify(form.label) || words.autoFromLabel}
           autoCapitalize="none"
           mono
-          helper={`Currently “${resolvedSlug || '—'}”.`}
+          helper={words.currently(resolvedSlug || '—')}
         />
 
         <AdminColorField
-          label="Accent"
+          label={words.accent}
           value={form.accent}
           onChange={value =>
             setForm(current => ({ ...current, accent: value }))
           }
-          helper="Tints the tile on Explore."
+          helper={words.accentHint}
         />
         <AdminColorField
-          label="Accent (dark mode)"
+          label={words.accentDark}
           value={form.accentDark}
           onChange={value =>
             setForm(current => ({ ...current, accentDark: value }))
@@ -344,15 +346,13 @@ export function AdminCategoryEditorScreen() {
         {categoryId ? (
           <View style={styles.deleteBlock}>
             <AdminOutlineButton
-              label="Delete this category"
+              label={words.deleteCategory}
               Icon={Trash2}
               destructive
               onPress={() => setConfirmDelete(true)}
             />
             <Text size={11.5} leading={1.4} align="center" tone="faint">
-              {books > 0
-                ? `${books} ${books === 1 ? 'book loses' : 'books lose'} this tag. The books themselves are kept.`
-                : 'Its tile on Explore and its search filter go with it.'}
+              {books > 0 ? words.loseTag(books) : words.tileGoes}
             </Text>
           </View>
         ) : null}
@@ -360,7 +360,7 @@ export function AdminCategoryEditorScreen() {
 
       <AdminActionBar>
         <AdminButton
-          label={categoryId ? 'Save category' : 'Create category'}
+          label={categoryId ? words.saveCategory : words.createCategory}
           loading={save.isPending}
           disabled={!form.label.trim()}
           onPress={handleSave}
@@ -369,13 +369,13 @@ export function AdminCategoryEditorScreen() {
 
       <AdminConfirmSheet
         visible={confirmDelete}
-        title={`Delete ${form.label || 'this category'}?`}
-        message="The books themselves are kept. What goes:"
+        title={words.deleteTitle(form.label || words.thisCategory)}
+        message={words.deleteMessage}
         consequences={[
-          `The tag on ${books} ${books === 1 ? 'book' : 'books'}`,
-          'Its tile on Explore and its filter in search',
+          words.tagOn(s.adminLibrary.counts.books(books)),
+          words.tileAndFilterGo,
         ]}
-        confirmLabel="Delete"
+        confirmLabel={s.admin.ui.delete}
         destructive
         loading={remove.isPending}
         onCancel={() => setConfirmDelete(false)}
@@ -385,7 +385,7 @@ export function AdminCategoryEditorScreen() {
             onSuccess: () => {
               setConfirmDelete(false);
               reset();
-              toast.success('Category deleted.');
+              toast.success(words.deleted);
               navigation.goBack();
             },
             onError: caught => {

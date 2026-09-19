@@ -25,6 +25,7 @@ import {
   TextButton,
   UrduText,
 } from '@/components/ui';
+import { useStrings } from '@/i18n';
 import { layout, radius } from '@/theme/palette';
 import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
@@ -263,7 +264,7 @@ const BookRowAction = memo(function BookRowAction({
  */
 export const ContinueCard = memo(function ContinueCard({
   book,
-  eyebrow = 'PICK UP WHERE YOU LEFT OFF',
+  eyebrow: eyebrowProp,
   detail,
   onPress,
   width,
@@ -276,13 +277,15 @@ export const ContinueCard = memo(function ContinueCard({
   width?: number;
 }) {
   const { colors, isDark } = useTheme();
+  const s = useStrings();
+  const eyebrow = eyebrowProp ?? s.common.pickUpWhereYouLeftOff;
   const handlePress = useCallback(() => onPress?.(book), [book, onPress]);
   const isRail = width != null;
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Continue ${book.title}`}
+      accessibilityLabel={s.common.continueBook(book.title)}
       onPress={handlePress}
       style={({ pressed }) => [
         styles.continue,
@@ -353,7 +356,7 @@ export const ContinueCard = memo(function ContinueCard({
           buttonSize={42}
           variant="primary"
           onPress={handlePress}
-          accessibilityLabel={`Continue ${book.title}`}
+          accessibilityLabel={s.common.continueBook(book.title)}
           style={styles.resumeButton}
         />
       ) : null}
@@ -370,11 +373,12 @@ export const NewCollectionTile = memo(function NewCollectionTile({
   onPress?: () => void;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="New collection"
+      accessibilityLabel={s.common.newCollection}
       onPress={onPress}
       style={({ pressed }) => [
         styles.newCollection,
@@ -391,7 +395,7 @@ export const NewCollectionTile = memo(function NewCollectionTile({
         +
       </Text>
       <Text size={11} leading={1.3} align="center" tone="faint">
-        {'New\ncollection'}
+        {s.common.newCollectionTwoLines}
       </Text>
     </Pressable>
   );

@@ -9,6 +9,7 @@ import { LayoutGrid, List } from 'lucide-react-native';
 
 import { Icon } from '@/components/ui/Icon';
 import { useTheme } from '@/theme/ThemeContext';
+import { useStrings } from '@/i18n';
 
 export type ViewMode = 'grid' | 'list';
 
@@ -29,6 +30,7 @@ export const ViewToggle = memo(function ViewToggle({
   onChange: (next: ViewMode) => void;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
   const next: ViewMode = value === 'grid' ? 'list' : 'grid';
 
   // 0 shows the list icon (we are in grid), 1 shows the grid icon (in list).
@@ -55,7 +57,7 @@ export const ViewToggle = memo(function ViewToggle({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={
-        next === 'list' ? 'Switch to list view' : 'Switch to grid view'
+        next === 'list' ? s.common.switchToList : s.common.switchToGrid
       }
       onPress={handlePress}
       hitSlop={6}

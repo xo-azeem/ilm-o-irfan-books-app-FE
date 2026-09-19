@@ -36,6 +36,7 @@ import {
 } from '@/components/ui';
 import { adminTabBar, radius } from '@/theme/palette';
 import { useTheme, type AppColors } from '@/theme/ThemeContext';
+import { useStrings } from '@/i18n';
 
 /**
  * The admin design system.
@@ -62,7 +63,7 @@ export const ADMIN_GUTTER = 18;
  * rather than saying "Back", so a deep screen always states its own lineage.
  */
 export const AdminBackLink = memo(function AdminBackLink({
-  label = 'Back',
+  label: labelProp,
   action,
 }: {
   label?: string;
@@ -71,13 +72,15 @@ export const AdminBackLink = memo(function AdminBackLink({
 }) {
   const navigation = useNavigation();
   const { colors } = useTheme();
+  const s = useStrings();
+  const label = labelProp ?? s.admin.ui.back;
 
   return (
     <View style={styles.backBar}>
       <Pressable
         onPress={() => navigation.goBack()}
         accessibilityRole="button"
-        accessibilityLabel={`Back to ${label}`}
+        accessibilityLabel={s.admin.ui.backTo(label)}
         hitSlop={10}
         style={({ pressed }) => [styles.backLink, pressed && styles.pressed]}
       >
@@ -162,7 +165,7 @@ export const AdminScreenTitle = memo(function AdminScreenTitle({
  * useful thing, so a title can carry two actions without two green pills.
  */
 export const AdminNewButton = memo(function AdminNewButton({
-  label = 'New',
+  label: labelProp,
   Icon: Glyph = Plus,
   secondary = false,
   onPress,
@@ -173,6 +176,8 @@ export const AdminNewButton = memo(function AdminNewButton({
   onPress: () => void;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
+  const label = labelProp ?? s.admin.ui.new;
 
   return (
     <Pressable
@@ -943,8 +948,8 @@ export const AdminField = memo(function AdminField({
 export const AdminPickerField = memo(function AdminPickerField({
   label,
   value,
-  placeholder = 'Choose',
-  actionLabel = 'Change',
+  placeholder: placeholderProp,
+  actionLabel: actionLabelProp,
   onPress,
   helper,
   helperTone,
@@ -965,6 +970,9 @@ export const AdminPickerField = memo(function AdminPickerField({
   verified?: boolean;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
+  const placeholder = placeholderProp ?? s.admin.ui.choose;
+  const actionLabel = actionLabelProp ?? s.admin.ui.change;
 
   return (
     <View style={styles.field}>
@@ -1061,6 +1069,7 @@ export const AdminButton = memo(function AdminButton({
   fullWidth?: boolean;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
   const blocked = Boolean(blockedReason);
   const inert = disabled || loading || blocked;
   const outlined = variant === 'ghost' || variant === 'ghostDanger';
@@ -1138,7 +1147,7 @@ export const AdminButton = memo(function AdminButton({
           weight="500"
           tone={ink}
         >
-          {loading ? 'Saving…' : label}
+          {loading ? s.admin.ui.saving : label}
         </Text>
         {blockedReason ? (
           <Text size={9.5} leading={1.2} tone="dim">
@@ -1353,6 +1362,7 @@ export const AdminChecklist = memo(function AdminChecklist({
   items: ChecklistItem[];
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
   const required = items.filter(item => !item.optional);
   const done = required.filter(item => item.done).length;
   const complete = done === required.length;
@@ -1408,7 +1418,7 @@ export const AdminChecklist = memo(function AdminChecklist({
               {item.label}
               {item.optional ? (
                 <Text size={12.5} leading={1.2} tone="faint">
-                  {' — optional'}
+                  {s.admin.ui.optional}
                 </Text>
               ) : null}
             </Text>
@@ -1489,7 +1499,7 @@ export const AdminEmpty = memo(function AdminEmpty({
  * bare "something went wrong".
  */
 export const AdminErrorState = memo(function AdminErrorState({
-  title = 'Could not load',
+  title: titleProp,
   message,
   detail,
   onRetry,
@@ -1505,6 +1515,8 @@ export const AdminErrorState = memo(function AdminErrorState({
   onSecondary?: () => void;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
+  const title = titleProp ?? s.admin.ui.couldNotLoad;
 
   return (
     <View style={styles.empty}>
@@ -1550,7 +1562,7 @@ export const AdminErrorState = memo(function AdminErrorState({
       </View>
 
       <View style={styles.errorActions}>
-        <AdminButton label="Try again" onPress={onRetry} />
+        <AdminButton label={s.admin.ui.tryAgain} onPress={onRetry} />
         {secondaryLabel && onSecondary ? (
           <AdminButton
             label={secondaryLabel}
@@ -1631,6 +1643,7 @@ export const AdminUploadProgress = memo(function AdminUploadProgress({
   detail?: string;
   onCancel?: () => void;
 }) {
+  const s = useStrings();
   return (
     <View style={styles.upload}>
       <View style={styles.between}>
@@ -1664,7 +1677,7 @@ export const AdminUploadProgress = memo(function AdminUploadProgress({
           </Text>
           {onCancel ? (
             <AdminTextAction
-              label="Cancel"
+              label={s.admin.ui.cancel}
               onPress={onCancel}
               destructive
               size={11.5}

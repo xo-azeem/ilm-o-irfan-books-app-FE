@@ -12,17 +12,18 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { Text } from '@/components/ui';
+import { useStrings } from '@/i18n';
 import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
 
 /** The shelf the reader is looking at. */
 export type LibraryShelf = 'reading' | 'saved' | 'finished' | 'offline';
 
-export const LIBRARY_SHELVES: { value: LibraryShelf; label: string }[] = [
-  { value: 'reading', label: 'Reading' },
-  { value: 'saved', label: 'Saved' },
-  { value: 'finished', label: 'Finished' },
-  { value: 'offline', label: 'Offline' },
+export const LIBRARY_SHELVES: LibraryShelf[] = [
+  'reading',
+  'saved',
+  'finished',
+  'offline',
 ];
 
 const INDICATOR_HEIGHT = 2;
@@ -46,6 +47,7 @@ export const LibraryFilters = memo(function LibraryFilters({
   onChange: (shelf: LibraryShelf) => void;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
   const [layouts, setLayouts] = useState<
     Partial<Record<LibraryShelf, TabLayout>>
   >({});
@@ -89,11 +91,11 @@ export const LibraryFilters = memo(function LibraryFilters({
     >
       {LIBRARY_SHELVES.map(shelf => (
         <ShelfTab
-          key={shelf.value}
-          shelf={shelf.value}
-          label={shelf.label}
-          count={counts[shelf.value]}
-          selected={value === shelf.value}
+          key={shelf}
+          shelf={shelf}
+          label={s.catalog.library.shelves[shelf]}
+          count={counts[shelf]}
+          selected={value === shelf}
           onChange={onChange}
           onLayout={handleLayout}
         />

@@ -4,8 +4,9 @@ import { Linking } from 'react-native';
 import { openPushIntent } from '@/app/navigation/navigationRef';
 import { showDialog } from '@/components/ui';
 import { env } from '@/config/env';
+import { strings } from '@/i18n/strings';
 import { queryClient } from '@/lib/queryClient';
-import { supabase } from '@/lib/supabase';
+import { describeAuthError, supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 
 /**
@@ -91,7 +92,7 @@ async function consumeAuthLink(url: string): Promise<void> {
     params.get('error_description') ?? params.get('error');
   if (errorDescription) {
     showDialog({
-      title: 'Link did not work',
+      title: strings().auth.link.didNotWork,
       message: decodeURIComponent(errorDescription.replace(/\+/g, ' ')),
       tone: 'warning',
     });
@@ -142,11 +143,8 @@ export function AuthLinkProvider({ children }: { children: ReactNode }) {
         await consumeAuthLink(url);
       } catch (error) {
         showDialog({
-          title: 'Could not sign you in',
-          message:
-            error instanceof Error
-              ? error.message
-              : 'The link may have expired. Request a new one.',
+          title: strings().auth.link.couldNotSignIn,
+          message: describeAuthError(error, strings().auth.link.mayHaveExpired),
           tone: 'danger',
         });
       }

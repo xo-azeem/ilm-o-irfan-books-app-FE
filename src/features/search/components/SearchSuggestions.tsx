@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Search } from 'lucide-react-native';
 
 import { Icon, Label, Text } from '@/components/ui';
+import { useStrings } from '@/i18n';
 import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
 
@@ -23,13 +24,14 @@ export const SearchSuggestions = memo(function SearchSuggestions({
   suggestions: Suggestion[];
   onSelect: (suggestion: Suggestion) => void;
 }) {
+  const s = useStrings();
   if (suggestions.length === 0) {
     return null;
   }
 
   return (
     <View style={styles.root}>
-      <Label>Suggestions</Label>
+      <Label>{s.catalog.discover.suggestions}</Label>
       <View>
         {suggestions.map(suggestion => (
           <SuggestionRow
@@ -54,6 +56,7 @@ const SuggestionRow = memo(function SuggestionRow({
   onSelect: (suggestion: Suggestion) => void;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
   const handlePress = useCallback(
     () => onSelect(suggestion),
     [onSelect, suggestion],
@@ -98,7 +101,7 @@ const SuggestionRow = memo(function SuggestionRow({
         ) : null}
         {suggestion.kind === 'author' ? (
           <Text size={fontSize.body} leading={1.2} tone="faint">
-            {' · author'}
+            {s.catalog.discover.authorSuffix}
           </Text>
         ) : null}
       </Text>

@@ -46,6 +46,7 @@ import {
   stripStoragePrefix,
   type CatalogListRow,
 } from '@/services/mappers';
+import { strings } from '@/i18n/strings';
 
 /**
  * The public catalog.
@@ -155,7 +156,7 @@ function unwrap<T>(result: {
     });
   }
   if (result.data == null) {
-    throw Object.assign(new Error('Expected data was not returned.'), {
+    throw Object.assign(new Error(strings().services.expectedData), {
       status: 404,
     });
   }
@@ -366,16 +367,12 @@ export const HOME_RAIL_LIMIT = 10;
  * Kept here rather than on the screen because a collection page seeded from
  * a rail titles itself from these until the server's own title lands.
  */
-export const SHELF_COPY = {
-  trending: {
-    title: 'Trending this week',
-    subtitle: 'The same shelf for every reader',
-  },
-  arrivals: {
-    title: 'New arrivals',
-    subtitle: 'Fresh on the shelf',
-  },
-} as const;
+export function shelfCopy(): {
+  trending: { title: string; subtitle: string };
+  arrivals: { title: string; subtitle: string };
+} {
+  return strings().services.shelves;
+}
 const RAIL_TARGET = {
   hero: 5,
   trending: HOME_RAIL_LIMIT,

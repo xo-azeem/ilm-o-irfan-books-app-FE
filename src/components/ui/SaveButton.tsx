@@ -16,6 +16,7 @@ import { Icon, type LucideIcon } from '@/components/ui/Icon';
 import { Text } from '@/components/ui/Text';
 import { fontSize, scaleFont } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
+import { useStrings } from '@/i18n';
 
 /**
  * Where a save is, as far as the button is concerned.
@@ -142,6 +143,7 @@ export const SaveButton = memo(function SaveButton({
   style?: StyleProp<ViewStyle>;
 }) {
   const { colors, fontScale } = useTheme();
+  const s = useStrings();
   const phase = useSavePhase(saving, saved);
   const showSaved = saved && phase !== 'saving';
 
@@ -165,7 +167,9 @@ export const SaveButton = memo(function SaveButton({
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ busy: phase === 'saving', selected: saved }}
-      accessibilityLabel={saved ? 'Remove from library' : 'Save to library'}
+      accessibilityLabel={
+        saved ? s.common.removeFromLibrary : s.common.saveToLibrary
+      }
       disabled={phase === 'saving'}
       style={({ pressed }) => [
         styles.pill,

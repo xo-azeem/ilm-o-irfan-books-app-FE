@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { BookCover, EmptyState } from '@/components/ui';
+import { useStrings } from '@/i18n';
 import { useTheme } from '@/theme/ThemeContext';
 
 /**
@@ -26,22 +27,24 @@ export const ReaderError = memo(function ReaderError({
   // The failure state keeps the app's own palette: its copy is app-themed, and
   // page-tone paper under app-dark ink would be a message nobody can read.
   const { colors } = useTheme();
+  const s = useStrings();
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <EmptyState
         art={<BookCover width={88} height={130} placeholder rounded={9} />}
-        title="This page didn’t arrive."
+        title={s.reader.error.title}
         message={
           message ??
-          (page
-            ? `Your place is saved at page ${page}. Check your connection and try again.`
-            : 'Your place is saved. Check your connection and try again.')
+          (page ? s.reader.error.savedAtPage(page) : s.reader.error.saved)
         }
-        action={{ label: 'Try again', onPress: onRetry }}
+        action={{ label: s.common.retry, onPress: onRetry }}
         secondaryAction={
           onReadDownloaded
-            ? { label: 'Read downloaded pages', onPress: onReadDownloaded }
+            ? {
+                label: s.reader.error.readDownloaded,
+                onPress: onReadDownloaded,
+              }
             : undefined
         }
       />

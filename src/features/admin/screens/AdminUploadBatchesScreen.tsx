@@ -26,20 +26,25 @@ import type { UploadBatch } from '@/services/admin';
 import { useTheme } from '@/theme/ThemeContext';
 
 import type { AdminLibraryStackParamList } from '../navigation/types';
+import { useStrings } from '@/i18n';
+import { dateLocale, strings } from '@/i18n/strings';
 
 /** Module-level so the list is not handed a new function every render. */
 const keyExtractor = (item: UploadBatch) => item.id;
 
-function plural(count: number, noun: string) {
-  return `${count} ${count === 1 ? noun : `${noun}s`}`;
+function plural(count: number, noun: 'book' | 'batch'): string {
+  const counts = strings().adminLibrary.counts;
+  return noun === 'book' ? counts.books(count) : counts.batches(count);
 }
 
 /** A batch is named after the day it was started until the admin renames it. */
 function defaultTitle(): string {
-  return `Upload · ${new Date().toLocaleDateString(undefined, {
-    day: 'numeric',
-    month: 'short',
-  })}`;
+  return strings().adminLibrary.batches.defaultTitle(
+    new Date().toLocaleDateString(dateLocale(), {
+      day: 'numeric',
+      month: 'short',
+    }),
+  );
 }
 
 /**
@@ -54,6 +59,8 @@ export function AdminUploadBatchesScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<AdminLibraryStackParamList>>();
   const { colors } = useTheme();
+  const s = useStrings();
+  const words = s.adminLibrary.batches;
   const { scrollEndPadding } = useAppInsets();
   const toast = useToast();
 
@@ -74,10 +81,10 @@ export function AdminUploadBatchesScreen() {
       {
         onSuccess: batchId => openBatch(batchId),
         onError: caught =>
-          toast.error(errorMessage(caught, 'Could not start a batch.')),
+          toast.error(errorMessage(caught, words.couldNotStart)),
       },
     );
-  }, [create, openBatch, toast]);
+  }, [create, openBatch, toast, words]);
 
   const renderBatch = useCallback(
     ({ item }: { item: UploadBatch }) => (
@@ -97,10 +104,10 @@ export function AdminUploadBatchesScreen() {
     >
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <AdminBackLink
-          label="Library"
+          label={words.library}
           action={
             <AdminNewButton
-              label={create.isPending ? 'Starting…' : 'New batch'}
+              label={create.isPending ? words.starting : words.newBatch}
               onPress={startBatch}
             />
           }
@@ -114,7 +121,7 @@ export function AdminUploadBatchesScreen() {
       ) : batches.error ? (
         <View style={styles.gutter}>
           <AdminErrorState
-            message="The batches could not be loaded."
+            message={words.loadFailed}
             detail={errorMessage(batches.error)}
             onRetry={() => void batches.refetch()}
           />
@@ -130,13 +137,14 @@ export function AdminUploadBatchesScreen() {
           ListHeaderComponent={
             <View style={styles.title}>
               <AdminScreenTitle
-                title="Bulk uploads"
+                title={words.title}
                 subtitle={
                   batches.data?.length
-                    ? `${plural(batches.data.length, 'batch')}${
-                        drafts ? ` · ${drafts} still being filled` : ''
-                      }`
-                    : 'Add a set of PDFs and publish them together.'
+                    ? words.subtitle(
+                        plural(batches.data.length, 'batch'),
+                        drafts,
+                      )
+                    : words.intro
                 }
               />
             </View>
@@ -144,9 +152,9 @@ export function AdminUploadBatchesScreen() {
           ListEmptyComponent={
             <View style={styles.gutter}>
               <AdminEmpty
-                title="No batches yet"
-                message="Start a batch, drop in every PDF of a series or a subject, set where they go, and publish the whole set with one tap."
-                actionLabel="Start a batch"
+                title={words.noBatches}
+                message={words.noBatchesMessage}
+                actionLabel={words.startBatch}
                 onAction={startBatch}
                 art={<Icon icon={Layers} size={28} tone="primary" />}
               />
@@ -155,10 +163,7 @@ export function AdminUploadBatchesScreen() {
           ListFooterComponent={
             batches.data?.length ? (
               <View style={styles.footer}>
-                <AdminHelper>
-                  A published batch keeps its list for the record. Its books are
-                  ordinary titles in the Library from then on.
-                </AdminHelper>
+                <AdminHelper>{words.footer}</AdminHelper>
               </View>
             ) : null
           }
@@ -180,23 +185,25 @@ function ListGap() {
 
 /** One line under the name that says where the batch stands. */
 function describe(batch: UploadBatch): { text: string; warn: boolean } {
+  const words = strings().adminLibrary.batches;
   if (batch.status === 'published') {
     return {
-      text: `${plural(batch.published_count, 'book')} live${
-        batch.published_at ? ` · ${formatDate(batch.published_at)}` : ''
-      }`,
+      text: words.live(
+        plural(batch.published_count, 'book'),
+        batch.published_at ? formatDate(batch.published_at) : null,
+      ),
       warn: false,
     };
   }
   if (batch.book_count === 0) {
-    return { text: 'Empty — add PDFs to begin', warn: false };
+    return { text: words.empty, warn: false };
   }
   const missing = batch.book_count - batch.ready_count;
   return {
     text:
       missing > 0
-        ? `${plural(batch.book_count, 'book')} · ${missing} without a PDF`
-        : `${plural(batch.book_count, 'book')} · ready to publish`,
+        ? words.withoutPdf(plural(batch.book_count, 'book'), missing)
+        : words.readyToPublish(plural(batch.book_count, 'book')),
     warn: missing > 0,
   };
 }
@@ -209,6 +216,7 @@ const BatchRow = memo(function BatchRow({
   onPress: (batchId: string) => void;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
   const handlePress = useCallback(() => onPress(batch.id), [batch.id, onPress]);
   const line = describe(batch);
   const destination = [batch.collection_title, batch.category_label]
@@ -257,9 +265,9 @@ const BatchRow = memo(function BatchRow({
             {batch.title}
           </Text>
           {batch.status === 'published' ? (
-            <AdminTag label="LIVE" tone="success" small />
+            <AdminTag label={s.admin.ui.live} tone="success" small />
           ) : (
-            <AdminTag label="DRAFT" tone="warning" small />
+            <AdminTag label={s.admin.ui.draft} tone="warning" small />
           )}
         </View>
         <Text

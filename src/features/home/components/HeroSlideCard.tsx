@@ -12,6 +12,7 @@ import {
   Text,
   UrduText,
 } from '@/components/ui';
+import { useStrings } from '@/i18n';
 import { radius } from '@/theme/palette';
 import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
@@ -44,9 +45,6 @@ export type HeroSlide = {
   isUrdu?: boolean;
 };
 
-/** The label the CTA carries when the admin has not written one. */
-const DEFAULT_CTA = 'Read now';
-
 /** The `md` Button's height and corner radius, which the save button mirrors. */
 const ACTION_HEIGHT = 48;
 const ACTION_RADIUS = 14;
@@ -69,6 +67,7 @@ export const HeroSlideCard = memo(function HeroSlideCard({
   onPress?: (slide: HeroSlide) => void;
 }) {
   const { colors, fontScale } = useTheme();
+  const s = useStrings();
 
   // The save button sits beside a `md` Button, which grows its height with the
   // reader's font scale. Following the same ramp keeps the two the same size
@@ -104,7 +103,7 @@ export const HeroSlideCard = memo(function HeroSlideCard({
           coverColor={slide.accent}
           rounded={10}
           elevated
-          caption={`COVER · ${slide.title.toUpperCase()}`}
+          caption={s.home.coverCaption(slide.title)}
         />
 
         <View style={styles.headline}>
@@ -158,7 +157,7 @@ export const HeroSlideCard = memo(function HeroSlideCard({
 
       <View style={styles.actions}>
         <Button
-          label={slide.ctaLabel ?? DEFAULT_CTA}
+          label={slide.ctaLabel ?? s.home.readNow}
           icon={Play}
           size="md"
           onPress={handleRead}
@@ -168,7 +167,9 @@ export const HeroSlideCard = memo(function HeroSlideCard({
           icon={Bookmark}
           buttonSize={saveButtonSize}
           onPress={handleSave}
-          accessibilityLabel={saved ? 'Remove from wishlist' : 'Save for later'}
+          accessibilityLabel={
+            saved ? s.home.removeFromWishlist : s.home.saveForLater
+          }
           variant={saved ? 'ghost' : 'secondary'}
           style={styles.saveButton}
         />

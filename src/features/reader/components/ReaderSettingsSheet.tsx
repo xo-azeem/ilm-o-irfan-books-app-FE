@@ -36,21 +36,13 @@ import {
   useSavePhase,
   type LucideIcon,
 } from '@/components/ui';
-import {
-  READING_MODE_HINTS,
-  READING_MODE_TAGS,
-  READING_MODES,
-  type ReadingMode,
-} from '@/stores/themeStore';
+import { useStrings } from '@/i18n';
+import { readingModeOptions, type ReadingMode } from '@/stores/themeStore';
 import { readerTones, type ReaderTone } from '@/theme/palette';
 import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
 
-const TONES: { value: ReaderTone; label: string }[] = [
-  { value: 'paper', label: 'Paper' },
-  { value: 'sepia', label: 'Sepia' },
-  { value: 'midnight', label: 'Midnight' },
-];
+const TONES: ReaderTone[] = ['paper', 'sepia', 'midnight'];
 
 /** How long the bookmark tile's tick stays before the glyph returns. */
 const TICK_HOLD_MS = 1100;
@@ -122,14 +114,15 @@ export const ReaderSettingsSheet = memo(function ReaderSettingsSheet({
   isDownloaded = false,
   downloadProgress = null,
 }: ReaderSettingsSheetProps) {
+  const s = useStrings();
   return (
     <Sheet
       visible={visible}
       onClose={onClose}
-      title="Reading"
+      title={s.reader.sheet.title}
       headerAction={
         totalPages > 0 ? (
-          <Label tracking={0.9}>{`P. ${page} OF ${totalPages}`}</Label>
+          <Label tracking={0.9}>{s.reader.pageShort(page, totalPages)}</Label>
         ) : null
       }
     >
@@ -150,31 +143,31 @@ export const ReaderSettingsSheet = memo(function ReaderSettingsSheet({
 
       <View style={styles.group}>
         <View style={styles.groupHeader}>
-          <Label>Reading mode</Label>
+          <Label>{s.reader.sheet.readingMode}</Label>
           <Label tone="primary" tracking={0.8}>
-            {READING_MODE_TAGS[readingMode]}
+            {s.reader.modes[readingMode].tag}
           </Label>
         </View>
         <SegmentedControl
-          options={READING_MODES}
+          options={readingModeOptions(s.reader.modes)}
           value={readingMode}
           onChange={onReadingModeChange}
           variant="soft"
         />
         <Text size={fontSize.captionSmall} leading={1.4} tone="faint">
-          {READING_MODE_HINTS[readingMode]}
+          {s.reader.modes[readingMode].hint}
         </Text>
       </View>
 
       <View style={styles.group}>
-        <Label>Page tone</Label>
+        <Label>{s.reader.sheet.pageTone}</Label>
         <View style={styles.row}>
           {TONES.map(option => (
             <ToneSwatch
-              key={option.value}
-              value={option.value}
-              label={option.label}
-              selected={tone === option.value}
+              key={option}
+              value={option}
+              label={s.reader.tones[option]}
+              selected={tone === option}
               onSelect={onToneChange}
             />
           ))}
@@ -183,7 +176,7 @@ export const ReaderSettingsSheet = memo(function ReaderSettingsSheet({
 
       <View style={styles.group}>
         <View style={styles.groupHeader}>
-          <Label>Brightness</Label>
+          <Label>{s.reader.sheet.brightness}</Label>
           <Label
             tone="primary"
             tracking={0.8}
@@ -197,11 +190,11 @@ export const ReaderSettingsSheet = memo(function ReaderSettingsSheet({
       </View>
 
       <View style={styles.groupHeader}>
-        <Label>Zoom</Label>
+        <Label>{s.reader.sheet.zoom}</Label>
         <View style={styles.stepper}>
           <StepButton
             icon={Minus}
-            label="Zoom out"
+            label={s.reader.sheet.zoomOut}
             disabled={!canZoomOut}
             onPress={onZoomOut}
           />
@@ -217,7 +210,7 @@ export const ReaderSettingsSheet = memo(function ReaderSettingsSheet({
           </Text>
           <StepButton
             icon={Plus}
-            label="Zoom in"
+            label={s.reader.sheet.zoomIn}
             disabled={!canZoomIn}
             onPress={onZoomIn}
           />
@@ -226,9 +219,11 @@ export const ReaderSettingsSheet = memo(function ReaderSettingsSheet({
 
       <View style={styles.group}>
         <View style={styles.groupHeader}>
-          <Label>Go to page</Label>
+          <Label>{s.reader.sheet.goToPage}</Label>
           {totalPages > 0 ? (
-            <Label tone="primary" tracking={0.8}>{`1 – ${totalPages}`}</Label>
+            <Label tone="primary" tracking={0.8}>
+              {s.reader.sheet.pageRange(totalPages)}
+            </Label>
           ) : null}
         </View>
         <PageJump
@@ -339,14 +334,15 @@ const BookmarkTile = memo(function BookmarkTile({
   onPress: () => void;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
   const phase = useSavePhase(saving, saved, TICK_HOLD_MS);
   const showSaved = saved && phase !== 'saving';
 
   return (
     <ActionTile
       icon={Bookmark}
-      label={showSaved ? 'Bookmarked' : 'Bookmark'}
-      detail={page > 0 ? `Page ${page}` : 'This page'}
+      label={showSaved ? s.reader.sheet.bookmarked : s.reader.sheet.bookmark}
+      detail={page > 0 ? s.reader.sheet.pageN(page) : s.reader.sheet.thisPage}
       busy={phase === 'saving'}
       active={showSaved}
       glyph={
@@ -379,6 +375,7 @@ const DownloadTile = memo(function DownloadTile({
   onPress: () => void;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
   const phase = useSavePhase(downloading, downloaded, TICK_HOLD_MS);
   const showKept = downloaded && phase !== 'saving';
 
@@ -387,19 +384,19 @@ const DownloadTile = memo(function DownloadTile({
       icon={Download}
       label={
         phase === 'saving'
-          ? 'Downloading…'
+          ? s.reader.sheet.downloading
           : showKept
-            ? 'Downloaded'
-            : 'Download'
+            ? s.reader.sheet.downloaded
+            : s.reader.sheet.download
       }
       detail={
         phase === 'saving'
           ? progress != null
             ? `${progress}%`
-            : 'Preparing…'
+            : s.reader.sheet.preparing
           : showKept
-            ? 'On this device'
-            : 'Keep a copy offline'
+            ? s.reader.sheet.onThisDevice
+            : s.reader.sheet.keepOffline
       }
       busy={phase === 'saving'}
       active={showKept}
@@ -487,6 +484,7 @@ const PageJump = memo(function PageJump({
   onGoToPage: (page: number) => void;
   visible: boolean;
 }) {
+  const s = useStrings();
   const [draft, setDraft] = useState(() => String(page));
 
   // Reopening the sheet offers the page the reader is on, not the last one
@@ -514,8 +512,12 @@ const PageJump = memo(function PageJump({
           returnKeyType="go"
           maxLength={6}
           selectTextOnFocus
-          accessibilityLabel="Page number"
-          placeholder={totalPages > 0 ? `1 – ${totalPages}` : 'Page number'}
+          accessibilityLabel={s.reader.sheet.pageNumber}
+          placeholder={
+            totalPages > 0
+              ? s.reader.sheet.pageRange(totalPages)
+              : s.reader.sheet.pageNumber
+          }
           onSubmitEditing={submit}
         />
       </View>
@@ -525,7 +527,7 @@ const PageJump = memo(function PageJump({
         disabled={!valid}
         buttonSize={50}
         style={!valid ? styles.disabled : undefined}
-        accessibilityLabel="Go to page"
+        accessibilityLabel={s.reader.sheet.goToPage}
       />
     </View>
   );
@@ -542,6 +544,7 @@ const BrightnessControl = memo(function BrightnessControl({
   value: number;
   onChange: (next: number) => void;
 }) {
+  const s = useStrings();
   const width = useRef(0);
 
   const handleLayout = useCallback((event: LayoutChangeEvent) => {
@@ -562,7 +565,7 @@ const BrightnessControl = memo(function BrightnessControl({
       onLayout={handleLayout}
       accessible
       accessibilityRole="adjustable"
-      accessibilityLabel="Brightness"
+      accessibilityLabel={s.reader.sheet.brightness}
       accessibilityValue={{ min: 15, max: 100, now: Math.round(value * 100) }}
       accessibilityActions={ADJUST_ACTIONS}
       onAccessibilityAction={event => {

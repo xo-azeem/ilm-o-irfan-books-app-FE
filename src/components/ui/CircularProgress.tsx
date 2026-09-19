@@ -21,6 +21,7 @@ import Svg, { Circle } from 'react-native-svg';
 
 import { fonts, scaleFont } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
+import { strings } from '@/i18n/strings';
 
 const DEFAULT_MAX = 100;
 const DEFAULT_SIZE = 48;
@@ -159,7 +160,7 @@ export function CircularProgress({
         accessibilityRole="progressbar"
         accessibilityValue={
           value == null
-            ? { min, max: clampedMax, text: 'Loading' }
+            ? { min, max: clampedMax, text: strings().services.loading }
             : { min, max: clampedMax, now: Math.round(value) }
         }
         style={[styles.root, { width: size, height: size }]}

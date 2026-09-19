@@ -47,6 +47,7 @@ import {
 import { useTheme } from '@/theme/ThemeContext';
 
 import type { AdminLibraryStackParamList } from '../navigation/types';
+import { useStrings } from '@/i18n';
 
 /**
  * An author.
@@ -61,6 +62,8 @@ export function AdminAuthorEditorScreen() {
     useRoute<RouteProp<AdminLibraryStackParamList, 'AdminAuthorEditor'>>();
   const authorId = route.params?.authorId;
   const { colors } = useTheme();
+  const s = useStrings();
+  const words = s.adminLibrary.author;
   const { scrollEndPadding } = useAppInsets();
   const toast = useToast();
 
@@ -131,9 +134,9 @@ export function AdminAuthorEditorScreen() {
       );
       uploads.replacePending(form.avatarPath, path);
       setForm(current => ({ ...current, avatarPath: path }));
-      toast.success('Portrait uploaded.');
+      toast.success(words.portraitUploaded);
     } catch (caught) {
-      toast.error(errorMessage(caught, 'Could not upload the portrait.'));
+      toast.error(errorMessage(caught, words.portraitFailed));
     } finally {
       setUploading(false);
     }
@@ -141,7 +144,7 @@ export function AdminAuthorEditorScreen() {
 
   const handleSave = () => {
     if (!form.name.trim()) {
-      toast.error('Enter the author name.');
+      toast.error(words.enterName);
       return;
     }
 
@@ -160,7 +163,7 @@ export function AdminAuthorEditorScreen() {
           uploads.commit([form.avatarPath], [savedAvatar.current]);
           savedAvatar.current = form.avatarPath;
           reset();
-          toast.success(authorId ? 'Author saved.' : 'Author created.');
+          toast.success(authorId ? words.saved : words.created);
           navigation.goBack();
         },
         onError: caught => toast.error(errorMessage(caught)),
@@ -175,9 +178,11 @@ export function AdminAuthorEditorScreen() {
     >
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <AdminBackLink
-          label="Authors"
+          label={words.authors}
           action={
-            isDirty ? <AdminTag label="UNSAVED" tone="warning" /> : undefined
+            isDirty ? (
+              <AdminTag label={s.admin.ui.unsaved} tone="warning" />
+            ) : undefined
           }
         />
       </View>
@@ -194,13 +199,14 @@ export function AdminAuthorEditorScreen() {
         showsVerticalScrollIndicator={false}
       >
         <AdminScreenTitle
-          title={authorId ? form.name || 'Edit author' : 'New author'}
+          title={authorId ? form.name || words.editAuthor : words.newAuthor}
           subtitle={
             existing
-              ? `${credited} ${credited === 1 ? 'book' : 'books'} credited · ${
-                  existing.published_count
-                } live`
-              : 'A name readers can browse by.'
+              ? words.credited(
+                  s.adminLibrary.counts.books(credited),
+                  existing.published_count,
+                )
+              : words.nameToBrowse
           }
         />
 
@@ -213,19 +219,18 @@ export function AdminAuthorEditorScreen() {
           />
           <View style={styles.portraitBody}>
             <Text size={14} leading={1.3} weight="500">
-              Portrait
+              {words.portrait}
             </Text>
             <Text size={12} leading={1.5} tone="muted">
-              Optional. A square image reads best — readers see it as a circle
-              beside the name.
+              {words.portraitHint}
             </Text>
             <AdminButton
               label={
                 uploading
-                  ? 'Uploading…'
+                  ? words.uploading
                   : avatarUrl
-                    ? 'Replace image'
-                    : 'Choose image'
+                    ? words.replaceImage
+                    : words.chooseImage
               }
               Icon={ImageUp}
               variant="secondary"
@@ -241,14 +246,17 @@ export function AdminAuthorEditorScreen() {
         {/* The author's titles live on the Books segment, one filter away.
             Only once the author exists — a new one has nothing yet. */}
         {authorId && existing ? (
-          <AdminRowGroup title="Books">
+          <AdminRowGroup title={words.books}>
             <AdminNavRow
               Icon={Library}
-              label="Books by this author"
+              label={words.booksByAuthor}
               sublabel={
                 credited === 0
-                  ? 'Nothing credited yet — pick this author on a book'
-                  : `${credited} ${credited === 1 ? 'title' : 'titles'} · ${existing.published_count} live`
+                  ? words.nothingCredited
+                  : words.titlesLive(
+                      s.adminLibrary.counts.titles(credited),
+                      existing.published_count,
+                    )
               }
               warn={credited === 0}
               onPress={() =>
@@ -263,7 +271,7 @@ export function AdminAuthorEditorScreen() {
 
         <View style={styles.stack}>
           <AdminField
-            label="Name"
+            label={words.name}
             value={form.name}
             onChangeText={value =>
               setForm(current => ({ ...current, name: value }))
@@ -271,32 +279,32 @@ export function AdminAuthorEditorScreen() {
             maxLength={120}
           />
           <AdminField
-            label="Public link"
+            label={words.publicLink}
             value={form.slug}
             onChangeText={value =>
               setForm(current => ({ ...current, slug: value }))
             }
-            placeholder={slugify(form.name) || 'auto-from-name'}
+            placeholder={slugify(form.name) || words.autoFromName}
             autoCapitalize="none"
             mono
-            helper={`Made from the name — currently “${resolvedSlug || '—'}”.`}
+            helper={words.madeFromName(resolvedSlug || '—')}
           />
           <AdminField
-            label="Biography"
+            label={words.biography}
             value={form.bio}
             onChangeText={value =>
               setForm(current => ({ ...current, bio: value }))
             }
             multiline
             maxLength={800}
-            helper="Shown on the author's page in the reader app."
+            helper={words.biographyHint}
           />
         </View>
 
         {authorId ? (
           <View style={styles.deleteBlock}>
             <AdminOutlineButton
-              label="Delete this author"
+              label={words.deleteAuthor}
               Icon={Trash2}
               destructive
               disabled={credited > 0}
@@ -304,7 +312,7 @@ export function AdminAuthorEditorScreen() {
             />
             {credited > 0 ? (
               <Text size={11.5} leading={1.4} align="center" tone="faint">
-                {`${credited} ${credited === 1 ? 'book is' : 'books are'} still credited — reassign or remove those titles first, then this author can go.`}
+                {words.stillCredited(credited)}
               </Text>
             ) : null}
           </View>
@@ -313,7 +321,7 @@ export function AdminAuthorEditorScreen() {
 
       <AdminActionBar>
         <AdminButton
-          label={authorId ? 'Save author' : 'Create author'}
+          label={authorId ? words.saveAuthor : words.createAuthor}
           loading={save.isPending}
           disabled={uploading || !form.name.trim()}
           onPress={handleSave}
@@ -322,9 +330,9 @@ export function AdminAuthorEditorScreen() {
 
       <AdminConfirmSheet
         visible={confirmDelete}
-        title={`Delete ${form.name || 'this author'}?`}
-        message="The name disappears from the catalog. Nothing else is touched."
-        confirmLabel="Delete"
+        title={words.deleteTitle(form.name || words.thisAuthor)}
+        message={words.deleteMessage}
+        confirmLabel={s.admin.ui.delete}
         destructive
         loading={remove.isPending}
         onCancel={() => setConfirmDelete(false)}
@@ -334,7 +342,7 @@ export function AdminAuthorEditorScreen() {
             onSuccess: () => {
               setConfirmDelete(false);
               reset();
-              toast.success('Author deleted.');
+              toast.success(words.deleted);
               navigation.goBack();
             },
             onError: caught => {

@@ -25,15 +25,12 @@ import { useAppInsets } from '@/hooks/useAppInsets';
 import { useAuditLog } from '@/hooks/useAdmin';
 import type { AuditEntry, AuditScope } from '@/services/admin';
 import { useTheme } from '@/theme/ThemeContext';
+import { useDateLocale, useStrings, type Strings } from '@/i18n';
+import { dateLocale, strings } from '@/i18n/strings';
 
 type Scope = 'all' | 'books' | 'people' | 'deletions';
 
-const SCOPES: Array<{ value: Scope; label: string }> = [
-  { value: 'all', label: 'Everything' },
-  { value: 'books', label: 'Books' },
-  { value: 'people', label: 'People' },
-  { value: 'deletions', label: 'Deletions' },
-];
+const SCOPE_VALUES: Scope[] = ['all', 'books', 'people', 'deletions'];
 
 /** What each chip asks the server for. Deletions cut across every table. */
 const SCOPE_QUERY: Record<Scope, AuditScope> = {
@@ -41,12 +38,6 @@ const SCOPE_QUERY: Record<Scope, AuditScope> = {
   books: { entityType: 'books', action: null },
   people: { entityType: 'profiles', action: null },
   deletions: { entityType: null, action: 'delete' },
-};
-
-const ACTION_LABEL: Record<AuditEntry['action'], string> = {
-  insert: 'NEW',
-  update: 'EDIT',
-  delete: 'DEL',
 };
 
 type Section = { key: string; title: string; entries: AuditEntry[] };
@@ -61,6 +52,12 @@ type Section = { key: string; title: string; entries: AuditEntry[] };
  */
 export function AdminHistoryScreen() {
   const { colors } = useTheme();
+  const s = useStrings();
+  const words = s.admin.history;
+  const scopes = useMemo(
+    () => SCOPE_VALUES.map(value => ({ value, label: words.scopes[value] })),
+    [words],
+  );
   const { scrollEndPadding } = useAppInsets();
   const [scope, setScope] = useState<Scope>('all');
 
@@ -116,9 +113,9 @@ export function AdminHistoryScreen() {
       edges={['top', 'left', 'right']}
     >
       <View style={styles.header}>
-        <AdminBackLink label="System" />
-        <AdminScreenTitle title="Change history" />
-        <AdminChipRow options={SCOPES} value={scope} onChange={setScope} />
+        <AdminBackLink label={s.admin.system.title} />
+        <AdminScreenTitle title={words.title} />
+        <AdminChipRow options={scopes} value={scope} onChange={setScope} />
       </View>
 
       {isLoading ? (
@@ -128,8 +125,8 @@ export function AdminHistoryScreen() {
       ) : error ? (
         <View style={styles.gutter}>
           <AdminErrorState
-            title="Couldn't load the history"
-            message="The log did not come back. Nothing has been changed."
+            title={words.loadFailed}
+            message={words.loadFailedMessage}
             detail={errorMessage(error)}
             onRetry={() => void refetch()}
           />
@@ -153,11 +150,13 @@ export function AdminHistoryScreen() {
           }}
           ListEmptyComponent={
             <AdminEmpty
-              title={scope === 'all' ? 'Nothing recorded yet' : 'Nothing here'}
+              title={
+                scope === 'all' ? words.nothingRecorded : words.nothingHere
+              }
               message={
                 scope === 'deletions'
-                  ? 'Nothing has been deleted yet.'
-                  : 'Every create, edit and delete lands here with the account that made it.'
+                  ? words.nothingDeleted
+                  : words.everyChangeLands
               }
             />
           }
@@ -179,6 +178,8 @@ const HistoryEntry = memo(function HistoryEntry({
   entry: AuditEntry;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
+  const locale = useDateLocale();
   const [expanded, setExpanded] = useState(false);
 
   const changes = Object.entries(entry.changes ?? {});
@@ -203,7 +204,7 @@ const HistoryEntry = memo(function HistoryEntry({
     >
       <View style={styles.entryHeader}>
         <AdminTag
-          label={ACTION_LABEL[entry.action]}
+          label={s.admin.ui.actions[entry.action]}
           tone={
             entry.action === 'delete'
               ? 'danger'
@@ -213,7 +214,7 @@ const HistoryEntry = memo(function HistoryEntry({
           }
         />
         <Text size={13} leading={1.3} style={styles.grow}>
-          {sentence(entry)}
+          {sentence(entry, s)}
           <Text
             size={13}
             leading={1.3}
@@ -223,7 +224,7 @@ const HistoryEntry = memo(function HistoryEntry({
           </Text>
         </Text>
         <Text size={10.5} leading={1} tone="dim">
-          {time(entry.created_at)}
+          {time(entry.created_at, locale)}
         </Text>
       </View>
 
@@ -281,33 +282,33 @@ const HistoryEntry = memo(function HistoryEntry({
           ))}
           {!expanded && changes.length > 2 ? (
             <Text size={11} leading={1.3} tone="faint">
-              {`+${changes.length - 2} more — tap to see`}
+              {s.admin.history.moreTap(changes.length - 2)}
             </Text>
           ) : null}
         </View>
       ) : null}
 
       <Text size={11} leading={1.4} tone="faint" numberOfLines={1}>
-        {entry.actor_email ?? 'system'}
+        {entry.actor_email ?? s.admin.ui.system}
       </Text>
     </Pressable>
   );
 });
 
 /** "Created book ", "Changed 2 fields on ", "Deleted draft " — the entity follows. */
-function sentence(entry: AuditEntry): string {
+function sentence(entry: AuditEntry, s: Strings): string {
   const noun = entry.entity_type.replace(/s$/, '');
   if (entry.action === 'insert') {
-    return `Created ${noun} `;
+    return s.admin.history.created(noun);
   }
   if (entry.action === 'delete') {
-    return `Deleted ${noun} `;
+    return s.admin.history.deleted(noun);
   }
   const count = Object.keys(entry.changes ?? {}).length;
   if (count === 0) {
-    return 'Touched ';
+    return s.admin.history.touched;
   }
-  return `Changed ${count} ${count === 1 ? 'field' : 'fields'} on `;
+  return s.admin.history.changedFields(count);
 }
 
 function short(value: unknown): string {
@@ -316,7 +317,9 @@ function short(value: unknown): string {
     return value.length > 22 ? `${value.slice(0, 21)}…` : value;
   if (typeof value === 'boolean' || typeof value === 'number')
     return String(value);
-  return Array.isArray(value) ? `${value.length} items` : '…';
+  return Array.isArray(value)
+    ? strings().admin.history.items(value.length)
+    : '…';
 }
 
 function dayKey(value: string): string {
@@ -329,17 +332,19 @@ function dayTitle(value: string): string {
   const yesterday = new Date();
   yesterday.setDate(today.getDate() - 1);
 
-  if (date.toDateString() === today.toDateString()) return 'Today';
-  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
-  return date.toLocaleDateString(undefined, {
+  if (date.toDateString() === today.toDateString())
+    return strings().admin.history.today;
+  if (date.toDateString() === yesterday.toDateString())
+    return strings().admin.history.yesterday;
+  return date.toLocaleDateString(dateLocale(), {
     weekday: 'long',
     day: 'numeric',
     month: 'short',
   });
 }
 
-function time(value: string): string {
-  return new Date(value).toLocaleTimeString(undefined, {
+function time(value: string, locale: string): string {
+  return new Date(value).toLocaleTimeString(locale, {
     hour: '2-digit',
     minute: '2-digit',
   });

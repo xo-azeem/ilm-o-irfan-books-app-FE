@@ -4,6 +4,7 @@ import { env } from '@/config/env';
 
 import { supabase } from './client';
 import { COVER_MAX_BYTES, PDF_MAX_BYTES, slugify } from './types';
+import { strings } from '@/i18n/strings';
 
 export type UploadProgress = (fraction: number) => void;
 
@@ -35,7 +36,7 @@ async function uploadFile(
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   if (!token) {
-    throw new Error('Your session expired. Sign in again to upload.');
+    throw new Error(strings().adminPeople.services.uploadSessionExpired);
   }
 
   const endpoint = `${env.supabaseUrl}/storage/v1/object/${bucket}/${encodeURIComponent(objectPath)}`;
@@ -63,7 +64,7 @@ async function uploadFile(
   const status = response.info().status;
 
   if (status < 200 || status >= 300) {
-    let message = `Upload failed (${status}).`;
+    let message = strings().adminPeople.services.uploadFailed(status);
     try {
       const parsed = JSON.parse(response.data) as {
         message?: string;
@@ -143,7 +144,9 @@ export async function removeStoragePath(path: string | null | undefined) {
 
 export function validateCoverSize(bytes: number | undefined): string | null {
   if (bytes && bytes > COVER_MAX_BYTES) {
-    return `Covers must be ${Math.round(COVER_MAX_BYTES / 1024 / 1024)} MB or smaller.`;
+    return strings().adminPeople.services.coverTooLarge(
+      Math.round(COVER_MAX_BYTES / 1024 / 1024),
+    );
   }
   return null;
 }
@@ -152,7 +155,9 @@ export function validatePdfSize(
   bytes: number | undefined | null,
 ): string | null {
   if (bytes && bytes > PDF_MAX_BYTES) {
-    return `PDFs must be ${Math.round(PDF_MAX_BYTES / 1024 / 1024)} MB or smaller.`;
+    return strings().adminPeople.services.pdfTooLarge(
+      Math.round(PDF_MAX_BYTES / 1024 / 1024),
+    );
   }
   return null;
 }

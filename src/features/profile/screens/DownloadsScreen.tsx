@@ -25,6 +25,7 @@ import { useVaultVersion } from '@/hooks/useBookVault';
 import { getVaultEntry, vaultUsage } from '@/services/bookVault';
 import { isUrduTitle } from '@/services/script';
 import { fontSize } from '@/theme/typography';
+import { useStrings, type Strings } from '@/i18n';
 
 type DownloadsNavigation = NativeStackNavigationProp<
   ProfileStackParamList,
@@ -34,11 +35,11 @@ type DownloadsNavigation = NativeStackNavigationProp<
 /** The device allowance the storage bar is drawn against. */
 const STORAGE_LIMIT_BYTES = 4 * 1_000_000_000;
 
-function formatSize(bytes: number): string {
+function formatSize(bytes: number, s: Strings): string {
   if (bytes >= 1_000_000_000) {
-    return `${(bytes / 1_000_000_000).toFixed(1)} GB`;
+    return s.profile.downloads.gb((bytes / 1_000_000_000).toFixed(1));
   }
-  return `${Math.round(bytes / 1_000_000)} MB`;
+  return s.profile.downloads.mb(Math.round(bytes / 1_000_000));
 }
 
 /**
@@ -49,6 +50,8 @@ function formatSize(bytes: number): string {
  */
 export function DownloadsScreen() {
   const navigation = useNavigation<DownloadsNavigation>();
+  const s = useStrings();
+  const words = s.profile.downloads;
   const { data: library, isLoading } = useLibrary();
   const removeDownload = useRemoveDownload();
   // The backend lists what the reader downloaded; the vault knows what is
@@ -71,13 +74,13 @@ export function DownloadsScreen() {
           coverColorDark: book.coverColorDark,
           isUrdu: isUrduTitle(book.title),
           detail: onDevice
-            ? `${formatSize(local.bytes)} · available offline`
-            : `${formatSize(book.sizeBytes)} · not on this device`,
+            ? words.availableOffline(formatSize(local.bytes, s))
+            : words.notOnDevice(formatSize(book.sizeBytes, s)),
         };
       }),
     // `vault` is the dependency that matters even though the body never reads it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [library?.downloads, vault],
+    [library?.downloads, s, vault],
   );
 
   // What is really on disk, not what the backend remembers.
@@ -90,49 +93,48 @@ export function DownloadsScreen() {
   const handleRemove = useCallback(
     (entry: DownloadEntry) => {
       showDialog({
-        title: 'Remove download?',
-        message: `${entry.title} will stay in your library but need a connection to open.`,
+        title: words.removeTitle,
+        message: words.removeMessage(entry.title),
         icon: Trash2,
         actions: [
-          { label: 'Cancel', style: 'cancel' },
+          { label: s.common.cancel, style: 'cancel' },
           {
-            label: 'Remove',
+            label: s.common.remove,
             style: 'destructive',
             onPress: () => removeDownload.mutate(entry.id),
           },
         ],
       });
     },
-    [removeDownload],
+    [removeDownload, s, words],
   );
 
   const handleRemoveAll = useCallback(() => {
     showDialog({
-      title: 'Remove all downloads?',
-      message:
-        'Every book stays in your library, but you will need a connection to open them.',
+      title: words.removeAllTitle,
+      message: words.removeAllMessage,
       icon: Trash2,
       actions: [
-        { label: 'Cancel', style: 'cancel' },
+        { label: s.common.cancel, style: 'cancel' },
         {
-          label: 'Remove all',
+          label: words.removeAll,
           style: 'destructive',
           onPress: () =>
             downloads.forEach(entry => removeDownload.mutate(entry.id)),
         },
       ],
     });
-  }, [downloads, removeDownload]);
+  }, [downloads, removeDownload, s, words]);
 
   const goBack = useCallback(() => navigation.goBack(), [navigation]);
 
   return (
     <ProfileSubScreenLayout
-      title="Downloads"
+      title={words.title}
       subtitle={
         downloads.length === 1
-          ? 'One book available offline.'
-          : `${downloads.length} books available offline.`
+          ? words.oneOffline
+          : words.manyOffline(downloads.length)
       }
       gap={20}
     >
@@ -141,9 +143,9 @@ export function DownloadsScreen() {
       ) : downloads.length === 0 ? (
         <View style={styles.empty}>
           <EmptyState
-            title="Nothing saved yet."
-            message="Open a book and choose Download from its menu; it will be here, sealed on this device and ready without a connection."
-            action={{ label: 'Back to profile', onPress: goBack }}
+            title={words.emptyTitle}
+            message={words.emptyMessage}
+            action={{ label: words.backToProfile, onPress: goBack }}
           />
         </View>
       ) : (
@@ -151,15 +153,15 @@ export function DownloadsScreen() {
           <Card tone="surface" padded={16} gap={12}>
             <View style={styles.storageHeader}>
               <Text size={fontSize.body} leading={1}>
-                {formatSize(usedBytes)} used
+                {words.used(formatSize(usedBytes, s))}
               </Text>
-              <Label
-                tracking={0.9}
-              >{`OF ${formatSize(STORAGE_LIMIT_BYTES)} LIMIT`}</Label>
+              <Label tracking={0.9}>
+                {words.ofLimit(formatSize(STORAGE_LIMIT_BYTES, s))}
+              </Label>
             </View>
             <ProgressBar value={usedBytes / STORAGE_LIMIT_BYTES} height={7} />
             <Text size={12.5} leading={1.3} tone="muted">
-              Finished books are removed automatically after 30 days.
+              {words.autoRemoved}
             </Text>
           </Card>
 
@@ -174,7 +176,7 @@ export function DownloadsScreen() {
           </View>
 
           <Button
-            label="Remove all downloads"
+            label={words.removeAll}
             variant="danger"
             size="md"
             onPress={handleRemoveAll}

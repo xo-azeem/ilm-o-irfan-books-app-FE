@@ -4,6 +4,7 @@ import { env } from '@/config/env';
 import { supabase } from '@/lib/supabase/client';
 import { ApiError, requestData } from '@/services/api/client';
 import { ENDPOINTS } from '@/services/api/endpoints';
+import { strings } from '@/i18n/strings';
 
 /**
  * The reader's profile photo.
@@ -101,7 +102,7 @@ async function ensureWithinSizeLimit(localUri: string) {
     const stats = await ReactNativeBlobUtil.fs.stat(localPath(localUri));
     if (Number(stats.size) > MAX_AVATAR_BYTES) {
       throw new ApiError(
-        'That photo is larger than 5 MB. Pick a smaller one.',
+        strings().services.avatar.tooLarge,
         400,
         'AVATAR_TOO_LARGE',
       );
@@ -139,7 +140,7 @@ async function uploadTask(
   const status = response.info().status;
 
   if (status < 200 || status >= 300) {
-    let message = `Could not upload the photo (${status}).`;
+    let message = strings().services.avatar.uploadFailed(status);
     try {
       const parsed = JSON.parse(response.data) as {
         message?: string;
@@ -191,7 +192,7 @@ async function putAuthenticated(
     data: { session },
   } = await supabase.auth.getSession();
   if (!session?.access_token) {
-    throw new ApiError('You must be signed in.', 401, 'AUTH_REQUIRED');
+    throw new ApiError(strings().services.mustBeSignedIn, 401, 'AUTH_REQUIRED');
   }
 
   const encoded = key.split('/').map(encodeURIComponent).join('/');
@@ -236,7 +237,7 @@ export async function uploadAvatar(
   const path = ticket?.path?.trim();
   if (!path) {
     throw new ApiError(
-      'The server did not say where to store the photo.',
+      strings().services.avatar.pathMissing,
       502,
       'AVATAR_PATH_MISSING',
     );

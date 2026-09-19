@@ -30,6 +30,7 @@ import {
   READER_FOOT,
 } from '@/features/reader/constants';
 import { PaperFold } from '@/features/reader/components/PaperFold';
+import { strings } from '@/i18n/strings';
 import { useThemeStore } from '@/stores/themeStore';
 import { useReaderSurface } from '@/features/reader/useReaderSurface';
 import { usePageCapture } from '@/features/reader/usePageCapture';
@@ -124,7 +125,7 @@ function errorMessage(error: unknown) {
       : typeof error === 'string'
         ? error
         : '';
-  return raw.trim() || 'This PDF could not be displayed.';
+  return raw.trim() || strings().reader.pdfNotDisplayed;
 }
 
 /** A turn in flight, and everything needed to land it. */
@@ -1236,7 +1237,7 @@ export const BookPageFlip = memo(
             ]}
             accessible
             accessibilityRole="button"
-            accessibilityLabel="Show reading controls"
+            accessibilityLabel={strings().reader.showReadingControls}
             onAccessibilityTap={handleSingleTap}
           >
             <View style={styles.area} onLayout={handleAreaLayout}>

@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Display, LinearGradient, Text } from '@/components/ui';
+import { useStrings } from '@/i18n';
 import { radius } from '@/theme/palette';
 import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
@@ -12,7 +13,7 @@ import { useTheme } from '@/theme/ThemeContext';
  * it stays one row tall no matter how the pricing copy changes.
  */
 export const MembershipBand = memo(function MembershipBand({
-  title = 'Unlimited reading, one membership',
+  title: titleProp,
   subtitle,
   onPress,
 }: {
@@ -21,6 +22,8 @@ export const MembershipBand = memo(function MembershipBand({
   onPress?: () => void;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
+  const title = titleProp ?? s.home.membershipBand;
 
   return (
     <Pressable

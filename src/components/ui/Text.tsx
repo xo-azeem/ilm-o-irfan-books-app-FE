@@ -1,12 +1,12 @@
-import { memo, useMemo } from 'react';
+import { memo, useMemo, type ReactNode } from 'react';
 import {
   Text as RNText,
-  StyleSheet,
   type StyleProp,
   type TextProps as RNTextProps,
   type TextStyle,
 } from 'react-native';
 
+import { isArabicScript } from '@/i18n/locale';
 import {
   fonts,
   fontSize,
@@ -32,7 +32,49 @@ import { useTheme, type AppColors } from '@/theme/ThemeContext';
  * it — the values in `typography` are absolute points tuned against these
  * sizes, so leaving them fixed would make large text read loose and small text
  * read cramped. Line height follows from the scaled size, never the raw one.
+ *
+ * ── Script ──────────────────────────────────────────────────────────────────
+ * The interface can be read in Urdu, and an Urdu interface still shows English
+ * book titles, addresses and file names — so the face is decided by the text
+ * itself, not by the language setting. A run in the Arabic script is set in
+ * Nastaliq with the leading it needs, no tracking (letter-spacing breaks the
+ * joins between Arabic letters) and right-to-left direction, whichever of the
+ * three Latin components asked for it. Call sites never need to know.
  */
+
+/** The string a text element is drawing, for the script check. */
+function textOf(children: ReactNode): string {
+  if (typeof children === 'string') return children;
+  if (Array.isArray(children)) return children.map(textOf).join('');
+  return '';
+}
+
+/**
+ * Nastaliq stacks its letters diagonally and needs more room than Latin at
+ * the same size: a line box sized for DM Sans clips it top and bottom — the
+ * face's own line height is close to twice its size. These are the floors the
+ * three Latin components hold Urdu text to.
+ */
+const URDU_LEADING = { display: 1.9, text: 1.8, label: 1.7 } as const;
+
+/**
+ * Nastaliq's descenders — the tail of a ے, the sweep of a ی — reach well
+ * below the baseline — the face's own bottom extent is 1.4 em, against a
+ * descent of 0.6 — and Android clips a glyph at
+ * the edge of the text's own view. Padding the view at the foot, in
+ * proportion to the size, gives the last line somewhere to land. Applied
+ * as a style of its own so a caller's `style` can still override it.
+ */
+function urduFoot(size: number): TextStyle {
+  return { paddingBottom: Math.ceil(size * 0.8) };
+}
+
+/**
+ * The eyebrow face is a system monospace, whose Arabic glyphs are whatever
+ * the platform falls back to. Urdu eyebrows take Nastaliq instead, and a
+ * little more size, because Nastaliq's small letters vanish at eyebrow sizes.
+ */
+const URDU_LABEL_GROWTH = 1.5;
 
 export type TextTone =
   | 'ink'
@@ -159,6 +201,7 @@ export const Display = memo(function Display({
   ...rest
 }: DisplayProps) {
   const { colors, fontScale } = useTheme();
+  const urdu = isArabicScript(textOf(rest.children));
 
   const resolved = useMemo(() => {
     const scale =
@@ -166,6 +209,20 @@ export const Display = memo(function Display({
         ? { size, leading: 1.15, tracking: typography.snug }
         : displayScale[size];
     const resolvedSize = scaleFont(scale.size, fontScale);
+    if (urdu) {
+      return {
+        ...resolveFamily('urdu', weight),
+        fontSize: resolvedSize,
+        lineHeight: lineHeightFor(
+          resolvedSize,
+          Math.max(leading ?? scale.leading, URDU_LEADING.display),
+        ),
+        letterSpacing: 0,
+        color: toneColor(tone, colors),
+        textAlign: align,
+        writingDirection: 'rtl',
+      } satisfies TextStyle;
+    }
     return {
       ...resolveFamily('display', weight),
       fontSize: resolvedSize,
@@ -174,9 +231,14 @@ export const Display = memo(function Display({
       color: toneColor(tone, colors),
       textAlign: align,
     } satisfies TextStyle;
-  }, [align, colors, fontScale, leading, size, tone, tracking, weight]);
+  }, [align, colors, fontScale, leading, size, tone, tracking, urdu, weight]);
 
-  return <RNText {...rest} style={[resolved, style]} />;
+  return (
+    <RNText
+      {...rest}
+      style={[urdu ? urduFoot(resolved.fontSize) : null, resolved, style]}
+    />
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -194,9 +256,24 @@ export const Text = memo(function Text({
   ...rest
 }: BaseTextProps) {
   const { colors, fontScale } = useTheme();
+  const urdu = isArabicScript(textOf(rest.children));
 
   const resolved = useMemo(() => {
     const resolvedSize = scaleFont(size, fontScale);
+    if (urdu) {
+      return {
+        ...resolveFamily('urdu', weight),
+        fontSize: resolvedSize,
+        lineHeight: lineHeightFor(
+          resolvedSize,
+          Math.max(leading, URDU_LEADING.text),
+        ),
+        letterSpacing: 0,
+        color: toneColor(tone, colors),
+        textAlign: align,
+        writingDirection: 'rtl',
+      } satisfies TextStyle;
+    }
     return {
       ...resolveFamily('sans', weight),
       fontSize: resolvedSize,
@@ -205,9 +282,14 @@ export const Text = memo(function Text({
       color: toneColor(tone, colors),
       textAlign: align,
     } satisfies TextStyle;
-  }, [align, colors, fontScale, leading, size, tone, tracking, weight]);
+  }, [align, colors, fontScale, leading, size, tone, tracking, urdu, weight]);
 
-  return <RNText {...rest} style={[resolved, style]} />;
+  return (
+    <RNText
+      {...rest}
+      style={[urdu ? urduFoot(resolved.fontSize) : null, resolved, style]}
+    />
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -235,9 +317,25 @@ export const Label = memo(function Label({
   ...rest
 }: LabelProps) {
   const { colors, fontScale } = useTheme();
+  const urdu = isArabicScript(textOf(rest.children));
 
   const resolved = useMemo(() => {
     const resolvedSize = scaleFont(size, fontScale);
+    if (urdu) {
+      const urduSize = resolvedSize + URDU_LABEL_GROWTH;
+      return {
+        ...resolveFamily('urdu', weight),
+        fontSize: urduSize,
+        lineHeight: lineHeightFor(
+          urduSize,
+          Math.max(leading, URDU_LEADING.label),
+        ),
+        letterSpacing: 0,
+        color: toneColor(tone, colors),
+        textAlign: align,
+        writingDirection: 'rtl',
+      } satisfies TextStyle;
+    }
     return {
       fontFamily: fonts.mono,
       fontSize: resolvedSize,
@@ -261,10 +359,16 @@ export const Label = memo(function Label({
     tone,
     tracking,
     uppercase,
+    urdu,
     weight,
   ]);
 
-  return <RNText {...rest} style={[resolved, style]} />;
+  return (
+    <RNText
+      {...rest}
+      style={[urdu ? urduFoot(resolved.fontSize) : null, resolved, style]}
+    />
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -300,7 +404,9 @@ export const UrduText = memo(function UrduText({
     } satisfies TextStyle;
   }, [align, colors, fontScale, leading, size, tone, tracking, weight]);
 
-  return <RNText {...rest} style={[styles.urdu, resolved, style]} />;
+  return (
+    <RNText {...rest} style={[urduFoot(resolved.fontSize), resolved, style]} />
+  );
 });
 
 /**
@@ -325,14 +431,6 @@ export function BookTitle({
   }
   return <Display {...rest}>{title}</Display>;
 }
-
-const styles = StyleSheet.create({
-  urdu: {
-    // Nastaliq glyphs overflow their line box; a little breathing room stops
-    // descenders being clipped on Android.
-    paddingBottom: 2,
-  },
-});
 
 /** @deprecated Use `Display`. Kept so older imports keep compiling. */
 export const DisplayText = Display;

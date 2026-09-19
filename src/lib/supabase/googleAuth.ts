@@ -7,6 +7,7 @@ import {
 } from '@react-native-google-signin/google-signin';
 
 import { env } from '@/config/env';
+import { strings } from '@/i18n/strings';
 import { supabase } from '@/lib/supabase/client';
 
 /**
@@ -57,7 +58,7 @@ function configureGoogle(): boolean {
 
 export class GoogleSignInCancelled extends Error {
   constructor() {
-    super('Google sign-in was cancelled.');
+    super(strings().auth.googleErrors.cancelled);
     this.name = 'GoogleSignInCancelled';
   }
 }
@@ -74,7 +75,7 @@ async function getGoogleIdToken(): Promise<{
   email: string | null;
 }> {
   if (!configureGoogle()) {
-    throw new Error('Google sign-in is not available in this build.');
+    throw new Error(strings().auth.googleErrors.unavailable);
   }
 
   if (Platform.OS === 'android') {
@@ -103,9 +104,7 @@ async function getGoogleIdToken(): Promise<{
 
   const idToken = response.data.idToken;
   if (!idToken) {
-    throw new Error(
-      'Google did not return an ID token. Check that GOOGLE_WEB_CLIENT_ID is the Web client of the same Google Cloud project.',
-    );
+    throw new Error(strings().auth.googleErrors.noIdToken);
   }
 
   return { idToken, email: response.data.user.email ?? null };
@@ -117,16 +116,16 @@ function translateGoogleError(error: unknown): Error {
       case statusCodes.SIGN_IN_CANCELLED:
         return new GoogleSignInCancelled();
       case statusCodes.IN_PROGRESS:
-        return new Error('Google sign-in is already in progress.');
+        return new Error(strings().auth.googleErrors.inProgress);
       case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
-        return new Error(
-          'Google Play services are missing or out of date on this device.',
-        );
+        return new Error(strings().auth.googleErrors.playServices);
       default:
-        return new Error(error.message || 'Google sign-in failed.');
+        return new Error(error.message || strings().auth.googleErrors.failed);
     }
   }
-  return error instanceof Error ? error : new Error('Google sign-in failed.');
+  return error instanceof Error
+    ? error
+    : new Error(strings().auth.googleErrors.failed);
 }
 
 /**

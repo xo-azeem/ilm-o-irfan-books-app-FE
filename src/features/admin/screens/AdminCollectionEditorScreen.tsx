@@ -48,13 +48,15 @@ import {
   adminCoverUrl,
   BOOK_OPTIONS_LIMIT,
   slugify,
-  SYSTEM_SHELF_NOTE,
+  systemShelfNote,
   type AdminBookOption,
 } from '@/services/admin';
 import { palette } from '@/theme/palette';
 import { useTheme } from '@/theme/ThemeContext';
 
 import type { AdminLibraryStackParamList } from '../navigation/types';
+import { useStrings } from '@/i18n';
+import { strings } from '@/i18n/strings';
 
 /**
  * The tags a book carries on a shelf row.
@@ -68,10 +70,16 @@ function bookBadges(book: AdminBookOption | undefined): RowBadge[] {
   }
   const badges: RowBadge[] = [];
   if (!book.is_published) {
-    badges.push({ label: 'DRAFT', tone: 'warning' });
+    badges.push({
+      label: strings().adminLibrary.categoryBooks.draft,
+      tone: 'warning',
+    });
   }
   if (book.is_premium) {
-    badges.push({ label: 'PREMIUM', tone: 'premium' });
+    badges.push({
+      label: strings().adminLibrary.categoryBooks.premium,
+      tone: 'premium',
+    });
   }
   return badges;
 }
@@ -94,6 +102,8 @@ export function AdminCollectionEditorScreen() {
     useRoute<RouteProp<AdminLibraryStackParamList, 'AdminCollectionEditor'>>();
   const collectionId = route.params?.collectionId;
   const { colors } = useTheme();
+  const s = useStrings();
+  const words = s.adminLibrary.collection;
   const { scrollEndPadding } = useAppInsets();
   const toast = useToast();
 
@@ -150,7 +160,7 @@ export function AdminCollectionEditorScreen() {
   }, [collectionId, existing, memberIds]);
 
   const isSystem = existing?.is_system ?? false;
-  const systemNote = isSystem ? SYSTEM_SHELF_NOTE[existing?.slug ?? ''] : null;
+  const systemNote = isSystem ? systemShelfNote(existing?.slug ?? '') : null;
   // Trending's membership is the server's weekly draw; anything picked here
   // would be written and then ignored, so the list is not offered at all.
   const hasBookList = !isSystem || (systemNote?.curated ?? true);
@@ -171,14 +181,14 @@ export function AdminCollectionEditorScreen() {
         const book = bookById.get(id);
         return {
           id,
-          label: book?.title ?? 'Unknown title',
+          label: book?.title ?? words.unknownTitle,
           sublabel: book?.author_name,
           coverUrl: adminCoverUrl(book?.cover_path),
           coverColor: book?.cover_color ?? null,
           badges: bookBadges(book),
         };
       }),
-    [form.bookIds, bookById],
+    [form.bookIds, bookById, words],
   );
 
   const pickerItems = useMemo(
@@ -201,23 +211,28 @@ export function AdminCollectionEditorScreen() {
   );
 
   const subtitle = (() => {
+    const visibility = form.isPublished
+      ? words.liveOnHome
+      : words.hiddenFromHome;
     if (systemNote && !hasBookList) {
-      return `${systemNote.label} · ${form.isPublished ? 'live on Home' : 'hidden from Home'}`;
+      return `${systemNote.label} · ${visibility}`;
     }
     if (form.bookIds.length === 0) {
       return systemNote
-        ? `${systemNote.label} · nothing curated, the newest books stand in`
-        : 'Empty collections are not shown on Home.';
+        ? words.nothingCurated(systemNote.label)
+        : words.emptyNotShown;
     }
-    const count = `${form.bookIds.length} ${form.bookIds.length === 1 ? 'book' : 'books'}`;
+    const count = s.adminLibrary.counts.books(form.bookIds.length);
     const live =
-      liveCount === form.bookIds.length ? '' : ` · ${liveCount} live`;
-    return `${count}${live} · ${form.isPublished ? 'live on Home' : 'hidden from Home'}`;
+      liveCount === form.bookIds.length
+        ? ''
+        : ` · ${s.adminLibrary.counts.live(liveCount)}`;
+    return `${count}${live} · ${visibility}`;
   })();
 
   const handleSave = () => {
     if (!form.title.trim()) {
-      toast.error('Enter a collection title.');
+      toast.error(words.enterTitle);
       return;
     }
 
@@ -242,9 +257,7 @@ export function AdminCollectionEditorScreen() {
       {
         onSuccess: () => {
           reset();
-          toast.success(
-            collectionId ? 'Collection saved.' : 'Collection created.',
-          );
+          toast.success(collectionId ? words.saved : words.created);
           navigation.goBack();
         },
         onError: caught => toast.error(errorMessage(caught)),
@@ -259,12 +272,12 @@ export function AdminCollectionEditorScreen() {
     >
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <AdminBackLink
-          label="Collections"
+          label={words.collections}
           action={
             isDirty ? (
-              <AdminTag label="UNSAVED" tone="warning" />
+              <AdminTag label={s.admin.ui.unsaved} tone="warning" />
             ) : isSystem ? (
-              <AdminTag label="HOME RAIL" tone="neutral" />
+              <AdminTag label={words.homeRail} tone="neutral" />
             ) : undefined
           }
         />
@@ -283,7 +296,8 @@ export function AdminCollectionEditorScreen() {
       >
         <AdminScreenTitle
           title={
-            form.title || (collectionId ? 'Edit collection' : 'New collection')
+            form.title ||
+            (collectionId ? words.editCollection : words.newCollection)
           }
           subtitle={subtitle}
         />
@@ -298,7 +312,7 @@ export function AdminCollectionEditorScreen() {
 
         <View style={styles.stack}>
           <AdminField
-            label="Title"
+            label={words.title}
             value={form.title}
             onChangeText={value =>
               setForm(current => ({ ...current, title: value }))
@@ -306,57 +320,53 @@ export function AdminCollectionEditorScreen() {
             maxLength={80}
           />
           <AdminField
-            label="Subtitle"
+            label={words.subtitle}
             value={form.subtitle}
             onChangeText={value =>
               setForm(current => ({ ...current, subtitle: value }))
             }
-            placeholder="Hand-picked reading lists"
+            placeholder={words.subtitlePlaceholder}
             maxLength={120}
-            helper="Shown on the card. Left blank, the card shows the book count."
+            helper={words.subtitleHint}
           />
 
           {isSystem ? (
             <AdminField
-              label="URL key"
+              label={words.urlKey}
               value={existing?.slug ?? ''}
               onChangeText={() => undefined}
               editable={false}
               autoCapitalize="none"
               mono
-              helper="Fixed — Home finds this rail by it."
+              helper={words.fixed}
             />
           ) : (
             <AdminField
-              label="URL key"
+              label={words.urlKey}
               value={form.slug}
               onChangeText={value =>
                 setForm(current => ({ ...current, slug: value }))
               }
-              placeholder={slugify(form.title) || 'auto-from-title'}
+              placeholder={slugify(form.title) || words.autoFromTitle}
               autoCapitalize="none"
               mono
-              helper={`Currently “${resolvedSlug || '—'}”.`}
+              helper={words.currently(resolvedSlug || '—')}
             />
           )}
 
           <AdminColorField
-            label="Accent"
+            label={words.accent}
             value={form.accent}
             onChange={value =>
               setForm(current => ({ ...current, accent: value }))
             }
-            helper="Tints the card on Home."
+            helper={words.accentHint}
           />
 
           <AdminCard>
             <AdminToggleRow
-              label="Show on Home"
-              description={
-                isSystem
-                  ? 'Hidden, the rail comes off Home entirely.'
-                  : 'A hidden collection stays linkable but disappears from Home.'
-              }
+              label={words.showOnHome}
+              description={isSystem ? words.hiddenRail : words.hiddenCollection}
               value={form.isPublished}
               onValueChange={value =>
                 setForm(current => ({ ...current, isPublished: value }))
@@ -368,10 +378,10 @@ export function AdminCollectionEditorScreen() {
         {hasBookList ? (
           <View style={styles.block}>
             <AdminSectionHeader
-              title="Books, in order"
+              title={words.booksInOrder}
               action={
                 <AdminOutlineButton
-                  label="Add books"
+                  label={words.addBooks}
                   Icon={Plus}
                   small
                   fullWidth={false}
@@ -382,9 +392,7 @@ export function AdminCollectionEditorScreen() {
             <AdminOrderableList
               items={orderedItems}
               emptyLabel={
-                systemNote
-                  ? 'Nothing curated — the newest published books stand in.'
-                  : 'No books yet — an empty collection is not shown on Home.'
+                systemNote ? words.nothingCuratedEmpty : words.noBooksEmpty
               }
               onChange={next =>
                 setForm(current => ({
@@ -393,23 +401,20 @@ export function AdminCollectionEditorScreen() {
                 }))
               }
             />
-            <AdminHelper>
-              Top to bottom here is the order readers see. Drafts stay in the
-              order but are not shown until published.
-            </AdminHelper>
+            <AdminHelper>{words.orderHint}</AdminHelper>
           </View>
         ) : null}
 
         {collectionId && !isSystem ? (
           <View style={styles.deleteBlock}>
             <AdminOutlineButton
-              label="Delete this collection"
+              label={words.deleteCollection}
               Icon={Trash2}
               destructive
               onPress={() => setConfirmDelete(true)}
             />
             <Text size={11.5} leading={1.4} align="center" tone="faint">
-              The books themselves are kept.
+              {words.booksKept}
             </Text>
           </View>
         ) : null}
@@ -417,7 +422,7 @@ export function AdminCollectionEditorScreen() {
 
       <AdminActionBar>
         <AdminButton
-          label={collectionId ? 'Save collection' : 'Create collection'}
+          label={collectionId ? words.saveCollection : words.createCollection}
           loading={save.isPending}
           disabled={!form.title.trim()}
           onPress={handleSave}
@@ -426,16 +431,16 @@ export function AdminCollectionEditorScreen() {
 
       <AdminPickerSheet
         visible={showPicker}
-        title="Books on this collection"
+        title={words.booksOn}
         multi
         items={pickerItems}
         selected={form.bookIds}
-        emptyLabel="No books in the catalog yet."
+        emptyLabel={s.adminLibrary.categoryBooks.noBooksInCatalog}
         onSearch={setPickerQuery}
         searching={options.isFetching}
         footnote={
           books.length >= BOOK_OPTIONS_LIMIT
-            ? `Showing the first ${BOOK_OPTIONS_LIMIT} titles by name. Search to reach the rest.`
+            ? s.adminLibrary.categoryBooks.showingFirst(BOOK_OPTIONS_LIMIT)
             : undefined
         }
         onClose={() => setShowPicker(false)}
@@ -444,17 +449,15 @@ export function AdminCollectionEditorScreen() {
 
       <AdminConfirmSheet
         visible={confirmDelete}
-        title={`Delete ${form.title || 'this collection'}?`}
-        message="The books themselves are kept. What goes:"
+        title={words.deleteTitle(form.title || words.thisCollection)}
+        message={words.deleteMessage}
         consequences={[
-          'Its card on Home',
-          `The hand-made order of ${form.bookIds.length} ${
-            form.bookIds.length === 1 ? 'title' : 'titles'
-          }`,
+          words.cardOnHome,
+          words.handMadeOrder(form.bookIds.length),
         ]}
-        confirmLabel="Delete"
+        confirmLabel={s.admin.ui.delete}
         destructive
-        footnote="Hiding it keeps the collection and its order."
+        footnote={words.hidingKeeps}
         loading={remove.isPending}
         onCancel={() => setConfirmDelete(false)}
         onConfirm={() =>
@@ -463,7 +466,7 @@ export function AdminCollectionEditorScreen() {
             onSuccess: () => {
               setConfirmDelete(false);
               reset();
-              toast.success('Collection deleted.');
+              toast.success(words.deleted);
               navigation.goBack();
             },
             onError: caught => {

@@ -8,6 +8,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 
 import { showDialog } from '@/components/ui';
+import { strings } from '@/i18n/strings';
 
 export function useDebouncedValue<T>(value: T, delay = 300): T {
   const [debounced, setDebounced] = useState(value);
@@ -38,12 +39,12 @@ export function useUnsavedGuard(dirty: RefObject<boolean>) {
       }
       event.preventDefault();
       showDialog({
-        title: 'Discard changes?',
-        message: 'Your edits on this screen have not been saved.',
+        title: strings().admin.ui.discardTitle,
+        message: strings().admin.ui.discardMessage,
         actions: [
-          { label: 'Keep editing', style: 'cancel' },
+          { label: strings().admin.ui.keepEditing, style: 'cancel' },
           {
-            label: 'Discard',
+            label: strings().admin.ui.discard,
             style: 'destructive',
             onPress: () => {
               dirty.current = false;

@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 
+import type { Strings } from '@/i18n';
 import type { BookLanguage, BookLengthBucket } from '@/services/api/types';
 import type {
   CatalogBook,
@@ -83,24 +84,13 @@ export type FilterToken =
   | { kind: 'rating' };
 
 /**
- * The length chips.
+ * The length chips are labelled in the dictionary (`catalog.discover.lengths`).
  *
  * Pages, and honestly so: the backend buckets on a real `page_count` where a
- * reader has reported one, and on its own estimate otherwise. These are labels
- * for the server's boundaries — `short` under 200, `medium` 200–599, `long`
+ * reader has reported one, and on its own estimate otherwise. The labels name
+ * the server's boundaries — `short` under 200, `medium` 200–599, `long`
  * 600 and up — and must be changed to follow them, never the other way round.
  */
-export const LENGTH_LABELS: Record<LengthFilter, string> = {
-  short: 'Under 200p',
-  medium: '200–599p',
-  long: '600p+',
-};
-
-export const LANGUAGE_LABELS: Record<LanguageFilter, string> = {
-  urdu: 'Urdu',
-  english: 'English',
-  arabic: 'Arabic',
-};
 
 /**
  * The orderings the sheet offers.
@@ -111,13 +101,6 @@ export const LANGUAGE_LABELS: Record<LanguageFilter, string> = {
  * asks for it.
  */
 export const SORTS: CatalogSort[] = ['newest', 'rating', 'title'];
-
-export const SORT_LABELS: Record<CatalogSort, string> = {
-  newest: 'Newest',
-  rating: 'Top rated',
-  title: 'Title A–Z',
-  relevance: 'Best match',
-};
 
 /** The order the sheet lists them in. */
 export const LANGUAGES: LanguageFilter[] = ['urdu', 'english', 'arabic'];
@@ -149,20 +132,22 @@ export function tokenKey(token: FilterToken): string {
 export function tokenLabel(
   token: FilterToken,
   subjectName: (id: string) => string | undefined,
+  s: Strings,
 ): string {
+  const words = s.catalog.discover;
   switch (token.kind) {
     case 'category':
-      return subjectName(token.value) ?? 'Subject';
+      return subjectName(token.value) ?? words.tokens.subject;
     case 'language':
-      return LANGUAGE_LABELS[token.value];
+      return words.languages[token.value];
     case 'length':
-      return LENGTH_LABELS[token.value];
+      return words.lengths[token.value];
     case 'membership':
-      return 'In membership';
+      return words.tokens.inMembership;
     case 'downloaded':
-      return 'Downloaded';
+      return words.tokens.downloaded;
     case 'rating':
-      return '4★ and up';
+      return words.tokens.rating;
   }
 }
 

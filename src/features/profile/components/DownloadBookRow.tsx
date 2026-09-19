@@ -14,6 +14,7 @@ import {
 import { radius } from '@/theme/palette';
 import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
+import { useStrings } from '@/i18n';
 
 export type DownloadEntry = BookSummary & {
   /** Human-readable size and date, e.g. "412 MB · downloaded 2 Aug". */
@@ -38,6 +39,7 @@ export const DownloadBookRow = memo(function DownloadBookRow({
   onPress?: (entry: DownloadEntry) => void;
 }) {
   const { colors, isDark } = useTheme();
+  const s = useStrings();
   const downloading =
     entry.downloadProgress != null && entry.downloadProgress < 1;
 
@@ -87,7 +89,9 @@ export const DownloadBookRow = memo(function DownloadBookRow({
           <>
             <ProgressBar value={entry.downloadProgress ?? 0} />
             <Label tone="primary" tracking={0.8}>
-              {`DOWNLOADING · ${Math.round((entry.downloadProgress ?? 0) * 100)}%`}
+              {s.profile.downloads.downloadingPercent(
+                Math.round((entry.downloadProgress ?? 0) * 100),
+              )}
             </Label>
           </>
         ) : entry.detail ? (
@@ -105,7 +109,7 @@ export const DownloadBookRow = memo(function DownloadBookRow({
       {downloading ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Cancel download of ${entry.title}`}
+          accessibilityLabel={s.profile.downloads.cancelDownloadOf(entry.title)}
           hitSlop={8}
           onPress={handleCancel}
           style={[styles.action, { borderColor: colors.borderStrong }]}
@@ -115,7 +119,9 @@ export const DownloadBookRow = memo(function DownloadBookRow({
       ) : (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Remove ${entry.title} from downloads`}
+          accessibilityLabel={s.profile.downloads.removeFromDownloads(
+            entry.title,
+          )}
           hitSlop={8}
           onPress={handleRemove}
           style={[

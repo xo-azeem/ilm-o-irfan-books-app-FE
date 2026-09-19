@@ -27,10 +27,7 @@ import {
 import { MembershipNotice } from '@/features/home/components/MembershipNotice';
 import { MembershipPaywall } from '@/features/profile/components/MembershipPaywall';
 import { ProfileSubScreenLayout } from '@/features/profile/components/ProfileSubScreenLayout';
-import {
-  subscriptionIncludes,
-  supportContact,
-} from '@/features/profile/data/profileContent';
+import { supportContact } from '@/features/profile/data/profileContent';
 import { useLibrary, useSubscription } from '@/hooks/useAccount';
 import {
   useCancelMembership,
@@ -42,6 +39,7 @@ import {
   type MembershipOption,
 } from '@/hooks/useBilling';
 import { useHomeCatalog } from '@/hooks/useCatalog';
+import { useDateLocale, useStrings } from '@/i18n';
 import { useAccess } from '@/lib/access';
 import { ApiError } from '@/services/api/errors';
 import {
@@ -53,14 +51,17 @@ import { radius } from '@/theme/palette';
 import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
 
-function formatDate(iso: string | null | undefined): string | null {
+function formatDate(
+  iso: string | null | undefined,
+  locale: string,
+): string | null {
   if (!iso) {
     return null;
   }
   const date = new Date(iso);
   return Number.isNaN(date.getTime())
     ? null
-    : date.toLocaleDateString('en-GB', {
+    : date.toLocaleDateString(locale, {
         day: 'numeric',
         month: 'short',
         year: 'numeric',
@@ -95,6 +96,9 @@ function formatDate(iso: string | null | undefined): string | null {
  */
 export function SubscriptionScreen() {
   const { colors } = useTheme();
+  const s = useStrings();
+  const locale = useDateLocale();
+  const words = s.account.subscription;
   const { data: subscription, isLoading } = useSubscription();
   const { data: library } = useLibrary();
   const { reason, expiresAt } = useAccess();
@@ -131,9 +135,8 @@ export function SubscriptionScreen() {
         onSuccess: outcome => {
           if (outcome.status === 'pending') {
             showDialog({
-              title: 'Payment pending',
-              message:
-                'Your store is still processing the payment. Your membership unlocks as soon as it clears — there is nothing more to do.',
+              title: words.paymentPending,
+              message: words.paymentPendingMessage,
               tone: 'info',
               icon: Hourglass,
             });
@@ -143,14 +146,14 @@ export function SubscriptionScreen() {
         },
         onError: error =>
           showDialog({
-            title: 'Purchase failed',
+            title: words.purchaseFailed,
             message:
-              error instanceof Error ? error.message : 'Please try again.',
+              error instanceof Error ? error.message : s.common.pleaseTryAgain,
             tone: 'danger',
           }),
       });
     },
-    [purchase],
+    [purchase, s, words],
   );
 
   /**
@@ -166,29 +169,28 @@ export function SubscriptionScreen() {
       ({ restored, granted }) => {
         if (granted) {
           showDialog({
-            title: 'Membership restored',
-            message: 'Your membership is active on this device.',
+            title: words.restored,
+            message: words.restoredMessage,
             tone: 'success',
           });
           return;
         }
         showDialog({
-          title: restored ? 'Almost there' : 'Nothing to restore',
-          message: restored
-            ? 'We found your purchase and are still applying it. This usually takes a few seconds.'
-            : 'No previous membership was found for this store account.',
+          title: restored ? words.almostThere : words.nothingToRestore,
+          message: restored ? words.stillApplying : words.noPrevious,
           tone: 'info',
           icon: restored ? Hourglass : undefined,
         });
       },
       error =>
         showDialog({
-          title: 'Could not restore',
-          message: error instanceof Error ? error.message : 'Please try again.',
+          title: words.couldNotRestore,
+          message:
+            error instanceof Error ? error.message : s.common.pleaseTryAgain,
           tone: 'danger',
         }),
     );
-  }, [restore]);
+  }, [restore, s, words]);
 
   /**
    * Which cancel control to draw. Decided from the subscription itself —
@@ -204,7 +206,7 @@ export function SubscriptionScreen() {
   const store = subscription?.store ?? null;
   const storeLabel = storeName(store);
   // `null` for a lifetime comp — a sentence must not say "until —".
-  const accessUntil = formatDate(expiresAt);
+  const accessUntil = formatDate(expiresAt, locale);
 
   // While a request is pending, keep asking whether the store has spoken.
   useStoreConfirmationWatch(availability === 'pending');
@@ -220,29 +222,29 @@ export function SubscriptionScreen() {
     void openManageSubscriptions(store).then(outcome => {
       if (outcome.status === 'unavailable') {
         showDialog({
-          title: `Open ${storeLabel}`,
+          title: words.openStore(storeLabel),
           message: outcome.url
-            ? `Manage your subscription at ${outcome.url}`
-            : 'Open your subscriptions in the store app to manage your membership.',
+            ? words.manageAt(outcome.url)
+            : words.openInStoreApp,
           tone: 'info',
           icon: Store,
         });
       }
     });
-  }, [store, storeLabel]);
+  }, [store, storeLabel, words]);
 
   const emailSupport = useCallback(() => {
     void Linking.openURL(
-      `mailto:${supportEmail}?subject=${encodeURIComponent('Ilm o Irfan membership')}`,
+      `mailto:${supportEmail}?subject=${encodeURIComponent(words.mailSubject)}`,
     ).catch(() =>
       showDialog({
-        title: 'No mail app',
-        message: `Write to us at ${supportEmail}.`,
+        title: words.noMailApp,
+        message: words.writeToUs(supportEmail),
         tone: 'info',
         icon: Mail,
       }),
     );
-  }, [supportEmail]);
+  }, [supportEmail, words]);
 
   /**
    * Explains a refusal from the backend in the reader's terms.
@@ -257,33 +259,33 @@ export function SubscriptionScreen() {
       const code = error instanceof ApiError ? error.code : undefined;
       if (code === 'NOT_STORE_MANAGED') {
         showDialog({
-          title: 'Managed by us',
-          message:
-            'This membership is not billed through the App Store or Google Play, so there is nothing to cancel in a store. Write to us and we will sort it out.',
+          title: words.managedByUs,
+          message: words.managedByUsMessage,
           tone: 'info',
           icon: Mail,
           actions: [
-            { label: 'Not now', style: 'cancel' },
-            { label: 'Email support', onPress: emailSupport },
+            { label: words.notNow, style: 'cancel' },
+            { label: words.emailSupport, onPress: emailSupport },
           ],
         });
         return;
       }
       if (code === 'NO_SUBSCRIPTION') {
         showDialog({
-          title: 'No active membership',
-          message: 'There is no renewing membership on this account to cancel.',
+          title: words.noActive,
+          message: words.noActiveMessage,
           tone: 'info',
         });
         return;
       }
       showDialog({
-        title: 'Could not start the cancellation',
-        message: error instanceof Error ? error.message : 'Please try again.',
+        title: words.couldNotStartCancel,
+        message:
+          error instanceof Error ? error.message : s.common.pleaseTryAgain,
         tone: 'danger',
       });
     },
-    [emailSupport],
+    [emailSupport, s, words],
   );
 
   /**
@@ -301,28 +303,28 @@ export function SubscriptionScreen() {
     }
 
     showDialog({
-      title: 'Cancel membership?',
+      title: words.cancelTitle,
       message: [
         accessUntil
-          ? `You have already paid for the current period, so you keep full access until ${accessUntil}. After that your membership will not renew and you will not be charged again.`
-          : 'You keep full access until the end of the period you have already paid for. After that your membership will not renew and you will not be charged again.',
-        `Your membership is billed by ${storeLabel}, so ${storeLabel} opens next for you to confirm. We will email you once it is done.`,
+          ? words.cancelKeepUntil(accessUntil)
+          : words.cancelKeepPeriod,
+        words.billedByOpensNext(storeLabel),
       ].join('\n\n'),
       icon: CalendarClock,
       actions: [
-        { label: 'Keep membership', style: 'cancel' },
+        { label: words.keepMembership, style: 'cancel' },
         {
-          label: 'Continue to cancel',
+          label: words.continueToCancel,
           style: 'destructive',
           onPress: () =>
             cancel.mutate(undefined, {
               onSuccess: outcome => {
                 if (outcome.status === 'already_cancelled') {
                   showDialog({
-                    title: 'Already cancelled',
+                    title: words.alreadyCancelled,
                     message: accessUntil
-                      ? `Your membership is already set to end on ${accessUntil}.`
-                      : 'Your membership is already set to end.',
+                      ? words.alreadyEndsOn(accessUntil)
+                      : words.alreadyEnds,
                     tone: 'info',
                     icon: CalendarClock,
                   });
@@ -330,10 +332,10 @@ export function SubscriptionScreen() {
                 }
                 if (outcome.opened.status === 'unavailable') {
                   showDialog({
-                    title: `Finish in ${storeLabel}`,
+                    title: words.finishIn(storeLabel),
                     message: outcome.opened.url
-                      ? `Your request is noted. To stop the renewal, turn off auto-renew at ${outcome.opened.url}`
-                      : 'Your request is noted. To stop the renewal, turn off auto-renew in your subscriptions in the store app.',
+                      ? words.finishAt(outcome.opened.url)
+                      : words.finishInApp,
                     tone: 'info',
                     icon: Store,
                   });
@@ -346,28 +348,34 @@ export function SubscriptionScreen() {
         },
       ],
     });
-  }, [accessUntil, availability, cancel, explainCancelError, storeLabel]);
+  }, [
+    accessUntil,
+    availability,
+    cancel,
+    explainCancelError,
+    storeLabel,
+    words,
+  ]);
 
   /** The reader changed their mind before the store confirmed. */
   const handleKeep = useCallback(() => {
     withdraw.mutate(undefined, {
       onSuccess: ({ withdrawn }) => {
         showDialog({
-          title: withdrawn ? 'Membership kept' : 'Nothing to withdraw',
-          message: withdrawn
-            ? 'Your cancellation request has been withdrawn. If you already turned off auto-renew in the store, turn it back on there to keep your membership.'
-            : 'There was no pending request. If the store has already confirmed a cancellation, resume it from the store.',
+          title: withdrawn ? words.kept : words.nothingToWithdraw,
+          message: withdrawn ? words.keptMessage : words.noPending,
           tone: 'success',
         });
       },
       onError: error =>
         showDialog({
-          title: 'Could not withdraw',
-          message: error instanceof Error ? error.message : 'Please try again.',
+          title: words.couldNotWithdraw,
+          message:
+            error instanceof Error ? error.message : s.common.pleaseTryAgain,
           tone: 'danger',
         }),
     });
-  }, [withdraw]);
+  }, [s, withdraw, words]);
 
   /**
    * Turning auto-renew back on is also the store's. The backend hears it as
@@ -375,16 +383,16 @@ export function SubscriptionScreen() {
    */
   const handleResume = useCallback(() => {
     showDialog({
-      title: 'Resume membership',
-      message: `Turn auto-renew back on in ${storeLabel} and your membership continues without a gap. We will email you once it is confirmed.`,
+      title: words.resume,
+      message: words.resumeMessage(storeLabel),
       tone: 'info',
       icon: Store,
       actions: [
-        { label: 'Not now', style: 'cancel' },
-        { label: `Open ${storeLabel}`, onPress: openStore },
+        { label: words.notNow, style: 'cancel' },
+        { label: words.openStore(storeLabel), onPress: openStore },
       ],
     });
-  }, [openStore, storeLabel]);
+  }, [openStore, storeLabel, words]);
 
   // Server totals, not the length of a capped shelf: "books opened" is every
   // title the reader has started, finished ones included.
@@ -393,19 +401,22 @@ export function SubscriptionScreen() {
 
   const usage = useMemo(
     () => [
-      { value: String(booksOpened), label: 'BOOKS\nOPENED' },
-      { value: String(library?.downloadsCount ?? 0), label: 'FILES\nOFFLINE' },
+      { value: String(booksOpened), label: words.usage.booksOpened },
+      {
+        value: String(library?.downloadsCount ?? 0),
+        label: words.usage.filesOffline,
+      },
       {
         value: String(library?.highlightsCount ?? 0),
-        label: 'PAGES\nBOOKMARKED',
+        label: words.usage.pagesBookmarked,
       },
     ],
-    [booksOpened, library?.downloadsCount, library?.highlightsCount],
+    [booksOpened, library?.downloadsCount, library?.highlightsCount, words],
   );
 
   if (!isLoading && !isMember) {
     return (
-      <ProfileSubScreenLayout title="Membership" gap={0}>
+      <ProfileSubScreenLayout title={words.membershipTitle} gap={0}>
         <MembershipPaywall
           options={options}
           features={features}
@@ -435,7 +446,7 @@ export function SubscriptionScreen() {
   const trialing = reason === 'trial';
 
   return (
-    <ProfileSubScreenLayout title="Subscription" gap={20}>
+    <ProfileSubScreenLayout title={words.title} gap={20}>
       {/* A failing card or a membership running out still reads books — the
           notice says so without taking anything away. */}
       <MembershipNotice reason={reason} expiresAt={expiresAt} />
@@ -452,9 +463,9 @@ export function SubscriptionScreen() {
         <View style={styles.planHeader}>
           <View style={styles.planText}>
             <Label tone="gold" tracking={1.4}>
-              Current plan
+              {words.currentPlan}
             </Label>
-            <Display size={30}>{plan?.name ?? 'Premium'}</Display>
+            <Display size={30}>{plan?.name ?? words.premium}</Display>
             {heldOption ? (
               <Text size={13.5} leading={1.2} tone="muted">
                 {`${heldOption.priceString}${plan?.interval ? ` / ${plan.interval}` : ''}`}
@@ -462,7 +473,9 @@ export function SubscriptionScreen() {
             ) : null}
           </View>
           <Badge
-            label={ending ? 'ENDING' : trialing ? 'TRIAL' : 'ACTIVE'}
+            label={
+              ending ? words.ending : trialing ? words.trial : words.active
+            }
             tone="primary"
             bordered
           />
@@ -472,23 +485,27 @@ export function SubscriptionScreen() {
 
         <DetailRow
           label={
-            ending ? 'Access until' : trialing ? 'Trial ends' : 'Renews on'
+            ending
+              ? words.accessUntil
+              : trialing
+                ? words.trialEnds
+                : words.renewsOn
           }
           // `null` is a lifetime comp or an admin — nothing to show a date for.
-          value={accessUntil ?? 'Never expires'}
+          value={accessUntil ?? words.neverExpires}
         />
         <DetailRow
-          label="Billing"
-          value={plan?.interval ? `${plan.interval}ly` : '—'}
+          label={words.billing}
+          value={plan?.interval ? words.interval(plan.interval) : '—'}
         />
       </View>
 
       <View style={styles.section}>
         <Label size={fontSize.labelSmall + 0.5} tracking={1.5}>
-          What’s included
+          {words.whatsIncluded}
         </Label>
         <Card tone="surface" padded={16} gap={10}>
-          {(plan?.features?.length ? plan.features : subscriptionIncludes).map(
+          {(plan?.features?.length ? plan.features : words.includes).map(
             feature => (
               <View key={feature} style={styles.feature}>
                 <Icon icon={Check} size={13} tone="primary" strokeWidth={2.6} />
@@ -508,7 +525,7 @@ export function SubscriptionScreen() {
 
       <View style={styles.section}>
         <Label size={fontSize.labelSmall + 0.5} tracking={1.5}>
-          This month
+          {words.thisMonth}
         </Label>
         <View style={styles.usage}>
           {usage.map(stat => (
@@ -523,20 +540,22 @@ export function SubscriptionScreen() {
           they did not expect. */}
       {availability === 'pending' ? (
         <Callout
-          title="Cancellation not finished"
-          message={`${storeLabel} has not confirmed it yet, so your membership still renews${accessUntil ? ` on ${accessUntil}` : ''}. Finish by turning off auto-renew in ${storeLabel} — we will email you once it is confirmed.`}
+          title={words.notFinished}
+          message={words.notFinishedMessage(storeLabel, accessUntil)}
           tone="warning"
           icon={Hourglass}
           action={
             <View style={styles.calloutActions}>
               <Button
-                label={`Open ${storeLabel}`}
+                label={words.openStore(storeLabel)}
                 variant="secondary"
                 size="sm"
                 onPress={openStore}
               />
               <TextButton
-                label={withdraw.isPending ? 'Keeping…' : 'Keep my membership'}
+                label={
+                  withdraw.isPending ? words.keeping : words.keepMyMembership
+                }
                 tone="muted"
                 disabled={withdraw.isPending}
                 onPress={handleKeep}
@@ -551,7 +570,7 @@ export function SubscriptionScreen() {
             is the store's auto-renew switch. */}
         {availability === 'ending' ? (
           <Button
-            label="Resume membership"
+            label={words.resume}
             variant="secondary"
             size="md"
             onPress={handleResume}
@@ -565,7 +584,7 @@ export function SubscriptionScreen() {
           .map(option => (
             <Button
               key={option.id}
-              label={`Switch to ${option.name} · ${option.priceString}`}
+              label={words.switchTo(option.name, option.priceString)}
               variant="secondary"
               size="md"
               disabled={purchase.isPending}
@@ -574,19 +593,19 @@ export function SubscriptionScreen() {
           ))}
         <View style={styles.footerLinks}>
           <TextButton
-            label="Payment method"
+            label={words.paymentMethod}
             tone="muted"
             onPress={() =>
               showDialog({
-                title: 'Payment method',
-                message: 'Managed by your App Store or Play Store account.',
+                title: words.paymentMethod,
+                message: words.paymentMethodMessage,
                 tone: 'info',
                 icon: CreditCard,
               })
             }
           />
           <TextButton
-            label={isRestoring ? 'Restoring…' : 'Restore purchases'}
+            label={isRestoring ? words.restoring : words.restorePurchases}
             tone="muted"
             disabled={isRestoring}
             onPress={handleRestore}
@@ -597,7 +616,9 @@ export function SubscriptionScreen() {
           {availability === 'cancellable' ||
           availability === 'not_store_managed' ? (
             <TextButton
-              label={cancel.isPending ? 'Opening store…' : 'Cancel membership'}
+              label={
+                cancel.isPending ? words.openingStore : words.cancelMembership
+              }
               tone="danger"
               disabled={cancel.isPending}
               onPress={handleCancel}

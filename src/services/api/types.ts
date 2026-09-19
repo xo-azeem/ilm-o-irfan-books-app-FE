@@ -594,6 +594,12 @@ export type ProfileRow = {
   postal_code: string | null;
   country: string | null;
   role: string | null;
+  /**
+   * The interface language kept on the account (`en` | `ur`), so a second
+   * device signs in to the same one. Null until the reader has chosen.
+   * Absent from the table fallback on a project without the column.
+   */
+  locale?: string | null;
   created_at: string;
   updated_at: string | null;
   /**

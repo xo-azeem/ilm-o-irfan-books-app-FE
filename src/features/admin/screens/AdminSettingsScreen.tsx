@@ -32,6 +32,7 @@ import {
   useUpdateAdminSettings,
 } from '@/hooks/useAdmin';
 import { useTheme } from '@/theme/ThemeContext';
+import { useStrings } from '@/i18n';
 
 /**
  * App settings.
@@ -49,6 +50,8 @@ import { useTheme } from '@/theme/ThemeContext';
  */
 export function AdminSettingsScreen() {
   const { colors } = useTheme();
+  const s = useStrings();
+  const words = s.admin.settings;
   const { scrollEndPadding } = useAppInsets();
   const toast = useToast();
 
@@ -117,7 +120,7 @@ export function AdminSettingsScreen() {
       {
         onSuccess: () => {
           reset();
-          toast.success('Settings saved. Readers pick it up within a minute.');
+          toast.success(words.saved);
         },
         onError: caught => toast.error(errorMessage(caught)),
       },
@@ -136,8 +139,8 @@ export function AdminSettingsScreen() {
     return (
       <Shell>
         <AdminErrorState
-          title="Couldn't load settings"
-          message="The settings row did not come back. Nothing has been changed."
+          title={words.loadFailed}
+          message={words.loadFailedMessage}
           detail={error ? errorMessage(error) : undefined}
           onRetry={() => void refetch()}
         />
@@ -152,9 +155,11 @@ export function AdminSettingsScreen() {
     >
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <AdminBackLink
-          label="System"
+          label={s.admin.system.title}
           action={
-            dirty ? <AdminTag label="UNSAVED" tone="warning" /> : undefined
+            dirty ? (
+              <AdminTag label={s.admin.ui.unsaved} tone="warning" />
+            ) : undefined
           }
         />
       </View>
@@ -170,16 +175,16 @@ export function AdminSettingsScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <AdminScreenTitle title="App settings" />
+        <AdminScreenTitle title={words.title} />
 
-        <AdminRowGroup title="Availability">
+        <AdminRowGroup title={words.availability}>
           <View style={styles.settingRow}>
             <AdminToggleRow
-              label="Maintenance mode"
+              label={words.maintenanceMode}
               description={
                 form.maintenanceMode
-                  ? 'On — readers see the notice below instead of the app. Admins are never held out.'
-                  : 'Off — the app opens normally for everyone.'
+                  ? words.maintenanceOn
+                  : words.maintenanceOff
               }
               value={form.maintenanceMode}
               onValueChange={value =>
@@ -189,11 +194,9 @@ export function AdminSettingsScreen() {
           </View>
           <View style={styles.settingRow}>
             <AdminToggleRow
-              label="New signups"
+              label={words.newSignups}
               description={
-                form.signupEnabled
-                  ? 'Open — anyone can create an account.'
-                  : 'Closed — the sign-up form is hidden in the app and existing accounts still work.'
+                form.signupEnabled ? words.signupsOpen : words.signupsClosed
               }
               value={form.signupEnabled}
               onValueChange={value =>
@@ -204,28 +207,28 @@ export function AdminSettingsScreen() {
         </AdminRowGroup>
 
         <AdminField
-          label="Notice shown during maintenance"
+          label={words.noticeLabel}
           value={form.maintenanceMessage}
           onChangeText={value =>
             setForm(current => ({ ...current, maintenanceMessage: value }))
           }
           multiline
           maxLength={240}
-          placeholder="We're adding new titles. The library will be back within the hour."
+          placeholder={words.noticePlaceholder}
         />
 
-        <AdminRowGroup title="Home screen">
+        <AdminRowGroup title={words.homeScreen}>
           <AdminNavRow
-            label="Featured shelf"
-            value={featured?.title ?? 'None'}
+            label={words.featuredShelf}
+            value={featured?.title ?? s.admin.ui.none}
             onPress={() => setShowCollectionPicker(true)}
           />
         </AdminRowGroup>
 
         <View style={styles.block}>
-          <AdminEyebrow>Support &amp; versions</AdminEyebrow>
+          <AdminEyebrow>{words.supportVersions}</AdminEyebrow>
           <AdminField
-            label="Support email"
+            label={words.supportEmail}
             value={form.supportEmail}
             onChangeText={value =>
               setForm(current => ({ ...current, supportEmail: value }))
@@ -233,10 +236,10 @@ export function AdminSettingsScreen() {
             placeholder="help@ilmoirfan.pk"
             autoCapitalize="none"
             keyboardType="email-address"
-            helper="Shown in the reader app's Help centre."
+            helper={words.supportEmailHint}
           />
           <AdminField
-            label="Oldest allowed app version"
+            label={words.minVersion}
             value={form.minVersion}
             onChangeText={value =>
               setForm(current => ({ ...current, minVersion: value }))
@@ -244,15 +247,11 @@ export function AdminSettingsScreen() {
             placeholder="1.2.0"
             autoCapitalize="none"
             mono
-            error={
-              !versionLooksValid
-                ? 'Enter a version like 1.2.0. Anything else is ignored by the app.'
-                : null
-            }
+            error={!versionLooksValid ? words.minVersionError : null}
             helper={
               versionAboveThisBuild
-                ? `Higher than this build (${APP_VERSION}) — every reader on it will be asked to update. Make sure that version is in the stores first.`
-                : `Older builds are asked to update before reading. This build is ${APP_VERSION}. Leave empty for no floor.`
+                ? words.minVersionAbove(APP_VERSION)
+                : words.minVersionHint(APP_VERSION)
             }
             helperTone={versionAboveThisBuild ? 'warning' : undefined}
           />
@@ -262,21 +261,18 @@ export function AdminSettingsScreen() {
           style={[styles.note, { backgroundColor: colors.primaryFillSoft }]}
         >
           <Text size={11.5} leading={1.5} tone="muted">
-            PDF access is decided by the reader's subscription at the moment
-            they ask for a file. There is deliberately no switch here that could
-            open the whole library by accident.
+            {words.pdfNote}
           </Text>
         </View>
 
         <Text size={11.5} leading={1.45} tone="faint">
-          Every change here is written to the change history with your account
-          and a timestamp.
+          {words.auditNote}
         </Text>
       </ScrollView>
 
       <AdminActionBar>
         <AdminButton
-          label="Save settings"
+          label={words.save}
           loading={update.isPending}
           disabled={!dirty}
           onPress={handleSave}
@@ -285,13 +281,16 @@ export function AdminSettingsScreen() {
 
       <AdminPickerSheet
         visible={showCollectionPicker}
-        title="Featured shelf"
+        title={words.featuredShelf}
         items={[
-          { id: '', label: 'None' },
+          { id: '', label: s.admin.ui.none },
           ...collections.map(collection => ({
             id: collection.id,
             label: collection.title,
-            sublabel: `${collection.kind} · ${collection.book_count} books`,
+            sublabel: words.collectionSublabel(
+              collection.kind,
+              collection.book_count,
+            ),
             accent: collection.accent,
           })),
         ]}
@@ -313,6 +312,7 @@ export function AdminSettingsScreen() {
 /** The screen frame, reused by the loading and error states. */
 function Shell({ children }: { children: React.ReactNode }) {
   const { colors } = useTheme();
+  const s = useStrings();
 
   return (
     <SafeAreaView
@@ -320,7 +320,7 @@ function Shell({ children }: { children: React.ReactNode }) {
       edges={['top', 'left', 'right']}
     >
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <AdminBackLink label="System" />
+        <AdminBackLink label={s.admin.system.title} />
       </View>
       <View style={styles.shellBody}>{children}</View>
     </SafeAreaView>

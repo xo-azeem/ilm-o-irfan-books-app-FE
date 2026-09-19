@@ -9,7 +9,8 @@ import { Button, showDialog, Text, TextButton } from '@/components/ui';
 import { ROUTES } from '@/constants/routes';
 import { AuthField } from '@/features/auth/components/AuthField';
 import { AuthLayout } from '@/features/auth/components/AuthLayout';
-import { requestPasswordReset } from '@/lib/supabase';
+import { useStrings } from '@/i18n';
+import { describeAuthError, requestPasswordReset } from '@/lib/supabase';
 import { fontSize } from '@/theme/typography';
 
 function isValidEmail(email: string): boolean {
@@ -29,6 +30,7 @@ export function ForgotPasswordScreen() {
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'ForgotPassword'>>();
   const returnTo = route.params?.returnTo;
+  const s = useStrings();
 
   const [email, setEmail] = useState(route.params?.email ?? '');
   const [isSending, setIsSending] = useState(false);
@@ -36,8 +38,8 @@ export function ForgotPasswordScreen() {
   const handleSend = useCallback(async () => {
     if (!isValidEmail(email)) {
       showDialog({
-        title: 'Invalid email',
-        message: 'Please enter the email address you signed up with.',
+        title: s.auth.invalidEmail,
+        message: s.auth.forgot.enterSignUpEmail,
         tone: 'warning',
       });
       return;
@@ -53,30 +55,27 @@ export function ForgotPasswordScreen() {
       });
     } catch (error) {
       showDialog({
-        title: 'Could not send the email',
-        message:
-          error instanceof Error
-            ? error.message
-            : 'Please wait a minute and try again.',
+        title: s.auth.forgot.couldNotSendEmail,
+        message: describeAuthError(error, s.auth.login.waitAMinute),
         tone: 'danger',
       });
     } finally {
       setIsSending(false);
     }
-  }, [email, navigation, returnTo]);
+  }, [email, navigation, returnTo, s]);
 
   return (
     <AuthLayout
-      title="Forgot your password?"
-      subtitle="Enter your email and we will send a code to set a new one."
+      title={s.auth.forgot.title}
+      subtitle={s.auth.forgot.subtitle}
       onBack={navigation.canGoBack() ? () => navigation.goBack() : undefined}
       footer={
         <View style={styles.footer}>
           <Text size={fontSize.bodySmall} leading={1} tone="muted">
-            Remembered it?
+            {s.auth.forgot.rememberedIt}
           </Text>
           <TextButton
-            label="Back to sign in"
+            label={s.auth.forgot.backToSignIn}
             onPress={() =>
               navigation.navigate(
                 ROUTES.LOGIN,
@@ -90,10 +89,10 @@ export function ForgotPasswordScreen() {
     >
       <View style={styles.fields}>
         <AuthField
-          label="Email"
+          label={s.auth.email}
           value={email}
           onChangeText={setEmail}
-          placeholder="name@example.com"
+          placeholder={s.auth.emailPlaceholder}
           keyboardType="email-address"
           textContentType="emailAddress"
           autoComplete="email"
@@ -105,20 +104,20 @@ export function ForgotPasswordScreen() {
       </View>
 
       <Button
-        label={isSending ? 'Sending…' : 'Send reset code'}
+        label={isSending ? s.auth.forgot.sending : s.auth.forgot.sendResetCode}
         onPress={handleSend}
         loading={isSending}
       />
 
       <View style={styles.already}>
         <TextButton
-          label="I already have a code"
+          label={s.auth.forgot.alreadyHaveCode}
           tone="muted"
           onPress={() => {
             if (!isValidEmail(email)) {
               showDialog({
-                title: 'Enter your email',
-                message: 'Type the address the code was sent to first.',
+                title: s.auth.login.enterEmailTitle,
+                message: s.auth.forgot.enterEmailFirst,
                 tone: 'warning',
               });
               return;

@@ -16,7 +16,12 @@ import { GoogleLogoIcon } from '@/features/auth/components/GoogleLogoIcon';
 import { ProfileSubScreenLayout } from '@/features/profile/components/ProfileSubScreenLayout';
 import type { ProfileStackParamList } from '@/features/profile/navigation/types';
 import { useSignInMethods } from '@/hooks/useSignInMethods';
-import { GoogleSignInCancelled, isGoogleSignInAvailable } from '@/lib/supabase';
+import { useStrings } from '@/i18n';
+import {
+  describeAuthError,
+  GoogleSignInCancelled,
+  isGoogleSignInAvailable,
+} from '@/lib/supabase';
 import { fontSize } from '@/theme/typography';
 
 /**
@@ -31,6 +36,8 @@ import { fontSize } from '@/theme/typography';
 export function SignInMethodsScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<ProfileStackParamList>>();
+  const s = useStrings();
+  const words = s.account.signInMethods;
   const { methods, link, unlink, resendVerification } = useSignInMethods();
   const data = methods.data;
   const googleAvailable = isGoogleSignInAvailable();
@@ -42,22 +49,19 @@ export function SignInMethodsScreen() {
     resendVerification.mutate(data.email, {
       onSuccess: () =>
         showDialog({
-          title: 'Verification email sent',
-          message: `Open the link on this phone, or enter the code at sign-in, to verify ${data.email}.`,
+          title: words.verificationSent,
+          message: words.verificationSentMessage(data.email ?? ''),
           tone: 'success',
           icon: MailCheck,
         }),
       onError: error =>
         showDialog({
-          title: 'Could not send',
-          message:
-            error instanceof Error
-              ? error.message
-              : 'Please wait a minute and try again.',
+          title: words.couldNotSend,
+          message: describeAuthError(error, s.auth.login.waitAMinute),
           tone: 'danger',
         }),
     });
-  }, [data?.email, resendVerification]);
+  }, [data?.email, resendVerification, s, words]);
 
   const handleLink = useCallback(() => {
     if (!data) {
@@ -65,14 +69,13 @@ export function SignInMethodsScreen() {
     }
     if (!data.emailVerified) {
       showDialog({
-        title: 'Verify your email first',
-        message:
-          'Linking Google needs the email on this account to be verified, so that a Google account can only be attached by whoever owns the address.',
+        title: words.verifyFirst,
+        message: words.verifyFirstMessage,
         tone: 'warning',
         icon: MailWarning,
         actions: [
-          { label: 'Not now', style: 'cancel' },
-          { label: 'Send verification email', onPress: handleResend },
+          { label: words.notNow, style: 'cancel' },
+          { label: words.sendVerification, onPress: handleResend },
         ],
       });
       return;
@@ -81,10 +84,10 @@ export function SignInMethodsScreen() {
     link.mutate(undefined, {
       onSuccess: result =>
         showDialog({
-          title: 'Google linked',
+          title: words.googleLinked,
           message: result.googleEmail
-            ? `You can now sign in with ${result.googleEmail} as well as your password.`
-            : 'You can now sign in with Google as well as your password.',
+            ? words.googleLinkedWith(result.googleEmail)
+            : words.googleLinkedMessage,
           tone: 'success',
           icon: Link2,
         }),
@@ -93,13 +96,13 @@ export function SignInMethodsScreen() {
           return;
         }
         showDialog({
-          title: 'Could not link Google',
-          message: error instanceof Error ? error.message : 'Please try again.',
+          title: words.couldNotLink,
+          message: describeAuthError(error, s.common.pleaseTryAgain),
           tone: 'danger',
         });
       },
     });
-  }, [data, handleResend, link]);
+  }, [data, handleResend, link, s, words]);
 
   const handleUnlink = useCallback(() => {
     if (!data) {
@@ -107,57 +110,49 @@ export function SignInMethodsScreen() {
     }
     if (!data.hasPassword) {
       showDialog({
-        title: 'Google is your only way in',
-        message:
-          'This account has no password yet. Set one first, then Google can be removed.',
+        title: words.onlyWayIn,
+        message: words.onlyWayInMessage,
         tone: 'warning',
         icon: KeyRound,
       });
       return;
     }
     showDialog({
-      title: 'Remove Google?',
-      message:
-        'You will sign in with your email and password only. You can link Google again at any time.',
+      title: words.removeGoogle,
+      message: words.removeGoogleMessage,
       actions: [
-        { label: 'Keep', style: 'cancel' },
+        { label: words.keep, style: 'cancel' },
         {
-          label: 'Remove',
+          label: s.common.remove,
           style: 'destructive',
           onPress: () =>
             unlink.mutate(undefined, {
               onError: error =>
                 showDialog({
-                  title: 'Could not remove Google',
-                  message:
-                    error instanceof Error
-                      ? error.message
-                      : 'Please try again.',
+                  title: words.couldNotRemove,
+                  message: describeAuthError(error, s.common.pleaseTryAgain),
                   tone: 'danger',
                 }),
             }),
         },
       ],
     });
-  }, [data, unlink]);
+  }, [data, s, unlink, words]);
 
   return (
-    <ProfileSubScreenLayout
-      title="Sign-in methods"
-      subtitle="One account, however you sign in."
-    >
+    <ProfileSubScreenLayout title={words.title} subtitle={words.subtitle}>
       {data && !data.emailVerified ? (
         <Callout
-          title="Email not verified"
-          message={`We have not yet confirmed ${data.email ?? 'your address'}. Verify it to link Google and to recover your account.`}
+          title={words.notVerified}
+          message={words.notVerifiedMessage(data.email ?? words.yourAddress)}
           tone="warning"
           icon={MailWarning}
           action={
             <Button
               label={
                 resendVerification.isPending
-                  ? 'Sending…'
-                  : 'Send verification email'
+                  ? words.sending
+                  : words.sendVerification
               }
               size="sm"
               variant="secondary"
@@ -168,16 +163,16 @@ export function SignInMethodsScreen() {
         />
       ) : null}
 
-      <SettingsGroup title="Email">
+      <SettingsGroup title={words.emailGroup}>
         <SettingsRow
-          title={data?.email ?? (methods.isPending ? 'Loading…' : '—')}
+          title={data?.email ?? (methods.isPending ? words.loading : '—')}
           subtitle={
             data
               ? data.emailVerified
                 ? data.hasPassword
-                  ? 'Verified · password sign-in'
-                  : 'Verified · no password set'
-                : 'Not verified'
+                  ? words.verifiedPassword
+                  : words.verifiedNoPassword
+                : words.notVerifiedShort
               : undefined
           }
           icon={data?.emailVerified ? MailCheck : MailWarning}
@@ -185,23 +180,25 @@ export function SignInMethodsScreen() {
           chevron={false}
         />
         <SettingsRow
-          title="Change email address"
-          subtitle="A code to your current address and one to the new"
+          title={words.changeEmail}
+          subtitle={words.changeEmailHint}
           onPress={() => navigation.navigate('ChangeEmail')}
         />
       </SettingsGroup>
 
-      <SettingsGroup title="Google">
+      <SettingsGroup title={words.googleGroup}>
         <SettingsRow
           title={
-            data?.google.linked ? (data.google.email ?? 'Linked') : 'Not linked'
+            data?.google.linked
+              ? (data.google.email ?? words.linked)
+              : words.notLinked
           }
           subtitle={
             !googleAvailable
-              ? 'Not available in this build'
+              ? words.notAvailable
               : data?.google.linked
-                ? 'Sign in with one tap'
-                : 'Add Google to sign in without a password'
+                ? words.oneTap
+                : words.addGoogle
           }
           trailing={<GoogleLogoIcon size={18} />}
           chevron={false}
@@ -209,7 +206,9 @@ export function SignInMethodsScreen() {
         <View style={styles.actions}>
           {data?.google.linked ? (
             <Button
-              label={unlink.isPending ? 'Removing…' : 'Remove Google'}
+              label={
+                unlink.isPending ? words.removing : words.removeGoogleButton
+              }
               variant="secondary"
               size="md"
               onPress={handleUnlink}
@@ -218,7 +217,7 @@ export function SignInMethodsScreen() {
             />
           ) : (
             <Button
-              label={link.isPending ? 'Opening Google…' : 'Link Google'}
+              label={link.isPending ? words.openingGoogle : words.linkGoogle}
               size="md"
               onPress={handleLink}
               loading={link.isPending}
@@ -229,8 +228,7 @@ export function SignInMethodsScreen() {
       </SettingsGroup>
 
       <Text size={fontSize.caption} tone="muted" style={styles.note}>
-        Signing in with Google using the same verified email as an existing
-        account always lands on that account — you never end up with two.
+        {words.note}
       </Text>
     </ProfileSubScreenLayout>
   );

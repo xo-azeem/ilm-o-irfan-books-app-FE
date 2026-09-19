@@ -11,6 +11,7 @@ import { ListSkeleton } from '@/components/skeletons/CatalogSkeletons';
 import { EmptyState, TextButton } from '@/components/ui';
 import { ROUTES } from '@/constants/routes';
 import { useWishlist, useWishlistMutation } from '@/hooks/useAccount';
+import { useStrings } from '@/i18n';
 import { isUrduTitle } from '@/services/script';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -23,6 +24,7 @@ import { useAuthStore } from '@/stores/authStore';
 export function WishlistScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const s = useStrings();
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   const { data: items = [], isLoading } = useWishlist();
 
@@ -40,24 +42,27 @@ export function WishlistScreen() {
   return (
     <Screen gap={20}>
       <ScreenHeader
-        title="Saved"
-        subtitle="Books you have set aside for later."
+        title={s.catalog.wishlist.title}
+        subtitle={s.catalog.wishlist.subtitle}
         onBack={() => navigation.goBack()}
       />
 
       {!isAuthenticated ? (
         <GuestAuthPanel
-          title="Save books for later."
-          message="Sign in to keep a reading list that follows you across devices."
+          title={s.catalog.wishlist.guestTitle}
+          message={s.catalog.wishlist.guestMessage}
         />
       ) : isLoading ? (
         <ListSkeleton count={5} />
       ) : items.length === 0 ? (
         <View style={styles.empty}>
           <EmptyState
-            title="Nothing saved yet."
-            message="Tap the bookmark on any book and it will wait for you here."
-            action={{ label: 'Find something to read', onPress: browse }}
+            title={s.catalog.wishlist.emptyTitle}
+            message={s.catalog.wishlist.emptyMessage}
+            action={{
+              label: s.catalog.wishlist.findSomething,
+              onPress: browse,
+            }}
           />
         </View>
       ) : (
@@ -95,6 +100,7 @@ const WishlistRow = memo(function WishlistRow({
   book: BookSummary;
   onPress: (book: BookSummary) => void;
 }) {
+  const s = useStrings();
   const mutation = useWishlistMutation(book.id);
   const handleRemove = useCallback(() => mutation.mutate(true), [mutation]);
 
@@ -104,10 +110,10 @@ const WishlistRow = memo(function WishlistRow({
       onPress={onPress}
       trailing={
         <TextButton
-          label="Remove"
+          label={s.catalog.wishlist.remove}
           tone="muted"
           onPress={handleRemove}
-          accessibilityLabel={`Remove ${book.title} from saved`}
+          accessibilityLabel={s.catalog.wishlist.removeFromSaved(book.title)}
         />
       }
     />

@@ -18,6 +18,7 @@ import {
 } from '@/services/push';
 import { useAuthStore } from '@/stores/authStore';
 import { usePushStore } from '@/stores/pushStore';
+import { useStrings } from '@/i18n';
 
 /**
  * Notifications.
@@ -30,6 +31,8 @@ import { usePushStore } from '@/stores/pushStore';
  * states we are in.
  */
 export function NotificationsScreen() {
+  const s = useStrings();
+  const words = s.profile.notifications;
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   const newReleases = usePushStore(state => state.newReleases);
   const libraryUpdates = usePushStore(state => state.libraryUpdates);
@@ -89,24 +92,21 @@ export function NotificationsScreen() {
   );
 
   return (
-    <ProfileSubScreenLayout
-      title="Notifications"
-      subtitle="Choose what reaches your device."
-    >
+    <ProfileSubScreenLayout title={words.title} subtitle={words.subtitle}>
       {!available ? (
         <Callout
           tone="info"
-          title="Notifications are not available in this build."
-          message="This copy of the app was built without its Firebase project file."
+          title={words.unavailableTitle}
+          message={words.unavailableBody}
         />
       ) : permission === 'denied' ? (
         <Callout
           tone="warning"
-          title="Notifications are off for Ilm o Irfan."
-          message="Nothing below will reach you until you turn them on for this app in your device's settings."
+          title={words.deniedTitle}
+          message={words.deniedBody}
           action={
             <TextButton
-              label="Open settings"
+              label={words.openSettings}
               tone="gold"
               onPress={openSystemSettings}
             />
@@ -115,28 +115,24 @@ export function NotificationsScreen() {
       ) : permission === 'undetermined' ? (
         <Callout
           tone="info"
-          title="Allow notifications to hear about new books."
-          message="Your device will ask once. You can change your mind in its settings at any time."
-          action={<TextButton label="Turn on" onPress={askPermission} />}
+          title={words.askTitle}
+          message={words.askBody}
+          action={<TextButton label={words.turnOn} onPress={askPermission} />}
         />
       ) : null}
 
-      <SettingsGroup title="Library">
+      <SettingsGroup title={words.library}>
         <SettingsRow
-          title="New books & collections"
-          subtitle="When fresh titles or a new collection arrive"
+          title={words.newBooks}
+          subtitle={words.newBooksHint}
           toggle={{
             value: newReleases,
             onValueChange: setSwitch('newReleases'),
           }}
         />
         <SettingsRow
-          title="Changes to my books"
-          subtitle={
-            isAuthenticated
-              ? 'When a book you have is removed, updated or gets a new edition'
-              : 'Sign in to be told when a book you have changes'
-          }
+          title={words.changes}
+          subtitle={isAuthenticated ? words.changesHint : words.changesSignIn}
           toggle={{
             value: libraryUpdates,
             onValueChange: setSwitch('libraryUpdates'),
@@ -144,13 +140,11 @@ export function NotificationsScreen() {
         />
       </SettingsGroup>
 
-      <SettingsGroup title="Account">
+      <SettingsGroup title={words.account}>
         <SettingsRow
-          title="Membership"
+          title={words.membership}
           subtitle={
-            isAuthenticated
-              ? 'When your membership starts or ends'
-              : 'Sign in to be told about your membership'
+            isAuthenticated ? words.membershipHint : words.membershipSignIn
           }
           toggle={{
             value: membershipUpdates,
@@ -162,8 +156,7 @@ export function NotificationsScreen() {
       <View style={styles.footer}>
         <Card tone="alt" padded={15}>
           <Text size={12.5} leading={1.55} tone="muted">
-            Delivered to this device’s notification tray. Sounds and importance
-            for each kind can be tuned in your device’s notification settings.
+            {words.footer}
           </Text>
         </Card>
       </View>

@@ -41,12 +41,12 @@ import {
   useSubscription,
 } from '@/hooks/useAccount';
 import { useMembershipOptions } from '@/hooks/useBilling';
+import { useStrings } from '@/i18n';
 import { useAccess } from '@/lib/access';
 import { useHomeCatalog } from '@/hooks/useCatalog';
 import { useRecommendations } from '@/hooks/useRecommendations';
 import {
   HOME_RAIL_LIMIT,
-  SHELF_COPY,
   type CatalogBook,
   type CatalogSlide,
   type ShelfLink,
@@ -84,12 +84,6 @@ function toSlide(slide: CatalogSlide): HeroSlide {
   return { ...slide, isUrdu: isUrduTitle(slide.headline) };
 }
 
-/** The heading a cold-start recommendation list gets. Never "Because you read". */
-const COLD_START = {
-  title: 'Popular right now',
-  subtitle: 'Where other readers are starting',
-} as const;
-
 /**
  * The "See all" on a rail that is page one of a collection.
  *
@@ -104,12 +98,13 @@ function SeeAll({
   link: ShelfLink | null;
   onPress: (collectionId: string) => void;
 }) {
+  const s = useStrings();
   if (!link) {
     return null;
   }
   return (
     <RailAction
-      label={`See all ${link.totalCount.toLocaleString('en-US')}`}
+      label={s.common.seeAllCount(link.totalCount.toLocaleString('en-US'))}
       onPress={() => onPress(link.collectionId)}
     />
   );
@@ -117,6 +112,7 @@ function SeeAll({
 
 export function HomeScreen() {
   const navigation = useNavigation<HomeNavigation>();
+  const s = useStrings();
   const { data, isLoading, isError, error, refetch } = useHomeCatalog();
   // Fired alongside the feed, not after it: Home draws the rest of itself if
   // this one fails, and it is disabled outright for a signed-out reader.
@@ -134,12 +130,13 @@ export function HomeScreen() {
    */
   const membershipPitch = useMemo(() => {
     if (!cheapestPlan) {
-      return 'See membership plans';
+      return s.home.seeMembershipPlans;
     }
-    return `See plans from ${cheapestPlan.priceString}${
-      cheapestPlan.interval ? ` / ${cheapestPlan.interval}` : ''
-    }`;
-  }, [cheapestPlan]);
+    return s.home.seePlansFrom(
+      cheapestPlan.priceString,
+      cheapestPlan.interval ?? null,
+    );
+  }, [cheapestPlan, s]);
   const { data: library } = useLibrary();
   const { data: subscription } = useSubscription();
   const [mood, setMood] = useState<ReadingMood | null>(null);
@@ -276,13 +273,13 @@ export function HomeScreen() {
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <EmptyState
             art={null}
-            title="Could not load the catalog."
+            title={s.home.couldNotLoadCatalog}
             message={
               error instanceof Error && error.name === 'AbortError'
-                ? 'The server did not respond. Check your connection, then try again.'
-                : 'Nothing was lost. Check your connection and try again.'
+                ? s.home.serverDidNotRespond
+                : s.home.nothingWasLost
             }
-            action={{ label: 'Try again', onPress: () => void refetch() }}
+            action={{ label: s.common.retry, onPress: () => void refetch() }}
           />
         </View>
       </Screen>
@@ -322,10 +319,10 @@ export function HomeScreen() {
 
           {inProgress.length > 0 ? (
             <BookRail
-              title="Continue reading"
+              title={s.home.continueReading}
               action={
                 <RailAction
-                  label={`All ${inProgress.length}`}
+                  label={s.home.allCount(inProgress.length)}
                   onPress={openLibrary}
                 />
               }
@@ -374,8 +371,8 @@ export function HomeScreen() {
           !recommendations.isPersonalized &&
           recommendations.books.length ? (
             <BookRail
-              title={COLD_START.title}
-              subtitle={COLD_START.subtitle}
+              title={s.home.coldStart.title}
+              subtitle={s.home.coldStart.subtitle}
               gap={14}
             >
               {recommendations.books.map(book => (
@@ -396,8 +393,8 @@ export function HomeScreen() {
               opens the same draw in full; the rail is its first page. */}
           {data?.trending?.length ? (
             <BookRail
-              title={SHELF_COPY.trending.title}
-              subtitle={SHELF_COPY.trending.subtitle}
+              title={s.services.shelves.trending.title}
+              subtitle={s.services.shelves.trending.subtitle}
               action={
                 <SeeAll link={data.trendingLink} onPress={openCollection} />
               }
@@ -415,22 +412,21 @@ export function HomeScreen() {
 
           {arrivals.length > 0 ? (
             <BookRail
-              title={SHELF_COPY.arrivals.title}
-              subtitle={SHELF_COPY.arrivals.subtitle}
+              title={s.services.shelves.arrivals.title}
+              subtitle={s.services.shelves.arrivals.subtitle}
               action={
                 <SeeAll
                   link={data?.arrivalsLink ?? null}
                   onPress={openCollection}
                 />
               }
-              gap={14}
             >
+              {/* The same card as Trending — same width, same author line —
+                  so the two rails read as one shelf, whatever the font scale. */}
               {arrivals.slice(0, HOME_RAIL_LIMIT).map(book => (
                 <BookCard
                   key={book.id}
                   book={toSummary(book)}
-                  width={106}
-                  showAuthor={false}
                   onPress={openBook}
                 />
               ))}
@@ -439,8 +435,8 @@ export function HomeScreen() {
 
           {collections.length ? (
             <BookRail
-              title="Curated collections"
-              subtitle="Reading paths built by our editors"
+              title={s.home.curatedCollections}
+              subtitle={s.home.curatedSubtitle}
               gap={12}
             >
               {collections.map(collection => (

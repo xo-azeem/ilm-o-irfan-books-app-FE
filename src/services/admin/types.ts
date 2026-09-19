@@ -1,3 +1,5 @@
+import { strings } from '@/i18n/strings';
+
 export type AdminDashboardStats = {
   user_count: number;
   admin_count: number;
@@ -155,26 +157,24 @@ export type AdminCollection = {
  * `trending` in particular has no membership to edit — its books are drawn
  * weekly by the server — so the editor hides the book list for it.
  */
-export const SYSTEM_SHELF_NOTE: Record<
-  string,
-  { label: string; note: string; curated: boolean }
+const SYSTEM_SHELF_CURATED: Record<
+  'home-hero' | 'trending' | 'new-arrivals',
+  boolean
 > = {
-  'home-hero': {
-    label: 'Home hero',
-    note: 'The featured rail at the top of Home. When empty, the newest published books stand in.',
-    curated: true,
-  },
-  trending: {
-    label: 'Trending this week',
-    note: 'Ten books drawn by the server once a week, the same for every reader, with a new draw every Monday. There is nothing to pick here.',
-    curated: false,
-  },
-  'new-arrivals': {
-    label: 'New arrivals',
-    note: 'Home shows the first ten, in this order; “See all” opens the whole list. Leave it empty and the newest published books stand in.',
-    curated: true,
-  },
+  'home-hero': true,
+  trending: false,
+  'new-arrivals': true,
 };
+
+export type SystemShelfNote = { label: string; note: string; curated: boolean };
+
+/** The words come from the dictionary, so the editor reads in the admin's language. */
+export function systemShelfNote(slug: string): SystemShelfNote | undefined {
+  if (!(slug in SYSTEM_SHELF_CURATED)) return undefined;
+  const key = slug as keyof typeof SYSTEM_SHELF_CURATED;
+  const words = strings().adminLibrary.shelfNotes[key];
+  return { ...words, curated: SYSTEM_SHELF_CURATED[key] };
+}
 
 export type EntitlementStatus =
   'active' | 'expired' | 'cancelled' | 'grace' | 'billing_issue' | 'trial';

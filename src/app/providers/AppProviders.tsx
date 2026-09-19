@@ -10,6 +10,7 @@ import {
 import { AccessProvider } from '@/app/providers/AccessProvider';
 import { AuthLinkProvider } from '@/app/providers/AuthLinkProvider';
 import { AuthSessionProvider } from '@/app/providers/AuthSessionProvider';
+import { LocaleSyncProvider } from '@/app/providers/LocaleSyncProvider';
 import { PushProvider } from '@/app/providers/PushProvider';
 import { ReadingSyncProvider } from '@/app/providers/ReadingSyncProvider';
 import { ThemeProvider } from '@/app/providers/ThemeProvider';
@@ -49,15 +50,17 @@ export function AppProviders({ children }: PropsWithChildren) {
         <ThemeStateProvider>
           <AuthSessionProvider>
             <AuthLinkProvider>
-              <AccessProvider>
-                <ReadingSyncProvider>
-                  <VaultSyncProvider>
-                    <PushProvider>
-                      <AppShell>{children}</AppShell>
-                    </PushProvider>
-                  </VaultSyncProvider>
-                </ReadingSyncProvider>
-              </AccessProvider>
+              <LocaleSyncProvider>
+                <AccessProvider>
+                  <ReadingSyncProvider>
+                    <VaultSyncProvider>
+                      <PushProvider>
+                        <AppShell>{children}</AppShell>
+                      </PushProvider>
+                    </VaultSyncProvider>
+                  </ReadingSyncProvider>
+                </AccessProvider>
+              </LocaleSyncProvider>
             </AuthLinkProvider>
           </AuthSessionProvider>
         </ThemeStateProvider>

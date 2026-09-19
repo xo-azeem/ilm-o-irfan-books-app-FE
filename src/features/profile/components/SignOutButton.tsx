@@ -7,6 +7,7 @@ import { Button, Sheet, Text, useSheet } from '@/components/ui';
 import { ROUTES } from '@/constants/routes';
 import { useAuthStore } from '@/stores/authStore';
 import { fontSize } from '@/theme/typography';
+import { useStrings } from '@/i18n';
 
 /**
  * The one destructive action on the profile tab, with its own confirmation.
@@ -25,6 +26,7 @@ import { fontSize } from '@/theme/typography';
 export const SignOutButton = memo(function SignOutButton() {
   const navigation = useNavigation();
   const sheet = useSheet();
+  const s = useStrings();
   const [pending, setPending] = useState(false);
 
   const confirm = useCallback(async () => {
@@ -57,7 +59,7 @@ export const SignOutButton = memo(function SignOutButton() {
   return (
     <>
       <Button
-        label="Sign out"
+        label={s.profile.signOut.button}
         icon={LogOut}
         variant="danger"
         size="md"
@@ -68,18 +70,18 @@ export const SignOutButton = memo(function SignOutButton() {
       <Sheet
         visible={sheet.visible}
         onClose={close}
-        title="Sign out?"
+        title={s.profile.signOut.title}
         scrollable={false}
         footer={
           <View style={styles.actions}>
             <Button
-              label="Sign out"
+              label={s.profile.signOut.button}
               variant="dangerSolid"
               loading={pending}
               onPress={confirm}
             />
             <Button
-              label="Cancel"
+              label={s.common.cancel}
               variant="ghost"
               disabled={pending}
               onPress={close}
@@ -88,8 +90,7 @@ export const SignOutButton = memo(function SignOutButton() {
         }
       >
         <Text size={fontSize.bodySmall} leading={1.45} tone="muted">
-          Your streak, finished books and downloads stay on your account. Sign
-          back in at any time to pick up where you left off.
+          {s.profile.signOut.body}
         </Text>
       </Sheet>
     </>

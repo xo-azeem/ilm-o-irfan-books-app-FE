@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 
 import { Text } from '@/components/ui';
+import { useStrings } from '@/i18n';
 import { radius } from '@/theme/palette';
 import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
@@ -14,7 +15,7 @@ import { GoogleLogoIcon } from './GoogleLogoIcon';
  */
 export const GoogleSignInButton = memo(function GoogleSignInButton({
   onPress,
-  label = 'Continue with Google',
+  label,
   /** Guest access is preserved from the current build; it uses the same shell. */
   showLogo = true,
   disabled = false,
@@ -25,13 +26,15 @@ export const GoogleSignInButton = memo(function GoogleSignInButton({
   disabled?: boolean;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
+  const text = label ?? s.auth.continueWithGoogle;
 
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={text}
       accessibilityState={{ disabled }}
       style={({ pressed }) => [
         styles.button,
@@ -41,7 +44,7 @@ export const GoogleSignInButton = memo(function GoogleSignInButton({
     >
       {showLogo ? <GoogleLogoIcon size={18} /> : null}
       <Text size={fontSize.bodySmall} leading={1} weight="500" tone="soft">
-        {label}
+        {text}
       </Text>
     </Pressable>
   );

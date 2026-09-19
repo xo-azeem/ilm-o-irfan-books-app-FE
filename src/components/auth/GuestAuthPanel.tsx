@@ -7,6 +7,7 @@ import type { AuthReturnTo, RootStackParamList } from '@/app/navigation/types';
 import { Button, DashedShelf, Display, Text } from '@/components/ui';
 import { ROUTES } from '@/constants/routes';
 import { useSignupOpen } from '@/hooks/useAppStatus';
+import { useStrings } from '@/i18n';
 import { fontSize } from '@/theme/typography';
 
 /**
@@ -27,6 +28,7 @@ export function GuestAuthPanel({
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const signupOpen = useSignupOpen();
+  const s = useStrings();
 
   const signIn = useCallback(
     () =>
@@ -57,10 +59,10 @@ export function GuestAuthPanel({
       </Text>
 
       <View style={styles.actions}>
-        <Button label="Sign in" onPress={signIn} size="md" />
+        <Button label={s.common.signIn} onPress={signIn} size="md" />
         {signupOpen ? (
           <Button
-            label="Create an account"
+            label={s.common.createAccount}
             variant="secondary"
             onPress={createAccount}
             size="md"

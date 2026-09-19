@@ -9,6 +9,7 @@ import Purchases, {
 } from 'react-native-purchases';
 
 import { env } from '@/config/env';
+import { strings } from '@/i18n/strings';
 import { manageSubscriptionsUrl } from '@/services/billing/cancellation';
 import type { BillingStore } from '@/services/billing/options';
 
@@ -273,7 +274,7 @@ export async function purchaseMembership(
   item: BillingPackage,
 ): Promise<PurchaseOutcome> {
   if (!configureBilling()) {
-    throw new Error('Membership cannot be purchased in this build.');
+    throw new Error(strings().services.billing.cannotPurchase);
   }
 
   // Advisory, never a gate of its own: a device that cannot pay is worth
@@ -298,8 +299,8 @@ export async function purchaseMembership(
   if (!canPay) {
     throw new Error(
       Platform.OS === 'ios'
-        ? 'Purchases are not available on this Apple ID / device (check Screen Time or Ask to Buy).'
-        : 'Purchases are not available on this Google Play account / device.',
+        ? strings().services.billing.unavailableIos
+        : strings().services.billing.unavailableAndroid,
     );
   }
 
@@ -330,7 +331,7 @@ export async function purchaseMembership(
  */
 export async function restoreMembership(): Promise<{ restored: boolean }> {
   if (!configureBilling()) {
-    throw new Error('Purchases cannot be restored in this build.');
+    throw new Error(strings().services.billing.cannotRestore);
   }
 
   try {
@@ -416,5 +417,5 @@ function storeMessage(error: unknown): string {
     purchasesError?.message ||
     (error instanceof Error ? error.message : '');
 
-  return message || 'The purchase could not be completed. Please try again.';
+  return message || strings().services.billing.purchaseFailed;
 }

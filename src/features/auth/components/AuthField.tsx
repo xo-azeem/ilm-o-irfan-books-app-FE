@@ -2,6 +2,7 @@ import { memo, useCallback, useState } from 'react';
 import type { TextInputProps } from 'react-native';
 
 import { TextButton, TextField } from '@/components/ui';
+import { useStrings } from '@/i18n';
 
 export type AuthFieldProps = Omit<TextInputProps, 'style'> & {
   label: string;
@@ -20,6 +21,7 @@ export const AuthField = memo(function AuthField({
   secure = false,
   ...rest
 }: AuthFieldProps) {
+  const s = useStrings();
   const [revealed, setRevealed] = useState(false);
   const toggle = useCallback(() => setRevealed(current => !current), []);
 
@@ -33,9 +35,11 @@ export const AuthField = memo(function AuthField({
       trailing={
         secure ? (
           <TextButton
-            label={revealed ? 'Hide' : 'Show'}
+            label={revealed ? s.auth.hide : s.auth.show}
             onPress={toggle}
-            accessibilityLabel={revealed ? 'Hide password' : 'Show password'}
+            accessibilityLabel={
+              revealed ? s.auth.hidePassword : s.auth.showPassword
+            }
           />
         ) : undefined
       }

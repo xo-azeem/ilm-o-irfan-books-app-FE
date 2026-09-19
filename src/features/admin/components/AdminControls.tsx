@@ -42,6 +42,7 @@ import {
   AdminTextAction,
   type AdminTagTone,
 } from './AdminUi';
+import { useStrings } from '@/i18n';
 
 /**
  * Admin form controls.
@@ -66,12 +67,15 @@ export const AdminFilterButton = memo(function AdminFilterButton({
   onPress: () => void;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
   const active = count > 0;
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={active ? `Filters, ${count} active` : 'Filters'}
+      accessibilityLabel={
+        active ? s.admin.ui.filtersActive(count) : s.admin.ui.filters
+      }
       onPress={onPress}
       style={({ pressed }) => [
         styles.filterButton,
@@ -117,11 +121,12 @@ export const AdminActiveFilter = memo(function AdminActiveFilter({
   onClear: () => void;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Clear filter ${label}`}
+      accessibilityLabel={s.admin.ui.clearFilter(label)}
       onPress={onClear}
       style={({ pressed }) => [
         styles.activeFilter,
@@ -222,7 +227,7 @@ export type FilterGroup<T extends string | null> = {
  */
 export const AdminFilterSheet = memo(function AdminFilterSheet({
   visible,
-  title = 'Filter',
+  title: titleProp,
   groups,
   resultLabel,
   onClear,
@@ -236,12 +241,16 @@ export const AdminFilterSheet = memo(function AdminFilterSheet({
   onClear: () => void;
   onClose: () => void;
 }) {
+  const s = useStrings();
+  const title = titleProp ?? s.admin.ui.filter;
   return (
     <Sheet
       visible={visible}
       onClose={onClose}
       title={title}
-      headerAction={<AdminTextAction label="Clear all" onPress={onClear} />}
+      headerAction={
+        <AdminTextAction label={s.admin.ui.clearAll} onPress={onClear} />
+      }
       footer={<AdminButton label={resultLabel} onPress={onClose} />}
     >
       {groups.map(group => (
@@ -288,7 +297,7 @@ export const AdminPickerSheet = memo(function AdminPickerSheet({
   selected,
   multi,
   searchable = true,
-  emptyLabel = 'Nothing to choose yet.',
+  emptyLabel: emptyLabelProp,
   onSearch,
   searching = false,
   footnote,
@@ -316,6 +325,7 @@ export const AdminPickerSheet = memo(function AdminPickerSheet({
   onChange: (next: string[]) => void;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
   const [query, setQuery] = useState('');
 
   const filtered = useMemo(() => {
@@ -360,7 +370,11 @@ export const AdminPickerSheet = memo(function AdminPickerSheet({
       onClose={onClose}
       title={title}
       headerAction={
-        <AdminTextAction label="Done" onPress={onClose} size={12.5} />
+        <AdminTextAction
+          label={s.admin.ui.done}
+          onPress={onClose}
+          size={12.5}
+        />
       }
     >
       {onSearch || (searchable && items.length > 8) ? (
@@ -370,7 +384,9 @@ export const AdminPickerSheet = memo(function AdminPickerSheet({
             defaultValue={query}
             onSearch={handleSearch}
             debounceMs={onSearch ? undefined : LOCAL_SEARCH_DEBOUNCE_MS}
-            placeholder={onSearch ? 'Search titles and authors' : 'Filter'}
+            placeholder={
+              onSearch ? s.admin.ui.searchTitlesAuthors : s.admin.ui.filter
+            }
             style={styles.grow}
           />
           {searching ? (
@@ -387,7 +403,9 @@ export const AdminPickerSheet = memo(function AdminPickerSheet({
           tone="muted"
           style={styles.sheetEmpty}
         >
-          {query.trim() ? 'Nothing matches that search.' : emptyLabel}
+          {query.trim()
+            ? s.admin.ui.nothingMatches
+            : (emptyLabelProp ?? s.admin.ui.nothingToChoose)}
         </Text>
       ) : (
         <View
@@ -503,7 +521,7 @@ export const AdminTagInput = memo(function AdminTagInput({
   tags,
   onChange,
   helper,
-  placeholder = 'Add a line and press return',
+  placeholder: placeholderProp,
 }: {
   label: string;
   tags: string[];
@@ -512,6 +530,8 @@ export const AdminTagInput = memo(function AdminTagInput({
   placeholder?: string;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
+  const placeholder = placeholderProp ?? s.admin.ui.addLine;
   const [draft, setDraft] = useState('');
 
   const commit = useCallback(() => {
@@ -529,7 +549,11 @@ export const AdminTagInput = memo(function AdminTagInput({
     <View style={styles.field}>
       <View style={styles.fieldHeader}>
         <AdminLabel>{label}</AdminLabel>
-        <AdminTextAction label="Add line" onPress={commit} size={11.5} />
+        <AdminTextAction
+          label={s.admin.ui.addLineButton}
+          onPress={commit}
+          size={11.5}
+        />
       </View>
 
       <View
@@ -553,7 +577,7 @@ export const AdminTagInput = memo(function AdminTagInput({
         />
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Add"
+          accessibilityLabel={s.admin.ui.add}
           onPress={commit}
           hitSlop={10}
           disabled={!draft.trim()}
@@ -613,6 +637,7 @@ export const AdminColorField = memo(function AdminColorField({
   helper?: string;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
   const valid = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value.trim());
 
   return (
@@ -627,7 +652,7 @@ export const AdminColorField = memo(function AdminColorField({
               key={swatch}
               accessibilityRole="button"
               accessibilityState={{ selected: picked }}
-              accessibilityLabel={`Colour ${swatch}`}
+              accessibilityLabel={s.admin.ui.colour(swatch)}
               onPress={() => onChange(swatch)}
               // The board rings the chosen swatch with the page colour and then
               // the accent, so the ring reads at any swatch brightness.
@@ -677,7 +702,7 @@ export const AdminColorField = memo(function AdminColorField({
           <Pressable
             key={swatch}
             accessibilityRole="button"
-            accessibilityLabel={`Colour ${swatch}`}
+            accessibilityLabel={s.admin.ui.colour(swatch)}
             onPress={() => onChange(swatch)}
             style={({ pressed }) => [
               styles.smallSwatch,
@@ -720,8 +745,8 @@ export const AdminConfirmSheet = memo(function AdminConfirmSheet({
   title,
   message,
   consequences,
-  confirmLabel = 'Confirm',
-  cancelLabel = 'Keep it',
+  confirmLabel: confirmLabelProp,
+  cancelLabel: cancelLabelProp,
   confirmPhrase,
   footnote,
   destructive,
@@ -746,6 +771,9 @@ export const AdminConfirmSheet = memo(function AdminConfirmSheet({
   onCancel: () => void;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
+  const confirmLabel = confirmLabelProp ?? s.admin.ui.confirm;
+  const cancelLabel = cancelLabelProp ?? s.admin.ui.keepIt;
   const [typed, setTyped] = useState('');
 
   // A reopened sheet must never arrive pre-armed from the last time.
@@ -801,7 +829,9 @@ export const AdminConfirmSheet = memo(function AdminConfirmSheet({
 
       {confirmPhrase ? (
         <View style={styles.field}>
-          <AdminEyebrow tone="muted">Type the name to confirm</AdminEyebrow>
+          <AdminEyebrow tone="muted">
+            {s.admin.ui.typeNameToConfirm}
+          </AdminEyebrow>
           <View
             style={[
               styles.confirmInput,

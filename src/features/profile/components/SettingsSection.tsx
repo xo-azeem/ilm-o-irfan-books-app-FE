@@ -6,13 +6,14 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SectionHeader, SettingsGroup, SettingsRow } from '@/components/ui';
 import { SignOutButton } from '@/features/profile/components/SignOutButton';
 import { profileGroups } from '@/features/profile/data/profileContent';
+import { LOCALE_META, useLocale, useStrings } from '@/i18n';
 import type {
   ProfileStackParamList,
   ProfileStackScreen,
 } from '@/features/profile/navigation/types';
 import { useLibrary, useSubscription } from '@/hooks/useAccount';
 import { useAuthStore } from '@/stores/authStore';
-import { THEME_PREFERENCE_LABELS, useThemeStore } from '@/stores/themeStore';
+import { useThemeStore } from '@/stores/themeStore';
 
 type ProfileNavigation = NativeStackNavigationProp<
   ProfileStackParamList,
@@ -42,6 +43,8 @@ export const SettingsSection = memo(function SettingsSection() {
   const { data: library } = useLibrary();
   const { data: subscription } = useSubscription();
   const themePreference = useThemeStore(state => state.themePreference);
+  const s = useStrings();
+  const locale = useLocale();
 
   const navigate = useCallback(
     (screen: ProfileStackScreen) => navigation.navigate(screen),
@@ -49,8 +52,8 @@ export const SettingsSection = memo(function SettingsSection() {
   );
 
   const planName = subscription?.active
-    ? (subscription.plan?.name ?? 'Premium')
-    : 'Free';
+    ? (subscription.plan?.name ?? s.profile.plan.premium)
+    : s.profile.plan.free;
 
   // Live values are resolved here rather than baked into the static content, so
   // the menu can never show a stale plan or download count.
@@ -58,23 +61,26 @@ export const SettingsSection = memo(function SettingsSection() {
     () => ({
       'row-subscription': planName,
       'row-downloads': String(library?.downloadsCount ?? 0),
-      'row-appearance': THEME_PREFERENCE_LABELS[themePreference],
-      'row-language': 'English',
-      'row-notifications': 'On',
+      'row-appearance': s.profile.appearance.themes[themePreference],
+      'row-language': LOCALE_META[locale].native,
+      'row-notifications': s.profile.settings.on,
     }),
-    [library?.downloadsCount, planName, themePreference],
+    [library?.downloadsCount, locale, planName, s, themePreference],
   );
 
   return (
     <View style={styles.root}>
-      <SectionHeader title="Settings" variant="display" />
+      <SectionHeader title={s.profile.settings.title} variant="display" />
 
       {profileGroups.map(group => (
-        <SettingsGroup key={group.id} title={group.title}>
+        <SettingsGroup
+          key={group.id}
+          title={s.profile.settings.groups[group.id]}
+        >
           {group.rows.map(row => (
             <SettingsRow
               key={row.id}
-              title={row.label}
+              title={s.profile.settings.rows[row.id]}
               value={values[row.id]}
               icon={row.icon}
               iconTone={row.iconTone}

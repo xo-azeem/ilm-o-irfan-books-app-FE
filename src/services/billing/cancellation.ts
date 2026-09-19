@@ -11,6 +11,8 @@
  * right control on first paint instead of learning it from a 409.
  */
 
+import { strings } from '@/i18n/strings';
+
 /** `entitlements.store`, in the backend's vocabulary. */
 export type EntitlementStore =
   'app_store' | 'play_store' | 'stripe' | 'promotional' | 'unknown';
@@ -68,15 +70,16 @@ export function cancellationAvailability(
   return facts.cancelRequestedAt ? 'pending' : 'cancellable';
 }
 
-/** The store, as a reader would name it. */
+/** The store, as a reader would name it, in the interface language. */
 export function storeName(store: string | null | undefined): string {
+  const s = strings().account.stores;
   switch (store) {
     case 'app_store':
-      return 'the App Store';
+      return s.appStore;
     case 'play_store':
-      return 'Google Play';
+      return s.googlePlay;
     default:
-      return 'your app store';
+      return s.yourAppStore;
   }
 }
 

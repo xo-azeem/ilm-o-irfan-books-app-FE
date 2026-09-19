@@ -26,6 +26,7 @@ import { daysBetween, localDateKey } from '@/lib/timeZone';
 import { DEFAULT_MONTHLY_GOAL } from '@/services/account';
 import type { AchievementId, AchievementRow } from '@/services/api/types';
 import { useAuthStore } from '@/stores/authStore';
+import { useStrings } from '@/i18n';
 
 /**
  * How each of the backend's four achievements is drawn. The server owns the
@@ -34,12 +35,12 @@ import { useAuthStore } from '@/stores/authStore';
  */
 const ACHIEVEMENT_FACES: Record<
   AchievementId,
-  Pick<Achievement, 'mark' | 'label' | 'tone'>
+  Pick<Achievement, 'mark' | 'tone'>
 > = {
-  'first-book': { mark: '1', label: 'First book', tone: 'primary' },
-  'streak-7': { mark: '7', label: 'Week streak', tone: 'gold' },
-  'books-25': { mark: '25', label: '25 books', tone: 'primary' },
-  'night-reader': { mark: '☾', label: 'Night reader', tone: 'primary' },
+  'first-book': { mark: '1', tone: 'primary' },
+  'streak-7': { mark: '7', tone: 'gold' },
+  'books-25': { mark: '25', tone: 'primary' },
+  'night-reader': { mark: '☾', tone: 'primary' },
 };
 
 const ACHIEVEMENT_ORDER: AchievementId[] = [
@@ -69,6 +70,7 @@ export function ProfileScreen() {
   const { data: subscription } = useSubscription();
   const goalSheet = useSheet();
   const updateGoal = useUpdateReadingGoal();
+  const s = useStrings();
 
   // Every counter is the server's own total rather than the length of a capped
   // shelf, so a reader with more finished books than one page still sees the
@@ -77,14 +79,17 @@ export function ProfileScreen() {
 
   const stats = useMemo(
     () => [
-      { value: String(finishedCount), label: 'BOOKS\nFINISHED' },
+      { value: String(finishedCount), label: s.profile.stats.booksFinished },
       {
         value: String(library?.highlightsCount ?? 0),
-        label: 'PAGES\nBOOKMARKED',
+        label: s.profile.stats.pagesBookmarked,
       },
-      { value: String(library?.downloadsCount ?? 0), label: 'BOOKS\nOFFLINE' },
+      {
+        value: String(library?.downloadsCount ?? 0),
+        label: s.profile.stats.booksOffline,
+      },
     ],
-    [finishedCount, library?.downloadsCount, library?.highlightsCount],
+    [finishedCount, library?.downloadsCount, library?.highlightsCount, s],
   );
 
   // `profile-read` carries the streak, so it comes from the profile the screen
@@ -144,14 +149,14 @@ export function ProfileScreen() {
         onSuccess: goalSheet.close,
         onError: error =>
           showDialog({
-            title: 'Could not save the goal',
+            title: s.profile.goal.couldNotSave,
             message:
-              error instanceof Error ? error.message : 'Please try again.',
+              error instanceof Error ? error.message : s.common.pleaseTryAgain,
             tone: 'danger',
           }),
       });
     },
-    [goalSheet.close, updateGoal],
+    [goalSheet.close, s, updateGoal],
   );
 
   // The server's four achievements, drawn with the marks above. Until a
@@ -186,10 +191,10 @@ export function ProfileScreen() {
   // the role, not a plan — "FREE" beside an account that reads everything
   // would be the one wrong word on the screen.
   const planName = isAdmin
-    ? 'Admin'
+    ? s.profile.plan.admin
     : subscription?.active
-      ? (subscription.plan?.name ?? 'Premium')
-      : 'Free';
+      ? (subscription.plan?.name ?? s.profile.plan.premium)
+      : s.profile.plan.free;
 
   if (!isAuthenticated) {
     return (
@@ -202,12 +207,12 @@ export function ProfileScreen() {
             shape="squircle"
           />
           <View style={styles.identityBody}>
-            <Display size={24}>Your reading record</Display>
+            <Display size={24}>{s.profile.yourReadingRecord}</Display>
           </View>
         </View>
         <GuestAuthPanel
-          title="Your record starts here."
-          message="Sign in to keep your streak, your finished books and your reading time across devices."
+          title={s.profile.recordStartsHere}
+          message={s.profile.recordSignIn}
         />
         <SettingsSection />
       </Screen>
@@ -225,11 +230,15 @@ export function ProfileScreen() {
         />
         <View style={styles.identityBody}>
           <Display size={24} numberOfLines={1}>
-            {profile?.fullName || 'Reader'}
+            {profile?.fullName || s.profile.reader}
           </Display>
           <RecordHeader
             email={profile?.email}
-            memberSince={profile?.memberSince}
+            memberSince={
+              profile?.memberSince
+                ? s.profile.memberSince(profile.memberSince)
+                : undefined
+            }
           />
         </View>
         {/* Centred against the whole name / email / date block, not just the
@@ -261,8 +270,8 @@ export function ProfileScreen() {
         target={goalTarget}
         note={
           goalRemaining === 0
-            ? 'Goal reached. Anything else this month is a bonus.'
-            : `${goalRemaining} more to reach this month’s goal.`
+            ? s.profile.goal.reached
+            : s.profile.goal.remaining(goalRemaining)
         }
         onEdit={goalSheet.open}
       />

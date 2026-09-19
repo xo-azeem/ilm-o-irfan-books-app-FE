@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "test": "npx --yes tsx --test src/services/mappers.test.ts src/services/api/errors.test.ts src/lib/supabase/otpErrors.test.ts src/services/accessClock.test.ts src/services/accessState.test.ts src/services/billing/options.test.ts src/services/billing/cancellation.test.ts src/features/reader/paperFold.test.ts src/services/script.test.ts src/services/readingPositionMerge.test.ts src/features/profile/dateOfBirth.test.ts src/services/admin/search.test.ts src/services/vaultReconcile.test.ts src/config/appVersion.test.ts src/services/appStatus.test.ts",
     "eas-build-pre-install": "node scripts/eas-write-env.js",
-    "google:ios-scheme": "node scripts/google-ios-scheme.js"
+    "google:ios-scheme": "node scripts/google-ios-scheme.js",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^3.1.1",
@@ -70,6 +71,7 @@
     "babel-plugin-module-resolver": "^5.0.3",
     "babel-preset-expo": "~57.0.0",
     "eslint": "^9.39.5",
+    "patch-package": "^8.0.1",
     "prettier": "^3.9.6",
     "typescript": "^5.8.3"
   },

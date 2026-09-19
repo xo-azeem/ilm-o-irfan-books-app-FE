@@ -1,0 +1,130 @@
+diff --git a/node_modules/react-native-pdf/android/.gradle/8.5/checksums/checksums.lock b/node_modules/react-native-pdf/android/.gradle/8.5/checksums/checksums.lock
+new file mode 100644
+index 0000000..58e367c
+Binary files /dev/null and b/node_modules/react-native-pdf/android/.gradle/8.5/checksums/checksums.lock differ
+diff --git a/node_modules/react-native-pdf/android/.gradle/8.5/dependencies-accessors/dependencies-accessors.lock b/node_modules/react-native-pdf/android/.gradle/8.5/dependencies-accessors/dependencies-accessors.lock
+new file mode 100644
+index 0000000..800c768
+Binary files /dev/null and b/node_modules/react-native-pdf/android/.gradle/8.5/dependencies-accessors/dependencies-accessors.lock differ
+diff --git a/node_modules/react-native-pdf/android/.gradle/8.5/dependencies-accessors/gc.properties b/node_modules/react-native-pdf/android/.gradle/8.5/dependencies-accessors/gc.properties
+new file mode 100644
+index 0000000..e69de29
+diff --git a/node_modules/react-native-pdf/android/.gradle/8.5/fileChanges/last-build.bin b/node_modules/react-native-pdf/android/.gradle/8.5/fileChanges/last-build.bin
+new file mode 100644
+index 0000000..f76dd23
+Binary files /dev/null and b/node_modules/react-native-pdf/android/.gradle/8.5/fileChanges/last-build.bin differ
+diff --git a/node_modules/react-native-pdf/android/.gradle/8.5/fileHashes/fileHashes.lock b/node_modules/react-native-pdf/android/.gradle/8.5/fileHashes/fileHashes.lock
+new file mode 100644
+index 0000000..64dcd5d
+Binary files /dev/null and b/node_modules/react-native-pdf/android/.gradle/8.5/fileHashes/fileHashes.lock differ
+diff --git a/node_modules/react-native-pdf/android/.gradle/8.5/gc.properties b/node_modules/react-native-pdf/android/.gradle/8.5/gc.properties
+new file mode 100644
+index 0000000..e69de29
+diff --git a/node_modules/react-native-pdf/android/src/main/java/org/wonday/pdf/PdfView.java b/node_modules/react-native-pdf/android/src/main/java/org/wonday/pdf/PdfView.java
+index c3d3245..3b587d4 100644
+--- a/node_modules/react-native-pdf/android/src/main/java/org/wonday/pdf/PdfView.java
++++ b/node_modules/react-native-pdf/android/src/main/java/org/wonday/pdf/PdfView.java
+@@ -40,6 +40,7 @@ import com.github.barteksc.pdfviewer.listener.OnErrorListener;
+ import com.github.barteksc.pdfviewer.listener.OnTapListener;
+ import com.github.barteksc.pdfviewer.listener.OnDrawListener;
+ import com.github.barteksc.pdfviewer.listener.OnPageScrollListener;
++import com.github.barteksc.pdfviewer.listener.OnRenderListener;
+ import com.github.barteksc.pdfviewer.util.FitPolicy;
+ import com.github.barteksc.pdfviewer.util.Constants;
+ import com.github.barteksc.pdfviewer.link.LinkHandler;
+@@ -64,7 +65,7 @@ import com.google.gson.Gson;
+ 
+ import org.wonday.pdf.events.TopChangeEvent;
+ 
+-public class PdfView extends PDFView implements OnPageChangeListener,OnLoadCompleteListener,OnErrorListener,OnTapListener,OnDrawListener,OnPageScrollListener, LinkHandler {
++public class PdfView extends PDFView implements OnPageChangeListener,OnLoadCompleteListener,OnErrorListener,OnTapListener,OnDrawListener,OnPageScrollListener,OnRenderListener, LinkHandler {
+     private int page = 1;               // start from 1
+     private boolean horizontal = false;
+     private float scale = 1;
+@@ -157,6 +158,24 @@ public class PdfView extends PDFView implements OnPageChangeListener,OnLoadCompl
+         }
+     }
+ 
++    // The first page bitmap has been drawn: what "the book is open" means to
++    // a reader, as opposed to loadComplete, which is the file being parsed.
++    @Override
++    public void onInitiallyRendered(int numberOfPages) {
++        WritableMap event = Arguments.createMap();
++        event.putString("message", "rendered|"+numberOfPages);
++
++        ThemedReactContext context = (ThemedReactContext) getContext();
++        EventDispatcher dispatcher = UIManagerHelper.getEventDispatcherForReactTag(context, getId());
++        int surfaceId = UIManagerHelper.getSurfaceId(this);
++
++        TopChangeEvent tce = new TopChangeEvent(surfaceId, getId(), event);
++
++        if (dispatcher != null) {
++            dispatcher.dispatchEvent(tce);
++        }
++    }
++
+     @Override
+     public void loadComplete(int numberOfPages) {
+         SizeF pageSize = getPageSize(0);
+@@ -373,6 +392,7 @@ public class PdfView extends PDFView implements OnPageChangeListener,OnLoadCompl
+                 .onLoad(this)
+                 .onError(this)
+                 .onDraw(this)
++                .onRender(this)
+                 .onPageScroll(this)
+                 .spacing(this.spacing)
+                 .password(this.password)
+diff --git a/node_modules/react-native-pdf/index.d.ts b/node_modules/react-native-pdf/index.d.ts
+index d8192b2..69a44fc 100644
+--- a/node_modules/react-native-pdf/index.d.ts
++++ b/node_modules/react-native-pdf/index.d.ts
+@@ -80,6 +80,8 @@ export interface PdfProps {
+     onPageChanged?: (page: number, numberOfPages: number) => void,
+     onError?: (error: PdfError) => void,
+     onPageSingleTap?: (page: number, x: number, y: number) => void,
++    /** The first page bitmap is on screen (after onLoadComplete). */
++    onRender?: (numberOfPages: number) => void,
+     onScaleChanged?: (scale: number) => void,
+     onPressLink?: (url: string) => void,
+     onTextSelectionChange?: (event: TextSelectionChangeEvent) => void,
+diff --git a/node_modules/react-native-pdf/index.js b/node_modules/react-native-pdf/index.js
+index 916faa5..bd94705 100644
+--- a/node_modules/react-native-pdf/index.js
++++ b/node_modules/react-native-pdf/index.js
+@@ -69,6 +69,7 @@ export default class Pdf extends Component {
+         onPageChanged: PropTypes.func,
+         onError: PropTypes.func,
+         onPageSingleTap: PropTypes.func,
++        onRender: PropTypes.func,
+         onScaleChanged: PropTypes.func,
+         onPressLink: PropTypes.func,
+         enableTextSelection: PropTypes.bool,
+@@ -432,6 +433,8 @@ export default class Pdf extends Component {
+                 this.props.onPageChanged && this.props.onPageChanged(Number(message[1]), Number(message[2]));
+             } else if (message[0] === 'error') {
+                 this._onError(new Error(message[1]));
++            } else if (message[0] === 'rendered') {
++                this.props.onRender && this.props.onRender(Number(message[1]));
+             } else if (message[0] === 'pageSingleTap') {
+                 this.props.onPageSingleTap && this.props.onPageSingleTap(Number(message[1]), Number(message[2]), Number(message[3]));
+             } else if (message[0] === 'scaleChanged') {
+diff --git a/node_modules/react-native-pdf/ios/RNPDFPdf/RNPDFPdfView.mm b/node_modules/react-native-pdf/ios/RNPDFPdf/RNPDFPdfView.mm
+index 1bc263b..da1dff9 100644
+--- a/node_modules/react-native-pdf/ios/RNPDFPdf/RNPDFPdfView.mm
++++ b/node_modules/react-native-pdf/ios/RNPDFPdf/RNPDFPdfView.mm
+@@ -629,6 +629,15 @@ using namespace facebook::react;
+ 
+         [self notifyOnChangeWithMessage:
+          [[NSString alloc] initWithString:[NSString stringWithFormat:@"loadComplete|%lu|%f|%f|%@", numberOfPages, pageSize.width, pageSize.height,jsonString]]];
++
++        // The first page is on screen once the run loop has drawn it.
++        __weak typeof(self) weakSelf = self;
++        dispatch_async(dispatch_get_main_queue(), ^{
++            typeof(self) strongSelf = weakSelf;
++            if (strongSelf) {
++                [strongSelf notifyOnChangeWithMessage:[NSString stringWithFormat:@"rendered|%lu", numberOfPages]];
++            }
++        });
+     }
+ 
+ }

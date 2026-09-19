@@ -502,8 +502,6 @@ function BookReader() {
   const handleLoadComplete = useCallback((numberOfPages: number) => {
     documentReady.current = true;
     setTotalPages(numberOfPages);
-    setLoadProgress(100);
-    setIsLoading(false);
     setHasError(false);
     // A newer position that arrived while the book was parsing: turn to it
     // now, in place, rather than having reopened the book to start there.
@@ -591,6 +589,16 @@ function BookReader() {
     },
     [s],
   );
+
+  /**
+   * The first page is on screen. Only now is the book open to the reader, so
+   * only now does the ring close and the loader lift — the parse finishing
+   * (`handleLoadComplete`) is not something they can see.
+   */
+  const handleRendered = useCallback(() => {
+    setLoadProgress(100);
+    setIsLoading(false);
+  }, []);
 
   const hideLoader = useCallback(() => {
     setLoaderVisible(false);
@@ -862,7 +870,10 @@ function BookReader() {
               initialPage={startPage}
               scale={controlScale}
               rtl={rtl}
+              shapeKey={bookId}
+              knownTotalPages={book?.pageCount ?? null}
               onLoadComplete={handleLoadComplete}
+              onRender={handleRendered}
               onLoadProgress={handleLoadProgress}
               onError={handleError}
               onPageChanged={handlePageChanged}

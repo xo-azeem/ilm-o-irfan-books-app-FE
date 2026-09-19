@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { LayoutChangeEvent } from 'react-native';
 import { Gesture } from 'react-native-gesture-handler';
 import {
@@ -78,11 +78,14 @@ export type PageTurn = ReturnType<typeof usePageTurn>;
  */
 export function usePageTurn({
   enabled,
+  rtl = false,
   onJump,
   onTap,
 }: {
   /** Off in scrolling mode, and while the reader's zoom is up. */
   enabled: boolean;
+  /** The book is bound on the right: forward is a drag to the right. */
+  rtl?: boolean;
   /** Changes page for a jump. Called under the cover of the dip. */
   onJump: (dir: TurnDirection) => void;
   /** A tap anywhere on the stage, margins included. */
@@ -90,6 +93,11 @@ export function usePageTurn({
 }) {
   /** How deep into a turn the pages are, 0 at rest and 1 at the middle. */
   const lift = useSharedValue(0);
+  /** Which way is forward on the screen: 1 leftwards, -1 rightwards. */
+  const mirror = useSharedValue(rtl ? -1 : 1);
+  useEffect(() => {
+    mirror.value = rtl ? -1 : 1;
+  }, [mirror, rtl]);
   /** The cover a page jump changes page behind. */
   const dip = useSharedValue(0);
 
@@ -258,7 +266,8 @@ export function usePageTurn({
           lastAt.value = now;
 
           const span = frame.value > 0 ? frame.value : 1;
-          const dir: TurnDirection = dx < 0 ? 1 : -1;
+          const dir: TurnDirection =
+            (dx < 0 ? 1 : -1) * mirror.value === 1 ? 1 : -1;
           open.value = canTurn(dir) ? 1 : 0;
 
           // One page of travel is one full turn, so the pages are at their
@@ -287,6 +296,7 @@ export function usePageTurn({
       lastAt,
       lastX,
       lift,
+      mirror,
       moved,
       open,
       originX,

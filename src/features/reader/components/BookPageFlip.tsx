@@ -30,6 +30,7 @@ import {
   READER_FOOT,
 } from '@/features/reader/constants';
 import { PaperFold } from '@/features/reader/components/PaperFold';
+import { readPageShape, rememberPageShape } from '@/features/reader/pageShape';
 import { strings } from '@/i18n/strings';
 import { useThemeStore } from '@/stores/themeStore';
 import { useReaderSurface } from '@/features/reader/useReaderSurface';
@@ -60,7 +61,27 @@ type BookPageFlipProps = {
    * pager and the scroll is a column, and neither has a side to be bound on.
    */
   rtl?: boolean;
+  /**
+   * What the page's remembered shape is filed under — the book id. With it the
+   * stage is drawn to the page's shape from the first frame on every open
+   * after the first; see `pageShape.ts`.
+   */
+  shapeKey?: string;
+  /**
+   * How many pages the book has, if the catalogue already knows. Only Android
+   * with a right-bound book in swipe mode needs it before the load: there the
+   * document view counts pages from the other end, and the page it is asked
+   * to open on has to be counted the same way — see `reversedIndices`.
+   */
+  knownTotalPages?: number | null;
   onLoadComplete: (totalPages: number) => void;
+  /**
+   * The first page is on screen. `onLoadComplete` is the file parsed, and on
+   * a heavy page the picture follows it by as much as a second; this is what
+   * the loader should wait for. Always follows `onLoadComplete`, on a timer
+   * if the document view never says so itself.
+   */
+  onRender?: () => void;
   onLoadProgress?: (percent: number) => void;
   onError: (message?: string) => void;
   onPageChanged: (page: number, totalPages: number) => void;
@@ -112,6 +133,18 @@ function pageBox(frame: Box, aspect: number): Box | null {
     ? { width: frame.height * aspect, height: frame.height }
     : { width, height };
 }
+
+/**
+ * What the document view is asked to open on under Android's reversed page
+ * order. Its own rule there is odd: a request for page 1 lands on the *last*
+ * page, and any other number lands on the first. So it is always asked for
+ * "not 1", which is the first page, and the page the reader actually wants
+ * is jumped to once the file is loaded — see `handleLoadComplete`.
+ */
+const RTL_OPEN_PAGE = 2;
+
+/** How long after a load the first page is given to appear before it is assumed to have. */
+const RENDER_DEADLINE_MS = 1500;
 
 /** Identity of a document, so a new one remounts rather than mutating in place. */
 function sourceKey(source: BookPdfSource) {
@@ -294,7 +327,10 @@ export const BookPageFlip = memo(
       initialPage = 1,
       scale,
       rtl = false,
+      shapeKey,
+      knownTotalPages = null,
       onLoadComplete,
+      onRender,
       onLoadProgress,
       onError,
       onPageChanged,
@@ -370,6 +406,7 @@ export const BookPageFlip = memo(
     // keep their identity, which is what stops it reloading the file.
     const handlers = useRef({
       onLoadComplete,
+      onRender,
       onLoadProgress,
       onError,
       onPageChanged,
@@ -378,6 +415,7 @@ export const BookPageFlip = memo(
     });
     handlers.current = {
       onLoadComplete,
+      onRender,
       onLoadProgress,
       onError,
       onPageChanged,
@@ -390,6 +428,27 @@ export const BookPageFlip = memo(
     const zoomRef = useRef(zoom);
     zoomRef.current = zoom;
     const paged = readingMode !== 'scroll';
+    /**
+     * The swipe mode of a right-bound book: the document view's own pager
+     * runs the other way. iOS lays the pages out right-to-left and keeps
+     * their numbers. Android reverses their *order* instead, so every page
+     * number that crosses to the view or back is counted from the other end
+     * — `toDoc` / `fromDoc` below — and the view can only be opened on its
+     * first page (`RTL_OPEN_PAGE`); any other page is jumped to on load,
+     * under the loader.
+     */
+    const pagerRtl = rtl && paged && readingMode === 'swipe';
+    const reversedIndices = pagerRtl && Platform.OS === 'android';
+    const reversedRef = useRef(reversedIndices);
+    reversedRef.current = reversedIndices;
+    /**
+     * The page count as far as it is known: the catalogue's before the first
+     * load, the document view's after. Rendered, because the page the view is
+     * asked to open on is computed from it under `reversedIndices`.
+     */
+    const [knownTotal, setKnownTotal] = useState(() =>
+      knownTotalPages && knownTotalPages > 0 ? Math.floor(knownTotalPages) : 0,
+    );
     /** The paper flip: a page at a time, but folded rather than slid. */
     const folding = paged && readingMode === 'flip';
 
@@ -402,7 +461,7 @@ export const BookPageFlip = memo(
     // The stage, and the shape of the page the book reported. Together they
     // decide how large the page is drawn.
     const [frame, setFrame] = useState<Box>({ width: 0, height: 0 });
-    const [aspect, setAspect] = useState(0);
+    const [aspect, setAspect] = useState(() => readPageShape(shapeKey));
 
     /** What a picture of the page is taken of: the document view and its tone. */
     const shotRef = useRef<View>(null);
@@ -493,15 +552,59 @@ export const BookPageFlip = memo(
     const pinchedRef = useRef(false);
     /** A finger is on the stage. */
     const touchingRef = useRef(false);
+    /**
+     * The first picture of a load. The document view says so once per load;
+     * a deadline says so for it if it does not, so the loader never waits on
+     * a signal that is not coming.
+     */
+    const renderDeadlineRef = useRef<ReturnType<typeof setTimeout> | null>(
+      null,
+    );
+    const announceRender = useCallback(() => {
+      if (renderDeadlineRef.current == null) return;
+      clearTimeout(renderDeadlineRef.current);
+      renderDeadlineRef.current = null;
+      handlers.current.onRender?.();
+    }, []);
+    const expectRender = useCallback(() => {
+      if (renderDeadlineRef.current != null) {
+        clearTimeout(renderDeadlineRef.current);
+      }
+      renderDeadlineRef.current = setTimeout(
+        announceRender,
+        RENDER_DEADLINE_MS,
+      );
+    }, [announceRender]);
+    useEffect(
+      () => () => {
+        if (renderDeadlineRef.current != null) {
+          clearTimeout(renderDeadlineRef.current);
+        }
+      },
+      [],
+    );
+
+    /** A page number as the document view counts it — see `reversedIndices`. */
+    const toDoc = useCallback((page: number) => {
+      const total = totalPagesRef.current;
+      return reversedRef.current && total > 0 ? total + 1 - page : page;
+    }, []);
+
+    /** The page the document view is on, or was told to land on, deferred. */
+    const pendingLandRef = useRef<{
+      page: number;
+      announce: () => void;
+    } | null>(null);
+
     const seatPage = useCallback(() => {
       if (!readyRef.current || !pagedRef.current || turnRef.current) return;
       if (nativeZoomRef.current > MIN_SCALE) return;
       try {
-        pdfRef.current?.setPage(pageRef.current);
+        pdfRef.current?.setPage(toDoc(pageRef.current));
       } catch {
         // As in `applyPage`: only once the view is gone.
       }
-    }, []);
+    }, [toDoc]);
 
     const handleStageTouchStart = useCallback(() => {
       touchingRef.current = true;
@@ -590,25 +693,28 @@ export const BookPageFlip = memo(
     }, [anchorZoom, canShoot, capture]);
 
     /** Moves the document view. Nothing here animates; the stage does that. */
-    const applyPage = useCallback((target: number) => {
-      const page = Math.round(Number(target));
-      if (!Number.isFinite(page)) return;
+    const applyPage = useCallback(
+      (target: number) => {
+        const page = Math.round(Number(target));
+        if (!Number.isFinite(page)) return;
 
-      const total = totalPagesRef.current;
-      const next = Math.min(Math.max(page, 1), total > 0 ? total : page);
-      if (!readyRef.current || next === docPageRef.current) return;
+        const total = totalPagesRef.current;
+        const next = Math.min(Math.max(page, 1), total > 0 ? total : page);
+        if (!readyRef.current || next === docPageRef.current) return;
 
-      docPageRef.current = next;
-      // The page is only ever moved unzoomed, so what the view says about the
-      // page it lands on is that page's size and not a zoom.
-      nativeRef.current.moved = true;
-      try {
-        pdfRef.current?.setPage(next);
-      } catch {
-        // A page command can only fail once the view is gone; the next
-        // `onPageChanged` resyncs us either way.
-      }
-    }, []);
+        docPageRef.current = next;
+        // The page is only ever moved unzoomed, so what the view says about the
+        // page it lands on is that page's size and not a zoom.
+        nativeRef.current.moved = true;
+        try {
+          pdfRef.current?.setPage(toDoc(next));
+        } catch {
+          // A page command can only fail once the view is gone; the next
+          // `onPageChanged` resyncs us either way.
+        }
+      },
+      [toDoc],
+    );
 
     /** Called under the swipe mode's dip, with the stage bare. */
     const jumpPage = useCallback(
@@ -627,6 +733,7 @@ export const BookPageFlip = memo(
     // mid-book. Whichever is off holds its page flat and answers nothing.
     const pageTurn = usePageTurn({
       enabled: paged && !folding && !zoomed,
+      rtl: pagerRtl,
       onJump: jumpPage,
       onTap: handleSingleTap,
     });
@@ -1059,6 +1166,7 @@ export const BookPageFlip = memo(
           ? Math.max(0, Math.floor(numberOfPages))
           : 0;
         totalPagesRef.current = total;
+        if (total > 0) setKnownTotal(total);
         readyRef.current = true;
         // A saved page from a longer edition of the file lands on the last
         // page, which is where the document view will put it too.
@@ -1077,6 +1185,7 @@ export const BookPageFlip = memo(
         const width = Number(size?.width);
         const height = Number(size?.height);
         if (width > 0 && height > 0) {
+          rememberPageShape(shapeKey, width / height);
           setAspect(current =>
             Math.abs(current - width / height) < 0.001
               ? current
@@ -1084,10 +1193,46 @@ export const BookPageFlip = memo(
           );
         }
 
-        handlers.current.onLoadComplete(total);
-        handlers.current.onPageChanged(pageRef.current, total);
+        const announce = () => {
+          handlers.current.onLoadComplete(total);
+          handlers.current.onPageChanged(pageRef.current, total);
+          expectRender();
+        };
+
+        // Android, right-bound, with the page count unknown until now: the
+        // view could not be asked for the page by the number it counts (see
+        // `RTL_OPEN_PAGE`), so it is moved there now, and the load is
+        // announced — the loader lifted — only once the view reports it
+        // there. A book whose count was known was opened on the page outright.
+        if (
+          reversedRef.current &&
+          total > 0 &&
+          pageRef.current > 1 &&
+          mountTotalRef.current <= 0
+        ) {
+          const target = pageRef.current;
+          docPageRef.current = 1;
+          pendingLandRef.current = { page: target, announce };
+          try {
+            pdfRef.current?.setPage(toDoc(target));
+          } catch {
+            pendingLandRef.current = null;
+            announce();
+            return;
+          }
+          // The view is not left to decide whether it answers.
+          setTimeout(() => {
+            if (pendingLandRef.current?.page === target) {
+              pendingLandRef.current = null;
+              announce();
+            }
+          }, 600);
+          return;
+        }
+
+        announce();
       },
-      [pushZoom, setBounds, setNativeZoom],
+      [expectRender, pushZoom, setBounds, setNativeZoom, shapeKey, toDoc],
     );
 
     const handlePageChanged = useCallback(
@@ -1096,9 +1241,23 @@ export const BookPageFlip = memo(
         const total = Number.isFinite(numberOfPages)
           ? Math.max(0, Math.floor(numberOfPages))
           : totalPagesRef.current;
-        const landed = Math.floor(page);
+        const reported = Math.floor(page);
+        const landed =
+          reversedRef.current && total > 0 ? total + 1 - reported : reported;
         docPageRef.current = landed;
         totalPagesRef.current = total;
+
+        // A load on Android, right-bound, waiting to be moved to its page:
+        // the page it opened on is not news, and the landing is announced.
+        if (pendingLandRef.current) {
+          if (pendingLandRef.current.page !== landed) return;
+          const { announce } = pendingLandRef.current;
+          pendingLandRef.current = null;
+          pageRef.current = landed;
+          setBounds(landed, total);
+          announce();
+          return;
+        }
 
         // Mid-fold this is the document view answering a move the reader has
         // not been shown, so it is not news. The leaf comes down on it — a
@@ -1181,12 +1340,72 @@ export const BookPageFlip = memo(
     // new object per render is how a transform gets rebuilt mid-fold.
     const boxWidth = box?.width ?? 0;
     const boxHeight = box?.height ?? 0;
+
+    /**
+     * The document view fits its page to the view it is *loaded* into, and a
+     * resize afterwards is not reliably honoured — the page stays fitted to
+     * the old width, drawn small and pinned to the left. On a first open the
+     * page's shape is only learnt from that load, so the view has to be the
+     * right width before the shape is known. It can be: for any page taller
+     * than it is wide `pageBox` draws the same width — the frame's, and the
+     * fill past it — and only the height follows the shape. So until the
+     * shape arrives the page is drawn at that width and the frame's full
+     * height, the load fits to the width it will keep, and the box then
+     * closes in on the page's own height with nothing to refit.
+     *
+     * A page wider than it is tall is the one shape that changes the width.
+     * For that the view is mounted again, once, at the width it should have
+     * been, on the page the reader is looking at.
+     */
+    const probeWidth =
+      paged && frame.width > 0 ? frame.width * PAGE_FILL_LIMIT : 0;
+    const mountWidth = boxWidth > 0 ? boxWidth : probeWidth;
     const pageSize = useMemo(
       () =>
-        boxWidth > 0 ? { width: boxWidth, height: boxHeight } : styles.fill,
-      [boxHeight, boxWidth],
+        boxWidth > 0
+          ? { width: boxWidth, height: boxHeight }
+          : probeWidth > 0
+            ? { width: probeWidth, height: frame.height }
+            : styles.fill,
+      [boxHeight, boxWidth, frame.height, probeWidth],
     );
+
+    const [mount, setMount] = useState(() => ({
+      width: mountWidth,
+      page: startPage,
+    }));
+    /**
+     * What the document view is asked to open on. Under Android's reversed
+     * order that is the page counted from the other end — possible only with
+     * the page count in hand; without it the view opens on its first page
+     * and is moved after the load (`handleLoadComplete`).
+     */
+    const mountTotalRef = useRef(0);
+    const openPage = useMemo(() => {
+      if (!reversedIndices) return mount.page;
+      if (knownTotal > 0) return Math.max(1, knownTotal + 1 - mount.page);
+      return RTL_OPEN_PAGE;
+    }, [knownTotal, mount.page, reversedIndices]);
+    mountTotalRef.current = reversedIndices ? knownTotal : 0;
+    useEffect(() => {
+      setMount(current =>
+        Math.abs(current.width - mountWidth) < 1
+          ? current
+          : { width: mountWidth, page: pageRef.current || startPage },
+      );
+    }, [mountWidth, startPage]);
     const readySource = useMemo(() => (ready ? { uri: ready } : null), [ready]);
+
+    // The box has taken the page's shape (or changed it): the document view
+    // was resized with it, and does not re-centre its page on a resize by
+    // itself — the page sits where the old height put it until the next page
+    // command. So it is seated now, a frame later, while the loader still
+    // covers the stage on a first open.
+    useEffect(() => {
+      if (boxHeight <= 0) return undefined;
+      const frame = requestAnimationFrame(seatPage);
+      return () => cancelAnimationFrame(frame);
+    }, [boxHeight, boxWidth, seatPage]);
 
     /**
      * How far the page's edges are from the stage's own: the bars, and the
@@ -1284,52 +1503,59 @@ export const BookPageFlip = memo(
                         alone; what runs past it is only ever seen under the
                         glass, and only once the reader has zoomed. */}
                     <View style={sheetStyle}>
-                      <Pdf
-                        key={sourceKey(source)}
-                        ref={pdfRef}
-                        source={source}
-                        // Where the book opens. The document view clamps a
-                        // page past the end and reports where it landed.
-                        page={startPage}
-                        style={pdfStyle}
-                        horizontal={paged}
-                        // The fold is the turn in this mode, so the pager is off
-                        // entirely: its swipe (`scrollEnabled` below) would slide
-                        // the page out from under its own leaf, and its snap runs
-                        // on every finger lifted and would drag the view back from
-                        // any page the fold has just sent it to (see
-                        // `SEAT_ZOOM_OUT`). Scrolling comes back the moment the
-                        // reader zooms in, because then a drag is how they move
-                        // around the page.
-                        enablePaging={paged && !zoomed && !folding}
-                        scrollEnabled={!folding || zoomed}
-                        singlePage={false}
-                        scale={zoom}
-                        minScale={MIN_SCALE}
-                        maxScale={MAX_SCALE}
-                        // Scrolling reads as one column: pages fill the width, with a
-                        // hair of sky between them so a page break is still a break.
-                        spacing={paged ? 0 : PAGE_GAP}
-                        fitPolicy={paged ? 2 : 0}
-                        enableAntialiasing
-                        // The document view's own zoom, by pinch or double-tap,
-                        // in every mode. A page it has zoomed pans under a drag
-                        // whether or not its pager is on, and it reports the
-                        // zoom back, which is what tells the fold to keep its
-                        // hands off until the reader has zoomed out again.
-                        enableDoubleTapZoom
-                        enableAnnotationRendering={false}
-                        showsVerticalScrollIndicator={false}
-                        showsHorizontalScrollIndicator={false}
-                        trustAllCerts
-                        onLoadComplete={handleLoadComplete}
-                        onLoadProgress={handleLoadProgress}
-                        onPageChanged={handlePageChanged}
-                        onPageSingleTap={handleSingleTap}
-                        onScaleChanged={handleScaleChanged}
-                        onError={handleError}
-                        renderActivityIndicator={renderActivityIndicator}
-                      />
+                      {/* Not before the frame is measured: the view fits its
+                          page to the size it is first given, and the frame is
+                          what decides that size. */}
+                      {frame.width > 0 ? (
+                        <Pdf
+                          key={`${sourceKey(source)}@${Math.round(mount.width)}`}
+                          ref={pdfRef}
+                          source={source}
+                          // Where the book opens. The document view clamps a
+                          // page past the end and reports where it landed.
+                          page={openPage}
+                          style={pdfStyle}
+                          horizontal={paged}
+                          enableRTL={pagerRtl}
+                          // The fold is the turn in this mode, so the pager is off
+                          // entirely: its swipe (`scrollEnabled` below) would slide
+                          // the page out from under its own leaf, and its snap runs
+                          // on every finger lifted and would drag the view back from
+                          // any page the fold has just sent it to (see
+                          // `SEAT_ZOOM_OUT`). Scrolling comes back the moment the
+                          // reader zooms in, because then a drag is how they move
+                          // around the page.
+                          enablePaging={paged && !zoomed && !folding}
+                          scrollEnabled={!folding || zoomed}
+                          singlePage={false}
+                          scale={zoom}
+                          minScale={MIN_SCALE}
+                          maxScale={MAX_SCALE}
+                          // Scrolling reads as one column: pages fill the width, with a
+                          // hair of sky between them so a page break is still a break.
+                          spacing={paged ? 0 : PAGE_GAP}
+                          fitPolicy={paged ? 2 : 0}
+                          enableAntialiasing
+                          // The document view's own zoom, by pinch or double-tap,
+                          // in every mode. A page it has zoomed pans under a drag
+                          // whether or not its pager is on, and it reports the
+                          // zoom back, which is what tells the fold to keep its
+                          // hands off until the reader has zoomed out again.
+                          enableDoubleTapZoom
+                          enableAnnotationRendering={false}
+                          showsVerticalScrollIndicator={false}
+                          showsHorizontalScrollIndicator={false}
+                          trustAllCerts
+                          onLoadComplete={handleLoadComplete}
+                          onRender={announceRender}
+                          onLoadProgress={handleLoadProgress}
+                          onPageChanged={handlePageChanged}
+                          onPageSingleTap={handleSingleTap}
+                          onScaleChanged={handleScaleChanged}
+                          onError={handleError}
+                          renderActivityIndicator={renderActivityIndicator}
+                        />
+                      ) : null}
 
                       {/* The tone, laid over the rendered page. Never over the
                         chrome — and inside the picture, so a leaf is folded in

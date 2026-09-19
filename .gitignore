@@ -92,3 +92,5 @@ ios/IlmOIrfanApp/GoogleService-Info.plist
 .expo
 dist/
 web-build/
+# Android upload-key credentials (android/keystore.properties). Back it up with the keystore.
+android/keystore.properties

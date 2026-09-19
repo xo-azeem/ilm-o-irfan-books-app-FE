@@ -66,6 +66,11 @@ react {
 def enableProguardInReleaseBuilds = false
 
 /**
+ * Upload-key credentials for release signing. See signingConfigs.release.
+ */
+def uploadKeystore = rootProject.file('keystore.properties')
+
+/**
  * The preferred build flavor of JavaScriptCore (JSC)
  *
  * For example, to use the international variant, you can use:
@@ -89,7 +94,7 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
-        versionName "1.0"
+        versionName "1.0.0"
     }
     signingConfigs {
         debug {
@@ -98,15 +103,29 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        release {
+            // The upload key. Credentials live in android/keystore.properties
+            // (gitignored, next to the gitignored .keystore); on EAS neither
+            // exists and EAS injects its own signing config instead.
+            if (uploadKeystore.exists()) {
+                def props = new Properties()
+                uploadKeystore.withInputStream { props.load(it) }
+                storeFile file(props['storeFile'])
+                storePassword props['storePassword']
+                keyAlias props['keyAlias']
+                keyPassword props['keyPassword']
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            // Signed with the upload key when android/keystore.properties is
+            // present; a checkout without it still builds, unsigned for the
+            // store, so a teammate can smoke-test a release build.
+            signingConfig uploadKeystore.exists() ? signingConfigs.release : signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }

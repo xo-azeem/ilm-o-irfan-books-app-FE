@@ -1,5 +1,5 @@
 ---
-description: Backend lives in Ilm-o-Irfan-App-BE; follow backend-stack.md for all BE work
+description: Backend lives in Ilm-o-Irfan-App-BE; follow its docs/backend-stack.md for all BE work
 alwaysApply: true
 ---
 
@@ -14,15 +14,14 @@ This repo is the **React Native frontend** for Ilm o Irfan. Backend work does **
 
 ## Source of truth for backend design
 
-- FE copy: `docs/backend-stack.md`
-- BE copy: `D:\Projects\Ilm-o-Irfan-App-BE\docs\backend-stack.md`
+- `D:\Projects\Ilm-o-Irfan-App-BE\docs\backend-stack.md` (the only copy — the FE duplicate was removed)
 
 Stack: **Supabase** (PostgreSQL, Auth, Storage, Edge Functions) + **RevenueCat**. No custom Node/Nest/Express API, no Redis for v1.
 
 ## When the user asks for backend work
 
 1. **Work in** `D:\Projects\Ilm-o-Irfan-App-BE` (not this FE repo).
-2. **Read** `docs/backend-stack.md` (either copy) before designing or implementing.
+2. **Read** the backend's `docs/backend-stack.md` before designing or implementing.
 3. **Align with this FE app** (screens, stores, types, expected API shapes).
 4. Implement only what that request needs; keep FE ↔ BE contracts matched.
 

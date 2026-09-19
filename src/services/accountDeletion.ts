@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase/client';
+import { strings } from '@/i18n/strings';
 
 /**
  * Account deletion, as the reader sees it.
@@ -163,22 +164,23 @@ function toError(error: {
 
 /** Fallback sentences, for a refusal that arrives without `details`. Never the token. */
 function defaultMessage(code: string): string {
+  const s = strings().services.deletion;
   switch (code) {
     case 'REQUEST_EXISTS':
-      return 'A deletion request is already open for this account.';
+      return s.requestExists;
     case 'REQUEST_NOT_OPEN':
     case 'NO_OPEN_REQUEST':
-      return 'There is no deletion request to withdraw.';
+      return s.nothingToWithdraw;
     case 'REASON_TOO_LONG':
-      return `Keep the reason under ${DELETION_REASON_MAX_LENGTH} characters.`;
+      return s.reasonTooLong(DELETION_REASON_MAX_LENGTH);
     case 'SUBSCRIPTION_ACTIVE':
-      return 'Cancel your membership in the App Store or Google Play first, then request deletion.';
+      return s.subscriptionActive;
     case 'BILLING_UNRESOLVED':
-      return 'The store is still settling a payment on your membership. Resolve it there first.';
+      return s.billingUnresolved;
     case 'ADMIN_ACCOUNT':
-      return 'Admin accounts cannot be deleted from the app.';
+      return s.adminAccount;
     default:
-      return 'The request could not be completed.';
+      return s.fallback;
   }
 }
 

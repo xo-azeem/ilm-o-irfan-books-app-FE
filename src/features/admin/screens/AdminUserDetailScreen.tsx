@@ -46,30 +46,23 @@ import { useAuthStore } from '@/stores/authStore';
 import { useTheme } from '@/theme/ThemeContext';
 
 import type { AdminPeopleStackParamList } from '../navigation/types';
+import { useStrings } from '@/i18n';
+import { strings } from '@/i18n/strings';
 
 type GrantOption = {
-  id: string;
-  label: string;
+  /** Keys `adminPeople.user.grants`, which names the option. */
+  id: '14d' | '1' | '3' | '12' | 'forever';
   months: number | null;
   days?: number;
 };
 
 const GRANT_OPTIONS: GrantOption[] = [
-  { id: '14d', label: '14 days', months: null, days: 14 },
-  { id: '1', label: '1 month', months: 1 },
-  { id: '3', label: '3 months', months: 3 },
-  { id: '12', label: '12 months', months: 12 },
-  { id: 'forever', label: 'No expiry', months: null },
+  { id: '14d', months: null, days: 14 },
+  { id: '1', months: 1 },
+  { id: '3', months: 3 },
+  { id: '12', months: 12 },
+  { id: 'forever', months: null },
 ];
-
-const STATUS_LABEL: Record<EntitlementStatus, string> = {
-  active: 'Active',
-  trial: 'Trial',
-  grace: 'Grace period',
-  billing_issue: 'Billing issue',
-  cancelled: 'Cancelled',
-  expired: 'Expired',
-};
 
 /**
  * A reader, as seen from admin.
@@ -83,6 +76,8 @@ export function AdminUserDetailScreen() {
     useRoute<RouteProp<AdminPeopleStackParamList, 'AdminUserDetail'>>();
   const { userId } = route.params;
   const { colors } = useTheme();
+  const s = useStrings();
+  const words = s.adminPeople.user;
   const { scrollEndPadding } = useAppInsets();
   const toast = useToast();
 
@@ -124,7 +119,9 @@ export function AdminUserDetailScreen() {
         {
           onSuccess: () => {
             setShowGrant(false);
-            toast.success(`Access granted — ${option.label.toLowerCase()}.`);
+            toast.success(
+              words.accessGranted(words.grants[option.id].toLowerCase()),
+            );
           },
           onError: caught => {
             setShowGrant(false);
@@ -133,7 +130,7 @@ export function AdminUserDetailScreen() {
         },
       );
     },
-    [activePlan?.id, setEntitlement, toast, userId],
+    [activePlan?.id, setEntitlement, toast, userId, words],
   );
 
   if (isLoading) {
@@ -148,12 +145,8 @@ export function AdminUserDetailScreen() {
     return (
       <Shell>
         <AdminErrorState
-          title={error ? 'Could not load this reader' : 'Reader not found'}
-          message={
-            error
-              ? 'The request did not complete. This is usually the server rather than your connection.'
-              : 'This account may have been deleted since the list was loaded.'
-          }
+          title={error ? words.loadFailed : words.notFound}
+          message={error ? words.loadFailedMessage : words.notFoundMessage}
           detail={error ? errorMessage(error) : undefined}
           onRetry={() => void refetch()}
         />
@@ -172,10 +165,10 @@ export function AdminUserDetailScreen() {
     >
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <AdminBackLink
-          label="People"
+          label={words.people}
           action={
             user.role === 'admin' ? (
-              <AdminTag label="ADMIN" tone="success" />
+              <AdminTag label={words.admin} tone="success" />
             ) : undefined
           }
         />
@@ -205,14 +198,14 @@ export function AdminUserDetailScreen() {
           />
           <View style={styles.identityBody}>
             <Display size={22} weight="500" tracking={-0.4} numberOfLines={1}>
-              {user.full_name || 'Reader'}
+              {user.full_name || words.reader}
             </Display>
             <Text size={12} leading={1.35} tone="muted">
               {[
                 user.email,
                 user.phone,
                 user.country,
-                `joined ${formatDate(user.created_at)}`,
+                words.joined(formatDate(user.created_at)),
               ]
                 .filter(Boolean)
                 .join(' · ')}
@@ -253,7 +246,7 @@ export function AdminUserDetailScreen() {
               tracking={0.6}
               tone="muted"
             >
-              {user.store ?? 'Manual'}
+              {user.store ?? words.manual}
             </Label>
           </View>
 
@@ -264,7 +257,7 @@ export function AdminUserDetailScreen() {
           <View style={styles.accessActions}>
             <View style={styles.grow}>
               <AdminButton
-                label="Grant access"
+                label={words.grantAccess}
                 variant="secondary"
                 compact
                 loading={setEntitlement.isPending && showGrant}
@@ -273,7 +266,7 @@ export function AdminUserDetailScreen() {
             </View>
             <View style={styles.grow}>
               <AdminButton
-                label="Email reader"
+                label={words.emailReader}
                 variant="secondary"
                 compact
                 disabled={!user.email}
@@ -289,10 +282,10 @@ export function AdminUserDetailScreen() {
           {plans.length > 0 ? (
             <View style={styles.between}>
               <Text size={11.5} leading={1.4} tone="muted">
-                {`Grants use the ${activePlan?.name ?? 'first'} plan`}
+                {words.grantsUse(activePlan?.name ?? words.first)}
               </Text>
               <AdminTextAction
-                label="Change"
+                label={words.change}
                 size={11.5}
                 tone={access.tone === 'warning' ? 'warning' : 'action'}
                 onPress={() => setShowPlanPicker(true)}
@@ -304,17 +297,17 @@ export function AdminUserDetailScreen() {
         {/* Then behaviour. */}
         <AdminStatRow>
           <AdminStat
-            label="Day streak"
+            label={words.dayStreak}
             value={data?.streak?.current_streak ?? 0}
             tone="success"
           />
-          <AdminStat label="Started" value={user.books_started} />
-          <AdminStat label="Finished" value={user.books_finished} />
-          <AdminStat label="Downloads" value={user.downloads_count} />
+          <AdminStat label={words.started} value={user.books_started} />
+          <AdminStat label={words.finished} value={user.books_finished} />
+          <AdminStat label={words.downloads} value={user.downloads_count} />
         </AdminStatRow>
 
         {reading.length > 0 ? (
-          <AdminRowGroup title="Reading now">
+          <AdminRowGroup title={words.readingNow}>
             {reading.map(entry => (
               <View key={entry.book_id} style={styles.readingRow}>
                 <View
@@ -329,9 +322,11 @@ export function AdminUserDetailScreen() {
                   </Text>
                   <AdminMeter value={entry.progress} height={4} />
                   <Text size={10.5} leading={1} tone="faint">
-                    {`${Math.round(entry.progress * 100)}% · page ${
-                      entry.current_page
-                    } · ${formatRelative(entry.last_read_at)}`}
+                    {words.readingLine(
+                      Math.round(entry.progress * 100),
+                      entry.current_page,
+                      formatRelative(entry.last_read_at),
+                    )}
                   </Text>
                 </View>
               </View>
@@ -340,7 +335,7 @@ export function AdminUserDetailScreen() {
         ) : null}
 
         {downloads.length > 0 ? (
-          <AdminRowGroup title="Downloads">
+          <AdminRowGroup title={words.downloads}>
             {downloads.map(entry => (
               <View
                 key={`${entry.book_id}-${entry.downloaded_at}`}
@@ -375,11 +370,11 @@ export function AdminUserDetailScreen() {
           <View style={styles.actionRow}>
             {isSelf ? (
               <Text size={14} leading={1.2} tone="muted" style={styles.grow}>
-                You cannot change your own role.
+                {words.cannotChangeOwnRole}
               </Text>
             ) : (
               <AdminToggleRow
-                label="Make this reader an admin"
+                label={words.makeAdmin}
                 value={user.role === 'admin'}
                 disabled={setRole.isPending}
                 onValueChange={next => setConfirmRole(next ? 'admin' : 'user')}
@@ -390,10 +385,10 @@ export function AdminUserDetailScreen() {
           {user.is_subscriber ? (
             <View style={styles.actionRow}>
               <Text size={14} leading={1.2} tone="danger" style={styles.grow}>
-                Revoke subscription access
+                {words.revokeAccess}
               </Text>
               <AdminOutlineButton
-                label="Revoke"
+                label={words.revoke}
                 small
                 destructive
                 fullWidth={false}
@@ -404,19 +399,17 @@ export function AdminUserDetailScreen() {
         </AdminRowGroup>
 
         <Text size={11.5} leading={1.45} tone="faint">
-          Store purchases stay owned by RevenueCat — a webhook will overwrite a
-          manual grant on the next event. Use grants for comps and support
-          fixes.
+          {words.storeNote}
         </Text>
       </ScrollView>
 
       <AdminPickerSheet
         visible={showGrant}
-        title="Grant for how long?"
+        title={words.grantForHowLong}
         searchable={false}
         items={GRANT_OPTIONS.map(option => ({
           id: option.id,
-          label: option.label,
+          label: words.grants[option.id],
         }))}
         selected={[]}
         onClose={() => setShowGrant(false)}
@@ -430,7 +423,7 @@ export function AdminUserDetailScreen() {
 
       <AdminPickerSheet
         visible={showPlanPicker}
-        title="Plan"
+        title={words.plan}
         searchable={false}
         items={plans.map(plan => ({
           id: plan.id,
@@ -444,14 +437,10 @@ export function AdminUserDetailScreen() {
 
       <AdminConfirmSheet
         visible={confirmRevoke}
-        title="Revoke premium access?"
-        message="It stops immediately. What that means:"
-        consequences={[
-          'Premium titles lock on their next open',
-          'Downloaded premium files stop opening',
-          'A future store event can restore it',
-        ]}
-        confirmLabel="Revoke"
+        title={words.revokeTitle}
+        message={words.revokeMessage}
+        consequences={words.revokeConsequences}
+        confirmLabel={words.revoke}
         destructive
         loading={setEntitlement.isPending}
         onCancel={() => setConfirmRevoke(false)}
@@ -466,7 +455,7 @@ export function AdminUserDetailScreen() {
             {
               onSuccess: () => {
                 setConfirmRevoke(false);
-                toast.success('Access revoked.');
+                toast.success(words.accessRevoked);
               },
               onError: caught => {
                 setConfirmRevoke(false);
@@ -479,27 +468,19 @@ export function AdminUserDetailScreen() {
 
       <AdminConfirmSheet
         visible={confirmRole !== null}
-        title={
-          confirmRole === 'admin'
-            ? 'Grant admin access?'
-            : 'Remove admin access?'
-        }
+        title={confirmRole === 'admin' ? words.grantAdmin : words.removeAdmin}
         message={
           confirmRole === 'admin'
-            ? 'This account opens the admin panel on its next sign-in. What it gains:'
-            : 'CMS access stops once their session refreshes. What they lose:'
+            ? words.grantAdminMessage
+            : words.removeAdminMessage
         }
         consequences={
           confirmRole === 'admin'
-            ? [
-                'Every book, author, category and shelf becomes editable',
-                'Every premium PDF opens without a subscription',
-                'Their email is written against every change they make',
-              ]
-            : ['The admin panel', 'Unrestricted access to premium PDFs']
+            ? words.grantAdminConsequences
+            : words.removeAdminConsequences
         }
-        confirmLabel={confirmRole === 'admin' ? 'Grant' : 'Remove'}
-        cancelLabel="Cancel"
+        confirmLabel={confirmRole === 'admin' ? words.grant : words.remove}
+        cancelLabel={words.cancel}
         destructive={confirmRole === 'user'}
         loading={setRole.isPending}
         onCancel={() => setConfirmRole(null)}
@@ -512,8 +493,8 @@ export function AdminUserDetailScreen() {
                 setConfirmRole(null);
                 toast.success(
                   confirmRole === 'admin'
-                    ? 'Admin access granted.'
-                    : 'Admin access removed.',
+                    ? words.adminGranted
+                    : words.adminRemoved,
                 );
               },
               onError: caught => {
@@ -533,33 +514,33 @@ function describeAccess(
   user: AdminUserRow,
   planName?: string,
 ): { eyebrow: string; sentence: string; tone: 'warning' | 'active' | 'none' } {
-  const plan = user.plan_name ?? planName ?? 'Premium';
+  const words = strings().adminPeople.user;
+  const plan = user.plan_name ?? planName ?? words.premium;
   const status = user.entitlement_status;
 
   if (status === 'billing_issue' || status === 'grace') {
     return {
-      eyebrow: `Access · ${STATUS_LABEL[status]}`,
-      sentence: `${plan} plan, payment has not gone through. Premium titles stay open ${formatCountdown(
-        user.expires_at,
-      )}, then the account drops to free.`,
+      eyebrow: words.accessEyebrow(words.statuses[status]),
+      sentence: words.paymentSentence(plan, formatCountdown(user.expires_at)),
       tone: 'warning',
     };
   }
 
   if (user.is_subscriber) {
     return {
-      eyebrow: `Access · ${status ? STATUS_LABEL[status] : 'Active'}`,
+      eyebrow: words.accessEyebrow(
+        status ? words.statuses[status] : words.accessActive,
+      ),
       sentence: user.expires_at
-        ? `${plan} plan, renewing ${formatDate(user.expires_at)}. Every premium title is open.`
-        : `${plan} plan with no end date. Every premium title is open.`,
+        ? words.renewingSentence(plan, formatDate(user.expires_at))
+        : words.noEndSentence(plan),
       tone: 'active',
     };
   }
 
   return {
-    eyebrow: 'Access · Free',
-    sentence:
-      'Free account. Premium titles are locked until this reader subscribes, or you grant access below.',
+    eyebrow: words.accessFree,
+    sentence: words.freeSentence,
     tone: 'none',
   };
 }
@@ -567,6 +548,7 @@ function describeAccess(
 /** The screen frame, reused by the loading and error states. */
 const Shell = memo(function Shell({ children }: { children: React.ReactNode }) {
   const { colors } = useTheme();
+  const s = useStrings();
 
   return (
     <SafeAreaView
@@ -574,7 +556,7 @@ const Shell = memo(function Shell({ children }: { children: React.ReactNode }) {
       edges={['top', 'left', 'right']}
     >
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <AdminBackLink label="People" />
+        <AdminBackLink label={s.adminPeople.user.people} />
       </View>
       <View style={styles.shellBody}>{children}</View>
     </SafeAreaView>

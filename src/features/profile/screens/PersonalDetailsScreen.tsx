@@ -27,6 +27,7 @@ import {
 } from '@/features/profile/dateOfBirth';
 import type { ProfileDetails, ProfileForm } from '@/services/account';
 import { fontSize } from '@/theme/typography';
+import { useStrings } from '@/i18n';
 
 type Form = ProfileForm;
 
@@ -71,6 +72,8 @@ const EMPTY_FORM: Form = {
  * active once something has actually changed.
  */
 export function PersonalDetailsScreen() {
+  const s = useStrings();
+  const words = s.account.personal;
   const navigation =
     useNavigation<NativeStackNavigationProp<ProfileStackParamList>>();
   const { data: profile } = useProfile();
@@ -125,15 +128,15 @@ export function PersonalDetailsScreen() {
       {
         onError: error =>
           showDialog({
-            title: 'Could not update your photo',
+            title: words.photoFailed,
             message:
-              error instanceof Error ? error.message : 'Please try again.',
+              error instanceof Error ? error.message : s.common.pleaseTryAgain,
             tone: 'danger',
             icon: ImageOff,
           }),
       },
     );
-  }, [avatarUpload]);
+  }, [avatarUpload, s, words]);
 
   /**
    * The date of birth is checked here rather than left to the server: a typo
@@ -144,13 +147,13 @@ export function PersonalDetailsScreen() {
     if (!form.dateOfBirth.trim() || parseDateOfBirth(form.dateOfBirth)) {
       return undefined;
     }
-    return 'Enter a date like 14 March 1996 or 14/03/1996';
-  }, [form.dateOfBirth]);
+    return words.dateHint;
+  }, [form.dateOfBirth, words]);
 
   const handleSave = useCallback(() => {
     if (dateOfBirthError) {
       showDialog({
-        title: 'Check the date of birth',
+        title: words.checkDate,
         message: dateOfBirthError,
         tone: 'warning',
       });
@@ -172,29 +175,29 @@ export function PersonalDetailsScreen() {
             dateOfBirth: formatDateOfBirth(dateOfBirth),
           });
           showDialog({
-            title: 'Saved',
-            message: 'Your details have been updated.',
+            title: words.savedTitle,
+            message: words.savedMessage,
             tone: 'success',
           });
         },
         onError: error =>
           showDialog({
-            title: 'Could not save',
+            title: words.couldNotSave,
             message:
-              error instanceof Error ? error.message : 'Please try again.',
+              error instanceof Error ? error.message : s.common.pleaseTryAgain,
             tone: 'danger',
           }),
       },
     );
-  }, [dateOfBirthError, form, updateProfile]);
+  }, [dateOfBirthError, form, s, updateProfile, words]);
 
   return (
     <ProfileSubScreenLayout
-      title="Personal details"
+      title={words.title}
       gap={20}
       action={
         <TextButton
-          label={updateProfile.isPending ? 'Saving…' : 'Save'}
+          label={updateProfile.isPending ? words.saving : words.save}
           onPress={handleSave}
           // A disabled-looking Save that does nothing is worse than none at all.
           tone={isDirty && !updateProfile.isPending ? 'primary' : 'muted'}
@@ -211,15 +214,15 @@ export function PersonalDetailsScreen() {
         />
         <View style={styles.photoBody}>
           <Text size={fontSize.body} leading={1.3}>
-            Profile photo
+            {words.profilePhoto}
           </Text>
           <TextButton
             label={
               avatarUpload.isPending
-                ? 'Uploading…'
+                ? words.uploading
                 : avatarUrl
-                  ? 'Change photo'
-                  : 'Add a photo'
+                  ? words.changePhoto
+                  : words.addPhoto
             }
             onPress={handlePickPhoto}
             tone={avatarUpload.isPending ? 'muted' : 'primary'}
@@ -230,7 +233,7 @@ export function PersonalDetailsScreen() {
 
       <View style={styles.fields}>
         <TextField
-          label="Full name"
+          label={words.fullName}
           value={form.fullName}
           onChangeText={value => update('fullName', value)}
           autoCapitalize="words"
@@ -240,21 +243,21 @@ export function PersonalDetailsScreen() {
         <View style={styles.emailRow}>
           <View style={styles.grow}>
             <ReadOnlyField
-              label="Email"
+              label={words.email}
               value={form.email || '—'}
-              note="Verified"
+              note={words.verified}
             />
           </View>
           {/* An account operation, not a form edit: two emailed codes, on its own screen. */}
           <TextButton
-            label="Change"
+            label={words.change}
             onPress={() => navigation.navigate('ChangeEmail')}
             style={styles.emailAction}
           />
         </View>
 
         <TextField
-          label="Phone"
+          label={words.phone}
           value={form.phone}
           onChangeText={value => update('phone', value)}
           keyboardType="phone-pad"
@@ -262,36 +265,36 @@ export function PersonalDetailsScreen() {
         />
 
         <TextField
-          label="Date of birth"
+          label={words.dateOfBirth}
           value={form.dateOfBirth}
           onChangeText={value => update('dateOfBirth', value)}
-          placeholder="14 March 1996"
+          placeholder={words.datePlaceholder}
           error={dateOfBirthError}
           autoCapitalize="words"
           autoCorrect={false}
         />
 
         <TextField
-          label="Address"
+          label={words.address}
           value={form.addressLine1}
           onChangeText={value => update('addressLine1', value)}
-          placeholder="Street address"
+          placeholder={words.streetAddress}
         />
         <TextField
           value={form.addressLine2}
           onChangeText={value => update('addressLine2', value)}
-          placeholder="Apartment, block, floor"
+          placeholder={words.addressLine2}
         />
 
         <View style={styles.row}>
           <TextField
-            label="City"
+            label={words.city}
             value={form.city}
             onChangeText={value => update('city', value)}
             containerStyle={styles.grow}
           />
           <TextField
-            label="Postal code"
+            label={words.postalCode}
             value={form.postalCode}
             onChangeText={value => update('postalCode', value)}
             // Not a number pad: codes outside Pakistan carry letters.
@@ -304,13 +307,13 @@ export function PersonalDetailsScreen() {
 
         <View style={styles.row}>
           <TextField
-            label="Province"
+            label={words.province}
             value={form.state}
             onChangeText={value => update('state', value)}
             containerStyle={styles.grow}
           />
           <TextField
-            label="Country"
+            label={words.country}
             value={form.country}
             onChangeText={value => update('country', value)}
             containerStyle={styles.grow}

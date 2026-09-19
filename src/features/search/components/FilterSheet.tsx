@@ -12,16 +12,14 @@ import {
   Toggle,
 } from '@/components/ui';
 import {
-  LANGUAGE_LABELS,
   LANGUAGES,
-  LENGTH_LABELS,
   LENGTHS,
-  SORT_LABELS,
   SORTS,
   type LanguageFilter,
   type LengthFilter,
   type SearchFilters,
 } from '@/features/search/hooks/useSearchFilters';
+import { useStrings } from '@/i18n';
 import type { CatalogCategory, CatalogSort } from '@/services/catalog';
 import { fontSize } from '@/theme/typography';
 
@@ -72,6 +70,8 @@ export const FilterSheet = memo(function FilterSheet({
   onSortChange,
   searching,
 }: FilterSheetProps) {
+  const s = useStrings();
+  const words = s.catalog.discover;
   const clearCategory = useCallback(
     () => onCategoryChange(null),
     [onCategoryChange],
@@ -82,15 +82,14 @@ export const FilterSheet = memo(function FilterSheet({
     <Sheet
       visible={visible}
       onClose={onClose}
-      title="Filters"
-      headerAction={<TextButton label="Reset" onPress={onReset} />}
+      title={words.filters}
+      headerAction={<TextButton label={words.reset} onPress={onReset} />}
       footer={
         <Button
-          label={
-            resultCount === 1
-              ? 'Show 1 book'
-              : `Show ${resultCount.toLocaleString('en-US')} books`
-          }
+          label={words.showBooks(
+            resultCount,
+            resultCount.toLocaleString('en-US'),
+          )}
           onPress={onClose}
           size="md"
         />
@@ -98,10 +97,10 @@ export const FilterSheet = memo(function FilterSheet({
     >
       {categories.length > 0 ? (
         <View style={styles.group}>
-          <Label>Subject</Label>
+          <Label>{words.subject}</Label>
           <ChipWrap gap={9}>
             <Chip
-              label="All subjects"
+              label={words.allSubjects}
               selected={filters.categoryId == null}
               onPress={clearCategory}
             />
@@ -119,7 +118,7 @@ export const FilterSheet = memo(function FilterSheet({
       ) : null}
 
       <View style={styles.group}>
-        <Label>Language</Label>
+        <Label>{words.language}</Label>
         <ChipWrap gap={9}>
           {LANGUAGES.map(language => (
             <LanguageChip
@@ -135,7 +134,7 @@ export const FilterSheet = memo(function FilterSheet({
       <View style={styles.group}>
         {/* Pages, and the backend owns what each bucket means — it reads a real
             page count where a reader has reported one. */}
-        <Label>Length</Label>
+        <Label>{words.length}</Label>
         <ChipWrap gap={9}>
           {LENGTHS.map(length => (
             <LengthChip
@@ -149,7 +148,7 @@ export const FilterSheet = memo(function FilterSheet({
       </View>
 
       <View style={styles.access}>
-        <Label>Access</Label>
+        <Label>{words.access}</Label>
         <View style={styles.toggleRow}>
           <Text
             size={fontSize.body}
@@ -157,12 +156,12 @@ export const FilterSheet = memo(function FilterSheet({
             tone="soft"
             style={styles.grow}
           >
-            Only books in my membership
+            {words.onlyInMembership}
           </Text>
           <Toggle
             value={filters.membershipOnly}
             onValueChange={onMembershipOnlyChange}
-            accessibilityLabel="Only books in my membership"
+            accessibilityLabel={words.onlyInMembership}
           />
         </View>
         <View style={styles.toggleRow}>
@@ -172,12 +171,12 @@ export const FilterSheet = memo(function FilterSheet({
             tone="soft"
             style={styles.grow}
           >
-            Downloaded only
+            {words.downloadedOnly}
           </Text>
           <Toggle
             value={filters.downloadedOnly}
             onValueChange={onDownloadedOnlyChange}
-            accessibilityLabel="Downloaded only"
+            accessibilityLabel={words.downloadedOnly}
           />
         </View>
         <View style={styles.toggleRow}>
@@ -187,12 +186,12 @@ export const FilterSheet = memo(function FilterSheet({
             tone="soft"
             style={styles.grow}
           >
-            Rated 4★ and up
+            {words.ratedFourUp}
           </Text>
           <Toggle
             value={filters.highlyRatedOnly}
             onValueChange={onHighlyRatedOnlyChange}
-            accessibilityLabel="Rated 4 stars and up"
+            accessibilityLabel={words.ratedFourUpA11y}
           />
         </View>
       </View>
@@ -200,12 +199,12 @@ export const FilterSheet = memo(function FilterSheet({
       <View style={styles.group}>
         {/* Ordering is the database's, applied before the page is cut, so it
             reorders the whole result set and not the rows already fetched. */}
-        <Label>Sort</Label>
+        <Label>{words.sort}</Label>
         <ChipWrap gap={9}>
           {/* Unset is the server's default: best match once the reader has
               typed, newest while they are browsing. */}
           <Chip
-            label={searching ? SORT_LABELS.relevance : 'Default'}
+            label={searching ? words.sorts.relevance : words.default}
             selected={filters.sort == null}
             onPress={clearSort}
           />
@@ -248,10 +247,11 @@ const LanguageChip = memo(function LanguageChip({
   selected: boolean;
   onToggle: (value: LanguageFilter) => void;
 }) {
+  const s = useStrings();
   const handlePress = useCallback(() => onToggle(value), [onToggle, value]);
   return (
     <Chip
-      label={LANGUAGE_LABELS[value]}
+      label={s.catalog.discover.languages[value]}
       selected={selected}
       onPress={handlePress}
     />
@@ -267,10 +267,11 @@ const LengthChip = memo(function LengthChip({
   selected: boolean;
   onToggle: (value: LengthFilter) => void;
 }) {
+  const s = useStrings();
   const handlePress = useCallback(() => onToggle(value), [onToggle, value]);
   return (
     <Chip
-      label={LENGTH_LABELS[value]}
+      label={s.catalog.discover.lengths[value]}
       selected={selected}
       onPress={handlePress}
     />
@@ -287,13 +288,14 @@ const SortChip = memo(function SortChip({
   selected: boolean;
   onToggle: (value: CatalogSort | null) => void;
 }) {
+  const s = useStrings();
   const handlePress = useCallback(
     () => onToggle(selected ? null : value),
     [onToggle, selected, value],
   );
   return (
     <Chip
-      label={SORT_LABELS[value]}
+      label={s.catalog.discover.sorts[value]}
       selected={selected}
       onPress={handlePress}
     />

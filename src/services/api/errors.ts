@@ -4,6 +4,7 @@
  * Kept free of React Native imports so the parsing rules can be unit tested
  * without a native runtime — they are subtle enough to be worth locking down.
  */
+import { strings } from '@/i18n/strings';
 
 export class ApiError extends Error {
   /** Backend error code, e.g. `PREMIUM_REQUIRED`, `NOT_FOUND`. */
@@ -62,7 +63,7 @@ export function readError(payload: unknown, status: number): ApiError {
     return new ApiError(
       typeof shaped.message === 'string'
         ? shaped.message
-        : `Request failed (${status}).`,
+        : strings().services.requestFailed(status),
       status,
       typeof shaped.code === 'string'
         ? shaped.code
@@ -85,7 +86,7 @@ export function readError(payload: unknown, status: number): ApiError {
     );
   }
 
-  return new ApiError(`Request failed (${status}).`, status);
+  return new ApiError(strings().services.requestFailed(status), status);
 }
 
 /**

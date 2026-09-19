@@ -17,6 +17,7 @@ import { useAppInsets } from '@/hooks/useAppInsets';
 import { useAdminAuthors } from '@/hooks/useAdmin';
 import { adminCoverUrl, type AdminAuthor } from '@/services/admin';
 import { useTheme } from '@/theme/ThemeContext';
+import { useStrings } from '@/i18n';
 
 type LetterGroup = { letter: string; authors: AdminAuthor[] };
 
@@ -36,6 +37,7 @@ export const LibraryAuthors = memo(function LibraryAuthors({
   onOpen: (authorId: string) => void;
   onCreate: () => void;
 }) {
+  const s = useStrings();
   const { scrollEndPadding } = useAppInsets();
   const {
     data = [],
@@ -96,7 +98,7 @@ export const LibraryAuthors = memo(function LibraryAuthors({
     return (
       <View style={styles.gutter}>
         <AdminErrorState
-          message="The author list could not be loaded."
+          message={s.adminLibrary.catalog.authorsFailed}
           detail={errorMessage(error)}
           onRetry={() => void refetch()}
         />
@@ -122,13 +124,19 @@ export const LibraryAuthors = memo(function LibraryAuthors({
       ListEmptyComponent={
         isPlaceholderData ? null : (
           <AdminEmpty
-            title={query ? 'No authors match' : 'No authors yet'}
+            title={
+              query
+                ? s.adminLibrary.catalog.noAuthorsMatch
+                : s.adminLibrary.catalog.noAuthors
+            }
             message={
               query
-                ? 'Try a shorter search — the list matches on name and slug.'
-                : 'Every book needs an author. Add the first one and it becomes selectable in the book editor.'
+                ? s.adminLibrary.catalog.tryShorterSearch
+                : s.adminLibrary.catalog.everyBookNeedsAuthor
             }
-            actionLabel={query ? undefined : 'Add the first author'}
+            actionLabel={
+              query ? undefined : s.adminLibrary.catalog.addFirstAuthor
+            }
             onAction={onCreate}
           />
         )
@@ -146,6 +154,7 @@ const AuthorRow = memo(function AuthorRow({
   onPress: (authorId: string) => void;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
   const orphan = author.book_count === 0;
   const handlePress = useCallback(
     () => onPress(author.id),
@@ -180,10 +189,11 @@ const AuthorRow = memo(function AuthorRow({
           numberOfLines={1}
         >
           {orphan
-            ? 'No books yet'
-            : `${author.book_count} ${author.book_count === 1 ? 'book' : 'books'} · ${
-                author.published_count
-              } live`}
+            ? s.adminLibrary.catalog.noBooksYet
+            : s.adminLibrary.catalog.authorBooksLive(
+                s.adminLibrary.counts.books(author.book_count),
+                author.published_count,
+              )}
         </Text>
       </View>
 

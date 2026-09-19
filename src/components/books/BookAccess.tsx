@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { StyleSheet } from 'react-native';
 
 import { Badge, Text } from '@/components/ui';
+import { useStrings } from '@/i18n';
 import { fontSize } from '@/theme/typography';
 
 /**
@@ -46,12 +47,13 @@ export const AccessLabel = memo(function AccessLabel({
   /** `badge` draws the bordered pill used on the book detail hero. */
   variant?: 'text' | 'badge';
 }) {
+  const s = useStrings();
   const label =
     access.kind === 'membership'
       ? variant === 'badge'
-        ? 'INCLUDED WITH MEMBERSHIP'
-        : 'IN MEMBERSHIP'
-      : 'IN YOUR LIBRARY';
+        ? s.catalog.access.includedWithMembership
+        : s.catalog.access.inMembership
+      : s.catalog.access.inYourLibrary;
 
   if (variant === 'badge') {
     return (

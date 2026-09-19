@@ -9,6 +9,7 @@ import { Text, TextButton } from '@/components/ui';
 import { ROUTES } from '@/constants/routes';
 import { CodeEntry } from '@/features/auth/components/CodeEntry';
 import { AuthLayout } from '@/features/auth/components/AuthLayout';
+import { useStrings } from '@/i18n';
 import { resumeAfterAuth, waitForAccessCheck } from '@/lib/access';
 import {
   requestPasswordReset,
@@ -22,30 +23,6 @@ import { useAuthStore } from '@/stores/authStore';
 import { fontSize } from '@/theme/typography';
 
 export type CodeFlow = 'signup' | 'recovery' | 'signin';
-
-const COPY: Record<
-  CodeFlow,
-  { title: string; subtitle: (email: string) => string; verify: string }
-> = {
-  signup: {
-    title: 'Check your email.',
-    subtitle: email =>
-      `Enter the code we emailed to ${email}, or open the secure link in the same email on this phone.`,
-    verify: 'Verify email',
-  },
-  recovery: {
-    title: 'Enter the reset code.',
-    subtitle: email =>
-      `We emailed a six-digit code to ${email}. Enter it here, then choose a new password. The secure link in the email works too, on this phone.`,
-    verify: 'Continue',
-  },
-  signin: {
-    title: 'Enter your sign-in code.',
-    subtitle: email =>
-      `We emailed a six-digit code to ${email}. Enter it here, or open the secure link in the same email on this phone.`,
-    verify: 'Sign in',
-  },
-};
 
 /**
  * The code screen for the flows that start signed out.
@@ -62,7 +39,8 @@ export function EnterCodeScreen() {
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'EnterCode'>>();
   const { flow, email, returnTo } = route.params;
-  const copy = COPY[flow];
+  const s = useStrings();
+  const copy = s.auth.enterCode[flow];
 
   const userId = useAuthStore(state => state.userId);
   const finished = useRef(false);
@@ -139,10 +117,10 @@ export function EnterCodeScreen() {
       footer={
         <View style={styles.footer}>
           <Text size={fontSize.bodySmall} leading={1} tone="muted">
-            Wrong address?
+            {s.auth.enterCode.wrongAddress}
           </Text>
           <TextButton
-            label="Back to sign in"
+            label={s.auth.enterCode.backToSignIn}
             onPress={goToSignIn}
             size={fontSize.bodySmall}
           />

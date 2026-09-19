@@ -28,6 +28,7 @@ export {
   type EmailChangeProgress,
 } from './auth';
 export { describeOtpError, type OtpErrorKind } from './otpErrors';
+export { describeAuthError } from './authErrors';
 export {
   GoogleSignInCancelled,
   forgetGoogleSession,

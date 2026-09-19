@@ -19,6 +19,7 @@ import {
 import { layout } from '@/theme/palette';
 import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
+import { useStrings } from '@/i18n';
 
 export type AuthLayoutProps = PropsWithChildren<{
   title: string;
@@ -40,6 +41,7 @@ export function AuthLayout({
   children,
 }: AuthLayoutProps) {
   const { colors } = useTheme();
+  const s = useStrings();
   const insets = useSafeAreaInsets();
 
   return (
@@ -76,7 +78,7 @@ export function AuthLayout({
               onPress={onBack}
               variant="plain"
               buttonSize={36}
-              accessibilityLabel="Go back"
+              accessibilityLabel={s.common.goBack}
               style={styles.back}
             />
           ) : null}

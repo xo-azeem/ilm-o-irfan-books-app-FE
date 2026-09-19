@@ -19,6 +19,8 @@ import {
 import { radius } from '@/theme/palette';
 import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
+import { useStrings } from '@/i18n';
+import type { AchievementId } from '@/services/api/types';
 
 /**
  * The streak card.
@@ -37,6 +39,7 @@ export const StreakCard = memo(function StreakCard({
   week: number[];
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
 
   return (
     <View style={[styles.streak, { borderColor: colors.goldBorder }]}>
@@ -49,10 +52,10 @@ export const StreakCard = memo(function StreakCard({
       />
       <View style={styles.streakBody}>
         <Display size={30} tone="gold">
-          {current === 1 ? '1 day' : `${current} days`}
+          {s.profile.streak.days(current)}
         </Display>
         <Text size={12.5} leading={1.2} tone="muted">
-          {longest ? `Reading streak · longest ${longest}` : 'Reading streak'}
+          {longest ? s.profile.streak.longest(longest) : s.profile.streak.label}
         </Text>
       </View>
       <StreakBars days={week} />
@@ -76,15 +79,16 @@ export const GoalCard = memo(function GoalCard({
   note?: string;
   onEdit?: () => void;
 }) {
-  const count = `${completed} / ${target} books`;
+  const s = useStrings();
+  const count = s.profile.goal.count(completed, target);
   return (
     <Card tone="surface" rounded={radius.cardLarge} padded={18} gap={14}>
       <View style={styles.goalHeader}>
-        <Display size={17}>This month’s goal</Display>
+        <Display size={17}>{s.profile.goal.title}</Display>
         {onEdit ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`${count}. Change goal`}
+            accessibilityLabel={s.profile.goal.changeGoal(count)}
             hitSlop={8}
             onPress={onEdit}
             style={({ pressed }) => [
@@ -117,10 +121,10 @@ export const GoalCard = memo(function GoalCard({
 });
 
 export type Achievement = {
-  id: string;
+  /** Names the badge: the caption comes from `profile.achievements.names`. */
+  id: AchievementId;
   /** A numeral or glyph — "7", "25", "☾". */
   mark: string;
-  label: string;
   earned: boolean;
   /** Gold for streaks, green for volume. Locked badges are neither. */
   tone?: 'gold' | 'primary';
@@ -145,14 +149,15 @@ export const AchievementRail = memo(function AchievementRail({
   totalCount: number;
   onSeeAll?: () => void;
 }) {
+  const s = useStrings();
   return (
     <View style={styles.achievements}>
       <SectionHeader
-        title="Achievements"
+        title={s.profile.achievements.title}
         variant="display"
         action={
           <TextButton
-            label={`${earnedCount} of ${totalCount}`}
+            label={s.profile.achievements.earnedOf(earnedCount, totalCount)}
             onPress={onSeeAll}
             size={fontSize.captionSmall}
           />
@@ -184,20 +189,25 @@ const AchievementBadge = memo(function AchievementBadge({
   achievement: Achievement;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
   const { earned, tone = 'primary', progress } = achievement;
+  const label = s.profile.achievements.names[achievement.id];
 
   const caption = earned
-    ? achievement.label
+    ? label
     : progress
-      ? `${Math.min(progress.current, progress.target)} of ${progress.target}`
-      : 'Locked';
+      ? s.profile.achievements.progress(
+          Math.min(progress.current, progress.target),
+          progress.target,
+        )
+      : s.profile.achievements.locked;
 
   return (
     <View style={styles.badge}>
       {earned ? (
         <View
           style={styles.medal}
-          accessibilityLabel={`${achievement.label} medal`}
+          accessibilityLabel={s.profile.achievements.medal(label)}
         >
           <MedalIcon size={MEDAL_SIZE} tone={tone} />
           {/* The numeral sits on the disc, not on the ribbon. */}

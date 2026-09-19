@@ -11,7 +11,7 @@ import type { EntitlementStatus } from '@/services/api/types';
  */
 export {
   NO_ACCESS,
-  REASON_COPY,
+  REASON_SOFT,
   mergeSignedPdfAccess,
   parseAccessState,
   reasonCopy,

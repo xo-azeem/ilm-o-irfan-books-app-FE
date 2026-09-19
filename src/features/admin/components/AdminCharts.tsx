@@ -8,6 +8,7 @@ import { useTheme } from '@/theme/ThemeContext';
 import { AdminEyebrow, AdminMeter } from './AdminUi';
 
 import type { TimeSeriesPoint } from '@/services/admin';
+import { useStrings } from '@/i18n';
 
 /**
  * Admin charts.
@@ -20,8 +21,6 @@ import type { TimeSeriesPoint } from '@/services/admin';
 /** The most bars that stay legible at a phone's width. */
 const MAX_BARS = 30;
 const BAR_HEIGHT = 96;
-
-const WEEKDAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
 function barColor(value: number, max: number): string {
   if (max <= 0) return palette.greenDeep;
@@ -44,6 +43,7 @@ export const AdminBarChart = memo(function AdminBarChart({
   points: TimeSeriesPoint[];
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
 
   const bars = useMemo(() => points.slice(-MAX_BARS), [points]);
   const max = useMemo(
@@ -80,7 +80,7 @@ export const AdminBarChart = memo(function AdminBarChart({
 
       {bars.length === 0 ? (
         <Text size={12.5} leading={1.45} tone="muted">
-          Nothing recorded in this window yet.
+          {s.services.admin.nothingInWindow}
         </Text>
       ) : (
         <>
@@ -115,7 +115,7 @@ export const AdminBarChart = memo(function AdminBarChart({
                   tracking={0}
                   tone="dim"
                 >
-                  {WEEKDAYS[new Date(point.date).getDay()] ?? ''}
+                  {s.admin.ui.weekdays[new Date(point.date).getDay()] ?? ''}
                 </Label>
               ))
             ) : (
@@ -164,12 +164,14 @@ export type ShareRow = { id: string; label: string; value: number };
  */
 export const AdminShareBars = memo(function AdminShareBars({
   rows,
-  emptyLabel = 'Nothing recorded yet.',
+  emptyLabel: emptyLabelProp,
 }: {
   rows: ShareRow[];
   emptyLabel?: string;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
+  const emptyLabel = emptyLabelProp ?? s.admin.ui.nothingRecorded;
   const total = rows.reduce((sum, row) => sum + row.value, 0);
 
   return (

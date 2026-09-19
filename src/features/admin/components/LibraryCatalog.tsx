@@ -18,11 +18,13 @@ import {
   useReorderCatalog,
 } from '@/hooks/useAdmin';
 import {
-  SYSTEM_SHELF_NOTE,
+  systemShelfNote,
   type AdminCategory,
   type AdminCollection,
 } from '@/services/admin';
 import { useTheme } from '@/theme/ThemeContext';
+import { useStrings } from '@/i18n';
+import { strings } from '@/i18n/strings';
 
 /**
  * The two ordered catalog lists.
@@ -91,11 +93,12 @@ const MoveControls = memo(function MoveControls({
   isLast: boolean;
   onMove: (delta: number) => void;
 }) {
+  const s = useStrings();
   return (
     <View style={styles.moveControls}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Move ${label} up`}
+        accessibilityLabel={s.admin.ui.moveUp(label)}
         disabled={isFirst}
         hitSlop={6}
         onPress={() => onMove(-1)}
@@ -105,7 +108,7 @@ const MoveControls = memo(function MoveControls({
       </Pressable>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Move ${label} down`}
+        accessibilityLabel={s.admin.ui.moveDown(label)}
         disabled={isLast}
         hitSlop={6}
         onPress={() => onMove(1)}
@@ -140,6 +143,7 @@ export const LibraryCategories = memo(function LibraryCategories({
   onOpen: (categoryId: string) => void;
   onCreate: () => void;
 }) {
+  const s = useStrings();
   const { scrollEndPadding } = useAppInsets();
   const toast = useToast();
 
@@ -173,7 +177,7 @@ export const LibraryCategories = memo(function LibraryCategories({
     return (
       <View style={styles.gutter}>
         <AdminErrorState
-          message="The category list could not be loaded."
+          message={s.adminLibrary.catalog.categoriesFailed}
           detail={errorMessage(error)}
           onRetry={() => void refetch()}
         />
@@ -185,9 +189,9 @@ export const LibraryCategories = memo(function LibraryCategories({
     return (
       <ScrollView style={styles.fill} contentContainerStyle={styles.gutter}>
         <AdminEmpty
-          title="No categories yet"
-          message="Categories are the tiles on Explore and the filters in search. Add the first one and books can be tagged with it."
-          actionLabel="Add the first category"
+          title={s.adminLibrary.catalog.noCategories}
+          message={s.adminLibrary.catalog.noCategoriesMessage}
+          actionLabel={s.adminLibrary.catalog.addFirstCategory}
           onAction={onCreate}
         />
       </ScrollView>
@@ -215,14 +219,11 @@ export const LibraryCategories = memo(function LibraryCategories({
         />
       ))}
 
-      <OrderHint>
-        Move a category and readers see the new Explore order immediately.
-        Hidden categories still work as search filters.
-      </OrderHint>
+      <OrderHint>{s.adminLibrary.catalog.categoryOrderHint}</OrderHint>
 
       {reorder.isPending ? (
         <Label size={10} tracking={1.6} tone="dim" style={styles.saving}>
-          Saving order…
+          {s.adminLibrary.catalog.savingOrder}
         </Label>
       ) : null}
     </ScrollView>
@@ -244,6 +245,7 @@ const CategoryRow = memo(function CategoryRow({
   onPress: () => void;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
 
   return (
     <View
@@ -281,10 +283,10 @@ const CategoryRow = memo(function CategoryRow({
       />
 
       {category.book_count === 0 ? (
-        <AdminTag label="EMPTY" tone="warning" />
+        <AdminTag label={s.adminLibrary.catalog.empty} tone="warning" />
       ) : (
         <Text size={11} leading={1} tone="faint">
-          {`${category.book_count} books`}
+          {s.adminLibrary.counts.books(category.book_count)}
         </Text>
       )}
     </View>
@@ -300,6 +302,7 @@ export const LibraryShelves = memo(function LibraryShelves({
   onOpen: (collectionId: string) => void;
   onCreate: () => void;
 }) {
+  const s = useStrings();
   const { scrollEndPadding } = useAppInsets();
   const toast = useToast();
 
@@ -333,7 +336,7 @@ export const LibraryShelves = memo(function LibraryShelves({
     return (
       <View style={styles.gutter}>
         <AdminErrorState
-          message="The shelf list could not be loaded."
+          message={s.adminLibrary.catalog.shelvesFailed}
           detail={errorMessage(error)}
           onRetry={() => void refetch()}
         />
@@ -345,9 +348,9 @@ export const LibraryShelves = memo(function LibraryShelves({
     return (
       <ScrollView style={styles.fill} contentContainerStyle={styles.gutter}>
         <AdminEmpty
-          title="No collections yet"
-          message="A collection is a card on Home's curated strip that opens a reading list. Add one, put a few titles in it, and it appears the moment you publish it."
-          actionLabel="Add the first collection"
+          title={s.adminLibrary.catalog.noCollections}
+          message={s.adminLibrary.catalog.noCollectionsMessage}
+          actionLabel={s.adminLibrary.catalog.addFirstCollection}
           onAction={onCreate}
         />
       </ScrollView>
@@ -375,12 +378,7 @@ export const LibraryShelves = memo(function LibraryShelves({
         />
       ))}
 
-      <OrderHint>
-        Move a collection and readers see the new order on Home immediately. A
-        hidden collection stays linkable but disappears from Home. The three
-        Home rails are listed here so they can be retitled or hidden; they
-        cannot be deleted.
-      </OrderHint>
+      <OrderHint>{s.adminLibrary.catalog.collectionOrderHint}</OrderHint>
     </ScrollView>
   );
 });
@@ -393,20 +391,20 @@ export const LibraryShelves = memo(function LibraryShelves({
  * there, how many are drafts waiting to be published.
  */
 function collectionDetail(collection: AdminCollection): string {
+  const words = strings().adminLibrary;
   if (collection.is_system) {
-    const rail = SYSTEM_SHELF_NOTE[collection.slug]?.label ?? 'Home rail';
-    if (!SYSTEM_SHELF_NOTE[collection.slug]?.curated) {
-      return `${rail} · drawn weekly`;
+    const note = systemShelfNote(collection.slug);
+    const rail = note?.label ?? words.shelfNotes.homeRail;
+    if (!note?.curated) {
+      return words.catalog.drawnWeekly(rail);
     }
     return collection.book_count === 0
-      ? `${rail} · newest books stand in`
-      : `${rail} · ${collection.published_count} live`;
+      ? words.catalog.newestStandIn(rail)
+      : words.catalog.railLive(rail, collection.published_count);
   }
-  const live = `${collection.published_count} ${
-    collection.published_count === 1 ? 'book' : 'books'
-  }`;
+  const live = words.counts.books(collection.published_count);
   const drafts = collection.book_count - collection.published_count;
-  return drafts > 0 ? `${live} · ${drafts} in draft` : live;
+  return drafts > 0 ? words.catalog.inDraft(live, drafts) : live;
 }
 
 const ShelfRow = memo(function ShelfRow({
@@ -425,12 +423,13 @@ const ShelfRow = memo(function ShelfRow({
   onPress: () => void;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
   const hidden = !collection.is_published;
   // Empty means empty for readers: a shelf of drafts is not on Home. The two
   // system shelves that stand in newest books are never empty on Home.
   const standsIn =
     collection.is_system &&
-    (SYSTEM_SHELF_NOTE[collection.slug]?.curated === false ||
+    (systemShelfNote(collection.slug)?.curated === false ||
       collection.slug === 'home-hero' ||
       collection.slug === 'new-arrivals');
   const empty = collection.published_count === 0 && !standsIn;
@@ -476,13 +475,13 @@ const ShelfRow = memo(function ShelfRow({
       />
 
       {hidden ? (
-        <AdminTag label="HIDDEN" tone="neutral" />
+        <AdminTag label={s.adminLibrary.catalog.hidden} tone="neutral" />
       ) : empty ? (
-        <AdminTag label="EMPTY" tone="warning" />
+        <AdminTag label={s.adminLibrary.catalog.empty} tone="warning" />
       ) : collection.is_system ? (
-        <AdminTag label="RAIL" tone="success" />
+        <AdminTag label={s.adminLibrary.catalog.rail} tone="success" />
       ) : (
-        <AdminTag label="LIVE" tone="success" />
+        <AdminTag label={s.adminLibrary.catalog.live} tone="success" />
       )}
     </View>
   );

@@ -5,6 +5,7 @@ import { Lock } from 'lucide-react-native';
 import { Screen } from '@/components/layout';
 import { Button, Display, Icon, Text, TextButton } from '@/components/ui';
 import type { AccessReason } from '@/services/api/types';
+import { useStrings } from '@/i18n';
 import { reasonCopy } from '@/services/entitlements';
 import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
@@ -30,6 +31,7 @@ export const ReaderLocked = memo(function ReaderLocked({
   onClose: () => void;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
   const copy = reasonCopy(reason);
 
   return (
@@ -61,13 +63,17 @@ export const ReaderLocked = memo(function ReaderLocked({
             tone="soft"
             align="center"
           >
-            {`You were on page ${page}. It is saved.`}
+            {s.reader.locked.youWereOnPage(page)}
           </Text>
         ) : null}
 
         <View style={styles.actions}>
-          <Button label="Renew membership" onPress={onRenew} size="md" />
-          <TextButton label="Back to library" tone="muted" onPress={onClose} />
+          <Button label={s.reader.locked.renew} onPress={onRenew} size="md" />
+          <TextButton
+            label={s.reader.locked.backToLibrary}
+            tone="muted"
+            onPress={onClose}
+          />
         </View>
       </View>
     </Screen>

@@ -16,6 +16,7 @@ import { LinearGradient, type GradientStop } from '@/components/ui/Gradient';
 import { Label, Text } from '@/components/ui/Text';
 import { READER_RULE_INSET } from '@/features/reader/constants';
 import { useReaderSurface } from '@/features/reader/useReaderSurface';
+import { useStrings } from '@/i18n';
 import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
 
@@ -169,6 +170,7 @@ export const ReaderChrome = memo(function ReaderChrome({
   children,
 }: ReaderChromeProps) {
   const { colors, isDark } = useTheme();
+  const s = useStrings();
   const surface = useReaderSurface();
   const insets = useSafeAreaInsets();
 
@@ -228,7 +230,7 @@ export const ReaderChrome = memo(function ReaderChrome({
           onPress={onBack}
           variant="plain"
           buttonSize={36}
-          accessibilityLabel="Close the book"
+          accessibilityLabel={s.reader.closeTheBook}
         />
 
         <View style={styles.titleBlock}>
@@ -242,7 +244,7 @@ export const ReaderChrome = memo(function ReaderChrome({
           </Text>
           {totalPages > 0 ? (
             <Label size={fontSize.labelSmall + 0.5} tracking={0.9}>
-              {`P. ${page} OF ${totalPages}`}
+              {s.reader.pageShort(page, totalPages)}
             </Label>
           ) : null}
         </View>
@@ -254,7 +256,7 @@ export const ReaderChrome = memo(function ReaderChrome({
           onPress={onOpenMenu}
           variant="plain"
           buttonSize={36}
-          accessibilityLabel="Reading options"
+          accessibilityLabel={s.reader.readingOptions}
         />
       </Animated.View>
 
@@ -278,7 +280,7 @@ export const ReaderChrome = memo(function ReaderChrome({
           >
             {chapterLabel
               ? `${chapterLabel} · ${percent}%`
-              : `PAGE ${page} OF ${totalPages} · ${percent}%`}
+              : s.reader.pageStatus(page, totalPages, percent)}
           </Label>
         ) : null}
       </Animated.View>
@@ -333,7 +335,7 @@ export const ReaderChrome = memo(function ReaderChrome({
                 : 'rgba(16, 26, 18, 0.55)',
             }}
           >
-            DRAG THE PAGE FROM ANYWHERE
+            {s.reader.dragHint}
           </Label>
         </View>
       </Animated.View>

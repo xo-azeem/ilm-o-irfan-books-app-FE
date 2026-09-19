@@ -24,6 +24,7 @@ import { useAppInsets } from '@/hooks/useAppInsets';
 import { layout } from '@/theme/palette';
 import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
+import { useStrings } from '@/i18n';
 
 /** The board's top padding, measured from the top of the device frame. */
 const DESIGN_TOP_INSET = 52;
@@ -226,6 +227,7 @@ export const ScreenHeader = memo(function ScreenHeader({
   dense = false,
   style,
 }: ScreenHeaderProps) {
+  const s = useStrings();
   return (
     <View style={[styles.header, style]}>
       {onBack ? (
@@ -235,7 +237,7 @@ export const ScreenHeader = memo(function ScreenHeader({
             onPress={onBack}
             variant="plain"
             buttonSize={36}
-            accessibilityLabel="Go back"
+            accessibilityLabel={s.common.goBack}
           />
           {action}
         </View>

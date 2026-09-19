@@ -17,6 +17,7 @@ import { Text } from '@/components/ui';
 import { useTheme } from '@/theme/ThemeContext';
 
 import { DANGER, WARNING } from './AdminUi';
+import { strings } from '@/i18n/strings';
 
 type ToastTone = 'success' | 'error' | 'info';
 
@@ -147,7 +148,7 @@ const styles = StyleSheet.create({
 /** Pulls a readable message out of whatever a mutation rejected with. */
 export function errorMessage(
   error: unknown,
-  fallback = 'Something went wrong.',
+  fallback = strings().admin.ui.somethingWentWrong,
 ): string {
   if (error instanceof Error && error.message) {
     return error.message;

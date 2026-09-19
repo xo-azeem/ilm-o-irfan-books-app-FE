@@ -6,6 +6,7 @@ import { BookCover, Divider, Icon, Text, Toggle } from '@/components/ui';
 import { useTheme } from '@/theme/ThemeContext';
 
 import { RowBadges, type RowBadge } from './AdminControls';
+import { useStrings } from '@/i18n';
 
 export type OrderableItem = {
   id: string;
@@ -30,7 +31,7 @@ export const AdminOrderableList = memo(function AdminOrderableList({
   items,
   onChange,
   onToggleVisible,
-  emptyLabel = 'Nothing added yet.',
+  emptyLabel: emptyLabelProp,
 }: {
   items: OrderableItem[];
   onChange: (next: OrderableItem[]) => void;
@@ -39,6 +40,8 @@ export const AdminOrderableList = memo(function AdminOrderableList({
   emptyLabel?: string;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
+  const emptyLabel = emptyLabelProp ?? s.admin.ui.nothingAdded;
 
   const move = useCallback(
     (from: number, to: number) => {
@@ -116,6 +119,7 @@ const OrderableRow = memo(function OrderableRow({
   onToggleVisible?: (id: string, visible: boolean) => void;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
   const hidden = onToggleVisible ? item.visible === false : false;
 
   return (
@@ -149,7 +153,7 @@ const OrderableRow = memo(function OrderableRow({
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Move ${item.label} up`}
+        accessibilityLabel={s.admin.ui.moveUp(item.label)}
         onPress={() => onMove(index, index - 1)}
         disabled={isFirst}
         hitSlop={6}
@@ -160,7 +164,7 @@ const OrderableRow = memo(function OrderableRow({
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Move ${item.label} down`}
+        accessibilityLabel={s.admin.ui.moveDown(item.label)}
         onPress={() => onMove(index, index + 1)}
         disabled={isLast}
         hitSlop={6}
@@ -175,12 +179,12 @@ const OrderableRow = memo(function OrderableRow({
           onValueChange={next => onToggleVisible(item.id, next)}
           size="admin"
           trackOff={colors.controlActive}
-          accessibilityLabel={`Show ${item.label}`}
+          accessibilityLabel={s.admin.ui.show(item.label)}
         />
       ) : onRemove ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Remove ${item.label}`}
+          accessibilityLabel={s.admin.ui.remove(item.label)}
           onPress={() => onRemove(item.id)}
           hitSlop={8}
           style={styles.control}

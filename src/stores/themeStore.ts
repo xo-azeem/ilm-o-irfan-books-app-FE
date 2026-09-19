@@ -13,12 +13,6 @@ export const THEME_PREFERENCES = ['system', 'light', 'dark'] as const;
 
 export type ThemePreference = (typeof THEME_PREFERENCES)[number];
 
-export const THEME_PREFERENCE_LABELS: Record<ThemePreference, string> = {
-  system: 'System',
-  light: 'Light',
-  dark: 'Dark',
-};
-
 /** The reader's page tone, applied to every book they open. */
 export const PAGE_TONES = ['paper', 'sepia', 'midnight'] as const;
 
@@ -42,31 +36,21 @@ export type ReadingMode = (typeof READING_MODE_VALUES)[number];
 
 export const DEFAULT_READING_MODE: ReadingMode = 'flip';
 
-export const READING_MODES: { value: ReadingMode; label: string }[] = [
-  { value: 'flip', label: 'Flip' },
-  { value: 'swipe', label: 'Swipe' },
-  { value: 'scroll', label: 'Scroll' },
-];
-
 /**
- * What each mode is called where there is room to say it.
- *
- * A three-letter segment cannot describe a page turn, so both places that
- * offer the choice say more beside it — the reader's own sheet in a word or
- * two, the Appearance screen in a line. Kept here with the modes themselves so
- * adding a fourth cannot leave either of them describing the wrong thing.
+ * What each mode is called, and the line that describes it, live in the
+ * dictionary (`reader.modes`) keyed by these values, so both places that
+ * offer the choice — the reader's own sheet and the Appearance screen — read
+ * the same words in the interface language. `readingModeOptions` builds the
+ * segments in the order above.
  */
-export const READING_MODE_TAGS: Record<ReadingMode, string> = {
-  flip: 'PAPER FLIP',
-  swipe: 'PAGE BY PAGE',
-  scroll: 'ONE COLUMN',
-};
-
-export const READING_MODE_HINTS: Record<ReadingMode, string> = {
-  flip: 'Pages fold over on the spine, the way paper does',
-  swipe: 'One page at a time, turned sideways',
-  scroll: 'The book runs as one column you scroll',
-};
+export function readingModeOptions(
+  modes: Record<ReadingMode, { label: string }>,
+): { value: ReadingMode; label: string }[] {
+  return READING_MODE_VALUES.map(value => ({
+    value,
+    label: modes[value].label,
+  }));
+}
 
 type ThemeState = {
   themePreference: ThemePreference;

@@ -11,51 +11,57 @@ import {
 } from 'lucide-react-native';
 
 import type { IconTileTone } from '@/components/ui';
+import { APP_VERSION } from '@/config/appVersion';
 import type { ProfileStackScreen } from '@/features/profile/navigation/types';
 
+/** The settings rows, keyed to their labels in `profile.settings.rows`. */
+export type ProfileRowId =
+  | 'personal'
+  | 'subscription'
+  | 'downloads'
+  | 'notifications'
+  | 'appearance'
+  | 'language'
+  | 'help'
+  | 'privacy';
+
+export type ProfileGroupId = 'account' | 'preferences' | 'support';
+
 export type ProfileRow = {
-  id: string;
-  label: string;
-  /** A live value shown on the right — "Premium", "English", "6". */
-  value?: string;
+  id: ProfileRowId;
   icon?: LucideIcon;
   iconTone?: IconTileTone;
   screen?: ProfileStackScreen;
 };
 
 export type ProfileGroup = {
-  id: string;
-  title: string;
+  id: ProfileGroupId;
   rows: ProfileRow[];
 };
 
 /**
  * The settings menu — exactly the four groups the app has always had, with the
  * coloured icon tiles kept. It renders beneath the reading record on the profile
- * tab, so this data is only navigation.
+ * tab, so this data is only navigation; the words come from the dictionary.
  */
 export const profileGroups: ProfileGroup[] = [
   {
-    id: 'group-account',
-    title: 'Account',
+    id: 'account',
     rows: [
       {
-        id: 'row-personal',
-        label: 'Personal details',
+        id: 'personal',
         icon: UserRound,
         iconTone: 'primary',
         screen: 'PersonalDetails',
       },
       {
-        id: 'row-subscription',
-        label: 'Subscription',
+        id: 'subscription',
         icon: CreditCard,
         iconTone: 'gold',
         screen: 'Subscription',
       },
       {
-        id: 'row-downloads',
-        label: 'Downloads',
+        id: 'downloads',
         icon: Download,
         iconTone: 'primary',
         screen: 'Downloads',
@@ -63,26 +69,22 @@ export const profileGroups: ProfileGroup[] = [
     ],
   },
   {
-    id: 'group-preferences',
-    title: 'Preferences',
+    id: 'preferences',
     rows: [
       {
-        id: 'row-notifications',
-        label: 'Notifications',
+        id: 'notifications',
         icon: Bell,
         iconTone: 'lime',
         screen: 'Notifications',
       },
       {
-        id: 'row-appearance',
-        label: 'Appearance',
+        id: 'appearance',
         icon: Moon,
         iconTone: 'primary',
         screen: 'Appearance',
       },
       {
-        id: 'row-language',
-        label: 'Language',
+        id: 'language',
         icon: Globe,
         iconTone: 'lime',
         screen: 'Language',
@@ -90,19 +92,16 @@ export const profileGroups: ProfileGroup[] = [
     ],
   },
   {
-    id: 'group-support',
-    title: 'Support',
+    id: 'support',
     rows: [
       {
-        id: 'row-help',
-        label: 'Help center',
+        id: 'help',
         icon: CircleHelp,
         iconTone: 'neutral',
         screen: 'HelpCenter',
       },
       {
-        id: 'row-privacy',
-        label: 'Privacy & security',
+        id: 'privacy',
         icon: Shield,
         iconTone: 'neutral',
         screen: 'PrivacySecurity',
@@ -112,118 +111,46 @@ export const profileGroups: ProfileGroup[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Language
-// ---------------------------------------------------------------------------
-
-export const languageOptions = [
-  { id: 'en', label: 'English', description: 'Default' },
-  { id: 'ur', label: 'Urdu', description: 'اردو', script: 'urdu' as const },
-  {
-    id: 'ar',
-    label: 'Arabic',
-    description: 'العربية',
-    script: 'arabic' as const,
-  },
-];
-
-/**
- * Catalogue preferences, kept separate from interface language — the
- * distinction a mixed-script catalogue actually needs.
- */
-export const catalogueToggles = [
-  {
-    id: 'urdu-first',
-    label: 'Show Urdu titles first',
-    description: 'Where a book has both scripts',
-    defaultValue: true,
-  },
-  {
-    id: 'hide-unreadable',
-    label: "Hide books I can't read",
-    description: 'Filters other languages out of Discover',
-    defaultValue: false,
-  },
-];
-
-// ---------------------------------------------------------------------------
 // Privacy
 // ---------------------------------------------------------------------------
 
+/** Labelled by `account.privacy.rows`. */
 export const accountSecurityRows = [
-  { id: 'sign-in-methods', label: 'Sign-in methods' },
-  { id: 'change-email', label: 'Change email address' },
-  { id: 'change-password', label: 'Change password' },
-  { id: 'devices', label: 'Signed-in devices' },
-  { id: 'export', label: 'Download my data' },
-];
+  'sign-in-methods',
+  'change-email',
+  'change-password',
+  'devices',
+  'export',
+] as const;
 
-export const legalRows = [
-  { id: 'privacy-policy', label: 'Privacy policy' },
-  { id: 'terms', label: 'Terms of use' },
-];
+export type AccountSecurityRowId = (typeof accountSecurityRows)[number];
+
+/** Labelled by `account.privacy.legalRows`. */
+export const legalRows = ['privacy-policy', 'terms'] as const;
+
+export type LegalRowId = (typeof legalRows)[number];
 
 // ---------------------------------------------------------------------------
 // Help & about
 // ---------------------------------------------------------------------------
 
-export const helpTopics = [
-  {
-    id: 'help1',
-    question: 'How do I download books for offline reading?',
-    answer:
-      'Open any book and tap the download icon on the reader screen. Downloaded titles appear under Profile → Downloads.',
-  },
-  {
-    id: 'help2',
-    question: 'Can I sync progress across devices?',
-    answer:
-      'Yes. Sign in with the same account on each device and your reading progress, highlights, and saved lessons will stay in sync.',
-  },
-  {
-    id: 'help3',
-    question: 'How do I manage my subscription?',
-    answer:
-      'Go to Profile → Subscription to view your plan, renewal date, and billing options.',
-  },
-  {
-    id: 'help4',
-    question: 'How do I change the app language?',
-    answer:
-      'Open Profile → Language and choose from the available languages. The app will apply your selection immediately.',
-  },
-];
+/** The help topics live in the dictionary (`profile.help.topics`). */
 
 export const supportContact = {
   email: 'support@ilmoirfan.com',
-  replyTime: 'replies in 24h',
 };
 
-export const aboutDetails = [
-  { id: 'about-version', label: 'Version', value: '1.0.0' },
-  { id: 'about-build', label: 'Build', value: '2026.07.08' },
-  { id: 'about-platform', label: 'Platform', value: 'React Native' },
+/** Labelled by `profile.help[id]`. */
+export const aboutDetails: {
+  id: 'version' | 'build' | 'platform';
+  value: string;
+}[] = [
+  { id: 'version', value: APP_VERSION },
+  { id: 'build', value: '2026.07.08' },
+  { id: 'platform', value: 'React Native' },
 ];
 
-// ---------------------------------------------------------------------------
-// Membership
-// ---------------------------------------------------------------------------
-
-/**
- * The standing pitch, for a deployment whose plans carry no `features[]`.
- *
- * Prices are deliberately absent: the only price the app may show is the
- * store's own `priceString`, which arrives with the RevenueCat offering.
- */
-export const membershipBenefits = [
-  'Every book in the catalogue, unlimited',
-  'Offline reading and downloads',
-  'Early access to new releases',
-  'Reading statistics and goals',
-];
-
-export const subscriptionIncludes = [
-  'Unlimited access to all books',
-  'Offline downloads',
-  'Audio lessons & highlights',
-  'Early access to new releases',
-];
+// The standing membership pitch — for a deployment whose plans carry no
+// `features[]` — lives in the dictionary (`account.paywall.benefits` and
+// `account.subscription.includes`). Prices are deliberately absent from it:
+// the only price the app may show is the store's own `priceString`.

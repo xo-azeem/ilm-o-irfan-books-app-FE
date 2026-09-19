@@ -23,6 +23,7 @@ import {
 } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import { fontSize } from '@/theme/typography';
+import { useStrings } from '@/i18n';
 
 /**
  * Change password.
@@ -34,6 +35,8 @@ import { fontSize } from '@/theme/typography';
  * password yet) sets its first one the same way.
  */
 export function ChangePasswordScreen() {
+  const s = useStrings();
+  const words = s.account.changePassword;
   const navigation = useNavigation();
   const email = useAuthStore(state => state.email);
   const { methods } = useSignInMethods();
@@ -76,33 +79,33 @@ export function ChangePasswordScreen() {
         setCooldown(RESEND_COOLDOWN_SECONDS);
       }
       showDialog({
-        title: 'Could not send the code',
+        title: words.couldNotSendCode,
         message: described.message,
         tone: 'danger',
       });
     } finally {
       setIsSending(false);
     }
-  }, [cooldown, isSending]);
+  }, [cooldown, isSending, words]);
 
   const handleSave = useCallback(async () => {
     const digits = code.replace(/\D/g, '');
     if (digits.length < CODE_LENGTH) {
-      setCodeProblem(`Enter all ${CODE_LENGTH} digits from the email.`);
+      setCodeProblem(words.enterAllDigits(CODE_LENGTH));
       return;
     }
     if (password.length < 8) {
       showDialog({
-        title: 'Weak password',
-        message: 'Password must be at least 8 characters.',
+        title: s.auth.weakPassword,
+        message: s.auth.passwordTooShort,
         tone: 'warning',
       });
       return;
     }
     if (password !== confirm) {
       showDialog({
-        title: 'Password mismatch',
-        message: 'The two passwords do not match.',
+        title: s.auth.passwordMismatch,
+        message: s.auth.passwordsDoNotMatchLong,
         tone: 'warning',
       });
       return;
@@ -113,12 +116,11 @@ export function ChangePasswordScreen() {
       await setNewPassword(password, digits);
       void methods.refetch();
       showDialog({
-        title: hasPassword ? 'Password changed' : 'Password set',
-        message:
-          'Other devices stay signed in. Sign them out from Signed-in devices if this was not you.',
+        title: hasPassword ? words.changed : words.setDone,
+        message: words.otherDevices,
         tone: 'success',
         icon: KeyRound,
-        actions: [{ label: 'Done', onPress: () => navigation.goBack() }],
+        actions: [{ label: s.common.done, onPress: () => navigation.goBack() }],
       });
     } catch (error) {
       const described = describeOtpError(error);
@@ -128,38 +130,37 @@ export function ChangePasswordScreen() {
         return;
       }
       showDialog({
-        title: 'Could not change the password',
+        title: words.couldNotChange,
         message: described.message,
         tone: 'danger',
       });
     } finally {
       setIsSaving(false);
     }
-  }, [code, confirm, hasPassword, methods, navigation, password]);
+  }, [code, confirm, hasPassword, methods, navigation, password, s, words]);
 
   return (
     <ProfileSubScreenLayout
-      title={hasPassword ? 'Change password' : 'Set a password'}
-      subtitle="A code to your email confirms it is you."
+      title={hasPassword ? words.change : words.set}
+      subtitle={words.subtitle}
     >
       <Card padded>
         <View style={styles.step}>
           <Text size={fontSize.bodySmall} weight="600">
-            1. Get a code
+            {words.step1}
           </Text>
           <Text size={fontSize.bodySmall} tone="muted">
-            We will email a six-digit code to {email ?? 'your address'}. It
-            expires in a few minutes.
+            {words.willEmail(email ?? words.yourAddress)}
           </Text>
           <Button
             label={
               isSending
-                ? 'Sending…'
+                ? words.sending
                 : codeSent
                   ? cooldown > 0
-                    ? `Resend in ${cooldown}s`
-                    : 'Resend code'
-                  : 'Email me a code'
+                    ? words.resendIn(cooldown)
+                    : words.resend
+                  : words.emailMeCode
             }
             variant={codeSent ? 'secondary' : 'primary'}
             size="md"
@@ -172,8 +173,8 @@ export function ChangePasswordScreen() {
 
       {codeSent ? (
         <Callout
-          title="Code sent"
-          message="Check your inbox (and spam). Enter the code below with your new password."
+          title={words.codeSent}
+          message={words.codeSentMessage}
           tone="info"
           icon={MailCheck}
         />
@@ -182,10 +183,12 @@ export function ChangePasswordScreen() {
       <Card padded>
         <View style={styles.step}>
           <Text size={fontSize.bodySmall} weight="600">
-            2. Choose the new password
+            {words.step2}
           </Text>
           <View style={styles.code}>
-            <Label size={fontSize.labelSmall + 0.5}>Code from the email</Label>
+            <Label size={fontSize.labelSmall + 0.5}>
+              {words.codeFromEmail}
+            </Label>
             <CodeInput
               value={code}
               onChange={next => {
@@ -202,20 +205,20 @@ export function ChangePasswordScreen() {
             ) : null}
           </View>
           <TextField
-            label="New password"
+            label={words.newPassword}
             value={password}
             onChangeText={setPassword}
-            placeholder="At least 8 characters"
+            placeholder={words.atLeastEight}
             secureTextEntry
             textContentType="newPassword"
             autoComplete="new-password"
             editable={!isSaving}
           />
           <TextField
-            label="Confirm new password"
+            label={words.confirmNew}
             value={confirm}
             onChangeText={setConfirm}
-            placeholder="Type it again"
+            placeholder={words.typeItAgain}
             secureTextEntry
             textContentType="newPassword"
             autoComplete="new-password"
@@ -226,10 +229,10 @@ export function ChangePasswordScreen() {
           <Button
             label={
               isSaving
-                ? 'Saving…'
+                ? words.saving
                 : hasPassword
-                  ? 'Change password'
-                  : 'Set password'
+                  ? words.change
+                  : words.setPassword
             }
             size="md"
             onPress={handleSave}

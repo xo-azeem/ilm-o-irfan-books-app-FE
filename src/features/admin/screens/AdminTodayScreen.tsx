@@ -60,6 +60,7 @@ import type {
   AdminSystemStackParamList,
   AdminTabParamList,
 } from '../navigation/types';
+import { useDateLocale, useStrings, type Strings } from '@/i18n';
 
 type Nav = {
   navigate: <T extends keyof AdminTabParamList>(
@@ -81,6 +82,9 @@ type ScreenTarget<L extends object> = {
  * last because none of them ask anything of you.
  */
 export function AdminTodayScreen() {
+  const s = useStrings();
+  const words = s.admin.today;
+  const locale = useDateLocale();
   const navigation = useNavigation() as unknown as Nav;
   const email = useAuthStore(state => state.email);
   const setViewingAsReader = useAuthStore(state => state.setViewingAsReader);
@@ -172,12 +176,12 @@ export function AdminTodayScreen() {
   return (
     <Screen padding={ADMIN_GUTTER} gap={16} scrollViewProps={refreshProps}>
       <AdminPageTitle
-        title={greeting()}
-        subtitle={`${email || 'admin'} · ${today()}`}
+        title={greeting(s)}
+        subtitle={`${email || s.admin.ui.admin} · ${today(locale)}`}
         action={
           <IconTile
             icon={Search}
-            label="Search the library"
+            label={words.searchLibrary}
             onPress={() =>
               openLibrary({
                 screen: ADMIN_ROUTES.LIBRARY_HOME,
@@ -192,37 +196,37 @@ export function AdminTodayScreen() {
           People before files: a reader waiting on a decision about their
           account is on a legal clock; a draft without a PDF is not. */}
       {attentionCount > 0 ? (
-        <AdminAttentionGroup title={`Needs you · ${attentionCount}`}>
+        <AdminAttentionGroup title={words.needsYou(attentionCount)}>
           {maintenanceOn ? (
             <AdminAttentionRow
               icon={Wrench}
-              title="Maintenance mode is on"
-              detail="Readers see the notice instead of the app. Admins are not affected — turn it off when the work is done."
-              actionLabel="Settings"
+              title={words.maintenanceOn}
+              detail={words.maintenanceOnDetail}
+              actionLabel={s.admin.ui.settings}
               onPress={() => openSystem({ screen: ADMIN_ROUTES.SETTINGS })}
             />
           ) : null}
           {signupsClosed ? (
             <AdminAttentionRow
               icon={UserLock}
-              title="Sign-ups are closed"
-              detail="No new accounts can be created — not from the app, not with Google. Existing readers are unaffected."
-              actionLabel="Settings"
+              title={words.signupsClosed}
+              detail={words.signupsClosedDetail}
+              actionLabel={s.admin.ui.settings}
               onPress={() => openSystem({ screen: ADMIN_ROUTES.SETTINGS })}
             />
           ) : null}
           {deletionAttention > 0 ? (
             <AdminAttentionRow
               icon={UserX}
-              title={describeDeletions(awaitingDecision, dueNow, failedRuns)}
+              title={describeDeletions(awaitingDecision, dueNow, failedRuns, s)}
               detail={
                 awaitingDecision > 0
-                  ? 'Readers are told the answer the moment you decide.'
+                  ? words.deletionsAwaitingDetail
                   : dueNow > 0
-                    ? 'The grace period has passed. Run them now, or they wait for the next tick.'
-                    : 'A run failed. Open the request to see why, then retry.'
+                    ? words.deletionsDueDetail
+                    : words.deletionsFailedDetail
               }
-              actionLabel="Review"
+              actionLabel={s.admin.ui.review}
               onPress={() =>
                 openPeople({
                   screen: ADMIN_ROUTES.PEOPLE_HOME,
@@ -234,9 +238,9 @@ export function AdminTodayScreen() {
           {blocked > 0 ? (
             <AdminAttentionRow
               icon={TriangleAlert}
-              title={`${blocked} ${blocked === 1 ? 'title' : 'titles'} can't go live yet`}
-              detail={describeBlockers(missingPdf, missingCover)}
-              actionLabel="Fix"
+              title={words.blocked(blocked)}
+              detail={describeBlockers(missingPdf, missingCover, s)}
+              actionLabel={s.admin.ui.fix}
               onPress={() =>
                 openLibrary({
                   screen: ADMIN_ROUTES.LIBRARY_HOME,
@@ -248,9 +252,9 @@ export function AdminTodayScreen() {
           {brokenFiles > 0 ? (
             <AdminAttentionRow
               icon={FileWarning}
-              title={`${brokenFiles} ${brokenFiles === 1 ? 'book points' : 'books point'} at a missing file`}
-              detail="The cover or PDF is gone from storage. Readers get an error until it is replaced."
-              actionLabel="Open"
+              title={words.brokenFiles(brokenFiles)}
+              detail={words.brokenFilesDetail}
+              actionLabel={s.admin.ui.open}
               onPress={() => openSystem({ screen: ADMIN_ROUTES.STORAGE })}
             />
           ) : null}
@@ -259,11 +263,11 @@ export function AdminTodayScreen() {
 
       {/* Then what you can start. */}
       <View style={styles.block}>
-        <AdminEyebrow>Create</AdminEyebrow>
+        <AdminEyebrow>{words.create}</AdminEyebrow>
         <View style={styles.createRow}>
           <CreateTile
             icon={Plus}
-            label="Book"
+            label={words.book}
             accent
             onPress={() =>
               openLibrary({ screen: ADMIN_ROUTES.BOOK_EDITOR, params: {} })
@@ -271,14 +275,14 @@ export function AdminTodayScreen() {
           />
           <CreateTile
             icon={User}
-            label="Author"
+            label={words.author}
             onPress={() =>
               openLibrary({ screen: ADMIN_ROUTES.AUTHOR_EDITOR, params: {} })
             }
           />
           <CreateTile
             icon={LayoutGrid}
-            label="Shelf"
+            label={words.shelf}
             onPress={() =>
               openLibrary({
                 screen: ADMIN_ROUTES.COLLECTION_EDITOR,
@@ -288,7 +292,7 @@ export function AdminTodayScreen() {
           />
           <CreateTile
             icon={ChartNoAxesColumn}
-            label="Report"
+            label={words.report}
             onPress={() => openSystem({ screen: ADMIN_ROUTES.ANALYTICS })}
           />
         </View>
@@ -298,10 +302,10 @@ export function AdminTodayScreen() {
           counts; this is the only way to see what a reader sees — the Home
           feed, search, a book page, the reader — with this same account. The
           way back is on the profile tab over there, and the row says so. */}
-      <AdminRowGroup title="Reader view">
+      <AdminRowGroup title={words.readerView}>
         <AdminNavRow
-          label="Open the app as a reader"
-          sublabel="Home, search, library and profile as readers see them"
+          label={words.openAsReader}
+          sublabel={words.openAsReaderHint}
           Icon={Smartphone}
           onPress={() => setViewingAsReader(true)}
         />
@@ -310,10 +314,10 @@ export function AdminTodayScreen() {
       {/* Then the week. */}
       <View style={styles.block}>
         <AdminSectionHeader
-          title="Last 7 days"
+          title={words.last7Days}
           action={
             <AdminTextAction
-              label="See analytics"
+              label={words.seeAnalytics}
               size={11.5}
               onPress={() => openSystem({ screen: ADMIN_ROUTES.ANALYTICS })}
             />
@@ -330,18 +334,18 @@ export function AdminTodayScreen() {
         ) : (
           <AdminStatRow>
             <AdminStat
-              label="New readers"
+              label={words.newReaders}
               value={readers.total}
               hint={readers.delta}
               tone="success"
             />
             <AdminStat
-              label="Reading sessions"
+              label={words.readingSessions}
               value={sessions.total}
               hint={sessions.delta}
             />
             <AdminStat
-              label="Downloads"
+              label={words.downloads}
               value={downloads.total}
               hint={downloads.delta}
             />
@@ -351,10 +355,10 @@ export function AdminTodayScreen() {
 
       {/* Then what changed, and by whom. */}
       <AdminRowGroup
-        title="Recent changes"
+        title={words.recentChanges}
         action={
           <AdminTextAction
-            label="View all"
+            label={words.viewAll}
             size={11.5}
             onPress={() => openSystem({ screen: ADMIN_ROUTES.HISTORY })}
           />
@@ -363,7 +367,7 @@ export function AdminTodayScreen() {
         {recent.length === 0 ? (
           <View style={styles.emptyActivity}>
             <Text size={12.5} leading={1.4} tone="muted">
-              No admin changes recorded yet.
+              {words.noChangesYet}
             </Text>
           </View>
         ) : (
@@ -376,6 +380,7 @@ export function AdminTodayScreen() {
 
 /** Totals for the last seven days, and how they compare with the seven before. */
 function useWeek(points: TimeSeriesPoint[] | undefined) {
+  const s = useStrings();
   return useMemo(() => {
     const series = points ?? [];
     const sum = (slice: TimeSeriesPoint[]) =>
@@ -391,20 +396,22 @@ function useWeek(points: TimeSeriesPoint[] | undefined) {
     const change = Math.round(((current - previous) / previous) * 100);
     return {
       total: current,
-      delta: `${change > 0 ? '+' : change < 0 ? '−' : ''}${Math.abs(change)}% on last week`,
+      delta: s.admin.today.onLastWeek(
+        `${change > 0 ? '+' : change < 0 ? '−' : ''}${Math.abs(change)}%`,
+      ),
     };
-  }, [points]);
+  }, [points, s]);
 }
 
-function greeting(): string {
+function greeting(s: Strings): string {
   const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 18) return 'Good afternoon';
-  return 'Good evening';
+  if (hour < 12) return s.admin.today.morning;
+  if (hour < 18) return s.admin.today.afternoon;
+  return s.admin.today.evening;
 }
 
-function today(): string {
-  return new Date().toLocaleDateString(undefined, {
+function today(locale: string): string {
+  return new Date().toLocaleDateString(locale, {
     weekday: 'long',
     day: 'numeric',
     month: 'short',
@@ -425,21 +432,26 @@ function describeDeletions(
   awaiting: number,
   due: number,
   failed: number,
+  s: Strings,
 ): string {
   if (awaiting > 0) {
-    return `${awaiting} ${awaiting === 1 ? 'reader has' : 'readers have'} asked to delete their account`;
+    return s.admin.today.deletionsAwaiting(awaiting);
   }
   if (due > 0) {
-    return `${due} approved ${due === 1 ? 'deletion is' : 'deletions are'} due to run`;
+    return s.admin.today.deletionsDue(due);
   }
-  return `${failed} account ${failed === 1 ? 'deletion' : 'deletions'} failed to run`;
+  return s.admin.today.deletionsFailed(failed);
 }
 
 /** "2 missing a PDF · 1 missing a cover" — the sentence, not the counter. */
-function describeBlockers(missingPdf: number, missingCover: number): string {
+function describeBlockers(
+  missingPdf: number,
+  missingCover: number,
+  s: Strings,
+): string {
   const parts: string[] = [];
-  if (missingPdf > 0) parts.push(`${missingPdf} missing a PDF`);
-  if (missingCover > 0) parts.push(`${missingCover} missing a cover`);
+  if (missingPdf > 0) parts.push(s.admin.today.missingPdf(missingPdf));
+  if (missingCover > 0) parts.push(s.admin.today.missingCover(missingCover));
   return parts.join(' · ');
 }
 
@@ -484,11 +496,12 @@ const CreateTile = memo(function CreateTile({
   onPress: () => void;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`New ${label.toLowerCase()}`}
+      accessibilityLabel={s.admin.today.newTile(label)}
       onPress={onPress}
       style={({ pressed }) => [
         styles.createTile,
@@ -518,17 +531,12 @@ const CreateTile = memo(function CreateTile({
   );
 });
 
-const ACTION_LABEL: Record<AuditEntry['action'], string> = {
-  insert: 'NEW',
-  update: 'EDIT',
-  delete: 'DEL',
-};
-
 const ChangeRow = memo(function ChangeRow({ entry }: { entry: AuditEntry }) {
+  const s = useStrings();
   return (
     <View style={styles.changeRow}>
       <AdminTag
-        label={ACTION_LABEL[entry.action]}
+        label={s.admin.ui.actions[entry.action]}
         tone={
           entry.action === 'delete'
             ? 'danger'
@@ -542,7 +550,7 @@ const ChangeRow = memo(function ChangeRow({ entry }: { entry: AuditEntry }) {
           {entry.entity_label ?? entry.entity_type}
         </Text>
         <Text size={10.5} leading={1.2} tone="faint" numberOfLines={1}>
-          {`${entry.entity_type} · ${entry.actor_email ?? 'system'}`}
+          {`${entry.entity_type} · ${entry.actor_email ?? s.admin.ui.system}`}
         </Text>
       </View>
       <Text size={10.5} leading={1} tone="dim">

@@ -40,6 +40,8 @@ import {
   publicCoverUrl,
   type CatalogBook,
 } from '@/services/catalog';
+import { isLocale, type Locale } from '@/i18n/locale';
+import { strings } from '@/i18n/strings';
 
 /**
  * Per-user reads and writes.
@@ -104,7 +106,14 @@ export type ProfileDetails = {
   state: string;
   postalCode: string;
   country: string;
-  memberSince: string;
+  /** The year the account was created, for "Member since". */
+  memberSince: number;
+  /**
+   * `profiles.locale` — the interface language the account remembers, so
+   * signing in on another device brings it along. Null until chosen; the
+   * device's own choice then becomes the account's. See `LocaleSyncProvider`.
+   */
+  locale: Locale | null;
   /**
    * `profiles.avatar_path` — a key in the private `avatars` bucket, not a URL.
    * Drawing it means signing it; see `services/avatar`.
@@ -137,6 +146,7 @@ export type ProfileDetails = {
 export type ProfileForm = Omit<
   ProfileDetails,
   | 'memberSince'
+  | 'locale'
   | 'streak'
   | 'avatarPath'
   | 'goal'
@@ -171,7 +181,7 @@ function check<T>(result: {
     throw new Error(result.error.message);
   }
   if (result.data == null) {
-    throw new Error('Expected data was not returned.');
+    throw new Error(strings().services.expectedData);
   }
   return result.data;
 }
@@ -190,7 +200,7 @@ function checkMaybe<T>(result: {
 async function userId() {
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) {
-    throw new Error('You must be signed in.');
+    throw new Error(strings().services.mustBeSignedIn);
   }
   return data.user.id;
 }
@@ -210,7 +220,7 @@ function toBook(book: NestedBook): CatalogBook {
       read_time_minutes: null,
       price_cents: 0,
       currency: 'USD',
-      format: 'Digital edition',
+      format: strings().services.book.digitalEdition,
       is_premium: false,
     },
     publicCoverUrl(book.cover_path),
@@ -312,7 +322,7 @@ export async function getProfile(): Promise<ProfileDetails> {
   );
 
   if (!row) {
-    throw new Error('Your profile has not been created yet.');
+    throw new Error(strings().services.profileNotCreated);
   }
 
   return {
@@ -326,7 +336,8 @@ export async function getProfile(): Promise<ProfileDetails> {
     state: row.state ?? '',
     postalCode: row.postal_code ?? '',
     country: row.country ?? '',
-    memberSince: `Member since ${new Date(row.created_at).getFullYear()}`,
+    memberSince: new Date(row.created_at).getFullYear(),
+    locale: isLocale(row.locale) ? row.locale : null,
     avatarPath: row.avatar_path ?? null,
     // `profile-read` reads `reading_streaks` in the same round trip, so the
     // record screen no longer needs a separate query for the streak — and gets
@@ -361,7 +372,10 @@ export async function updateReadingGoal(target: number): Promise<ProfileGoal> {
     target > MONTHLY_GOAL_RANGE.max
   ) {
     throw new Error(
-      `Goal must be a whole number from ${MONTHLY_GOAL_RANGE.min} to ${MONTHLY_GOAL_RANGE.max}.`,
+      strings().services.goalRange(
+        MONTHLY_GOAL_RANGE.min,
+        MONTHLY_GOAL_RANGE.max,
+      ),
     );
   }
 
@@ -540,8 +554,7 @@ export async function requestSubscriptionCancellation(): Promise<CancellationRec
         const code = error.message.trim();
         throw /^[A-Z_]+$/.test(code)
           ? new ApiError(
-              error.details?.trim() ||
-                'The request could not be completed. Please try again.',
+              error.details?.trim() || strings().services.couldNotComplete,
               409,
               code,
             )
@@ -586,6 +599,37 @@ export async function withdrawSubscriptionCancellation(): Promise<{
  * column-level grant `authenticated` holds on `profiles`, and including it
  * fails the whole statement with 42501. The trigger maintains it.
  */
+/**
+ * Records the interface language on the account.
+ *
+ * Its own write, like the goal's: the language is chosen on its own screen,
+ * and sending the whole personal-details form along with it would overwrite
+ * fields this device may hold stale. The device keeps its own copy in MMKV
+ * regardless — this is what a second device reads on sign-in.
+ */
+export async function updateLocalePreference(locale: Locale) {
+  await withEndpoint(
+    ENDPOINTS.profileUpdate,
+    () =>
+      requestData<ProfileRow>(ENDPOINTS.profileUpdate, {
+        method: 'PATCH',
+        auth: true,
+        body: { locale },
+      }),
+    async () => {
+      const id = await userId();
+      return check(
+        await supabase
+          .from('profiles')
+          .update({ locale })
+          .eq('id', id)
+          .select('locale')
+          .single(),
+      ) as Pick<ProfileRow, 'locale'>;
+    },
+  );
+}
+
 export async function updateProfile(profile: ProfileForm) {
   const patch = {
     full_name: profile.fullName,
@@ -642,9 +686,9 @@ export function progressCaption(
     return chapterLabel;
   }
   if (currentPage > 0 && totalPages > 0) {
-    return `Page ${currentPage} of ${totalPages}`;
+    return strings().services.book.pageOf(currentPage, totalPages);
   }
-  return 'Continue reading';
+  return strings().services.book.continueReading;
 }
 
 /** A shelf entry with what it costs on disk. */
@@ -815,7 +859,7 @@ async function libraryFromTables(): Promise<LibrarySummary> {
         downloads.error?.message ??
         highlights.error?.message ??
         streak.error?.message ??
-        'Could not load library.',
+        strings().services.couldNotLoadLibrary,
     );
   }
 
@@ -1007,7 +1051,7 @@ export async function addHighlight(
   const row = {
     book_id: bookId,
     page_number: pageNumber,
-    note: note ?? `Page ${pageNumber}`,
+    note: note ?? strings().services.book.bookmarkNote(pageNumber),
   };
 
   await withEndpoint(

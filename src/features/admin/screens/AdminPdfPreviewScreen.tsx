@@ -27,6 +27,7 @@ import type { AdminLibraryStackParamList } from '@/features/admin/navigation/typ
 import { getSignedPdfUrl } from '@/lib/supabase';
 import { readerStages } from '@/theme/palette';
 import { useTheme } from '@/theme/ThemeContext';
+import { useStrings } from '@/i18n';
 
 /**
  * Which step failed. The link is a call to our own function; the render is
@@ -54,6 +55,8 @@ export function AdminPdfPreviewScreen() {
   const route =
     useRoute<RouteProp<AdminLibraryStackParamList, 'AdminPdfPreview'>>();
   const { colors, isDark } = useTheme();
+  const s = useStrings();
+  const words = s.adminLibrary.pdfPreview;
   const bottomInset = useAdminBottomInset();
 
   const [uri, setUri] = useState<string | null>(null);
@@ -77,9 +80,9 @@ export function AdminPdfPreviewScreen() {
     (caught: object) =>
       setError({
         stage: 'render',
-        detail: errorMessage(caught, 'This file could not be rendered.'),
+        detail: errorMessage(caught, words.renderFailed),
       }),
-    [],
+    [words],
   );
 
   const load = useCallback(() => {
@@ -92,10 +95,10 @@ export function AdminPdfPreviewScreen() {
       .catch(caught =>
         setError({
           stage: 'link',
-          detail: errorMessage(caught, 'Could not open this PDF.'),
+          detail: errorMessage(caught, words.openFailed),
         }),
       );
-  }, [route.params.bookId]);
+  }, [route.params.bookId, words]);
 
   useEffect(() => {
     load();
@@ -139,9 +142,9 @@ export function AdminPdfPreviewScreen() {
           },
         ]}
       >
-        <AdminBackLink label="Files" />
+        <AdminBackLink label={words.files} />
         <Label size={11.5} leading={1} weight="400" tracking={0.6} tone="muted">
-          {pageCount > 0 ? `Page ${page} / ${pageCount}` : route.params.title}
+          {pageCount > 0 ? words.pageOf(page, pageCount) : route.params.title}
         </Label>
         <View style={styles.barSpacer} />
       </View>
@@ -149,15 +152,13 @@ export function AdminPdfPreviewScreen() {
       {error ? (
         <View style={styles.centre}>
           <AdminErrorState
-            title="Couldn't open this file"
+            title={words.couldNotOpen}
             message={
-              error.stage === 'link'
-                ? 'The signed link did not come back, so nothing could be rendered.'
-                : 'The signed link came back, but the file behind it could not be fetched or rendered.'
+              error.stage === 'link' ? words.linkFailed : words.fetchFailed
             }
             detail={error.detail}
             onRetry={load}
-            secondaryLabel="Back to the editor"
+            secondaryLabel={words.backToEditor}
             onSecondary={() => navigation.goBack()}
           />
         </View>
@@ -187,7 +188,7 @@ export function AdminPdfPreviewScreen() {
         <View style={styles.centre}>
           <ActivityIndicator color={colors.primary} />
           <Text size={12.5} leading={1.45} tone="muted">
-            Fetching a signed link…
+            {s.services.admin.fetchingLink}
           </Text>
         </View>
       )}
@@ -211,7 +212,7 @@ export function AdminPdfPreviewScreen() {
 
             <Pressable
               accessibilityRole="adjustable"
-              accessibilityLabel={`Page ${page} of ${pageCount}`}
+              accessibilityLabel={words.pageA11y(page, pageCount)}
               onLayout={onTrackLayout}
               onPress={event => scrubTo(event.nativeEvent.locationX)}
               hitSlop={12}
@@ -250,7 +251,7 @@ export function AdminPdfPreviewScreen() {
           <View style={styles.actions}>
             <View style={styles.grow}>
               <AdminButton
-                label="Looks wrong — replace"
+                label={words.looksWrong}
                 variant="secondary"
                 compact
                 onPress={() => navigation.goBack()}
@@ -258,7 +259,7 @@ export function AdminPdfPreviewScreen() {
             </View>
             <View style={styles.grow}>
               <AdminButton
-                label="Looks right"
+                label={words.looksRight}
                 compact
                 onPress={() => navigation.goBack()}
               />

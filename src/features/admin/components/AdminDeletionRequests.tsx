@@ -33,27 +33,28 @@ import type {
 import type { DeletionRequestStatus } from '@/services/accountDeletion';
 
 import type { AdminPeopleStackParamList } from '../navigation/types';
+import { useStrings } from '@/i18n';
+import { strings } from '@/i18n/strings';
 
 type Filter = Extract<AdminDeletionFilter, string>;
 
-const FILTERS: Array<{ value: Filter; label: string }> = [
-  { value: 'open', label: 'Open' },
-  { value: 'completed', label: 'Deleted' },
-  { value: 'rejected', label: 'Declined' },
-  { value: 'cancelled', label: 'Withdrawn' },
+type FilterChip = 'open' | 'completed' | 'rejected' | 'cancelled';
+
+const FILTER_VALUES: FilterChip[] = [
+  'open',
+  'completed',
+  'rejected',
+  'cancelled',
 ];
 
-const STATUS_TAG: Record<
-  DeletionRequestStatus,
-  { label: string; tone: AdminTagTone }
-> = {
-  pending: { label: 'Awaiting review', tone: 'warning' },
-  approved: { label: 'Approved', tone: 'danger' },
-  processing: { label: 'Deleting', tone: 'danger' },
-  failed: { label: 'On hold', tone: 'warning' },
-  completed: { label: 'Deleted', tone: 'neutral' },
-  rejected: { label: 'Declined', tone: 'neutral' },
-  cancelled: { label: 'Withdrawn', tone: 'neutral' },
+const STATUS_TONE: Record<DeletionRequestStatus, AdminTagTone> = {
+  pending: 'warning',
+  approved: 'danger',
+  processing: 'danger',
+  failed: 'warning',
+  completed: 'neutral',
+  rejected: 'neutral',
+  cancelled: 'neutral',
 };
 
 function isDue(row: AdminDeletionRequest): boolean {
@@ -72,13 +73,14 @@ function isDue(row: AdminDeletionRequest): boolean {
  * deciding whether the timing is kind.
  */
 function membershipLine(row: AdminDeletionRequest): string {
+  const words = strings().adminPeople.deletions;
   const status = row.snapshot.entitlementStatus;
   if (!status || status === 'expired') {
-    return 'No membership';
+    return words.noMembership;
   }
-  const parts = [row.snapshot.planName ?? 'Membership', status];
+  const parts = [row.snapshot.planName ?? words.membership, status];
   if (row.snapshot.expiresAt) {
-    parts.push(`until ${formatDate(row.snapshot.expiresAt)}`);
+    parts.push(words.until(formatDate(row.snapshot.expiresAt)));
   }
   if (row.snapshot.store) {
     parts.push(row.snapshot.store.replace('_', ' '));
@@ -101,7 +103,12 @@ const RequestCard = memo(function RequestCard({
   onOpenReader: (userId: string) => void;
   busy: boolean;
 }) {
-  const tag = STATUS_TAG[row.status];
+  const s = useStrings();
+  const words = s.adminPeople.deletions;
+  const tag = {
+    label: words.statuses[row.status],
+    tone: STATUS_TONE[row.status],
+  };
   const blocker = row.blockers[0];
   const decidable = row.status === 'pending' || row.status === 'failed';
 
@@ -123,8 +130,10 @@ const RequestCard = memo(function RequestCard({
 
       <View style={styles.meta}>
         <Text size={12} tone="muted">
-          Requested {formatRelative(row.requestedAt)} ·{' '}
-          {formatDate(row.requestedAt)}
+          {words.requested(
+            formatRelative(row.requestedAt),
+            formatDate(row.requestedAt),
+          )}
         </Text>
         <Text size={12} tone="muted">
           {membershipLine(row)}
@@ -132,20 +141,20 @@ const RequestCard = memo(function RequestCard({
         {row.status === 'approved' ? (
           <Text size={12} tone={isDue(row) ? 'gold' : 'muted'}>
             {isDue(row)
-              ? 'Due now — runs on the next tick or Run now'
-              : `Runs after ${formatDate(row.scheduledFor)}`}
+              ? words.dueNow
+              : words.runsAfter(formatDate(row.scheduledFor))}
           </Text>
         ) : null}
         {row.decidedAt ? (
           <Text size={12} tone="muted">
-            {row.status === 'rejected' ? 'Declined' : 'Decided'}{' '}
+            {row.status === 'rejected' ? words.declined : words.decided}{' '}
             {formatRelative(row.decidedAt)}
-            {row.decidedByEmail ? ` by ${row.decidedByEmail}` : ''}
+            {row.decidedByEmail ? words.by(row.decidedByEmail) : ''}
           </Text>
         ) : null}
         {row.completedAt ? (
           <Text size={12} tone="muted">
-            Deleted {formatDate(row.completedAt)}
+            {words.deletedOn(formatDate(row.completedAt))}
           </Text>
         ) : null}
       </View>
@@ -158,7 +167,7 @@ const RequestCard = memo(function RequestCard({
 
       {row.decisionNote ? (
         <Text size={12.5} tone="soft">
-          Note: {row.decisionNote}
+          {words.note(row.decisionNote)}
         </Text>
       ) : null}
 
@@ -170,7 +179,7 @@ const RequestCard = memo(function RequestCard({
 
       {decidable && blocker ? (
         <Text size={12.5} tone="gold">
-          Cannot approve yet: {blocker.message}
+          {words.cannotApprove(blocker.message)}
         </Text>
       ) : null}
 
@@ -179,8 +188,8 @@ const RequestCard = memo(function RequestCard({
           <AdminButton
             label={
               row.status === 'failed'
-                ? 'Approve again'
-                : `Approve · runs in ${graceDays} days`
+                ? words.approveAgain
+                : words.approveRunsIn(graceDays)
             }
             variant="destructive"
             compact
@@ -190,7 +199,7 @@ const RequestCard = memo(function RequestCard({
           />
           <View style={styles.actionRow}>
             <AdminButton
-              label="Decline"
+              label={words.decline}
               variant="ghost"
               compact
               fullWidth={false}
@@ -199,7 +208,7 @@ const RequestCard = memo(function RequestCard({
             />
             {!blocker ? (
               <AdminButton
-                label="Approve · delete now"
+                label={words.approveDeleteNow}
                 variant="ghostDanger"
                 compact
                 fullWidth={false}
@@ -213,7 +222,7 @@ const RequestCard = memo(function RequestCard({
 
       {row.profileExists ? (
         <AdminTextAction
-          label="Open reader"
+          label={words.openReader}
           onPress={() => onOpenReader(row.userId)}
         />
       ) : null}
@@ -234,6 +243,8 @@ export function AdminDeletionRequests({
 }: {
   bottomPadding: number;
 }) {
+  const s = useStrings();
+  const words = s.adminPeople.deletions;
   const toast = useToast();
   const navigation =
     useNavigation<NativeStackNavigationProp<AdminPeopleStackParamList>>();
@@ -255,17 +266,18 @@ export function AdminDeletionRequests({
 
   const chips = useMemo(() => {
     const counts = list.data?.counts ?? {};
-    return FILTERS.map(option => ({
-      ...option,
+    return FILTER_VALUES.map(value => ({
+      value,
+      label: words.filters[value],
       count:
-        option.value === 'open'
+        value === 'open'
           ? (counts.pending ?? 0) +
             (counts.approved ?? 0) +
             (counts.processing ?? 0) +
             (counts.failed ?? 0)
-          : counts[option.value as DeletionRequestStatus],
+          : counts[value as DeletionRequestStatus],
     }));
-  }, [list.data?.counts]);
+  }, [list.data?.counts, words]);
 
   const openReader = useCallback(
     (userId: string) =>
@@ -299,32 +311,28 @@ export function AdminDeletionRequests({
           toast.success(
             approve
               ? immediate
-                ? 'Approved — runs on the next tick, or press Run now.'
-                : `Approved — runs after ${graceDays} days unless withdrawn.`
-              : 'Declined. The reader has been told.',
+                ? words.approvedNextTick
+                : words.approvedAfter(graceDays)
+              : words.declinedTold,
           );
         },
         onError: caught => toast.error(errorMessage(caught)),
       },
     );
-  }, [decide, decision, graceDays, note, toast]);
+  }, [decide, decision, graceDays, note, toast, words]);
 
   const runNow = useCallback(() => {
     run.mutate(undefined, {
       onSuccess: result => {
         if (result.claimed === 0) {
-          toast.info('Nothing was due.');
+          toast.info(words.nothingDue);
           return;
         }
-        toast.success(
-          `${result.completed} deleted${
-            result.failed ? `, ${result.failed} on hold` : ''
-          }.`,
-        );
+        toast.success(words.runResult(result.completed, result.failed));
       },
       onError: caught => toast.error(errorMessage(caught)),
     });
-  }, [run, toast]);
+  }, [run, toast, words]);
 
   return (
     <>
@@ -334,10 +342,10 @@ export function AdminDeletionRequests({
           <AdminButton
             label={
               run.isPending
-                ? 'Running…'
+                ? words.running
                 : dueCount > 0
-                  ? `Run now · ${dueCount} due`
-                  : 'Run now'
+                  ? words.runNowDue(dueCount)
+                  : words.runNow
             }
             Icon={Play}
             variant="secondary"
@@ -355,7 +363,7 @@ export function AdminDeletionRequests({
       ) : list.error ? (
         <View style={styles.gutter}>
           <AdminErrorState
-            message="Deletion requests could not be loaded."
+            message={words.loadFailed}
             detail={errorMessage(list.error)}
             onRetry={() => void list.refetch()}
           />
@@ -371,13 +379,9 @@ export function AdminDeletionRequests({
         >
           {rows.length === 0 ? (
             <AdminEmpty
-              title={
-                filter === 'open' ? 'No open requests' : 'Nothing here yet'
-              }
+              title={filter === 'open' ? words.noOpen : words.nothingHere}
               message={
-                filter === 'open'
-                  ? 'Readers ask to delete their account from Profile → Privacy & security. Requests land here for review.'
-                  : 'Decided requests stay on record here.'
+                filter === 'open' ? words.noOpenMessage : words.decidedStay
               }
             />
           ) : (
@@ -402,20 +406,20 @@ export function AdminDeletionRequests({
         title={
           decision?.approve
             ? decision.immediate
-              ? 'Approve and delete now'
-              : 'Approve deletion'
-            : 'Decline request'
+              ? words.approveAndDeleteNow
+              : words.approveDeletion
+            : words.declineRequest
         }
         footer={
           <AdminButton
             label={
               decide.isPending
-                ? 'Saving…'
+                ? words.saving
                 : decision?.approve
                   ? decision.immediate
-                    ? 'Approve · delete on next run'
-                    : `Approve · delete after ${graceDays} days`
-                  : 'Decline'
+                    ? words.approveNextRun
+                    : words.approveAfterDays(graceDays)
+                  : words.decline
             }
             variant={decision?.approve ? 'destructive' : 'primary'}
             onPress={confirmDecision}
@@ -427,23 +431,30 @@ export function AdminDeletionRequests({
           <Text size={13.5} tone="soft">
             {decision?.approve
               ? decision.immediate
-                ? `${decision.row.email ?? 'This reader'} will be deleted on the next run — no grace period. They are notified now.`
-                : `${decision?.row.email ?? 'This reader'} is notified now and can still withdraw for ${graceDays} days. After that their account, membership record, library and history are removed for good.`
-              : `${decision?.row.email ?? 'The reader'} keeps their account and is told it was declined. A short reason helps.`}
+                ? words.immediateSentence(
+                    decision.row.email ?? words.thisReader,
+                  )
+                : words.graceSentence(
+                    decision?.row.email ?? words.thisReader,
+                    graceDays,
+                  )
+              : words.declineSentence(decision?.row.email ?? words.theReader)}
           </Text>
           <AdminField
-            label={decision?.approve ? 'Note (optional)' : 'Reason (optional)'}
+            label={
+              decision?.approve ? words.noteOptional : words.reasonOptional
+            }
             value={note}
             onChangeText={value => setNote(value.slice(0, 1000))}
             placeholder={
               decision?.approve
-                ? 'Anything the reader should know'
-                : 'e.g. Please cancel your membership first'
+                ? words.notePlaceholder
+                : words.reasonPlaceholder
             }
             multiline
           />
           <Text size={12} tone="muted">
-            Every decision is written to the audit log.
+            {words.auditNote}
           </Text>
         </View>
       </Sheet>

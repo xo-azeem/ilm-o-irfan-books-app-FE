@@ -76,7 +76,7 @@ import {
   adminCoverUrl,
   isSlugAvailable,
   slugify,
-  SYSTEM_SHELF_NOTE,
+  systemShelfNote,
   uploadAdminCover,
   uploadAdminPdf,
   validateCoverSize,
@@ -87,6 +87,7 @@ import { coverColors as COVER_RAMP, palette } from '@/theme/palette';
 import { useTheme } from '@/theme/ThemeContext';
 
 import type { AdminLibraryStackParamList } from '../navigation/types';
+import { useStrings } from '@/i18n';
 
 const CURRENCIES = ['PKR', 'USD', 'GBP', 'EUR'];
 const DESCRIPTION_MAX = 600;
@@ -159,6 +160,9 @@ export function AdminBookEditorScreen() {
    */
   const batchId = route.params?.batchId ?? null;
   const { colors } = useTheme();
+  const s = useStrings();
+  const words = s.adminLibrary.book;
+  const counts = s.adminLibrary.counts;
   const { scrollEndPadding } = useAppInsets();
   const toast = useToast();
 
@@ -262,13 +266,13 @@ export function AdminBookEditorScreen() {
   const batchToOpen = batchId ?? existing?.upload_batch_id ?? null;
 
   const errors = {
-    title: !form.title.trim() ? 'A title is required.' : null,
-    author: !form.authorId ? 'Choose an author.' : null,
-    slug: slugTaken ? 'Another title already uses this link.' : null,
-    price: Number.isNaN(Number(form.price)) ? 'Enter a number.' : null,
+    title: !form.title.trim() ? words.titleRequired : null,
+    author: !form.authorId ? words.chooseAuthor : null,
+    slug: slugTaken ? words.slugTaken : null,
+    price: Number.isNaN(Number(form.price)) ? words.enterNumber : null,
     readTime:
       form.readTime && !Number.isFinite(Number(form.readTime))
-        ? 'Enter minutes as a number.'
+        ? words.enterMinutes
         : null,
   };
   const hasErrors = Object.values(errors).some(Boolean);
@@ -297,9 +301,9 @@ export function AdminBookEditorScreen() {
       );
       uploads.replacePending(form.coverPath, path);
       patch({ coverPath: path });
-      toast.success('Cover uploaded.');
+      toast.success(words.coverUploaded);
     } catch (caught) {
-      toast.error(errorMessage(caught, 'Could not upload the cover.'));
+      toast.error(errorMessage(caught, words.coverFailed));
     } finally {
       setCoverProgress(null);
     }
@@ -329,7 +333,7 @@ export function AdminBookEditorScreen() {
         destination: 'cachesDirectory',
       });
       if (local.status !== 'success') {
-        throw new Error('Could not copy the selected PDF.');
+        throw new Error(words.copyFailed);
       }
 
       const uploaded = await uploadAdminPdf(
@@ -340,7 +344,7 @@ export function AdminBookEditorScreen() {
       );
       uploads.replacePending(form.pdfPath, uploaded.path);
       patch({ pdfPath: uploaded.path, fileSizeBytes: uploaded.sizeBytes });
-      toast.success('PDF uploaded.');
+      toast.success(words.pdfUploaded);
     } catch (caught) {
       if (
         isErrorWithCode(caught) &&
@@ -348,7 +352,7 @@ export function AdminBookEditorScreen() {
       ) {
         return;
       }
-      toast.error(errorMessage(caught, 'Could not upload the PDF.'));
+      toast.error(errorMessage(caught, words.pdfFailed));
     } finally {
       setPdfProgress(null);
     }
@@ -384,10 +388,7 @@ export function AdminBookEditorScreen() {
     setTouched(true);
     if (hasErrors) {
       toast.error(
-        errors.title ??
-          errors.author ??
-          errors.slug ??
-          'Fix the highlighted fields.',
+        errors.title ?? errors.author ?? errors.slug ?? words.fixFields,
       );
       return;
     }
@@ -419,38 +420,38 @@ export function AdminBookEditorScreen() {
   const checklist: ChecklistItem[] = [
     {
       id: 'identity',
-      label: 'Title and author',
+      label: words.checklist.identity,
       done: Boolean(form.title.trim() && form.authorId),
-      actionLabel: 'Add',
+      actionLabel: words.checklist.add,
       onAction: () => setShowAuthorPicker(true),
     },
     {
       id: 'description',
-      label: 'Description',
+      label: words.checklist.description,
       done: form.description.trim().length > 0,
     },
     {
       id: 'category',
-      label: 'At least one category',
+      label: words.checklist.category,
       done: form.categoryIds.length > 0,
-      actionLabel: 'Choose',
+      actionLabel: words.checklist.choose,
       onAction: () => setShowCategoryPicker(true),
     },
     {
       id: 'pdf',
-      label: 'Book PDF',
+      label: words.checklist.pdf,
       done: Boolean(form.pdfPath),
-      actionLabel: 'Upload',
+      actionLabel: words.checklist.upload,
       onAction: () => {
         void handlePdf();
       },
     },
     {
       id: 'cover',
-      label: 'Cover image',
+      label: words.checklist.cover,
       done: Boolean(form.coverPath),
       optional: true,
-      actionLabel: 'Add',
+      actionLabel: words.checklist.add,
       onAction: () => {
         void handleCover();
       },
@@ -458,9 +459,9 @@ export function AdminBookEditorScreen() {
   ];
 
   const publishBlocker = !form.pdfPath
-    ? 'needs a PDF'
+    ? words.needsPdf
     : hasErrors
-      ? 'fix the fields above'
+      ? words.fixAbove
       : null;
   const pdfName = form.pdfPath ? form.pdfPath.split('/').pop() : null;
 
@@ -471,12 +472,14 @@ export function AdminBookEditorScreen() {
     >
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <AdminBackLink
-          label={inBatch ? 'Batch' : 'Library'}
+          label={inBatch ? words.batch : words.library}
           action={
             <View style={styles.stateBadges}>
-              {isDirty ? <AdminTag label="UNSAVED" tone="warning" /> : null}
+              {isDirty ? (
+                <AdminTag label={s.admin.ui.unsaved} tone="warning" />
+              ) : null}
               <AdminTag
-                label={form.isPublished ? 'LIVE' : 'DRAFT'}
+                label={form.isPublished ? s.admin.ui.live : s.admin.ui.draft}
                 tone={form.isPublished ? 'success' : 'neutral'}
               />
             </View>
@@ -491,18 +494,18 @@ export function AdminBookEditorScreen() {
             numberOfLines={2}
             style={styles.grow}
           >
-            {bookId ? form.title || 'Edit book' : 'New book'}
+            {bookId ? form.title || words.editBook : words.newBook}
           </Display>
 
           {bookId ? (
             <View style={styles.titleActions}>
               <IconAction
                 icon={Copy}
-                label="Duplicate"
+                label={words.duplicate}
                 onPress={() =>
                   duplicateBook.mutate(bookId, {
                     onSuccess: newId => {
-                      toast.success('Draft copy created.');
+                      toast.success(words.draftCopyCreated);
                       navigation.replace(ADMIN_ROUTES.BOOK_EDITOR, {
                         bookId: newId,
                       });
@@ -513,7 +516,7 @@ export function AdminBookEditorScreen() {
               />
               <IconAction
                 icon={Trash2}
-                label="Delete"
+                label={words.delete}
                 tone="danger"
                 onPress={() => setConfirmDelete(true)}
               />
@@ -541,17 +544,17 @@ export function AdminBookEditorScreen() {
             tone="muted"
             style={styles.loading}
           >
-            Loading…
+            {words.loading}
           </Text>
         ) : (
           <>
             <AdminChecklist
               title={
                 form.isPublished
-                  ? 'This title is live'
+                  ? words.isLive
                   : inBatch
-                    ? 'Before the batch can go live'
-                    : 'Before this can go live'
+                    ? words.beforeBatchLive
+                    : words.beforeLive
               }
               items={checklist}
             />
@@ -560,10 +563,8 @@ export function AdminBookEditorScreen() {
               <AdminRowGroup>
                 <AdminNavRow
                   Icon={Layers}
-                  label={
-                    bookId ? 'Part of a bulk upload' : 'Being added to a batch'
-                  }
-                  sublabel="It goes live with the rest of the batch, not on its own."
+                  label={bookId ? words.partOfBatch : words.beingAdded}
+                  sublabel={words.goesLiveWithBatch}
                   onPress={() =>
                     navigation.navigate(ADMIN_ROUTES.UPLOAD_BATCH, {
                       batchId: batchToOpen,
@@ -576,7 +577,7 @@ export function AdminBookEditorScreen() {
             {/* Identity */}
             <View style={styles.stack}>
               <AdminField
-                label="Title"
+                label={words.title}
                 value={form.title}
                 onChangeText={value => patch({ title: value })}
                 error={touched ? errors.title : null}
@@ -584,47 +585,45 @@ export function AdminBookEditorScreen() {
               />
 
               <AdminPickerField
-                label="Author"
+                label={words.author}
                 value={author?.name}
-                placeholder="Choose an author"
+                placeholder={words.chooseAnAuthor}
                 onPress={() => setShowAuthorPicker(true)}
                 error={touched ? errors.author : null}
               />
 
               <AdminField
-                label="Description"
+                label={words.description}
                 value={form.description}
                 onChangeText={value => patch({ description: value })}
                 multiline
                 maxLength={DESCRIPTION_MAX}
-                helper="Shown on the book detail screen. Two or three sentences reads best."
+                helper={words.descriptionHint}
               />
 
               <AdminPickerField
-                label="Public link"
+                label={words.publicLink}
                 value={resolvedSlug || null}
-                placeholder="auto-from-title"
+                placeholder={words.autoFromTitle}
                 mono
                 verified={Boolean(resolvedSlug) && !slugTaken}
-                actionLabel="Edit"
+                actionLabel={words.edit}
                 onPress={() => patch({ slug: form.slug || resolvedSlug })}
                 error={errors.slug}
-                helper={
-                  slugTaken ? undefined : 'Made from the title. Available.'
-                }
+                helper={slugTaken ? undefined : words.madeFromTitle}
                 helperTone="faint"
               />
 
               {/* Only offered once the operator has asked to change it. */}
               {form.slug ? (
                 <AdminField
-                  label="Link override"
+                  label={words.linkOverride}
                   value={form.slug}
                   onChangeText={value => patch({ slug: value })}
                   autoCapitalize="none"
                   mono
                   error={errors.slug}
-                  helper="Changing a published link breaks anything already pointing at it."
+                  helper={words.linkOverrideHint}
                   helperTone="warning"
                 />
               ) : null}
@@ -633,7 +632,7 @@ export function AdminBookEditorScreen() {
             {/* Files */}
             <View style={styles.section}>
               <Display size={22} weight="500" tracking={-0.4}>
-                Files
+                {words.files}
               </Display>
 
               <View style={styles.coverBlock}>
@@ -651,27 +650,28 @@ export function AdminBookEditorScreen() {
                     height={150}
                     rounded={12}
                     placeholder
-                    placeholderLabel={'cover art\n1400×2100'}
+                    placeholderLabel={words.coverArtPlaceholder}
                   />
                 )}
 
                 <View style={styles.coverBody}>
                   <Text size={14} leading={1.3} weight="500">
-                    Cover image
+                    {words.coverImage}
                   </Text>
                   <Text size={12} leading={1.5} tone="muted">
-                    JPG, PNG or WebP up to 5 MB. Portrait art works best —
-                    readers see it at 2:3.
+                    {words.coverHint}
                   </Text>
 
                   {coverProgress !== null ? (
                     <AdminUploadProgress
-                      fileName="Uploading cover"
+                      fileName={words.uploadingCover}
                       percent={coverProgress * 100}
                     />
                   ) : (
                     <AdminButton
-                      label={form.coverPath ? 'Replace image' : 'Choose image'}
+                      label={
+                        form.coverPath ? words.replaceImage : words.chooseImage
+                      }
                       Icon={ImageUp}
                       variant="secondary"
                       compact
@@ -682,7 +682,7 @@ export function AdminBookEditorScreen() {
                     />
                   )}
 
-                  <AdminEyebrow tone="faint">Or pick a colour</AdminEyebrow>
+                  <AdminEyebrow tone="faint">{words.orPickColour}</AdminEyebrow>
                   <View style={styles.swatches}>
                     {Object.values(COVER_RAMP).map(entry => {
                       const picked =
@@ -693,7 +693,9 @@ export function AdminBookEditorScreen() {
                           key={entry.light}
                           accessibilityRole="button"
                           accessibilityState={{ selected: picked }}
-                          accessibilityLabel={`Cover colour ${entry.light}`}
+                          accessibilityLabel={words.coverColourA11y(
+                            entry.light,
+                          )}
                           onPress={() =>
                             patch({
                               coverColor: entry.light,
@@ -721,14 +723,14 @@ export function AdminBookEditorScreen() {
               <AdminCard>
                 <View style={styles.between}>
                   <Text size={14} leading={1.3} weight="500">
-                    Book PDF
+                    {words.bookPdf}
                   </Text>
                   {pdfProgress !== null ? (
-                    <AdminTag label="UPLOADING" tone="warning" />
+                    <AdminTag label={words.uploading} tone="warning" />
                   ) : form.pdfPath ? (
-                    <AdminTag label="READY" tone="success" />
+                    <AdminTag label={words.ready} tone="success" />
                   ) : (
-                    <AdminTag label="REQUIRED" tone="warning" />
+                    <AdminTag label={words.required} tone="warning" />
                   )}
                 </View>
 
@@ -736,11 +738,11 @@ export function AdminBookEditorScreen() {
                   <AdminUploadProgress
                     fileName={`${resolvedSlug || 'book'}.pdf`}
                     percent={pdfProgress * 100}
-                    detail="Stored privately while it uploads."
+                    detail={words.storedPrivately}
                   />
                 ) : (
                   <AdminButton
-                    label={form.pdfPath ? 'Replace PDF' : 'Choose a PDF'}
+                    label={form.pdfPath ? words.replacePdf : words.choosePdf}
                     variant="secondary"
                     compact
                     disabled={uploading}
@@ -752,16 +754,11 @@ export function AdminBookEditorScreen() {
 
                 <AdminDivider />
 
-                <AdminHelper>
-                  Up to 100 MB. Stored privately — readers only ever get a
-                  short-lived signed link, never the file itself.
-                </AdminHelper>
+                <AdminHelper>{words.pdfHint}</AdminHelper>
 
                 {existing?.pdf_path && form.pdfPath !== existing.pdf_path ? (
                   <AdminHelper tone="warning">
-                    Saving replaces the file for every reader: their offline
-                    copies are removed and they will download this one the next
-                    time they open the book. Reading positions are kept.
+                    {words.replaceWarning}
                   </AdminHelper>
                 ) : null}
               </AdminCard>
@@ -769,7 +766,7 @@ export function AdminBookEditorScreen() {
               {bookId && form.pdfPath ? (
                 <AdminCard>
                   <Text size={14} leading={1.3} weight="500">
-                    Currently live file
+                    {words.currentFile}
                   </Text>
                   <View style={styles.fileRow}>
                     <View
@@ -806,17 +803,18 @@ export function AdminBookEditorScreen() {
                         tone="faint"
                         numberOfLines={1}
                       >
-                        {`${formatBytes(form.fileSizeBytes)} · added ${formatDate(
-                          existing?.updated_at,
-                        )}`}
+                        {words.addedOn(
+                          formatBytes(form.fileSizeBytes),
+                          formatDate(existing?.updated_at),
+                        )}
                       </Text>
                     </View>
                     <AdminTextAction
-                      label="Preview"
+                      label={words.preview}
                       onPress={() =>
                         navigation.navigate(ADMIN_ROUTES.PDF_PREVIEW, {
                           bookId,
-                          title: form.title || 'Preview',
+                          title: form.title || words.preview,
                         })
                       }
                     />
@@ -828,7 +826,7 @@ export function AdminBookEditorScreen() {
             {/* Placement */}
             <View style={styles.section}>
               <Display size={22} weight="500" tracking={-0.4}>
-                Placement
+                {words.placement}
               </Display>
 
               <View style={styles.stack}>
@@ -837,10 +835,10 @@ export function AdminBookEditorScreen() {
                     a small "Edit" word. */}
                 <View style={styles.block}>
                   <AdminSectionHeader
-                    title="Categories"
+                    title={words.categories}
                     action={
                       <AdminTextAction
-                        label="Choose"
+                        label={words.choose}
                         size={11.5}
                         onPress={() => setShowCategoryPicker(true)}
                       />
@@ -852,7 +850,7 @@ export function AdminBookEditorScreen() {
                         key={id}
                         label={
                           categories.find(item => item.id === id)?.label ??
-                          'Unknown'
+                          words.unknown
                         }
                         onRemove={() =>
                           patch({
@@ -866,8 +864,8 @@ export function AdminBookEditorScreen() {
                     <Tag
                       label={
                         form.categoryIds.length
-                          ? '+ Add another'
-                          : '+ Add to a category'
+                          ? words.addAnother
+                          : words.addToCategory
                       }
                       dashed
                       onPress={() => setShowCategoryPicker(true)}
@@ -875,26 +873,21 @@ export function AdminBookEditorScreen() {
                   </View>
                   {form.categoryIds.length === 0 ? (
                     <AdminHelper tone="warning">
-                      Not in any category yet — readers will not find it on
-                      Explore.
+                      {words.notInCategory}
                     </AdminHelper>
                   ) : (
                     <AdminHelper>
-                      Shown under{' '}
-                      {form.categoryIds.length === 1
-                        ? 'this tile'
-                        : 'these tiles'}{' '}
-                      on Explore and matched by the category filter in search.
+                      {words.shownUnder(form.categoryIds.length !== 1)}
                     </AdminHelper>
                   )}
                 </View>
 
                 <View style={styles.block}>
                   <AdminSectionHeader
-                    title="Collections"
+                    title={words.collections}
                     action={
                       <AdminTextAction
-                        label="Choose"
+                        label={words.choose}
                         size={11.5}
                         onPress={() => setShowCollectionPicker(true)}
                       />
@@ -906,7 +899,7 @@ export function AdminBookEditorScreen() {
                         key={id}
                         label={
                           collections.find(item => item.id === id)?.title ??
-                          'Unknown'
+                          words.unknown
                         }
                         onRemove={() =>
                           patch({
@@ -920,22 +913,22 @@ export function AdminBookEditorScreen() {
                     <Tag
                       label={
                         form.collectionIds.length
-                          ? '+ Add another'
-                          : '+ Add to a collection'
+                          ? words.addAnother
+                          : words.addToCollection
                       }
                       dashed
                       onPress={() => setShowCollectionPicker(true)}
                     />
                   </View>
                   {form.collectionIds.length === 0 ? (
-                    <AdminHelper>Not on any Home collection.</AdminHelper>
+                    <AdminHelper>{words.notOnCollection}</AdminHelper>
                   ) : null}
                 </View>
 
                 <AdminCard>
                   <AdminToggleRow
-                    label="Premium"
-                    description="Only subscribers can open the PDF. Free titles open for everyone."
+                    label={words.premium}
+                    description={words.premiumHint}
                     value={form.isPremium}
                     onValueChange={value => patch({ isPremium: value })}
                   />
@@ -946,42 +939,42 @@ export function AdminBookEditorScreen() {
             {/* Details */}
             <View style={styles.section}>
               <Display size={22} weight="500" tracking={-0.4}>
-                Details
+                {words.details}
               </Display>
 
               <View style={styles.stack}>
                 <View style={styles.row}>
                   <View style={styles.grow}>
                     <AdminField
-                      label="Genre"
+                      label={words.genre}
                       value={form.genre}
                       onChangeText={value => patch({ genre: value })}
-                      placeholder="Islamic Studies"
+                      placeholder={words.genrePlaceholder}
                     />
                   </View>
                   <View style={styles.grow}>
                     <AdminField
-                      label="Badge"
+                      label={words.badge}
                       value={form.tag}
                       onChangeText={value => patch({ tag: value })}
-                      placeholder="New"
-                      helper="Corner label on the cover."
+                      placeholder={words.badgePlaceholder}
+                      helper={words.badgeHint}
                     />
                   </View>
                 </View>
 
                 <AdminTagInput
-                  label="Search tags"
+                  label={words.searchTags}
                   tags={form.tags}
                   onChange={tags => patch({ tags })}
-                  placeholder="Add a tag and press return"
-                  helper="Feeds the catalog search index. Not shown to readers."
+                  placeholder={words.tagPlaceholder}
+                  helper={words.tagsHint}
                 />
 
                 <View style={styles.row}>
                   <View style={styles.grow}>
                     <AdminField
-                      label="Read time"
+                      label={words.readTime}
                       value={form.readTime}
                       onChangeText={value =>
                         patch({ readTime: value.replace(/[^0-9]/g, '') })
@@ -993,10 +986,10 @@ export function AdminBookEditorScreen() {
                   </View>
                   <View style={styles.grow}>
                     <AdminField
-                      label="Format"
+                      label={words.format}
                       value={form.format}
                       onChangeText={value => patch({ format: value })}
-                      placeholder="Digital edition"
+                      placeholder={words.formatPlaceholder}
                     />
                   </View>
                 </View>
@@ -1004,18 +997,18 @@ export function AdminBookEditorScreen() {
                 <View style={styles.row}>
                   <View style={styles.grow}>
                     <AdminField
-                      label="Price"
+                      label={words.price}
                       value={form.price}
                       onChangeText={value =>
                         patch({ price: value.replace(/[^0-9.]/g, '') })
                       }
                       keyboardType="decimal-pad"
                       error={errors.price}
-                      helper="0 for titles included in a subscription."
+                      helper={words.priceHint}
                     />
                   </View>
                   <View style={styles.currency}>
-                    <AdminLabel>Currency</AdminLabel>
+                    <AdminLabel>{words.currency}</AdminLabel>
                     <View style={styles.wrap}>
                       {CURRENCIES.map(code => (
                         <AdminChip
@@ -1031,13 +1024,13 @@ export function AdminBookEditorScreen() {
                 </View>
 
                 <AdminColorField
-                  label="Cover colour"
+                  label={words.coverColour}
                   value={form.coverColor}
                   onChange={value => patch({ coverColor: value })}
-                  helper="Used behind the cover art and as a fallback."
+                  helper={words.coverColourHint}
                 />
                 <AdminColorField
-                  label="Cover colour (dark mode)"
+                  label={words.coverColourDark}
                   value={form.coverColorDark}
                   onChange={value => patch({ coverColorDark: value })}
                 />
@@ -1045,12 +1038,21 @@ export function AdminBookEditorScreen() {
             </View>
 
             {existing ? (
-              <AdminCard title="How it is doing">
+              <AdminCard title={words.howItIsDoing}>
                 <View style={styles.metrics}>
-                  <Metric label="Readers" value={existing.reader_count} />
-                  <Metric label="Downloads" value={existing.download_count} />
-                  <Metric label="Wishlisted" value={existing.wishlist_count} />
-                  <Metric label="Rating" value={existing.rating.toFixed(1)} />
+                  <Metric label={words.readers} value={existing.reader_count} />
+                  <Metric
+                    label={words.downloads}
+                    value={existing.download_count}
+                  />
+                  <Metric
+                    label={words.wishlisted}
+                    value={existing.wishlist_count}
+                  />
+                  <Metric
+                    label={words.rating}
+                    value={existing.rating.toFixed(1)}
+                  />
                 </View>
               </AdminCard>
             ) : null}
@@ -1062,16 +1064,16 @@ export function AdminBookEditorScreen() {
       {form.isPublished ? (
         <AdminActionBar>
           <AdminButton
-            label="Unpublish"
+            label={words.unpublish}
             variant="secondary"
             disabled={uploading || saveBook.isPending}
-            onPress={() => save(false, 'Title unpublished.')}
+            onPress={() => save(false, words.titleUnpublished)}
           />
           <AdminButton
-            label="Save changes"
+            label={words.saveChanges}
             loading={saveBook.isPending}
             disabled={uploading}
-            onPress={() => save(true, 'Book saved.')}
+            onPress={() => save(true, words.bookSaved)}
           />
         </AdminActionBar>
       ) : inBatch ? (
@@ -1079,114 +1081,108 @@ export function AdminBookEditorScreen() {
         // there is no Publish here to put one title live ahead of the set.
         <AdminActionBar>
           <AdminButton
-            label={bookId ? 'Save to batch' : 'Add to batch'}
+            label={bookId ? words.saveToBatch : words.addToBatch}
             Icon={Layers}
             loading={saveBook.isPending}
             disabled={uploading}
             onPress={() =>
-              save(
-                false,
-                bookId ? 'Saved to the batch.' : 'Added to the batch.',
-              )
+              save(false, bookId ? words.savedToBatch : words.addedToBatch)
             }
           />
         </AdminActionBar>
       ) : (
         <AdminActionBar>
           <AdminButton
-            label="Save draft"
+            label={words.saveDraft}
             variant="secondary"
             loading={saveBook.isPending}
             disabled={uploading}
             onPress={() =>
-              save(false, bookId ? 'Draft saved.' : 'Draft created.')
+              save(false, bookId ? words.draftSaved : words.draftCreated)
             }
           />
           <AdminButton
-            label="Publish"
+            label={words.publish}
             blockedReason={publishBlocker}
             disabled={uploading}
-            onPress={() => save(true, 'Title published.')}
+            onPress={() => save(true, words.titlePublished)}
           />
         </AdminActionBar>
       )}
 
       <AdminPickerSheet
         visible={showAuthorPicker}
-        title="Author"
+        title={words.author}
         items={authors.map(item => ({
           id: item.id,
           label: item.name,
-          sublabel: `${item.book_count} ${item.book_count === 1 ? 'book' : 'books'}`,
+          sublabel: counts.books(item.book_count),
         }))}
         selected={form.authorId ? [form.authorId] : []}
-        emptyLabel="No authors yet. Add one from Library → Authors."
+        emptyLabel={words.noAuthorsPicker}
         onClose={() => setShowAuthorPicker(false)}
         onChange={next => patch({ authorId: next[0] ?? '' })}
       />
 
       <AdminPickerSheet
         visible={showCategoryPicker}
-        title="Categories"
+        title={words.categories}
         multi
         items={categories.map(item => ({
           id: item.id,
           label: item.label,
-          sublabel: `${item.book_count} ${item.book_count === 1 ? 'book' : 'books'}`,
+          sublabel: counts.books(item.book_count),
           accent: item.accent,
         }))}
         selected={form.categoryIds}
-        emptyLabel="No categories yet. Add one from Library → Categories."
+        emptyLabel={words.noCategoriesPicker}
         onClose={() => setShowCategoryPicker(false)}
         onChange={next => patch({ categoryIds: next })}
       />
 
       <AdminPickerSheet
         visible={showCollectionPicker}
-        title="Collections"
+        title={words.collections}
         multi
         // Trending has no membership to join — the server draws it weekly —
         // so it is not offered. The other two Home rails are.
         items={collections
           .filter(
             item =>
-              !item.is_system ||
-              SYSTEM_SHELF_NOTE[item.slug]?.curated !== false,
+              !item.is_system || systemShelfNote(item.slug)?.curated !== false,
           )
           .map(item => ({
             id: item.id,
             label: item.title,
             sublabel: item.is_system
-              ? `${SYSTEM_SHELF_NOTE[item.slug]?.label ?? 'Home rail'} · ${item.book_count} books`
-              : `${item.book_count} ${item.book_count === 1 ? 'book' : 'books'}${
-                  item.is_published ? '' : ' · hidden'
+              ? `${systemShelfNote(item.slug)?.label ?? s.adminLibrary.shelfNotes.homeRail} · ${counts.books(item.book_count)}`
+              : `${counts.books(item.book_count)}${
+                  item.is_published ? '' : words.hiddenSuffix
                 }`,
             badges: item.is_system
-              ? [{ label: 'HOME RAIL', tone: 'neutral' as const }]
+              ? [{ label: words.homeRail, tone: 'neutral' as const }]
               : undefined,
           }))}
         selected={form.collectionIds}
-        emptyLabel="No collections yet. Add one from Library → Collections."
+        emptyLabel={words.noCollectionsPicker}
         onClose={() => setShowCollectionPicker(false)}
         onChange={next => patch({ collectionIds: next })}
       />
 
       <AdminConfirmSheet
         visible={confirmDelete}
-        title={`Delete ${form.title || 'this book'}?`}
-        message="This cannot be undone. Deleting the book also removes:"
+        title={words.deleteTitle(form.title || words.thisBook)}
+        message={words.deleteMessage}
         consequences={[
-          `${existing?.reader_count ?? 0} readers' progress and bookmarks`,
-          `${existing?.download_count ?? 0} downloads on readers' devices`,
-          `The uploaded PDF and cover (${formatBytes(form.fileSizeBytes)})`,
-          `Its place in ${form.collectionIds.length} ${
-            form.collectionIds.length === 1 ? 'collection' : 'collections'
-          }`,
+          words.readersProgress(existing?.reader_count ?? 0),
+          words.downloadsOnDevices(existing?.download_count ?? 0),
+          words.uploadedFiles(formatBytes(form.fileSizeBytes)),
+          words.placeIn(form.collectionIds.length),
         ]}
         confirmPhrase={form.isPublished ? form.title : null}
-        confirmLabel="Delete"
+        confirmLabel={words.delete}
         destructive
-        footnote="Unpublishing hides it from readers and keeps everything."
+        footnote={words.unpublishKeeps}
         loading={deleteBooks.isPending}
         onCancel={() => setConfirmDelete(false)}
         onConfirm={() =>
@@ -1195,7 +1191,7 @@ export function AdminBookEditorScreen() {
             onSuccess: () => {
               setConfirmDelete(false);
               reset();
-              toast.success('Book deleted.');
+              toast.success(words.bookDeleted);
               navigation.goBack();
             },
             onError: caught => {

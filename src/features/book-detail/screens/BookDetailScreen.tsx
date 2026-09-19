@@ -34,6 +34,7 @@ import {
   type Stat,
 } from '@/features/book-detail/components/StatStrip';
 import { useWishlistMutation, useWishlistStatus } from '@/hooks/useAccount';
+import { useStrings } from '@/i18n';
 import { useBook, useHomeCatalog } from '@/hooks/useCatalog';
 import { useAccess } from '@/lib/access';
 import { reasonCopy } from '@/services/entitlements';
@@ -70,6 +71,7 @@ export function BookDetailScreen() {
   const navigation = useNavigation<BookDetailNavigationProp>();
   const route = useRoute<BookDetailRouteProp>();
   const { isDark } = useTheme();
+  const s = useStrings();
 
   const { bookId } = route.params;
   const { data: book, isLoading } = useBook(bookId);
@@ -115,8 +117,8 @@ export function BookDetailScreen() {
         tone: 'info',
         icon: Lock,
         actions: [
-          { label: 'Not now', style: 'cancel' },
-          { label: 'View plans', onPress: openPaywall },
+          { label: s.catalog.detail.notNow, style: 'cancel' },
+          { label: s.catalog.detail.viewPlans, onPress: openPaywall },
         ],
       });
       return;
@@ -130,6 +132,7 @@ export function BookDetailScreen() {
     navigation,
     openPaywall,
     reason,
+    s,
   ]);
 
   const handleWishlist = useCallback(() => {
@@ -145,16 +148,16 @@ export function BookDetailScreen() {
 
   const handleMore = useCallback(() => {
     showDialog({
-      title: book?.title ?? 'Book',
+      title: book?.title ?? s.catalog.detail.fallbackTitle,
       actions: [
         {
-          label: saved ? 'Remove from library' : 'Save to library',
+          label: saved ? s.common.removeFromLibrary : s.common.saveToLibrary,
           onPress: handleWishlist,
         },
-        { label: 'Cancel', style: 'cancel' },
+        { label: s.common.cancel, style: 'cancel' },
       ],
     });
-  }, [book?.title, handleWishlist, saved]);
+  }, [book?.title, handleWishlist, s, saved]);
 
   const stats = useMemo<Stat[]>(() => {
     if (!book) {
@@ -162,11 +165,14 @@ export function BookDetailScreen() {
     }
     const entries: Stat[] = [];
     if (book.rating != null) {
-      entries.push({ value: book.rating.toFixed(1), label: 'RATING' });
+      entries.push({
+        value: book.rating.toFixed(1),
+        label: s.catalog.detail.rating,
+      });
     }
-    entries.push({ value: book.readTime, label: 'READ TIME' });
+    entries.push({ value: book.readTime, label: s.catalog.detail.readTime });
     if (book.genre) {
-      entries.push({ value: book.genre, label: 'SUBJECT' });
+      entries.push({ value: book.genre, label: s.catalog.detail.subject });
     }
     // The recorded language, not the script of the title: "Jannat Ki Talash"
     // is an Urdu book with a Latin-script title, and the guess called it EN.
@@ -177,10 +183,10 @@ export function BookDetailScreen() {
         : isUrduTitle(book.title)
           ? 'UR'
           : 'EN',
-      label: 'LANGUAGE',
+      label: s.catalog.detail.language,
     });
     return entries;
-  }, [book]);
+  }, [book, s]);
 
   // "Readers also loved" — trending titles other than this one.
   const alsoLoved = useMemo(
@@ -203,9 +209,9 @@ export function BookDetailScreen() {
         <View style={styles.notFound}>
           <EmptyState
             art={null}
-            title="This title has moved on."
-            message="It is no longer in the catalogue. Nothing on your shelf was affected."
-            action={{ label: 'Go back', onPress: goBack }}
+            title={s.catalog.detail.movedOnTitle}
+            message={s.catalog.detail.movedOnMessage}
+            action={{ label: s.common.goBack, onPress: goBack }}
           />
         </View>
       </Screen>
@@ -229,13 +235,13 @@ export function BookDetailScreen() {
           icon={ChevronLeft}
           onPress={goBack}
           variant="plain"
-          accessibilityLabel="Go back"
+          accessibilityLabel={s.common.goBack}
         />
         <IconButton
           icon={MoreVertical}
           onPress={handleMore}
           variant="plain"
-          accessibilityLabel="More options"
+          accessibilityLabel={s.catalog.detail.moreOptions}
         />
       </View>
 
@@ -246,7 +252,7 @@ export function BookDetailScreen() {
           coverColor={coverColor}
           rounded={12}
           elevated
-          caption={`COVER · ${book.title.toUpperCase()}`}
+          caption={s.home.coverCaption(book.title)}
         />
 
         <View style={styles.title}>
@@ -281,7 +287,7 @@ export function BookDetailScreen() {
         </Text>
         {!expanded ? (
           <TextButton
-            label="Read more"
+            label={s.catalog.detail.readMore}
             onPress={() => setExpanded(true)}
             style={styles.readMore}
           />
@@ -290,7 +296,11 @@ export function BookDetailScreen() {
 
       <View style={styles.actions}>
         <Button
-          label={canOpenBooks ? 'Read now' : 'Start reading'}
+          label={
+            canOpenBooks
+              ? s.catalog.detail.readNow
+              : s.catalog.detail.startReading
+          }
           icon={Play}
           onPress={handleRead}
           size="md"
@@ -305,7 +315,7 @@ export function BookDetailScreen() {
       </View>
 
       {alsoLoved.length > 0 ? (
-        <BookRail title="Readers also loved" gap={12}>
+        <BookRail title={s.catalog.detail.readersAlsoLoved} gap={12}>
           {alsoLoved.map(other => (
             <BookCard
               key={other.id}

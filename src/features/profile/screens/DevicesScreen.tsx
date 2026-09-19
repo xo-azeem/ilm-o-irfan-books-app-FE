@@ -13,24 +13,26 @@ import {
 } from '@/components/ui';
 import { ProfileSubScreenLayout } from '@/features/profile/components/ProfileSubScreenLayout';
 import { useSessions } from '@/hooks/useSessions';
+import { useDateLocale, useStrings, type Strings } from '@/i18n';
 import { parseDeviceAppVersion, parseDeviceUserAgent } from '@/lib/device';
 import type { AuthSession } from '@/lib/supabase';
 import { useTheme } from '@/theme/ThemeContext';
 import { fontSize } from '@/theme/typography';
 
-function relative(iso: string): string {
+function relative(iso: string, s: Strings, locale: string): string {
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) {
     return '';
   }
+  const words = s.account.devices;
   const minutes = Math.round((Date.now() - then) / 60_000);
-  if (minutes < 2) return 'just now';
-  if (minutes < 60) return `${minutes} min ago`;
+  if (minutes < 2) return words.justNow;
+  if (minutes < 60) return words.minAgo(minutes);
   const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours} h ago`;
+  if (hours < 24) return words.hoursAgo(hours);
   const days = Math.round(hours / 24);
-  if (days < 30) return `${days} d ago`;
-  return new Date(iso).toLocaleDateString('en-GB', {
+  if (days < 30) return words.daysAgo(days);
+  return new Date(iso).toLocaleDateString(locale, {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -54,85 +56,85 @@ function iconFor(label: string) {
  */
 export function DevicesScreen() {
   const { colors } = useTheme();
+  const s = useStrings();
+  const words = s.account.devices;
   const { sessions, revoke, signOutOthers } = useSessions();
   const rows = sessions.data ?? [];
   const others = rows.filter(session => !session.isCurrent);
 
-  const showError = useCallback((title: string, error: unknown) => {
-    showDialog({
-      title,
-      message:
-        error instanceof Error ? error.message : 'Please try again shortly.',
-      tone: 'danger',
-    });
-  }, []);
+  const showError = useCallback(
+    (title: string, error: unknown) => {
+      showDialog({
+        title,
+        message: error instanceof Error ? error.message : words.tryShortly,
+        tone: 'danger',
+      });
+    },
+    [words],
+  );
 
   const handleRevoke = useCallback(
     (session: AuthSession) => {
       const label = parseDeviceUserAgent(session.userAgent);
       showDialog({
         title: session.isCurrent
-          ? 'Sign out this device?'
-          : `Sign out ${label}?`,
+          ? words.signOutThis
+          : words.signOutNamed(label),
         message: session.isCurrent
-          ? 'This session will be ended on the server and you will be signed out here.'
-          : 'That device will need to sign in again. It may keep working for up to an hour.',
+          ? words.thisSessionEnds
+          : words.thatDeviceEnds,
         actions: [
-          { label: 'Keep', style: 'cancel' },
+          { label: words.keep, style: 'cancel' },
           {
-            label: 'Sign out',
+            label: words.signOut,
             style: 'destructive',
             onPress: () =>
               revoke.mutate(session.id, {
-                onError: error => showError('Could not sign it out', error),
+                onError: error => showError(words.couldNotSignOut, error),
               }),
           },
         ],
       });
     },
-    [revoke, showError],
+    [revoke, showError, words],
   );
 
   const handleSignOutOthers = useCallback(() => {
     showDialog({
-      title: 'Sign out every other device?',
-      message: `${others.length} other ${others.length === 1 ? 'device' : 'devices'} will need to sign in again. This one stays signed in.`,
+      title: words.signOutOthersTitle,
+      message: words.signOutOthersMessage(others.length),
       actions: [
-        { label: 'Cancel', style: 'cancel' },
+        { label: s.common.cancel, style: 'cancel' },
         {
-          label: 'Sign them out',
+          label: words.signThemOut,
           style: 'destructive',
           onPress: () =>
             signOutOthers.mutate(undefined, {
-              onError: error =>
-                showError('Could not sign the others out', error),
+              onError: error => showError(words.couldNotSignOutOthers, error),
             }),
         },
       ],
     });
-  }, [others.length, showError, signOutOthers]);
+  }, [others.length, s, showError, signOutOthers, words]);
 
   return (
-    <ProfileSubScreenLayout
-      title="Signed-in devices"
-      subtitle="Everywhere your account is open right now."
-    >
+    <ProfileSubScreenLayout title={words.title} subtitle={words.subtitle}>
       {sessions.isPending ? (
         <View style={styles.loading}>
           <ActivityIndicator color={colors.primary} />
         </View>
       ) : sessions.error ? (
         <Callout
-          title="Could not load devices"
+          title={words.couldNotLoad}
           message={
             sessions.error instanceof Error
               ? sessions.error.message
-              : 'Please try again.'
+              : s.common.pleaseTryAgain
           }
           tone="warning"
           action={
             <Button
-              label="Retry"
+              label={words.retry}
               size="sm"
               variant="secondary"
               onPress={() => void sessions.refetch()}
@@ -141,7 +143,7 @@ export function DevicesScreen() {
         />
       ) : (
         <>
-          <SettingsGroup title="This device">
+          <SettingsGroup title={words.thisDevice}>
             {rows
               .filter(session => session.isCurrent)
               .map(session => (
@@ -157,14 +159,14 @@ export function DevicesScreen() {
           <SettingsGroup
             title={
               others.length === 0
-                ? 'Other devices'
-                : `Other devices · ${others.length}`
+                ? words.otherDevices
+                : words.otherDevicesCount(others.length)
             }
           >
             {others.length === 0 ? (
               <View style={styles.empty}>
                 <Text size={fontSize.bodySmall} tone="muted">
-                  No other device is signed in.
+                  {words.noOther}
                 </Text>
               </View>
             ) : (
@@ -183,8 +185,8 @@ export function DevicesScreen() {
             <Button
               label={
                 signOutOthers.isPending
-                  ? 'Signing out…'
-                  : 'Sign out all other devices'
+                  ? words.signingOut
+                  : words.signOutAllOthers
               }
               variant="danger"
               size="md"
@@ -194,8 +196,7 @@ export function DevicesScreen() {
           ) : null}
 
           <Text size={fontSize.caption} tone="muted" style={styles.note}>
-            Do not recognise a device? Sign it out, then change your password
-            from Privacy & security.
+            {words.note}
           </Text>
         </>
       )}
@@ -212,14 +213,17 @@ function DeviceRow({
   onSignOut?: () => void;
   busy?: boolean;
 }) {
+  const s = useStrings();
+  const locale = useDateLocale();
+  const words = s.account.devices;
   const label = parseDeviceUserAgent(session.userAgent);
   const version = parseDeviceAppVersion(session.userAgent);
   const subtitle = [
     session.isCurrent
-      ? 'Active now'
-      : `Active ${relative(session.lastActiveAt)}`,
-    version ? `app ${version}` : null,
-    `signed in ${relative(session.createdAt)}`,
+      ? words.activeNow
+      : words.active(relative(session.lastActiveAt, s, locale)),
+    version ? words.app(version) : null,
+    words.signedIn(relative(session.createdAt, s, locale)),
   ]
     .filter(Boolean)
     .join(' · ');
@@ -235,7 +239,7 @@ function DeviceRow({
         onSignOut ? (
           <IconButton
             icon={LogOut}
-            accessibilityLabel={`Sign out ${label}`}
+            accessibilityLabel={words.signOutA11y(label)}
             onPress={onSignOut}
             disabled={busy}
           />

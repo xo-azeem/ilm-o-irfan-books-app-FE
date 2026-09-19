@@ -23,6 +23,7 @@ import {
   HeroSlideCard,
   type HeroSlide,
 } from '@/features/home/components/HeroSlideCard';
+import { useStrings } from '@/i18n';
 import { layout } from '@/theme/palette';
 import { useTheme } from '@/theme/ThemeContext';
 
@@ -54,6 +55,7 @@ export const HeroCarousel = memo(function HeroCarousel({
 }) {
   const { width } = useWindowDimensions();
   const isFocused = useIsFocused();
+  const s = useStrings();
 
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
   const scrollX = useSharedValue(0);
@@ -162,7 +164,7 @@ export const HeroCarousel = memo(function HeroCarousel({
       <View
         style={styles.dots}
         accessibilityRole="tablist"
-        accessibilityLabel={`Featured ${index + 1} of ${count}`}
+        accessibilityLabel={s.home.featuredOf(index + 1, count)}
       >
         {slides.map((slide, dotIndex) => (
           <Dot

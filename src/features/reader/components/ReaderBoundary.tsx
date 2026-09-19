@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 
 import { ReaderError } from '@/features/reader/components/ReaderError';
+import { strings } from '@/i18n/strings';
 
 type ReaderBoundaryProps = {
   children: ReactNode;
@@ -45,7 +46,7 @@ export class ReaderBoundary extends Component<
     if (this.state.hasError) {
       return (
         <ReaderError
-          message={this.state.message ?? 'This book could not be opened.'}
+          message={this.state.message ?? strings().reader.couldNotBeOpened}
           onRetry={this.handleRetry}
         />
       );

@@ -4,8 +4,10 @@
  * Supabase Auth answers every code-entry flow — sign-up, recovery, sign-in,
  * email change, reauthentication — with the same small set of refusals, and
  * every code screen should say the same thing about each. Kept free of React
- * Native imports so the mapping can be unit tested.
+ * Native imports so the mapping can be unit tested (the dictionary it reads
+ * has none either).
  */
+import { strings } from '@/i18n/strings';
 
 export type OtpErrorKind =
   /** Wrong digits, or a code already spent. */
@@ -38,6 +40,7 @@ function readMessage(error: unknown): string {
 export function describeOtpError(error: unknown): OtpErrorDescription {
   const code = readCode(error);
   const message = readMessage(error);
+  const s = strings().auth.code;
 
   if (
     code === 'over_email_send_rate_limit' ||
@@ -46,15 +49,14 @@ export function describeOtpError(error: unknown): OtpErrorDescription {
   ) {
     return {
       kind: 'rate_limited',
-      message:
-        'A code was sent very recently. Wait a moment before asking for another.',
+      message: s.rateLimited,
     };
   }
 
   if (code === 'otp_expired' || /expired/i.test(message)) {
     return {
       kind: 'expired',
-      message: 'That code has expired. Request a new one and try again.',
+      message: s.expired,
     };
   }
 
@@ -64,12 +66,12 @@ export function describeOtpError(error: unknown): OtpErrorDescription {
   ) {
     return {
       kind: 'invalid',
-      message: 'That code is not right. Check the digits and try again.',
+      message: s.invalid,
     };
   }
 
   return {
     kind: 'other',
-    message: message || 'The code could not be checked. Please try again.',
+    message: message || s.other,
   };
 }

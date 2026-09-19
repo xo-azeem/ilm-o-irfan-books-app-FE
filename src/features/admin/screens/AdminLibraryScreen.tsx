@@ -74,27 +74,14 @@ import type {
   AdminLibraryStackParamList,
   LibrarySegment,
 } from '../navigation/types';
+import { useStrings } from '@/i18n';
 
-const SEGMENTS: ReadonlyArray<{ value: LibrarySegment; label: string }> = [
-  { value: 'books', label: 'Books' },
-  { value: 'authors', label: 'Authors' },
-  { value: 'categories', label: 'Categories' },
-  { value: 'shelves', label: 'Collections' },
+const SEGMENT_VALUES: LibrarySegment[] = [
+  'books',
+  'authors',
+  'categories',
+  'shelves',
 ];
-
-const ACCESS_LABEL: Record<BookAccessFilter, string> = {
-  all: 'Any',
-  premium: 'Premium',
-  free: 'Free',
-};
-
-const SORT_LABEL: Record<BookSort, string> = {
-  updated_desc: 'Recently edited',
-  title_asc: 'Title A–Z',
-  readers_desc: 'Most readers',
-  created_desc: 'Newest first',
-  downloads_desc: 'Most downloads',
-};
 
 /** Every sort the list can do, the everyday three first. */
 const SORT_OPTIONS: BookSort[] = [
@@ -114,6 +101,14 @@ const SORT_OPTIONS: BookSort[] = [
  * table a thing lives in before they can find it.
  */
 export function AdminLibraryScreen() {
+  const s = useStrings();
+  const words = s.adminLibrary.library;
+  const counts = s.adminLibrary.counts;
+  const segmentOptions = useMemo(
+    () =>
+      SEGMENT_VALUES.map(value => ({ value, label: words.segments[value] })),
+    [words],
+  );
   const navigation =
     useNavigation<NativeStackNavigationProp<AdminLibraryStackParamList>>();
   const route =
@@ -239,9 +234,9 @@ export function AdminLibraryScreen() {
     () =>
       authorId
         ? (allAuthors.data?.find(author => author.id === authorId)?.name ??
-          'one author')
+          words.oneAuthor)
         : null,
-    [allAuthors.data, authorId],
+    [allAuthors.data, authorId, words],
   );
 
   const activeFilters = useMemo(() => {
@@ -249,7 +244,7 @@ export function AdminLibraryScreen() {
     if (authorId) {
       list.push({
         id: 'author',
-        label: `By ${authorName}`,
+        label: words.byAuthor(authorName ?? ''),
         clear: () => setAuthorId(null),
       });
     }
@@ -258,22 +253,22 @@ export function AdminLibraryScreen() {
         id: 'status',
         label:
           status === 'published'
-            ? 'Live'
+            ? words.statusLive
             : status === 'draft'
-              ? 'Draft'
-              : 'Needs attention',
+              ? words.statusDraft
+              : words.statusAttention,
         clear: () => setStatus('all'),
       });
     }
     if (access !== 'all') {
       list.push({
         id: 'access',
-        label: ACCESS_LABEL[access],
+        label: words.access[access],
         clear: () => setAccess('all'),
       });
     }
     return list;
-  }, [access, authorId, authorName, status]);
+  }, [access, authorId, authorName, status, words]);
 
   const clearFilters = useCallback(() => {
     setStatus('all');
@@ -335,9 +330,7 @@ export function AdminLibraryScreen() {
         onSuccess: result => {
           stopSelecting();
           toast.success(
-            result.skipped > 0
-              ? `${result.updated} ${label}. ${result.skipped} skipped — no PDF uploaded.`
-              : `${result.updated} ${label}.`,
+            words.bulkResult(result.updated, label, result.skipped),
           );
         },
         onError: caught => toast.error(errorMessage(caught)),
@@ -360,15 +353,15 @@ export function AdminLibraryScreen() {
   const subtitle =
     segment === 'books'
       ? needsAttention > 0
-        ? `${bookTotal} books · ${needsAttention} need attention`
-        : `${bookTotal} ${bookTotal === 1 ? 'book' : 'books'}`
+        ? words.booksNeedAttention(bookTotal, needsAttention)
+        : counts.books(bookTotal)
       : segment === 'authors'
         ? orphanAuthors > 0
-          ? `${authors.data?.length ?? 0} authors · ${orphanAuthors} with no books`
-          : `${authors.data?.length ?? 0} in the catalog`
+          ? words.authorsOrphans(authors.data?.length ?? 0, orphanAuthors)
+          : words.authorsInCatalog(authors.data?.length ?? 0)
         : segment === 'categories'
-          ? `${categories.data?.length ?? 0} categories · the order readers browse`
-          : `${collections.data?.length ?? 0} shelves · top to bottom on Home`;
+          ? words.categoriesOrder(categories.data?.length ?? 0)
+          : words.shelvesOrder(collections.data?.length ?? 0);
 
   const renderBook = useCallback(
     ({ item }: { item: AdminBookRow }) => (
@@ -399,24 +392,24 @@ export function AdminLibraryScreen() {
             <View style={styles.grow}>
               <Display size={22} weight="500" tracking={-0.4}>
                 {selected.length === 0
-                  ? 'Select titles'
-                  : `${selected.length} selected`}
+                  ? words.selectTitles
+                  : words.selectedCount(selected.length)}
               </Display>
               <Text size={12} leading={1.3} tone="muted">
                 {selected.length === 0
-                  ? 'Tap a title to select it'
-                  : `of ${rows.length} ${rows.length === 1 ? 'title' : 'titles'} in the list`}
+                  ? words.tapToSelect
+                  : words.ofInList(rows.length)}
               </Text>
             </View>
             {rows.length > 0 ? (
               <AdminTextAction
-                label={allSelected ? 'Clear' : 'Select all'}
+                label={allSelected ? words.clear : words.selectAll}
                 size={12.5}
                 onPress={allSelected ? clearSelection : selectAll}
               />
             ) : null}
             <AdminTextAction
-              label="Cancel"
+              label={s.admin.ui.cancel}
               size={12.5}
               onPress={stopSelecting}
             />
@@ -424,13 +417,13 @@ export function AdminLibraryScreen() {
         ) : (
           <>
             <AdminPageTitle
-              title="Library"
+              title={words.title}
               subtitle={subtitle}
               action={
                 segment === 'books' ? (
                   <AdminTitleActions>
                     <AdminNewButton
-                      label="Bulk upload"
+                      label={words.bulkUpload}
                       Icon={Upload}
                       secondary
                       onPress={() =>
@@ -446,7 +439,7 @@ export function AdminLibraryScreen() {
             />
 
             <AdminSegments
-              options={SEGMENTS}
+              options={segmentOptions}
               value={segment}
               onChange={setSegment}
             />
@@ -460,7 +453,7 @@ export function AdminLibraryScreen() {
                     // showing the term the list is still narrowed by.
                     defaultValue={query}
                     onSearch={setQuery}
-                    placeholder="Search titles, authors, slugs"
+                    placeholder={words.searchPlaceholder}
                     style={styles.grow}
                   />
                   <AdminFilterButton
@@ -479,7 +472,7 @@ export function AdminLibraryScreen() {
                   ))}
                   {activeFilters.length > 0 || query ? (
                     <Text size={11.5} leading={1} tone="faint">
-                      {`${shown} of ${bookTotal} shown`}
+                      {words.shownOf(shown, bookTotal)}
                     </Text>
                   ) : null}
                   {books.isPlaceholderData ? (
@@ -488,7 +481,7 @@ export function AdminLibraryScreen() {
                   <View style={styles.grow} />
                   {rows.length > 0 ? (
                     <AdminTextAction
-                      label="Select"
+                      label={words.select}
                       size={11.5}
                       onPress={() => startSelecting()}
                     />
@@ -500,7 +493,7 @@ export function AdminLibraryScreen() {
                 dense
                 defaultValue={authorQuery}
                 onSearch={setAuthorQuery}
-                placeholder="Search authors"
+                placeholder={words.searchAuthors}
               />
             ) : null}
           </>
@@ -515,7 +508,7 @@ export function AdminLibraryScreen() {
         ) : books.error ? (
           <View style={styles.gutter}>
             <AdminErrorState
-              message="The request could not be completed. Your connection looks fine, so this is probably the server."
+              message={words.loadFailed}
               detail={errorMessage(books.error)}
               onRetry={() => void books.refetch()}
             />
@@ -551,26 +544,24 @@ export function AdminLibraryScreen() {
                 <AdminEmpty
                   title={
                     query || activeFilters.length
-                      ? 'Nothing matches'
-                      : 'The library is empty'
+                      ? words.nothingMatches
+                      : words.libraryEmpty
                   }
                   message={
                     query || activeFilters.length
-                      ? 'Try a different search, or clear the filters to see the whole catalog.'
-                      : 'Add your first title with a PDF and a cover, and it appears on Home the moment you publish it.'
+                      ? words.tryDifferentSearch
+                      : words.addFirstMessage
                   }
                   actionLabel={
                     query || activeFilters.length
                       ? undefined
-                      : 'Add the first book'
+                      : words.addFirstBook
                   }
                   onAction={() =>
                     navigation.navigate(ADMIN_ROUTES.BOOK_EDITOR, {})
                   }
                   footnote={
-                    query || activeFilters.length
-                      ? undefined
-                      : 'Have a whole set? Use Bulk upload above to add every PDF at once and publish them together.'
+                    query || activeFilters.length ? undefined : words.bulkHint
                   }
                 />
               )
@@ -632,8 +623,8 @@ export function AdminLibraryScreen() {
           <View style={styles.bulkHeader}>
             <AdminEyebrow tone="muted">
               {selected.length === 0
-                ? 'Choose titles to act on'
-                : `Apply to ${selected.length} ${selected.length === 1 ? 'title' : 'titles'}`}
+                ? words.chooseTitles
+                : words.applyTo(selected.length)}
             </AdminEyebrow>
             {bulkUpdate.isPending || deleteBooks.isPending ? (
               <ActivityIndicator size="small" color={colors.primary} />
@@ -642,39 +633,41 @@ export function AdminLibraryScreen() {
 
           <View style={styles.bulkRow}>
             <BulkButton
-              label="Publish"
+              label={words.publish}
               Icon={Eye}
               primary
               disabled={selected.length === 0}
-              onPress={() => runBulk({ is_published: true }, 'published')}
+              onPress={() => runBulk({ is_published: true }, words.published)}
             />
             <BulkButton
-              label="Unpublish"
+              label={words.unpublish}
               Icon={EyeOff}
               disabled={selected.length === 0}
-              onPress={() => runBulk({ is_published: false }, 'unpublished')}
+              onPress={() =>
+                runBulk({ is_published: false }, words.unpublished)
+              }
             />
           </View>
           <View style={styles.bulkRow}>
             <BulkButton
-              label="Mark premium"
+              label={words.markPremium}
               Icon={Crown}
               disabled={selected.length === 0}
-              onPress={() => runBulk({ is_premium: true }, 'marked premium')}
+              onPress={() => runBulk({ is_premium: true }, words.markedPremium)}
             />
             <BulkButton
-              label="Make free"
+              label={words.makeFree}
               Icon={Unlock}
               disabled={selected.length === 0}
-              onPress={() => runBulk({ is_premium: false }, 'made free')}
+              onPress={() => runBulk({ is_premium: false }, words.madeFree)}
             />
           </View>
           <View style={styles.bulkRow}>
             <BulkButton
               label={
                 selected.length > 1
-                  ? `Delete ${selected.length} titles`
-                  : 'Delete'
+                  ? words.deleteN(selected.length)
+                  : words.delete
               }
               Icon={Trash2}
               tone="danger"
@@ -687,59 +680,59 @@ export function AdminLibraryScreen() {
 
       <AdminFilterSheet
         visible={filtersOpen}
-        title="Filter books"
-        resultLabel={`Show ${shown} ${shown === 1 ? 'book' : 'books'}`}
+        title={words.filterBooks}
+        resultLabel={words.showBooks(shown)}
         onClear={clearFilters}
         onClose={() => setFiltersOpen(false)}
         groups={[
           {
             id: 'status',
-            title: 'Status',
+            title: words.status,
             value: status,
             onChange: setStatus,
             options: [
               {
                 value: 'all' as BookStatusFilter,
-                label: 'All',
+                label: words.all,
                 count: bookTotal,
               },
               {
                 value: 'published' as BookStatusFilter,
-                label: 'Live',
+                label: words.statusLive,
                 count: stats?.book_published_count ?? 0,
               },
               {
                 value: 'draft' as BookStatusFilter,
-                label: 'Draft',
+                label: words.statusDraft,
                 count: stats?.book_draft_count ?? 0,
               },
               {
                 value: 'incomplete' as BookStatusFilter,
-                label: 'Needs attention',
+                label: words.statusAttention,
                 count: needsAttention,
               },
             ],
           },
           {
             id: 'access',
-            title: 'Access',
+            title: words.accessTitle,
             value: access,
             onChange: setAccess,
             options: (['all', 'premium', 'free'] as BookAccessFilter[]).map(
               value => ({
                 value,
-                label: ACCESS_LABEL[value],
+                label: words.access[value],
               }),
             ),
           },
           {
             id: 'sort',
-            title: 'Sort',
+            title: words.sort,
             value: sort,
             onChange: setSort,
             options: SORT_OPTIONS.map(value => ({
               value,
-              label: SORT_LABEL[value],
+              label: words.sorts[value],
             })),
           },
         ]}
@@ -747,17 +740,12 @@ export function AdminLibraryScreen() {
 
       <AdminConfirmSheet
         visible={confirmDelete}
-        title={`Delete ${selected.length} ${selected.length === 1 ? 'title' : 'titles'}?`}
-        message="This cannot be undone. Deleting a book also removes:"
-        consequences={[
-          "Every reader's progress and bookmarks",
-          'Downloads already on readers’ devices',
-          'The uploaded PDF and cover',
-          'Its place in every collection',
-        ]}
-        confirmLabel="Delete"
+        title={words.deleteTitles(selected.length)}
+        message={words.deleteMessage}
+        consequences={words.deleteConsequences}
+        confirmLabel={words.delete}
         destructive
-        footnote="Unpublishing hides a title from readers and keeps everything."
+        footnote={words.unpublishKeeps}
         loading={deleteBooks.isPending}
         onCancel={() => setConfirmDelete(false)}
         onConfirm={() =>
@@ -765,9 +753,7 @@ export function AdminLibraryScreen() {
             onSuccess: count => {
               setConfirmDelete(false);
               stopSelecting();
-              toast.success(
-                `${count} ${count === 1 ? 'title' : 'titles'} deleted.`,
-              );
+              toast.success(words.titlesDeleted(count));
             },
             onError: caught => {
               setConfirmDelete(false);

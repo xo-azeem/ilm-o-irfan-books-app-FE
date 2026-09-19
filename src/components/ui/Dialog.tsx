@@ -33,6 +33,7 @@ import { Display, Text } from '@/components/ui/Text';
 import { radius } from '@/theme/palette';
 import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
+import { useStrings } from '@/i18n';
 
 /**
  * The app's one popup.
@@ -287,8 +288,6 @@ const actionVariant: Record<DialogActionStyle, ButtonVariant> = {
   destructive: 'dangerSolid',
 };
 
-const DEFAULT_ACTIONS: DialogAction[] = [{ label: 'OK' }];
-
 const DialogCard = memo(function DialogCard({
   request,
   closing,
@@ -297,6 +296,7 @@ const DialogCard = memo(function DialogCard({
   closing: boolean;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
   const insets = useSafeAreaInsets();
   const progress = useSharedValue(0);
   const { title, message, icon, tone, dismissable = true } = request;
@@ -332,12 +332,14 @@ const DialogCard = memo(function DialogCard({
   // Cancel sits at the foot whatever order the caller gave, so the reader's
   // thumb finds "keep things as they are" in the same place every time.
   const actions = useMemo(() => {
-    const list = request.actions?.length ? request.actions : DEFAULT_ACTIONS;
+    const list = request.actions?.length
+      ? request.actions
+      : [{ label: s.common.ok }];
     return [
       ...list.filter(action => action.style !== 'cancel'),
       ...list.filter(action => action.style === 'cancel'),
     ];
-  }, [request.actions]);
+  }, [request.actions, s.common.ok]);
 
   const resolvedTone: DialogTone =
     tone ??
@@ -380,7 +382,7 @@ const DialogCard = memo(function DialogCard({
         {dismissable ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Dismiss"
+            accessibilityLabel={s.common.dismiss}
             style={StyleSheet.absoluteFill}
             onPress={dismiss}
           />

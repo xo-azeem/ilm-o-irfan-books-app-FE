@@ -23,6 +23,7 @@ import {
 } from '@/services/vaultReconcile';
 import { useAccessStore } from '@/stores/accessStore';
 import { keyValueStore } from '@/stores/storage';
+import { strings } from '@/i18n/strings';
 
 /**
  * The vault: where a book lives on the device.
@@ -287,9 +288,7 @@ function ensureSpace(bytes: number) {
     return;
   }
   if (Number.isFinite(available) && available < bytes + SPACE_HEADROOM_BYTES) {
-    throw new Error(
-      'There is not enough free space on this device for this book. Free up some space and try again.',
-    );
+    throw new Error(strings().services.vault.notEnoughSpace);
   }
 }
 
@@ -435,7 +434,7 @@ async function seal(
   try {
     const total = input.size ?? 0;
     if (total < MIN_PDF_BYTES) {
-      throw new VaultError('This book file is empty.', 'NOT_PDF');
+      throw new VaultError(strings().services.vault.empty, 'NOT_PDF');
     }
     part.create({ overwrite: true, intermediates: true });
     output = part.open(FileMode.WriteOnly);
@@ -452,7 +451,7 @@ async function seal(
       const chunk = input.readBytes(Math.min(CHUNK_BYTES, total - done));
       if (chunk.length === 0) break;
       if (done === 0 && !isPdfHeader(chunk)) {
-        throw new VaultError('This book file is not a PDF.', 'NOT_PDF');
+        throw new VaultError(strings().services.vault.notPdf, 'NOT_PDF');
       }
       output.writeBytes(bytesOf(cipher.update(chunk)));
       done += chunk.length;
@@ -505,7 +504,7 @@ async function unseal(
     const size = input.size ?? 0;
     const bodyBytes = size - HEADER_BYTES - TAG_BYTES;
     if (bodyBytes < MIN_PDF_BYTES) {
-      throw new VaultError('This download is damaged.', 'CORRUPT');
+      throw new VaultError(strings().services.vault.damaged, 'CORRUPT');
     }
     const header = input.readBytes(HEADER_BYTES);
     if (
@@ -513,7 +512,7 @@ async function unseal(
       !MAGIC.every((byte, i) => header[i] === byte) ||
       header[MAGIC.length] !== FORMAT_VERSION
     ) {
-      throw new VaultError('This download is damaged.', 'CORRUPT');
+      throw new VaultError(strings().services.vault.damaged, 'CORRUPT');
     }
     const iv = header.slice(MAGIC.length + 1);
     const decipher = createDecipheriv(CIPHER, key.bytes, iv);
@@ -526,12 +525,12 @@ async function unseal(
       if (options.signal?.aborted) throw abortError();
       const chunk = input.readBytes(Math.min(CHUNK_BYTES, bodyBytes - done));
       if (chunk.length === 0) {
-        throw new VaultError('This download is damaged.', 'CORRUPT');
+        throw new VaultError(strings().services.vault.damaged, 'CORRUPT');
       }
       const plain = bytesOf(decipher.update(chunk));
       if (done === 0 && !isPdfHeader(plain)) {
         // The wrong key gives noise, not a PDF. No need to read the rest.
-        throw new VaultError('This download is damaged.', 'KEY_MISMATCH');
+        throw new VaultError(strings().services.vault.damaged, 'KEY_MISMATCH');
       }
       output.writeBytes(plain);
       done += chunk.length;
@@ -543,7 +542,7 @@ async function unseal(
     try {
       output.writeBytes(bytesOf(decipher.final()));
     } catch {
-      throw new VaultError('This download is damaged.', 'CORRUPT');
+      throw new VaultError(strings().services.vault.damaged, 'CORRUPT');
     }
     output.close();
     output = null;

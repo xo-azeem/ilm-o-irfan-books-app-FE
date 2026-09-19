@@ -1,5 +1,7 @@
 import { Platform } from 'react-native';
 
+import { strings } from '@/i18n/strings';
+
 import appConfig from '../../app.json';
 
 export const APP_VERSION: string =
@@ -16,7 +18,7 @@ export function deviceLabel(): string {
     const brand = Brand ? Brand[0].toUpperCase() + Brand.slice(1) : '';
     const model =
       Model && !Model.startsWith(brand) ? `${brand} ${Model}` : Model || brand;
-    return `${model.trim() || 'Android device'} · Android ${Release}`;
+    return `${model.trim() || strings().account.devices.androidDevice} · Android ${Release}`;
   }
   if (Platform.OS === 'ios') {
     const { osVersion, interfaceIdiom } = Platform.constants;
@@ -43,21 +45,22 @@ export function deviceUserAgent(): string {
  * raw.
  */
 export function parseDeviceUserAgent(userAgent: string | null): string {
+  const s = strings().account.devices;
   if (!userAgent) {
-    return 'Unknown device';
+    return s.unknownDevice;
   }
   const ours = /^IlmOIrfan\/(\S+) \((.+)\)$/.exec(userAgent);
   if (ours) {
     return ours[2];
   }
   if (/okhttp/i.test(userAgent)) {
-    return 'Android device (older app version)';
+    return s.androidOlder;
   }
   if (/CFNetwork|Darwin/i.test(userAgent)) {
-    return 'iPhone (older app version)';
+    return s.iphoneOlder;
   }
   if (/Mozilla/i.test(userAgent)) {
-    return 'Web browser';
+    return s.webBrowser;
   }
   return userAgent.slice(0, 60);
 }

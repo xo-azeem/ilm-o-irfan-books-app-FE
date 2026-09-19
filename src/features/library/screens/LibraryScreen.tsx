@@ -27,6 +27,7 @@ import {
   useShelfMetrics,
 } from '@/features/library/components/ShelfGrid';
 import { useLibrary, useWishlist } from '@/hooks/useAccount';
+import { useStrings } from '@/i18n';
 import { useAuthStore } from '@/stores/authStore';
 import type { CatalogBook } from '@/services/catalog';
 import { isUrduTitle } from '@/services/script';
@@ -62,6 +63,7 @@ function toSummary(
  */
 export function LibraryScreen() {
   const navigation = useNavigation<LibraryNavigation>();
+  const s = useStrings();
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   const { data, isLoading } = useLibrary();
   // Only fetched when the summary did not carry the saved shelf — see below.
@@ -161,7 +163,7 @@ export function LibraryScreen() {
   const header = (
     <>
       <ScreenHeader
-        title="My library"
+        title={s.catalog.library.title}
         action={<ViewToggle value={view} onChange={setView} />}
       />
       <LibraryFilters value={shelf} counts={counts} onChange={setShelf} />
@@ -174,13 +176,13 @@ export function LibraryScreen() {
         {header}
         <View style={styles.empty}>
           <EmptyState
-            title="Your shelf is waiting."
-            message="Sign in to save your place, download books for offline reading, and keep your finished titles."
+            title={s.catalog.library.shelfWaiting}
+            message={s.catalog.library.signInMessage}
             action={{
-              label: 'Sign in',
+              label: s.common.signIn,
               onPress: () => navigation.navigate(ROUTES.LOGIN),
             }}
-            link={{ label: 'See what’s trending', onPress: browse }}
+            link={{ label: s.catalog.library.seeTrending, onPress: browse }}
           />
         </View>
       </Screen>
@@ -196,10 +198,10 @@ export function LibraryScreen() {
       ) : books.length === 0 ? (
         <View style={styles.empty}>
           <EmptyState
-            title="Your shelf is waiting."
-            message="Anything you open or save appears here, and stays available offline."
-            action={{ label: 'Find your first book', onPress: browse }}
-            link={{ label: 'See what’s trending', onPress: browse }}
+            title={s.catalog.library.shelfWaiting}
+            message={s.catalog.library.emptyMessage}
+            action={{ label: s.catalog.library.findFirstBook, onPress: browse }}
+            link={{ label: s.catalog.library.seeTrending, onPress: browse }}
           />
         </View>
       ) : (

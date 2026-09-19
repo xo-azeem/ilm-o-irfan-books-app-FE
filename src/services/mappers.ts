@@ -1,3 +1,4 @@
+import { strings } from '@/i18n/strings';
 import type { BookLanguage, BookLengthBucket } from '@/services/api/types';
 import { coverColors } from '@/theme/palette';
 
@@ -34,22 +35,28 @@ export type CatalogListRow = {
 
 const fallbackCover = coverColors.forest;
 
-export const UNKNOWN_AUTHOR = 'Unknown';
+/**
+ * The name an unattributed book is given. Read at call time so it follows
+ * the interface language; compared by identity in `toBook` below.
+ */
+export function unknownAuthor(): string {
+  return strings().services.book.unknownAuthor;
+}
 const DEFAULT_CURRENCY = 'USD';
-const DEFAULT_FORMAT = 'Digital edition';
 
 export function stripStoragePrefix(path: string, prefix: string): string {
   return path.replace(new RegExp(`^${prefix}/`), '');
 }
 
 export function formatReadTime(minutes: number | null): string {
+  const s = strings().services.book;
   if (!minutes) {
-    return 'Read at your pace';
+    return s.readAtYourPace;
   }
   if (minutes < 60) {
-    return `${minutes} min read`;
+    return s.minRead(minutes);
   }
-  return `${Math.round(minutes / 60)} hr read`;
+  return s.hourRead(Math.round(minutes / 60));
 }
 
 export function centsToAmount(cents: number): number {
@@ -91,15 +98,15 @@ export function authorName(
     | undefined,
 ): string {
   if (!authors) {
-    return UNKNOWN_AUTHOR;
+    return unknownAuthor();
   }
   if (typeof authors === 'string') {
-    return authors.trim() || UNKNOWN_AUTHOR;
+    return authors.trim() || unknownAuthor();
   }
   if (Array.isArray(authors)) {
-    return authors[0]?.name?.trim() || UNKNOWN_AUTHOR;
+    return authors[0]?.name?.trim() || unknownAuthor();
   }
-  return authors.name?.trim() || UNKNOWN_AUTHOR;
+  return authors.name?.trim() || unknownAuthor();
 }
 
 export function mapCatalogBook(row: CatalogListRow, coverUrl?: string) {
@@ -112,19 +119,19 @@ export function mapCatalogBook(row: CatalogListRow, coverUrl?: string) {
     // An unattributed book must not read "A thoughtful read by Unknown."
     description:
       row.description ??
-      (author === UNKNOWN_AUTHOR
-        ? 'A thoughtful read from the Ilm o Irfan library.'
-        : `A thoughtful read by ${author}.`),
+      (author === unknownAuthor()
+        ? strings().services.book.blurbUnattributed
+        : strings().services.book.blurbBy(author)),
     coverColor: row.cover_color ?? fallbackCover.light,
     coverColorDark: row.cover_color_dark ?? fallbackCover.dark,
     coverUrl,
     rating: asNumber(row.rating),
     tag: row.tag ?? undefined,
-    genre: row.genre ?? 'Islamic Studies',
+    genre: row.genre ?? strings().services.book.defaultGenre,
     readTime: formatReadTime(row.read_time_minutes),
     price: centsToAmount(asNumber(row.price_cents) ?? 0),
     currency: row.currency ?? DEFAULT_CURRENCY,
-    format: row.format ?? DEFAULT_FORMAT,
+    format: row.format ?? strings().services.book.digitalEdition,
     isPremium: Boolean(row.is_premium),
     /** The recorded language, or `null` when the catalogue has not said. */
     language: row.language ?? null,

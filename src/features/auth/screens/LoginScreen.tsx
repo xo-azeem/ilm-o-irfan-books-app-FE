@@ -12,8 +12,10 @@ import { AuthField } from '@/features/auth/components/AuthField';
 import { AuthLayout } from '@/features/auth/components/AuthLayout';
 import { GoogleSignInButton } from '@/features/auth/components/GoogleSignInButton';
 import { useSignupOpen } from '@/hooks/useAppStatus';
+import { useStrings } from '@/i18n';
 import { resumeAfterAuth, waitForAccessCheck } from '@/lib/access';
 import {
+  describeAuthError,
   GoogleSignInCancelled,
   isEmailNotConfirmed,
   isGoogleSignInAvailable,
@@ -32,6 +34,7 @@ export function LoginScreen() {
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'Login'>>();
   const returnTo = route.params?.returnTo;
+  const s = useStrings();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -42,8 +45,8 @@ export function LoginScreen() {
   const handleSignIn = useCallback(async () => {
     if (!email.trim() || !password.trim()) {
       showDialog({
-        title: 'Missing details',
-        message: 'Please enter your email and password.',
+        title: s.auth.missingDetails,
+        message: s.auth.enterEmailAndPassword,
         tone: 'warning',
       });
       return;
@@ -51,8 +54,8 @@ export function LoginScreen() {
 
     if (!isValidEmail(email)) {
       showDialog({
-        title: 'Invalid email',
-        message: 'Please enter a valid email address.',
+        title: s.auth.invalidEmail,
+        message: s.auth.enterValidEmail,
         tone: 'warning',
       });
       return;
@@ -76,22 +79,21 @@ export function LoginScreen() {
         });
         return;
       }
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Unable to sign in. Try again.';
-      showDialog({ title: 'Sign in failed', message, tone: 'danger' });
+      showDialog({
+        title: s.auth.login.failedTitle,
+        message: describeAuthError(error, s.auth.login.failedFallback),
+        tone: 'danger',
+      });
     } finally {
       setIsSubmitting(false);
     }
-  }, [email, navigation, password, returnTo]);
+  }, [email, navigation, password, returnTo, s]);
 
   const handleGoogleSignIn = useCallback(async () => {
     if (!isGoogleSignInAvailable()) {
       showDialog({
-        title: 'Google sign-in unavailable',
-        message:
-          'This build has no Google client configured. Sign in with your email and password.',
+        title: s.auth.login.googleUnavailableTitle,
+        message: s.auth.login.googleUnavailable,
         tone: 'info',
       });
       return;
@@ -110,14 +112,14 @@ export function LoginScreen() {
         return;
       }
       showDialog({
-        title: 'Google sign-in failed',
-        message: error instanceof Error ? error.message : 'Please try again.',
+        title: s.auth.login.googleFailedTitle,
+        message: describeAuthError(error, s.common.pleaseTryAgain),
         tone: 'danger',
       });
     } finally {
       setIsGoogleBusy(false);
     }
-  }, [navigation, returnTo]);
+  }, [navigation, returnTo, s]);
 
   const handleGuest = useCallback(() => {
     // Guest browsing is preserved from the current build: the catalog is open,
@@ -143,9 +145,8 @@ export function LoginScreen() {
   const handleEmailCode = useCallback(async () => {
     if (!isValidEmail(email)) {
       showDialog({
-        title: 'Enter your email',
-        message:
-          'Type the address you signed up with and we will email a code.',
+        title: s.auth.login.enterEmailTitle,
+        message: s.auth.login.enterEmailForCode,
         tone: 'warning',
       });
       return;
@@ -165,19 +166,17 @@ export function LoginScreen() {
         error instanceof Error && /signups? not allowed/i.test(error.message);
       showDialog({
         title: unknown
-          ? 'No account for that address'
-          : 'Could not send a code',
+          ? s.auth.login.noAccountTitle
+          : s.auth.login.couldNotSendCode,
         message: unknown
-          ? 'Check the spelling, or create an account with it.'
-          : error instanceof Error
-            ? error.message
-            : 'Please wait a minute and try again.',
+          ? s.auth.login.noAccountMessage
+          : describeAuthError(error, s.auth.login.waitAMinute),
         tone: unknown ? 'warning' : 'danger',
       });
     } finally {
       setIsSendingCode(false);
     }
-  }, [email, navigation, returnTo]);
+  }, [email, navigation, returnTo, s]);
 
   const handleForgotPassword = useCallback(() => {
     navigation.navigate(ROUTES.FORGOT_PASSWORD, {
@@ -188,17 +187,17 @@ export function LoginScreen() {
 
   return (
     <AuthLayout
-      title="Welcome back."
-      subtitle="Your shelf is where you left it."
+      title={s.auth.login.title}
+      subtitle={s.auth.login.subtitle}
       onBack={navigation.canGoBack() ? () => navigation.goBack() : undefined}
       footer={
         signupOpen ? (
           <View style={styles.footer}>
             <Text size={fontSize.bodySmall} leading={1} tone="muted">
-              New here?
+              {s.auth.login.newHere}
             </Text>
             <TextButton
-              label="Create an account"
+              label={s.common.createAccount}
               onPress={goToSignUp}
               size={fontSize.bodySmall}
             />
@@ -208,10 +207,10 @@ export function LoginScreen() {
     >
       <View style={styles.fields}>
         <AuthField
-          label="Email"
+          label={s.auth.email}
           value={email}
           onChangeText={setEmail}
-          placeholder="name@example.com"
+          placeholder={s.auth.emailPlaceholder}
           keyboardType="email-address"
           textContentType="emailAddress"
           autoComplete="email"
@@ -220,10 +219,10 @@ export function LoginScreen() {
         />
 
         <AuthField
-          label="Password"
+          label={s.auth.password}
           value={password}
           onChangeText={setPassword}
-          placeholder="Your password"
+          placeholder={s.auth.passwordPlaceholder}
           secure
           textContentType="password"
           autoComplete="password"
@@ -233,7 +232,7 @@ export function LoginScreen() {
         />
 
         <TextButton
-          label="Forgot password?"
+          label={s.auth.login.forgotPassword}
           tone="muted"
           onPress={handleForgotPassword}
           style={styles.forgot}
@@ -241,7 +240,7 @@ export function LoginScreen() {
       </View>
 
       <Button
-        label={isSubmitting ? 'Signing in…' : 'Sign in'}
+        label={isSubmitting ? s.auth.login.signingIn : s.common.signIn}
         onPress={handleSignIn}
         loading={isSubmitting}
       />
@@ -250,18 +249,22 @@ export function LoginScreen() {
 
       <View style={styles.alternatives}>
         <GoogleSignInButton
-          label={isGoogleBusy ? 'Opening Google…' : 'Continue with Google'}
+          label={
+            isGoogleBusy ? s.auth.openingGoogle : s.auth.continueWithGoogle
+          }
           onPress={handleGoogleSignIn}
           disabled={isGoogleBusy || isSubmitting}
         />
         <GoogleSignInButton
-          label={isSendingCode ? 'Sending code…' : 'Email me a sign-in code'}
+          label={
+            isSendingCode ? s.auth.login.sendingCode : s.auth.login.emailMeCode
+          }
           showLogo={false}
           onPress={handleEmailCode}
           disabled={isSendingCode || isSubmitting}
         />
         <GoogleSignInButton
-          label="Continue as guest"
+          label={s.auth.login.continueAsGuest}
           showLogo={false}
           onPress={handleGuest}
         />

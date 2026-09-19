@@ -7,6 +7,7 @@ import type {
 } from '@/services/accountDeletion';
 
 import { supabase, toFriendlyError, unwrap } from './client';
+import { strings } from '@/i18n/strings';
 
 /**
  * Account deletion requests, as the admin works them.
@@ -103,7 +104,7 @@ export async function runDueDeletions(): Promise<DeletionRunResult> {
     data: { session },
   } = await supabase.auth.getSession();
   if (!session) {
-    throw new Error('Your admin session has expired. Sign out and back in.');
+    throw new Error(strings().adminPeople.services.sessionExpired);
   }
 
   const response = await fetch(
@@ -127,7 +128,7 @@ export async function runDueDeletions(): Promise<DeletionRunResult> {
   if (!response.ok || !body?.data) {
     throw new Error(
       body?.error?.message ??
-        `The deletion run failed (${response.status}). Is account-deletion-run deployed?`,
+        strings().adminPeople.services.runFailed(response.status),
     );
   }
 

@@ -16,6 +16,7 @@ import {
 import { CodeEntry } from '@/features/auth/components/CodeEntry';
 import { ProfileSubScreenLayout } from '@/features/profile/components/ProfileSubScreenLayout';
 import {
+  describeAuthError,
   getAuthUser,
   readEmailChangeProgress,
   requestEmailChange,
@@ -24,6 +25,7 @@ import {
 } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import { fontSize } from '@/theme/typography';
+import { useStrings } from '@/i18n';
 
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
@@ -52,6 +54,8 @@ type Step = 'enter' | 'current' | 'next' | 'done';
  * codes left off — Supabase sends fresh ones.
  */
 export function ChangeEmailScreen() {
+  const s = useStrings();
+  const words = s.account.changeEmail;
   const navigation = useNavigation();
   const client = useQueryClient();
   const userId = useAuthStore(state => state.userId);
@@ -71,13 +75,13 @@ export function ChangeEmailScreen() {
       return undefined;
     }
     if (!isValidEmail(trimmed)) {
-      return 'Enter a valid email address';
+      return words.invalid;
     }
     if (trimmed.toLowerCase() === currentEmail.toLowerCase()) {
-      return 'That is already the address on this account';
+      return words.same;
     }
     return undefined;
-  }, [currentEmail, newEmail]);
+  }, [currentEmail, newEmail, words]);
 
   /** Refreshes everything that shows the address once it has moved. */
   const refreshAccount = useCallback(async () => {
@@ -93,8 +97,8 @@ export function ChangeEmailScreen() {
   const handleSend = useCallback(async () => {
     if (emailError || !newEmail.trim()) {
       showDialog({
-        title: 'Check the address',
-        message: emailError ?? 'Enter the address you want to move to.',
+        title: words.checkAddress,
+        message: emailError ?? words.enterNew,
         tone: 'warning',
       });
       return;
@@ -106,17 +110,14 @@ export function ChangeEmailScreen() {
       setStep('current');
     } catch (error) {
       showDialog({
-        title: 'Could not start the change',
-        message:
-          error instanceof Error
-            ? error.message
-            : 'Please wait a minute and try again.',
+        title: words.couldNotStart,
+        message: describeAuthError(error, s.auth.login.waitAMinute),
         tone: 'danger',
       });
     } finally {
       setIsSending(false);
     }
-  }, [emailError, newEmail]);
+  }, [emailError, newEmail, s, words]);
 
   /**
    * One code in, then the honest question: has the account moved? Only the
@@ -163,10 +164,10 @@ export function ChangeEmailScreen() {
 
   if (!userId) {
     return (
-      <ProfileSubScreenLayout title="Change email">
+      <ProfileSubScreenLayout title={words.title}>
         <Callout
-          title="Sign in first"
-          message="Your email address belongs to your account."
+          title={words.signInFirst}
+          message={words.belongsToAccount}
           tone="info"
         />
       </ProfileSubScreenLayout>
@@ -175,28 +176,26 @@ export function ChangeEmailScreen() {
 
   return (
     <ProfileSubScreenLayout
-      title="Change email"
+      title={words.title}
       subtitle={
         step === 'enter'
-          ? 'Two codes confirm it: one to your current address, one to the new.'
+          ? words.subtitleEnter
           : step === 'done'
-            ? 'Done. Your account now answers to the new address.'
-            : 'Both codes are needed before anything changes.'
+            ? words.subtitleDone
+            : words.subtitleCodes
       }
     >
       {step === 'enter' ? (
         <Card padded>
           <View style={styles.stack}>
             <Text size={fontSize.bodySmall} tone="muted">
-              Your account is registered to {currentEmail || 'your address'}. We
-              will email a six-digit code there and another to the new address;
-              the change goes through once you have entered both.
+              {words.registeredTo(currentEmail || words.yourAddress)}
             </Text>
             <TextField
-              label="New email address"
+              label={words.newAddress}
               value={newEmail}
               onChangeText={setNewEmail}
-              placeholder="name@example.com"
+              placeholder={s.auth.emailPlaceholder}
               keyboardType="email-address"
               textContentType="emailAddress"
               autoComplete="email"
@@ -208,7 +207,7 @@ export function ChangeEmailScreen() {
               editable={!isSending}
             />
             <Button
-              label={isSending ? 'Sending codes…' : 'Send the codes'}
+              label={isSending ? words.sendingCodes : words.sendCodes}
               size="md"
               onPress={() => void handleSend()}
               loading={isSending}
@@ -223,7 +222,7 @@ export function ChangeEmailScreen() {
           <Card tone="alt" padded>
             <View style={styles.progress}>
               <ProgressRow
-                label={`Code sent to your current email ${currentEmail}`}
+                label={words.sentToCurrent(currentEmail)}
                 state={
                   accepted.current
                     ? 'done'
@@ -233,7 +232,7 @@ export function ChangeEmailScreen() {
                 }
               />
               <ProgressRow
-                label={`Code sent to your new email ${newEmail.trim()}`}
+                label={words.sentToNew(newEmail.trim())}
                 state={
                   accepted.next
                     ? 'done'
@@ -249,8 +248,8 @@ export function ChangeEmailScreen() {
             <View style={styles.stack}>
               <Text size={fontSize.body} weight="600">
                 {step === 'current'
-                  ? `Step ${accepted.next ? 2 : 1} of 2 · your current email`
-                  : `Step ${accepted.current ? 2 : 1} of 2 · your new email`}
+                  ? words.stepCurrent(accepted.next ? 2 : 1)
+                  : words.stepNew(accepted.current ? 2 : 1)}
               </Text>
               <CodeEntry
                 key={step}
@@ -258,16 +257,16 @@ export function ChangeEmailScreen() {
                 onVerify={step === 'current' ? verifyCurrent : verifyNext}
                 onResend={resend}
                 cooldownOnMount={!accepted.current && !accepted.next}
-                verifyLabel="Confirm code"
-                hint={`Enter the six-digit code from the email sent to ${
-                  step === 'current' ? currentEmail : newEmail.trim()
-                }. Resend sends both codes again.`}
+                verifyLabel={words.confirmCode}
+                hint={words.codeHint(
+                  step === 'current' ? currentEmail : newEmail.trim(),
+                )}
               />
             </View>
           </Card>
 
           <Button
-            label="Use a different address"
+            label={words.differentAddress}
             variant="ghost"
             size="md"
             onPress={startOver}
@@ -277,13 +276,13 @@ export function ChangeEmailScreen() {
 
       {step === 'done' ? (
         <Callout
-          title="Email updated"
-          message={`Sign in with ${newEmail.trim()} from now on. Both addresses have been told about the change.`}
+          title={words.updated}
+          message={words.updatedMessage(newEmail.trim())}
           tone="info"
           icon={MailCheck}
           action={
             <Button
-              label="Done"
+              label={words.done}
               size="sm"
               variant="secondary"
               onPress={() => navigation.goBack()}
@@ -302,6 +301,7 @@ function ProgressRow({
   label: string;
   state: 'done' | 'active' | 'waiting';
 }) {
+  const s = useStrings();
   return (
     <View style={styles.progressRow}>
       <Icon
@@ -317,7 +317,11 @@ function ProgressRow({
         style={styles.progressLabel}
       >
         {label}
-        {state === 'done' ? ' · confirmed' : state === 'active' ? ' · now' : ''}
+        {state === 'done'
+          ? s.account.changeEmail.confirmed
+          : state === 'active'
+            ? s.account.changeEmail.now
+            : ''}
       </Text>
     </View>
   );

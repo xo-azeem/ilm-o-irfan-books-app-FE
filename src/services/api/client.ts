@@ -1,6 +1,7 @@
 import { env } from '@/config/env';
 import { supabase } from '@/lib/supabase/client';
 import { ApiError, isEndpointMissing, readError } from '@/services/api/errors';
+import { dateLocale, strings } from '@/i18n/strings';
 
 export { ApiError, isEndpointMissing };
 
@@ -122,6 +123,9 @@ async function send(
         // The gateway needs the anon key even when a user token is present.
         apikey: env.supabaseAnonKey,
         Authorization: `Bearer ${token ?? env.supabaseAnonKey}`,
+        // The interface language, so a function composing copy of its own —
+        // the home feed's rail headings, a push — can answer in it.
+        'Accept-Language': dateLocale(),
         ...(body === undefined ? null : { 'Content-Type': 'application/json' }),
       },
       body: body === undefined ? undefined : JSON.stringify(body),
@@ -131,11 +135,7 @@ async function send(
     if (signal?.aborted || (error as Error)?.name === 'AbortError') {
       throw error;
     }
-    throw new ApiError(
-      'Could not reach the server. Check your connection and try again.',
-      0,
-      'NETWORK_ERROR',
-    );
+    throw new ApiError(strings().services.networkError, 0, 'NETWORK_ERROR');
   } finally {
     clearTimeout(timeout);
   }
@@ -177,7 +177,7 @@ export async function request<T>(
 
   const token = await accessToken();
   if (auth && !token) {
-    throw new ApiError('You must be signed in.', 401, 'AUTH_REQUIRED');
+    throw new ApiError(strings().services.mustBeSignedIn, 401, 'AUTH_REQUIRED');
   }
 
   let result = await send(name, options, token);

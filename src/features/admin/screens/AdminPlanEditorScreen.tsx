@@ -54,12 +54,7 @@ import { sansFamily } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
 
 import type { AdminPeopleStackParamList } from '../navigation/types';
-
-const INTERVAL_OPTIONS = PLAN_INTERVALS.map(interval => ({
-  value: interval,
-  label:
-    interval === 'lifetime' ? 'Once' : interval === 'year' ? 'Year' : 'Month',
-}));
+import { useStrings } from '@/i18n';
 
 const CURRENCIES = ['PKR', 'USD', 'GBP', 'EUR'];
 
@@ -78,6 +73,16 @@ export function AdminPlanEditorScreen() {
     useRoute<RouteProp<AdminPeopleStackParamList, 'AdminPlanEditor'>>();
   const planId = route.params?.planId;
   const { colors } = useTheme();
+  const s = useStrings();
+  const words = s.adminPeople.plan;
+  const intervalOptions = useMemo(
+    () =>
+      PLAN_INTERVALS.map(interval => ({
+        value: interval,
+        label: words.intervals[interval],
+      })),
+    [words],
+  );
   const { scrollEndPadding } = useAppInsets();
   const toast = useToast();
 
@@ -152,11 +157,11 @@ export function AdminPlanEditorScreen() {
 
   const handleSave = () => {
     if (!form.name.trim()) {
-      toast.error('Enter a plan name.');
+      toast.error(words.enterName);
       return;
     }
     if (!resolvedCode) {
-      toast.error('Enter a plan code.');
+      toast.error(words.enterCode);
       return;
     }
 
@@ -178,7 +183,7 @@ export function AdminPlanEditorScreen() {
       {
         onSuccess: () => {
           reset();
-          toast.success(planId ? 'Plan saved.' : 'Plan created.');
+          toast.success(planId ? words.saved : words.created);
           navigation.goBack();
         },
         onError: caught => toast.error(errorMessage(caught)),
@@ -193,12 +198,14 @@ export function AdminPlanEditorScreen() {
     >
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <AdminBackLink
-          label="Plans"
+          label={words.plans}
           action={
             <View style={styles.badges}>
-              {isDirty ? <AdminTag label="UNSAVED" tone="warning" /> : null}
+              {isDirty ? (
+                <AdminTag label={s.admin.ui.unsaved} tone="warning" />
+              ) : null}
               <AdminTag
-                label={form.isActive ? 'ON SALE' : 'OFF SALE'}
+                label={form.isActive ? words.onSale : words.offSale}
                 tone={form.isActive ? 'success' : 'neutral'}
               />
             </View>
@@ -218,8 +225,8 @@ export function AdminPlanEditorScreen() {
         showsVerticalScrollIndicator={false}
       >
         <AdminScreenTitle
-          title={form.name || (planId ? 'Edit plan' : 'New plan')}
-          subtitle="Shown on the paywall and matched to a store product."
+          title={form.name || (planId ? words.editPlan : words.newPlan)}
+          subtitle={words.subtitle}
         />
 
         {/* The one thing an operator most often assumes wrongly. */}
@@ -239,28 +246,27 @@ export function AdminPlanEditorScreen() {
               tone="inherit"
               style={{ color: colors.warningInk }}
             >
-              {`Price changes apply to new subscribers only. Everyone already on this plan keeps ${formatMoney(
-                existing.price_cents,
-                existing.currency,
-              )} until they cancel.`}
+              {words.priceNote(
+                formatMoney(existing.price_cents, existing.currency),
+              )}
             </Text>
           </View>
         ) : null}
 
         <AdminField
-          label="Name readers see"
+          label={words.name}
           value={form.name}
           onChangeText={value =>
             setForm(current => ({ ...current, name: value }))
           }
-          placeholder="Annual"
+          placeholder={words.namePlaceholder}
           maxLength={60}
         />
 
         <View style={styles.row}>
           <View style={styles.grow}>
             <AdminField
-              label="Price"
+              label={words.price}
               value={form.price}
               onChangeText={value =>
                 setForm(current => ({
@@ -273,7 +279,7 @@ export function AdminPlanEditorScreen() {
             />
           </View>
           <View style={styles.currency}>
-            <AdminLabel>Currency</AdminLabel>
+            <AdminLabel>{words.currency}</AdminLabel>
             <View style={styles.wrap}>
               {CURRENCIES.map(code => (
                 <AdminChip
@@ -291,9 +297,9 @@ export function AdminPlanEditorScreen() {
         </View>
 
         <View style={styles.block}>
-          <AdminLabel>Billed</AdminLabel>
+          <AdminLabel>{words.billed}</AdminLabel>
           <AdminSegmented
-            options={INTERVAL_OPTIONS}
+            options={intervalOptions}
             value={form.interval}
             onChange={interval =>
               setForm(current => ({ ...current, interval }))
@@ -302,18 +308,18 @@ export function AdminPlanEditorScreen() {
         </View>
 
         <AdminField
-          label="Shared / RevenueCat product id"
+          label={words.sharedId}
           value={form.productId}
           onChangeText={value =>
             setForm(current => ({ ...current, productId: value }))
           }
-          placeholder="premium_monthly"
+          placeholder={words.sharedIdPlaceholder}
           autoCapitalize="none"
           mono
           helper={
             form.productId || form.appStoreProductId || form.playStoreProductId
-              ? 'Webhook matches any of the three SKUs. Apple Pay / Google Pay use the App Store / Play sheets — not separate ids.'
-              : 'Without a product id, purchases of this plan may fall back to the default plan code only.'
+              ? words.webhookMatches
+              : words.withoutProductId
           }
           helperTone={
             form.productId || form.appStoreProductId || form.playStoreProductId
@@ -323,7 +329,7 @@ export function AdminPlanEditorScreen() {
         />
 
         <AdminField
-          label="App Store product id"
+          label={words.appStoreId}
           value={form.appStoreProductId}
           onChangeText={value =>
             setForm(current => ({ ...current, appStoreProductId: value }))
@@ -331,39 +337,39 @@ export function AdminPlanEditorScreen() {
           placeholder="com.ilmoirfanapp.premium.monthly"
           autoCapitalize="none"
           mono
-          helper="StoreKit / Apple Pay sheet product id when it differs from the shared id."
+          helper={words.appStoreIdHint}
         />
 
         <AdminField
-          label="Play Store product id"
+          label={words.playStoreId}
           value={form.playStoreProductId}
           onChangeText={value =>
             setForm(current => ({ ...current, playStoreProductId: value }))
           }
-          placeholder="premium_monthly"
+          placeholder={words.sharedIdPlaceholder}
           autoCapitalize="none"
           mono
-          helper="Google Play Billing / Google Pay sheet product id when it differs from the shared id."
+          helper={words.playStoreIdHint}
         />
 
         <AdminField
-          label="Plan code"
+          label={words.code}
           value={form.code}
           onChangeText={value =>
             setForm(current => ({ ...current, code: value }))
           }
-          placeholder={slugify(form.name) || 'annual-v2'}
+          placeholder={slugify(form.name) || words.codePlaceholder}
           autoCapitalize="none"
           mono
-          helper={`A stable internal identifier — currently “${resolvedCode || '—'}”.`}
+          helper={words.codeHint(resolvedCode || '—')}
         />
 
         <View style={styles.block}>
           <AdminSectionHeader
-            title="What it includes"
+            title={words.whatItIncludes}
             action={
               <AdminTextAction
-                label="Add line"
+                label={words.addLine}
                 size={11.5}
                 onPress={addFeature}
               />
@@ -385,7 +391,7 @@ export function AdminPlanEditorScreen() {
               onSubmitEditing={addFeature}
               blurOnSubmit={false}
               returnKeyType="done"
-              placeholder="All premium titles"
+              placeholder={words.featurePlaceholder}
               placeholderTextColor={colors.faint}
               style={[
                 styles.featureText,
@@ -394,7 +400,7 @@ export function AdminPlanEditorScreen() {
             />
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Add benefit"
+              accessibilityLabel={words.addBenefit}
               onPress={addFeature}
               hitSlop={10}
               disabled={!draftFeature.trim()}
@@ -410,7 +416,7 @@ export function AdminPlanEditorScreen() {
 
           <AdminOrderableList
             items={featureItems}
-            emptyLabel="No benefits yet — the paywall will show an empty card."
+            emptyLabel={words.noBenefits}
             onChange={next =>
               setForm(current => ({
                 ...current,
@@ -422,8 +428,8 @@ export function AdminPlanEditorScreen() {
 
         <AdminCard>
           <AdminToggleRow
-            label="Offer on the paywall"
-            description="Turning this off keeps existing subscribers and hides the plan from everyone else."
+            label={words.offerOnPaywall}
+            description={words.offerHint}
             value={form.isActive}
             onValueChange={value =>
               setForm(current => ({ ...current, isActive: value }))
@@ -434,13 +440,13 @@ export function AdminPlanEditorScreen() {
         {planId ? (
           <View style={styles.deleteBlock}>
             <AdminOutlineButton
-              label="Delete this plan"
+              label={words.deletePlan}
               Icon={Trash2}
               destructive
               onPress={() => setConfirmDelete(true)}
             />
             <Text size={11.5} leading={1.4} align="center" tone="faint">
-              Taking it off sale is almost always the safer move.
+              {words.offSaleSafer}
             </Text>
           </View>
         ) : null}
@@ -448,7 +454,7 @@ export function AdminPlanEditorScreen() {
 
       <AdminActionBar>
         <AdminButton
-          label={planId ? 'Save plan' : 'Create plan'}
+          label={planId ? words.savePlan : words.createPlan}
           loading={save.isPending}
           disabled={!form.name.trim()}
           onPress={handleSave}
@@ -457,16 +463,12 @@ export function AdminPlanEditorScreen() {
 
       <AdminConfirmSheet
         visible={confirmDelete}
-        title={`Delete ${form.name || 'this plan'}?`}
-        message="Subscribers keep their access, but the plan disappears. What goes:"
-        consequences={[
-          'The plan name against every existing subscriber',
-          'The mapping from store purchases to this tier',
-          'Its card on the paywall',
-        ]}
-        confirmLabel="Delete"
+        title={words.deleteTitle(form.name || words.thisPlan)}
+        message={words.deleteMessage}
+        consequences={words.deleteConsequences}
+        confirmLabel={s.admin.ui.delete}
         destructive
-        footnote="Taking it off sale keeps all of that."
+        footnote={words.offSaleKeeps}
         loading={remove.isPending}
         onCancel={() => setConfirmDelete(false)}
         onConfirm={() =>
@@ -475,7 +477,7 @@ export function AdminPlanEditorScreen() {
             onSuccess: () => {
               setConfirmDelete(false);
               reset();
-              toast.success('Plan deleted.');
+              toast.success(words.deleted);
               navigation.goBack();
             },
             onError: caught => {

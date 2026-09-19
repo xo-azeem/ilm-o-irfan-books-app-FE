@@ -11,6 +11,7 @@ import Animated, {
 import { CategoryTile } from '@/components/books';
 import { Label, TextButton } from '@/components/ui';
 import type { CatalogCategory } from '@/services/catalog';
+import { useStrings } from '@/i18n';
 import { layout } from '@/theme/palette';
 import { useTheme } from '@/theme/ThemeContext';
 
@@ -54,6 +55,7 @@ export const SubjectPanel = memo(function SubjectPanel({
 }: SubjectPanelProps) {
   const { width: screenWidth } = useWindowDimensions();
   const { colors } = useTheme();
+  const s = useStrings();
   const progress = useSharedValue(0);
   const [contentHeight, setContentHeight] = useState(0);
 
@@ -93,9 +95,12 @@ export const SubjectPanel = memo(function SubjectPanel({
         onLayout={event => setContentHeight(event.nativeEvent.layout.height)}
       >
         <View style={styles.header}>
-          <Label>Browse by subject</Label>
+          <Label>{s.catalog.discover.browseBySubject}</Label>
           {selectedId ? (
-            <TextButton label="All subjects" onPress={clear} />
+            <TextButton
+              label={s.catalog.discover.allSubjects}
+              onPress={clear}
+            />
           ) : null}
         </View>
 
@@ -105,7 +110,7 @@ export const SubjectPanel = memo(function SubjectPanel({
               key={category.id}
               id={category.id}
               label={category.label}
-              count={`${category.count} ${category.count === '1' ? 'book' : 'books'}`}
+              count={s.common.bookCount(Number(category.count))}
               accent={category.accent}
               width={tileWidth}
               onPress={select}

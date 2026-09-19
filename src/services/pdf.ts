@@ -1,4 +1,5 @@
 import ReactNativeBlobUtil from 'react-native-blob-util';
+import { strings } from '@/i18n/strings';
 
 /**
  * The network half of getting a book onto the device.
@@ -26,7 +27,7 @@ export type DownloadOptions = {
 };
 
 export function abortError() {
-  return Object.assign(new Error('The PDF download was cancelled.'), {
+  return Object.assign(new Error(strings().services.pdf.cancelled), {
     name: 'AbortError',
   });
 }
@@ -38,8 +39,8 @@ export function isAbortError(error: unknown): boolean {
 function statusError(status: number) {
   return new Error(
     status === 400 || status === 404
-      ? 'This book file is missing from storage.'
-      : `Could not download the PDF (${status}).`,
+      ? strings().services.pdf.missing
+      : strings().services.pdf.downloadFailed(status),
   );
 }
 
@@ -219,14 +220,12 @@ export async function downloadToPath(
     const stats = await ReactNativeBlobUtil.fs.stat(temporary);
     const size = Number(stats?.size) || 0;
     if (size < MIN_PDF_BYTES || !(await hasPdfHeader(temporary))) {
-      throw new Error('This book file is missing or is not a valid PDF.');
+      throw new Error(strings().services.pdf.invalid);
     }
     // A server that reported a size and then sent fewer bytes sent a
     // truncated book. Pdfium would open it and fail on the missing page.
     if (expectedBytes > 0 && size < expectedBytes) {
-      throw new Error(
-        'The book did not download completely. Please try again.',
-      );
+      throw new Error(strings().services.pdf.incomplete);
     }
 
     if (await ReactNativeBlobUtil.fs.exists(target)) {
@@ -249,7 +248,7 @@ export async function downloadToPath(
     if (error instanceof Error) {
       throw error;
     }
-    throw new Error('Could not download the PDF.');
+    throw new Error(strings().services.pdf.couldNotDownload);
   } finally {
     signal?.removeEventListener?.('abort', cancel);
   }

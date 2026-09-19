@@ -10,8 +10,10 @@ import { Button, showDialog, Text, TextButton } from '@/components/ui';
 import { ROUTES } from '@/constants/routes';
 import { AuthField } from '@/features/auth/components/AuthField';
 import { AuthLayout } from '@/features/auth/components/AuthLayout';
+import { useStrings } from '@/i18n';
 import { resumeAfterAuth, waitForAccessCheck } from '@/lib/access';
 import {
+  describeAuthError,
   requestPasswordReset,
   resetPasswordWithCode,
   setNewPassword,
@@ -41,6 +43,7 @@ export function ResetPasswordScreen() {
   const { email: initialEmail, viaLink = false, returnTo } = route.params;
 
   const sessionEmail = useAuthStore(state => state.email);
+  const s = useStrings();
   const [email, setEmail] = useState(initialEmail ?? '');
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
@@ -60,22 +63,22 @@ export function ResetPasswordScreen() {
   const validatePassword = useCallback((): boolean => {
     if (password.length < 8) {
       showDialog({
-        title: 'Weak password',
-        message: 'Password must be at least 8 characters.',
+        title: s.auth.weakPassword,
+        message: s.auth.passwordTooShort,
         tone: 'warning',
       });
       return false;
     }
     if (password !== confirm) {
       showDialog({
-        title: 'Password mismatch',
-        message: 'The two passwords do not match.',
+        title: s.auth.passwordMismatch,
+        message: s.auth.passwordsDoNotMatchLong,
         tone: 'warning',
       });
       return false;
     }
     return true;
-  }, [confirm, password]);
+  }, [confirm, password, s]);
 
   const finish = useCallback(async () => {
     const userId = useAuthStore.getState().userId;
@@ -83,13 +86,13 @@ export function ResetPasswordScreen() {
       await waitForAccessCheck(userId);
     }
     showDialog({
-      title: 'Password updated',
-      message: 'You are signed in with your new password.',
+      title: s.auth.reset.updatedTitle,
+      message: s.auth.reset.updatedMessage,
       tone: 'success',
       icon: KeyRound,
     });
     resumeAfterAuth(navigation, returnTo);
-  }, [navigation, returnTo]);
+  }, [navigation, returnTo, s]);
 
   const handleSave = useCallback(async () => {
     if (!validatePassword()) {
@@ -99,9 +102,8 @@ export function ResetPasswordScreen() {
       const digits = code.replace(/\D/g, '');
       if (!email.trim() || digits.length < 6) {
         showDialog({
-          title: 'Enter the code',
-          message:
-            'Type your email and the six-digit code from the reset email.',
+          title: s.auth.reset.enterCodeTitle,
+          message: s.auth.reset.enterCodeMessage,
           tone: 'warning',
         });
         return;
@@ -118,17 +120,14 @@ export function ResetPasswordScreen() {
       await finish();
     } catch (error) {
       showDialog({
-        title: 'Could not reset the password',
-        message:
-          error instanceof Error
-            ? error.message
-            : 'The code may be wrong or expired. Request a new one.',
+        title: s.auth.reset.failedTitle,
+        message: describeAuthError(error, s.auth.reset.failedFallback),
         tone: 'danger',
       });
     } finally {
       setIsSaving(false);
     }
-  }, [code, email, finish, password, validatePassword, viaLink]);
+  }, [code, email, finish, password, s, validatePassword, viaLink]);
 
   const handleResend = useCallback(async () => {
     if (cooldown > 0 || isResending || !email.trim()) {
@@ -139,46 +138,45 @@ export function ResetPasswordScreen() {
       await requestPasswordReset(email);
       setCooldown(RESEND_COOLDOWN_SECONDS);
       showDialog({
-        title: 'Email sent',
-        message: `A new code is on its way to ${email.trim()}.`,
+        title: s.auth.reset.emailSent,
+        message: s.auth.reset.newCodeOnWay(email.trim()),
         tone: 'success',
       });
     } catch (error) {
       showDialog({
-        title: 'Could not resend',
-        message:
-          error instanceof Error
-            ? error.message
-            : 'Please wait a minute and try again.',
+        title: s.auth.reset.couldNotResend,
+        message: describeAuthError(error, s.auth.login.waitAMinute),
         tone: 'danger',
       });
     } finally {
       setIsResending(false);
     }
-  }, [cooldown, email, isResending]);
+  }, [cooldown, email, isResending, s]);
 
   return (
     <AuthLayout
-      title="Set a new password."
+      title={s.auth.reset.title}
       subtitle={
         viaLink
-          ? `You have confirmed ${sessionEmail ?? initialEmail ?? 'your account'}. Choose a new password below.`
-          : `Enter the six-digit code we emailed${initialEmail ? ` to ${initialEmail}` : ''}, then choose a new password.`
+          ? s.auth.reset.confirmedSubtitle(
+              sessionEmail ?? initialEmail ?? s.auth.reset.yourAccount,
+            )
+          : s.auth.reset.codeSubtitle(initialEmail ?? null)
       }
       onBack={navigation.canGoBack() ? () => navigation.goBack() : undefined}
       footer={
         viaLink ? undefined : (
           <View style={styles.footer}>
             <Text size={fontSize.bodySmall} leading={1} tone="muted">
-              No code?
+              {s.auth.reset.noCode}
             </Text>
             <TextButton
               label={
                 cooldown > 0
-                  ? `Resend in ${cooldown}s`
+                  ? s.auth.reset.resendIn(cooldown)
                   : isResending
-                    ? 'Sending…'
-                    : 'Resend email'
+                    ? s.auth.forgot.sending
+                    : s.auth.reset.resendEmail
               }
               onPress={handleResend}
               disabled={cooldown > 0 || isResending}
@@ -192,22 +190,22 @@ export function ResetPasswordScreen() {
         {!viaLink ? (
           <>
             <AuthField
-              label="Email"
+              label={s.auth.email}
               value={email}
               onChangeText={setEmail}
-              placeholder="name@example.com"
+              placeholder={s.auth.emailPlaceholder}
               keyboardType="email-address"
               textContentType="emailAddress"
               autoComplete="email"
               editable={!isSaving && !initialEmail}
             />
             <AuthField
-              label="Reset code"
+              label={s.auth.reset.resetCode}
               value={code}
               onChangeText={value =>
                 setCode(value.replace(/\D/g, '').slice(0, 6))
               }
-              placeholder="123456"
+              placeholder={s.auth.reset.resetCodePlaceholder}
               keyboardType="number-pad"
               textContentType="oneTimeCode"
               autoComplete="one-time-code"
@@ -218,20 +216,20 @@ export function ResetPasswordScreen() {
         ) : null}
 
         <AuthField
-          label="New password"
+          label={s.auth.reset.newPassword}
           value={password}
           onChangeText={setPassword}
-          placeholder="At least 8 characters"
+          placeholder={s.auth.atLeastEightCharacters}
           secure
           textContentType="newPassword"
           autoComplete="new-password"
           editable={!isSaving}
         />
         <AuthField
-          label="Confirm new password"
+          label={s.auth.reset.confirmNewPassword}
           value={confirm}
           onChangeText={setConfirm}
-          placeholder="Type it again"
+          placeholder={s.auth.reset.typeItAgain}
           secure
           textContentType="newPassword"
           autoComplete="new-password"
@@ -242,7 +240,7 @@ export function ResetPasswordScreen() {
       </View>
 
       <Button
-        label={isSaving ? 'Saving…' : 'Set new password'}
+        label={isSaving ? s.common.saving : s.auth.reset.setNewPassword}
         onPress={handleSave}
         loading={isSaving}
       />
@@ -250,7 +248,7 @@ export function ResetPasswordScreen() {
       {!viaLink ? (
         <View style={styles.back}>
           <TextButton
-            label="Back to sign in"
+            label={s.auth.forgot.backToSignIn}
             tone="muted"
             onPress={() =>
               navigation.navigate(

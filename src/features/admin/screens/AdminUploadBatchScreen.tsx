@@ -63,29 +63,33 @@ import {
 import { useTheme } from '@/theme/ThemeContext';
 
 import type { AdminLibraryStackParamList } from '../navigation/types';
+import { useStrings } from '@/i18n';
+import { strings } from '@/i18n/strings';
 
 /** The picker item that stands for "none" in a single-choice destination. */
 const NONE = '__none__';
 
-function plural(count: number, noun: string) {
-  return `${count} ${count === 1 ? noun : `${noun}s`}`;
+function plural(count: number, noun: 'book' | 'title'): string {
+  const counts = strings().adminLibrary.counts;
+  return noun === 'book' ? counts.books(count) : counts.titles(count);
 }
 
 /** Where one book in the batch stands, at a glance. */
 function bookBadges(book: AdminBookRow): RowBadge[] {
   const badges: RowBadge[] = [];
+  const words = strings().adminLibrary.batch;
   if (book.is_published) {
-    badges.push({ label: 'LIVE', tone: 'success' });
+    badges.push({ label: words.live, tone: 'success' });
   } else if (!book.pdf_path) {
-    badges.push({ label: 'NO PDF', tone: 'warning' });
+    badges.push({ label: words.noPdf, tone: 'warning' });
   } else {
-    badges.push({ label: 'READY', tone: 'success' });
+    badges.push({ label: words.ready, tone: 'success' });
   }
   if (!book.cover_path) {
-    badges.push({ label: 'NO COVER', tone: 'neutral' });
+    badges.push({ label: words.noCover, tone: 'neutral' });
   }
   if (book.is_premium) {
-    badges.push({ label: 'PREMIUM', tone: 'premium' });
+    badges.push({ label: words.premium, tone: 'premium' });
   }
   return badges;
 }
@@ -107,6 +111,8 @@ export function AdminUploadBatchScreen() {
     useRoute<RouteProp<AdminLibraryStackParamList, 'AdminUploadBatch'>>();
   const batchId = route.params.batchId;
   const { colors } = useTheme();
+  const s = useStrings();
+  const words = s.adminLibrary.batch;
   const { scrollEndPadding } = useAppInsets();
   const toast = useToast();
   const client = useQueryClient();
@@ -178,14 +184,12 @@ export function AdminUploadBatchScreen() {
     (bookId: string) => {
       void detachBatchBook(bookId)
         .then(() => {
-          toast.info(
-            'Taken out of the batch. The draft is still in the Library.',
-          );
+          toast.info(words.takenOut);
           refreshBooks();
         })
         .catch(caught => toast.error(errorMessage(caught)));
     },
-    [refreshBooks, toast],
+    [refreshBooks, toast, words],
   );
 
   // ------------------------------------------------------------ destination
@@ -202,23 +206,26 @@ export function AdminUploadBatchScreen() {
 
   const collectionItems = useMemo(
     () => [
-      { id: NONE, label: 'No collection', sublabel: 'Only the catalogue' },
+      { id: NONE, label: words.noCollection, sublabel: words.onlyCatalogue },
       ...collections
         .filter(collection => collection.slug !== 'trending')
         .map(collection => ({
           id: collection.id,
           label: collection.title,
           sublabel: collection.is_published
-            ? `${plural(collection.published_count, 'book')} live`
-            : 'Hidden — shown on Home once this batch is published',
+            ? s.adminLibrary.batches.live(
+                plural(collection.published_count, 'book'),
+                null,
+              )
+            : words.hiddenUntilPublished,
         })),
     ],
-    [collections],
+    [collections, s, words],
   );
 
   const categoryItems = useMemo(
     () => [
-      { id: NONE, label: 'No category' },
+      { id: NONE, label: words.noCategory },
       ...categories.map(category => ({
         id: category.id,
         label: category.label,
@@ -226,7 +233,7 @@ export function AdminUploadBatchScreen() {
         accent: category.accent,
       })),
     ],
-    [categories],
+    [categories, words],
   );
 
   // ------------------------------------------------------------ publish
@@ -237,12 +244,13 @@ export function AdminUploadBatchScreen() {
         setConfirmPublish(false);
         if (result.batchPublished) {
           toast.success(
-            `${plural(result.updated, 'book')} ${result.updated === 1 ? 'is' : 'are'} live.`,
+            words.booksLive(
+              plural(result.updated, 'book'),
+              result.updated === 1,
+            ),
           );
         } else {
-          toast.error(
-            `${result.updated} published, ${result.skipped} skipped — their PDF is missing from storage. Fix them and publish again.`,
-          );
+          toast.error(words.partlyPublished(result.updated, result.skipped));
         }
       },
       onError: caught => toast.error(errorMessage(caught)),
@@ -252,7 +260,7 @@ export function AdminUploadBatchScreen() {
   const handleDelete = () => {
     remove.mutate(batchId, {
       onSuccess: () => {
-        toast.info('Batch deleted. Its drafts are still in the Library.');
+        toast.info(words.deleted);
         navigation.goBack();
       },
       onError: caught => toast.error(errorMessage(caught)),
@@ -262,36 +270,32 @@ export function AdminUploadBatchScreen() {
   const publishBlocker = published
     ? null
     : rows.length === 0
-      ? 'Add a book first'
+      ? words.addBookFirst
       : missing > 0
-        ? `${plural(missing, 'book')} still ${missing === 1 ? 'needs' : 'need'} a PDF`
+        ? words.stillNeedPdf(plural(missing, 'book'), missing === 1)
         : null;
 
   const destination = batch.data
     ? [batch.data.collection_title, batch.data.category_label]
         .filter(Boolean)
-        .join(' and ')
+        .join(words.and)
     : '';
 
   const publishConsequences = useMemo(() => {
     const coverless = rows.filter(book => !book.cover_path).length;
     const premium = rows.filter(book => book.is_premium).length;
     const lines = [
-      `${plural(rows.length, 'title')} on Home, in Discover and in search`,
-      destination
-        ? `Added to ${destination}`
-        : 'Not placed in any collection or category — the catalogue only',
+      words.titlesOnHome(plural(rows.length, 'title')),
+      destination ? words.addedTo(destination) : words.notPlaced,
       premium === rows.length
-        ? 'All for members only'
-        : `${premium} for members, ${rows.length - premium} free`,
+        ? words.allMembers
+        : words.membersFree(premium, rows.length - premium),
     ];
     if (coverless > 0) {
-      lines.push(
-        `${plural(coverless, 'book')} without a cover — shown with a plain colour`,
-      );
+      lines.push(words.withoutCover(plural(coverless, 'book')));
     }
     return lines;
-  }, [destination, rows]);
+  }, [destination, rows, words]);
 
   return (
     <SafeAreaView
@@ -300,12 +304,12 @@ export function AdminUploadBatchScreen() {
     >
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <AdminBackLink
-          label="Batches"
+          label={words.batches}
           action={
             published ? (
-              <AdminTag label="LIVE" tone="success" />
+              <AdminTag label={words.live} tone="success" />
             ) : (
-              <AdminTag label="DRAFT" tone="warning" />
+              <AdminTag label={words.draft} tone="warning" />
             )
           }
         />
@@ -318,10 +322,10 @@ export function AdminUploadBatchScreen() {
       ) : batch.error || !batch.data ? (
         <View style={styles.gutter}>
           <AdminErrorState
-            message="This batch could not be loaded."
+            message={words.loadFailed}
             detail={batch.error ? errorMessage(batch.error) : undefined}
             onRetry={() => void batch.refetch()}
-            secondaryLabel="Back to batches"
+            secondaryLabel={words.backToBatches}
             onSecondary={() => navigation.goBack()}
           />
         </View>
@@ -339,41 +343,41 @@ export function AdminUploadBatchScreen() {
         >
           <AdminCard>
             <AdminField
-              label="Batch name"
+              label={words.batchName}
               value={title}
               onChangeText={setTitle}
-              placeholder="Rumi — the Masnavi, six volumes"
+              placeholder={words.namePlaceholder}
               editable={!published}
               maxLength={120}
               helper={
                 published
-                  ? `Published${
+                  ? words.publishedOn(
                       batch.data.published_at
-                        ? ` on ${formatDate(batch.data.published_at)}`
-                        : ''
-                    }`
-                  : 'Only you see this. It is how the batch is listed.'
+                        ? formatDate(batch.data.published_at)
+                        : null,
+                    )
+                  : words.onlyYouSee
               }
             />
           </AdminCard>
 
           <AdminCard>
-            <AdminSectionHeader title="Where the books go" />
+            <AdminSectionHeader title={words.whereBooksGo} />
             <AdminPickerField
-              label="Collection"
+              label={words.collection}
               value={batch.data.collection_title}
-              placeholder="None — catalogue only"
-              actionLabel={published ? 'Set' : 'Change'}
+              placeholder={words.noneCatalogue}
+              actionLabel={published ? words.set : words.change}
               onPress={() => !published && setShowCollectionPicker(true)}
-              helper="A hidden collection is shown on Home the moment the batch is published."
+              helper={words.collectionHint}
             />
             <AdminPickerField
-              label="Category"
+              label={words.category}
               value={batch.data.category_label}
-              placeholder="None"
-              actionLabel={published ? 'Set' : 'Change'}
+              placeholder={words.none}
+              actionLabel={published ? words.set : words.change}
               onPress={() => !published && setShowCategoryPicker(true)}
-              helper="Every book in the batch is tagged with it on publish."
+              helper={words.categoryHint}
             />
           </AdminCard>
 
@@ -381,15 +385,13 @@ export function AdminUploadBatchScreen() {
             <AdminSectionHeader
               title={
                 rows.length === 0
-                  ? 'Books'
-                  : `${plural(rows.length, 'book')}${
-                      missing > 0 ? ` · ${missing} without a PDF` : ''
-                    }`
+                  ? words.books
+                  : words.booksMissing(plural(rows.length, 'book'), missing)
               }
               action={
                 !published ? (
                   <AdminOutlineButton
-                    label="Add a book"
+                    label={words.addBook}
                     Icon={Plus}
                     small
                     fullWidth={false}
@@ -403,9 +405,9 @@ export function AdminUploadBatchScreen() {
               <AdminMenuSkeleton count={3} height={64} />
             ) : rows.length === 0 ? (
               <AdminEmpty
-                title="No books yet"
-                message="Each book gets the full editor — title, author, cover, PDF and price — and lands here as a draft until the whole batch is published."
-                actionLabel={published ? undefined : 'Add the first book'}
+                title={words.noBooks}
+                message={words.noBooksMessage}
+                actionLabel={published ? undefined : words.addFirstBook}
                 onAction={published ? undefined : addBook}
               />
             ) : (
@@ -433,18 +435,14 @@ export function AdminUploadBatchScreen() {
             )}
 
             {rows.length > 0 && !published ? (
-              <AdminHelper>
-                Open a book to change anything about it before it goes live.
-                Taking a book out of the batch keeps it as a draft in the
-                Library.
-              </AdminHelper>
+              <AdminHelper>{words.openHint}</AdminHelper>
             ) : null}
           </View>
 
           {!published ? (
             <View style={styles.danger}>
               <AdminOutlineButton
-                label="Delete batch"
+                label={words.deleteBatch}
                 Icon={Trash2}
                 destructive
                 onPress={() => setConfirmDelete(true)}
@@ -459,8 +457,8 @@ export function AdminUploadBatchScreen() {
           <AdminButton
             label={
               rows.length > 0
-                ? `Publish ${plural(rows.length, 'book')}`
-                : 'Publish batch'
+                ? words.publishBooks(plural(rows.length, 'book'))
+                : words.publishBatch
             }
             blockedReason={publishBlocker}
             disabled={Boolean(publishBlocker)}
@@ -472,7 +470,7 @@ export function AdminUploadBatchScreen() {
 
       <AdminPickerSheet
         visible={showCollectionPicker}
-        title="Collection"
+        title={words.collection}
         items={collectionItems}
         selected={[batch.data?.collection_id ?? NONE]}
         onClose={() => setShowCollectionPicker(false)}
@@ -485,7 +483,7 @@ export function AdminUploadBatchScreen() {
 
       <AdminPickerSheet
         visible={showCategoryPicker}
-        title="Category"
+        title={words.category}
         items={categoryItems}
         selected={[batch.data?.category_id ?? NONE]}
         onClose={() => setShowCategoryPicker(false)}
@@ -498,10 +496,10 @@ export function AdminUploadBatchScreen() {
 
       <AdminConfirmSheet
         visible={confirmPublish}
-        title={`Publish ${plural(rows.length, 'book')}?`}
-        message="Every book in the batch goes live at once. This is what readers will see:"
+        title={words.publishTitle(plural(rows.length, 'book'))}
+        message={words.publishMessage}
         consequences={publishConsequences}
-        confirmLabel="Publish now"
+        confirmLabel={words.publishNow}
         loading={publish.isPending}
         onConfirm={handlePublish}
         onCancel={() => setConfirmPublish(false)}
@@ -509,9 +507,9 @@ export function AdminUploadBatchScreen() {
 
       <AdminConfirmSheet
         visible={confirmDelete}
-        title="Delete this batch?"
-        message="Only the batch goes. Its books stay in the Library as drafts, with their uploaded files."
-        confirmLabel="Delete batch"
+        title={words.deleteTitle}
+        message={words.deleteMessage}
+        confirmLabel={words.deleteBatch}
         destructive
         loading={remove.isPending}
         onConfirm={handleDelete}
@@ -538,11 +536,12 @@ const BatchBookRow = memo(function BatchBookRow({
   onDetach: (id: string) => void;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Open ${book.title}`}
+      accessibilityLabel={s.adminLibrary.batch.open(book.title)}
       onPress={() => onOpen(book.id)}
       style={({ pressed }) => [
         styles.row,
@@ -572,7 +571,7 @@ const BatchBookRow = memo(function BatchBookRow({
       {!locked ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Take ${book.title} out of the batch`}
+          accessibilityLabel={s.adminLibrary.batch.takeOut(book.title)}
           onPress={() => onDetach(book.id)}
           hitSlop={10}
           style={styles.remove}

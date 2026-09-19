@@ -16,10 +16,11 @@ import {
 } from '@/components/ui';
 import { OnboardingProgress } from '@/features/onboarding/components/OnboardingProgress';
 import {
-  ONBOARDING_SUBJECTS,
-  READING_LANGUAGES,
+  onboardingSubjects,
+  readingLanguages,
 } from '@/features/onboarding/data/onboardingContent';
 import type { OnboardingStackParamList } from '@/features/onboarding/navigation/types';
+import { useStrings } from '@/i18n';
 import { MIN_SUBJECTS, useOnboardingStore } from '@/stores/onboardingStore';
 import { layout } from '@/theme/palette';
 import { fontSize } from '@/theme/typography';
@@ -34,6 +35,7 @@ export function SubjectsScreen() {
     useNavigation<NativeStackNavigationProp<OnboardingStackParamList>>();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const s = useStrings();
 
   const subjects = useOnboardingStore(state => state.subjects);
   const language = useOnboardingStore(state => state.language);
@@ -60,14 +62,14 @@ export function SubjectsScreen() {
         <OnboardingProgress step={1} />
 
         <View style={styles.heading}>
-          <Display size="title">Tell us what pulls you in.</Display>
+          <Display size="title">{s.onboarding.subjects.title}</Display>
           <Text size={fontSize.bodySmall} leading={1.6} tone="muted">
-            Pick three or more. Home rearranges itself around them.
+            {s.onboarding.subjects.subtitle}
           </Text>
         </View>
 
         <ChipWrap>
-          {ONBOARDING_SUBJECTS.map(subject => (
+          {onboardingSubjects(s).map(subject => (
             <SubjectChip
               key={subject.id}
               id={subject.id}
@@ -79,9 +81,9 @@ export function SubjectsScreen() {
         </ChipWrap>
 
         <Card tone="alt" padded={18} gap={12}>
-          <Label>Reading language</Label>
+          <Label>{s.onboarding.subjects.readingLanguage}</Label>
           <SegmentedControl
-            options={READING_LANGUAGES}
+            options={readingLanguages(s)}
             value={language}
             onChange={setLanguage}
             variant="soft"
@@ -101,8 +103,8 @@ export function SubjectsScreen() {
         <Button
           label={
             canContinue
-              ? `Continue · ${chosen} chosen`
-              : `Pick ${MIN_SUBJECTS - chosen} more`
+              ? s.onboarding.subjects.continueChosen(chosen)
+              : s.onboarding.subjects.pickMore(MIN_SUBJECTS - chosen)
           }
           onPress={goNext}
           disabled={!canContinue}

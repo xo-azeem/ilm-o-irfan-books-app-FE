@@ -30,6 +30,7 @@ import { DialogLayer, dismissDialog } from '@/components/ui/Dialog';
 import { Display } from '@/components/ui/Text';
 import { radius } from '@/theme/palette';
 import { useTheme } from '@/theme/ThemeContext';
+import { useStrings } from '@/i18n';
 
 const TIMING = {
   duration: 220,
@@ -66,6 +67,7 @@ export const Sheet = memo(function Sheet({
   contentStyle,
 }: SheetProps) {
   const { colors } = useTheme();
+  const s = useStrings();
   const insets = useSafeAreaInsets();
   const progress = useSharedValue(0);
 
@@ -134,7 +136,7 @@ export const Sheet = memo(function Sheet({
         >
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Dismiss"
+            accessibilityLabel={s.common.dismiss}
             style={StyleSheet.absoluteFill}
             onPress={onClose}
           />

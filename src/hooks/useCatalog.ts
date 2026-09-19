@@ -17,7 +17,7 @@ import {
   getHomeCatalog,
   getWeeklyTrending,
   HOME_RAIL_LIMIT,
-  SHELF_COPY,
+  shelfCopy,
   type CatalogBook,
   type CatalogFilters,
   type CollectionBooksPage,
@@ -185,13 +185,13 @@ function railSeed(
     rail = {
       link: home.trendingLink as ShelfLink,
       books: home.trending,
-      copy: SHELF_COPY.trending,
+      copy: shelfCopy().trending,
     };
   } else if (matches(home.arrivalsLink)) {
     rail = {
       link: home.arrivalsLink as ShelfLink,
       books: home.arrivals,
-      copy: SHELF_COPY.arrivals,
+      copy: shelfCopy().arrivals,
     };
   } else {
     return null;

@@ -14,6 +14,7 @@ import Animated, {
 import { BookCover, Display, Label, UrduText } from '@/components/ui';
 import type { CatalogSlide } from '@/services/catalog';
 import { isUrduTitle } from '@/services/script';
+import { useStrings } from '@/i18n';
 import { layout } from '@/theme/palette';
 
 const COVER_WIDTH = 92;
@@ -36,13 +37,15 @@ const PX_PER_SECOND = 22;
  */
 export const CarouselMarquee = memo(function CarouselMarquee({
   slides,
-  title = 'From the carousel',
+  title: titleProp,
   onPress,
 }: {
   slides: CatalogSlide[];
   title?: string;
   onPress?: (slide: CatalogSlide) => void;
 }) {
+  const s = useStrings();
+  const title = titleProp ?? s.catalog.discover.fromTheCarousel;
   const { width: screenWidth } = useWindowDimensions();
   const isFocused = useIsFocused();
   const reduceMotion = useReducedMotion();

@@ -6,6 +6,7 @@ import type {
   AuditEntry,
   StorageAudit,
 } from './types';
+import { strings } from '@/i18n/strings';
 
 const SETTINGS_COLUMNS =
   'maintenance_mode,maintenance_message,signup_enabled,' +
@@ -67,9 +68,7 @@ export async function updateAdminSettings(patch: Partial<AdminSettings>) {
   assertOk(result);
 
   if (!result.data) {
-    throw new Error(
-      'That change was not saved — your session is not an admin session. Sign out and back in, then try again.',
-    );
+    throw new Error(strings().adminPeople.services.settingsNotSaved);
   }
 
   return result.data as unknown as AdminSettings;

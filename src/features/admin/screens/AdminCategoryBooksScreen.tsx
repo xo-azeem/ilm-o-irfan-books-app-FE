@@ -64,6 +64,8 @@ import {
 import { useTheme } from '@/theme/ThemeContext';
 
 import type { AdminLibraryStackParamList } from '../navigation/types';
+import { useStrings } from '@/i18n';
+import { strings } from '@/i18n/strings';
 
 /** A draft is worth flagging: it carries the tag but is not on Explore yet. */
 function bookBadges(book: AdminBookOption | undefined): RowBadge[] {
@@ -72,16 +74,18 @@ function bookBadges(book: AdminBookOption | undefined): RowBadge[] {
   }
   const badges: RowBadge[] = [];
   if (!book.is_published) {
-    badges.push({ label: 'DRAFT', tone: 'warning' });
+    badges.push({
+      label: strings().adminLibrary.categoryBooks.draft,
+      tone: 'warning',
+    });
   }
   if (book.is_premium) {
-    badges.push({ label: 'PREMIUM', tone: 'premium' });
+    badges.push({
+      label: strings().adminLibrary.categoryBooks.premium,
+      tone: 'premium',
+    });
   }
   return badges;
-}
-
-function plural(count: number, noun: string) {
-  return `${count} ${count === 1 ? noun : `${noun}s`}`;
 }
 
 /**
@@ -101,6 +105,9 @@ export function AdminCategoryBooksScreen() {
     useRoute<RouteProp<AdminLibraryStackParamList, 'AdminCategoryBooks'>>();
   const { categoryId } = route.params;
   const { colors } = useTheme();
+  const s = useStrings();
+  const words = s.adminLibrary.categoryBooks;
+  const counts = s.adminLibrary.counts;
   const { scrollEndPadding } = useAppInsets();
   const toast = useToast();
 
@@ -231,7 +238,10 @@ export function AdminCategoryBooksScreen() {
         onSuccess: () => {
           reset();
           toast.success(
-            `${category?.label ?? 'Category'} now has ${plural(bookIds.length, 'book')}.`,
+            words.nowHas(
+              category?.label ?? words.category,
+              counts.books(bookIds.length),
+            ),
           );
         },
         onError: caught => toast.error(errorMessage(caught)),
@@ -239,11 +249,11 @@ export function AdminCategoryBooksScreen() {
     );
   };
 
-  const label = category?.label ?? 'Category';
+  const label = category?.label ?? words.category;
   const saveLabel = !isDirty
-    ? 'Saved'
+    ? words.saved
     : [
-        'Save',
+        words.save,
         delta.added ? `+${delta.added}` : null,
         delta.removed ? `−${delta.removed}` : null,
       ]
@@ -259,7 +269,9 @@ export function AdminCategoryBooksScreen() {
         <AdminBackLink
           label={label}
           action={
-            isDirty ? <AdminTag label="UNSAVED" tone="warning" /> : undefined
+            isDirty ? (
+              <AdminTag label={s.admin.ui.unsaved} tone="warning" />
+            ) : undefined
           }
         />
       </View>
@@ -279,13 +291,16 @@ export function AdminCategoryBooksScreen() {
         showsVerticalScrollIndicator={false}
       >
         <AdminScreenTitle
-          title={`Books in ${label}`}
+          title={words.booksIn(label)}
           subtitle={
             bookIds.length === 0
-              ? 'Nothing tagged yet — the tile on Explore opens empty.'
-              : `${plural(bookIds.length, 'book')}${
-                  liveCount === bookIds.length ? '' : ` · ${liveCount} live`
-                } · shown on Explore and in search`
+              ? words.nothingTagged
+              : words.subtitle(
+                  counts.books(bookIds.length),
+                  liveCount === bookIds.length
+                    ? ''
+                    : ` · ${counts.live(liveCount)}`,
+                )
           }
         />
 
@@ -294,18 +309,18 @@ export function AdminCategoryBooksScreen() {
         ) : error ? (
           <View style={styles.centred}>
             <AdminEmpty
-              title="Could not load this category"
+              title={words.loadFailed}
               message={errorMessage(error)}
-              actionLabel="Try again"
+              actionLabel={words.tryAgain}
               onAction={() => void refetch()}
             />
           </View>
         ) : bookIds.length === 0 ? (
           <View style={styles.centred}>
             <AdminEmpty
-              title="No books yet"
-              message="Pick any number of titles from the catalog and they appear under this tile the moment you save."
-              actionLabel="Choose books"
+              title={words.noBooks}
+              message={words.noBooksMessage}
+              actionLabel={words.chooseBooks}
               onAction={() => setShowPicker(true)}
             />
           </View>
@@ -314,12 +329,12 @@ export function AdminCategoryBooksScreen() {
             <AdminSectionHeader
               title={
                 query.trim()
-                  ? `${shown.length} of ${bookIds.length} shown`
-                  : 'Tagged with this category'
+                  ? words.shownOf(shown.length, bookIds.length)
+                  : words.tagged
               }
               action={
                 <AdminOutlineButton
-                  label="Add books"
+                  label={words.addBooks}
                   Icon={Plus}
                   small
                   fullWidth={false}
@@ -334,7 +349,7 @@ export function AdminCategoryBooksScreen() {
                 defaultValue={query}
                 onSearch={setQuery}
                 debounceMs={LOCAL_SEARCH_DEBOUNCE_MS}
-                placeholder="Filter this list"
+                placeholder={words.filterList}
               />
             ) : null}
 
@@ -349,7 +364,7 @@ export function AdminCategoryBooksScreen() {
                 ]}
               >
                 <Text size={12.5} leading={1.45} align="center" tone="muted">
-                  No title in this category matches “{query.trim()}”.
+                  {words.noMatch(query.trim())}
                 </Text>
               </View>
             ) : (
@@ -376,16 +391,12 @@ export function AdminCategoryBooksScreen() {
               </View>
             )}
 
-            <AdminHelper>
-              Removing a book here only takes this tag off it — the book itself
-              and its other categories are kept. Drafts keep the tag but stay
-              off Explore until published.
-            </AdminHelper>
+            <AdminHelper>{words.removeHint}</AdminHelper>
 
             {bookIds.length > 1 ? (
               <View style={styles.removeAll}>
                 <AdminOutlineButton
-                  label="Remove all from this category"
+                  label={words.removeAll}
                   Icon={Trash2}
                   destructive
                   onPress={() => setBookIds([])}
@@ -407,16 +418,16 @@ export function AdminCategoryBooksScreen() {
 
       <AdminPickerSheet
         visible={showPicker}
-        title={`Books in ${label}`}
+        title={words.booksIn(label)}
         multi
         items={pickerItems}
         selected={bookIds}
-        emptyLabel="No books in the catalog yet."
+        emptyLabel={words.noBooksInCatalog}
         onSearch={setPickerQuery}
         searching={options.isFetching}
         footnote={
           books.length >= BOOK_OPTIONS_LIMIT
-            ? `Showing the first ${BOOK_OPTIONS_LIMIT} titles by name. Search to reach the rest.`
+            ? words.showingFirst(BOOK_OPTIONS_LIMIT)
             : undefined
         }
         onClose={() => setShowPicker(false)}
@@ -443,12 +454,13 @@ const MemberRow = memo(function MemberRow({
   onRemove: (id: string) => void;
 }) {
   const { colors } = useTheme();
-  const title = book?.title ?? 'Loading title…';
+  const s = useStrings();
+  const title = book?.title ?? s.adminLibrary.categoryBooks.loadingTitle;
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Open ${title}`}
+      accessibilityLabel={s.adminLibrary.categoryBooks.open(title)}
       onPress={() => onOpen(id)}
       style={({ pressed }) => [
         styles.row,
@@ -477,7 +489,7 @@ const MemberRow = memo(function MemberRow({
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Remove ${title} from this category`}
+        accessibilityLabel={s.adminLibrary.categoryBooks.removeFrom(title)}
         onPress={() => onRemove(id)}
         hitSlop={10}
         style={styles.remove}

@@ -24,6 +24,7 @@ import type { PushIntent, PushKind } from '@/services/push/payload';
 import { radius } from '@/theme/palette';
 import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
+import { useStrings } from '@/i18n';
 
 /**
  * A push notification, drawn inside the app.
@@ -107,6 +108,7 @@ const Banner = memo(function Banner({
   request: PushBannerRequest & { id: number };
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
   const insets = useSafeAreaInsets();
   const { id, title, body, kind, intent, onOpen } = request;
 
@@ -174,7 +176,7 @@ const Banner = memo(function Banner({
         </View>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Dismiss notification"
+          accessibilityLabel={s.push.dismiss}
           hitSlop={10}
           onPress={close}
           style={styles.close}

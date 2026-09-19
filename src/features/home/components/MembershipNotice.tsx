@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { AlertCircle, CalendarClock, CreditCard } from 'lucide-react-native';
 
 import { Callout } from '@/components/ui';
+import { useDateLocale, useStrings } from '@/i18n';
 import type { AccessReason } from '@/services/api/types';
 import { reasonCopy } from '@/services/entitlements';
 
@@ -14,7 +15,7 @@ const SOFT: Partial<
   cancelled_paid_through: { icon: CalendarClock, tone: 'info' },
 };
 
-function endsOn(expiresAt: string | null): string | undefined {
+function endsOn(expiresAt: string | null, locale: string): string | undefined {
   if (!expiresAt) {
     return undefined;
   }
@@ -22,7 +23,7 @@ function endsOn(expiresAt: string | null): string | undefined {
   if (Number.isNaN(parsed.getTime())) {
     return undefined;
   }
-  return parsed.toLocaleDateString('en-GB', {
+  return parsed.toLocaleDateString(locale, {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -48,20 +49,22 @@ export const MembershipNotice = memo(function MembershipNotice({
   expiresAt: string | null;
   onPress?: () => void;
 }) {
+  const s = useStrings();
+  const locale = useDateLocale();
   const soft = reason ? SOFT[reason] : undefined;
   if (!reason || !soft) {
     return null;
   }
 
   const copy = reasonCopy(reason);
-  const date = endsOn(expiresAt);
+  const date = endsOn(expiresAt, locale);
 
   return (
     <Callout
       title={copy.title}
       message={
         date && reason === 'cancelled_paid_through'
-          ? `You keep full access until ${date}.`
+          ? s.home.keepAccessUntil(date)
           : copy.message
       }
       tone={soft.tone}

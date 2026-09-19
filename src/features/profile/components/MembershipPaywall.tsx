@@ -13,7 +13,7 @@ import {
   Text,
 } from '@/components/ui';
 import { Check } from 'lucide-react-native';
-import { membershipBenefits } from '@/features/profile/data/profileContent';
+import { useStrings, type Strings } from '@/i18n';
 import { reasonCopy } from '@/services/entitlements';
 import type { AccessReason } from '@/services/api/types';
 import type { MembershipOption } from '@/hooks/useBilling';
@@ -62,6 +62,8 @@ export const MembershipPaywall = memo(function MembershipPaywall({
   onRestore?: () => void;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
+  const words = s.account.paywall;
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   // Lead with the recommended plan once the offering lands, without overriding
@@ -92,7 +94,7 @@ export const MembershipPaywall = memo(function MembershipPaywall({
     ? chosen.features
     : features.length
       ? features
-      : membershipBenefits;
+      : words.benefits;
 
   const copy = reasonCopy(reason);
   // A reader who has subscribed before is being asked to come back, not sold to
@@ -117,19 +119,15 @@ export const MembershipPaywall = memo(function MembershipPaywall({
 
       <View style={styles.content}>
         <Label tone="gold" tracking={1.5}>
-          Membership
+          {words.eyebrow}
         </Label>
 
         <Display size="hero" leading={1.08}>
-          {returning
-            ? 'Pick up where\nyou left off.'
-            : 'Unlimited reading.\nOne membership.'}
+          {returning ? words.returningTitle : words.title}
         </Display>
 
         <Text size={14.5} leading={1.6} tone="muted">
-          {returning
-            ? copy.message
-            : 'Full access to the whole Ilm-o-Irfan catalogue, offline on every device you own.'}
+          {returning ? copy.message : words.blurb}
         </Text>
 
         <View style={styles.benefits}>
@@ -156,8 +154,8 @@ export const MembershipPaywall = memo(function MembershipPaywall({
                 id={option.id}
                 name={option.name}
                 price={option.priceString}
-                detail={detailFor(option)}
-                badge={option.recommended ? 'RECOMMENDED' : undefined}
+                detail={detailFor(option, s)}
+                badge={option.recommended ? words.recommended : undefined}
                 selected={selectedId === option.id}
                 onSelect={setSelectedId}
               />
@@ -167,15 +165,16 @@ export const MembershipPaywall = memo(function MembershipPaywall({
 
         {unavailable ? (
           <Text size={12.5} leading={1.5} align="center" tone="muted">
-            Membership cannot be purchased on this device right now. Check your
-            connection and try again.
+            {words.unavailable}
           </Text>
         ) : (
           <>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={
-                chosen ? `Subscribe for ${chosen.priceString}` : 'Subscribe'
+                chosen
+                  ? words.subscribeFor(chosen.priceString)
+                  : words.subscribe
               }
               accessibilityState={{
                 disabled: !chosen || Boolean(isPurchasing),
@@ -196,10 +195,10 @@ export const MembershipPaywall = memo(function MembershipPaywall({
               />
               <Text size={fontSize.body} leading={1} weight="700" tone="onGold">
                 {isPurchasing
-                  ? 'Opening the store…'
+                  ? words.openingStore
                   : chosen
-                    ? `Subscribe · ${chosen.priceString}`
-                    : 'Subscribe'}
+                    ? words.subscribePrice(chosen.priceString)
+                    : words.subscribe}
               </Text>
             </Pressable>
 
@@ -207,8 +206,8 @@ export const MembershipPaywall = memo(function MembershipPaywall({
                 cancellation route — which is the only one that works. */}
             <Text size={11.5} leading={1.5} align="center" tone="faint">
               {chosen
-                ? `${chosen.priceString}${chosen.interval ? ` / ${chosen.interval}` : ''}, billed by the store. Cancel any time from your store subscriptions.`
-                : 'Billed by the store. Cancel any time from your store subscriptions.'}
+                ? words.billedNote(chosen.priceString, chosen.interval ?? null)
+                : words.billedNoteNoPrice}
             </Text>
           </>
         )}
@@ -222,7 +221,7 @@ export const MembershipPaywall = memo(function MembershipPaywall({
             hitSlop={8}
           >
             <Text size={11.5} leading={1.4} align="center" tone="muted">
-              {isRestoring ? 'Restoring…' : 'Restore purchase'}
+              {isRestoring ? words.restoring : words.restore}
             </Text>
           </Pressable>
         ) : null}
@@ -237,17 +236,18 @@ export const MembershipPaywall = memo(function MembershipPaywall({
  * The interval comes from the plan the admin maintains; the period the store
  * reports is the fallback, so a plan with no copy still says what it renews on.
  */
-function detailFor(option: MembershipOption): string {
+function detailFor(option: MembershipOption, s: Strings): string {
+  const words = s.account.paywall;
   if (option.interval) {
-    return `Renews every ${option.interval}. Cancel any time.`;
+    return words.renewsEvery(option.interval);
   }
   if (option.period === 'P1Y') {
-    return 'Renews yearly. Cancel any time.';
+    return words.renewsYearly;
   }
   if (option.period === 'P1M') {
-    return 'Renews monthly. Cancel any time.';
+    return words.renewsMonthly;
   }
-  return 'Cancel any time.';
+  return words.cancelAnyTime;
 }
 
 const PlanCard = memo(function PlanCard({

@@ -7,6 +7,7 @@ import {
 import { File, Paths } from 'expo-file-system';
 
 import { exportMyData } from '@/lib/supabase';
+import { strings } from '@/i18n/strings';
 
 /**
  * Download my data.
@@ -57,7 +58,7 @@ export async function shareMyData(): Promise<{ shared: boolean }> {
       Platform.OS === 'ios'
         ? { url: file.uri, title: fileName }
         : { message: json, title: fileName },
-      { dialogTitle: 'Share my data', subject: fileName },
+      { dialogTitle: strings().services.export.shareTitle, subject: fileName },
     );
     return { shared: result.action === Share.sharedAction };
   } finally {

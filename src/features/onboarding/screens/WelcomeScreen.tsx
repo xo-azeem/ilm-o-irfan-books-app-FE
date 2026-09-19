@@ -8,6 +8,7 @@ import { AppLogo } from '@/components/brand';
 import { Button, Display, RadialGlow, Text } from '@/components/ui';
 import { SPLASH_LOGO_SIZE } from '@/constants/images';
 import type { OnboardingStackParamList } from '@/features/onboarding/navigation/types';
+import { useStrings } from '@/i18n';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { layout } from '@/theme/palette';
 import { fontSize } from '@/theme/typography';
@@ -23,6 +24,7 @@ export function WelcomeScreen() {
     useNavigation<NativeStackNavigationProp<OnboardingStackParamList>>();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const s = useStrings();
 
   const completeWithSignIn = useOnboardingStore(
     state => state.completeWithSignIn,
@@ -65,7 +67,7 @@ export function WelcomeScreen() {
         <AppLogo size={SPLASH_LOGO_SIZE} style={styles.logo} />
 
         <Display size={46} leading={1.06} tracking={-0.9}>
-          {'Knowledge,\ncarried forward.'}
+          {s.onboarding.welcome.headline}
         </Display>
 
         <Text
@@ -74,13 +76,13 @@ export function WelcomeScreen() {
           tone="muted"
           style={styles.blurb}
         >
-          Seven decades of Ilm-o-Irfan's shelves, now in your pocket.
+          {s.onboarding.welcome.blurb}
         </Text>
 
         <View style={styles.actions}>
-          <Button label="Start exploring" onPress={startExploring} />
+          <Button label={s.onboarding.welcome.start} onPress={startExploring} />
           <Button
-            label="I already have an account"
+            label={s.onboarding.welcome.haveAccount}
             variant="secondary"
             onPress={signIn}
           />

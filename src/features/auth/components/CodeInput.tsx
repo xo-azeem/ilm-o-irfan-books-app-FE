@@ -12,6 +12,7 @@ import { Text } from '@/components/ui';
 import { radius } from '@/theme/palette';
 import { fontSize, sansFamily, scaleFont } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
+import { useStrings } from '@/i18n';
 
 export const CODE_LENGTH = 6;
 
@@ -50,6 +51,7 @@ export const CodeInput = memo(function CodeInput({
   style,
 }: CodeInputProps) {
   const { colors, fontScale } = useTheme();
+  const s = useStrings();
   const inputRef = useRef<TextInput>(null);
   const [focused, setFocused] = useState(false);
 
@@ -79,7 +81,7 @@ export const CodeInput = memo(function CodeInput({
   return (
     <Pressable
       accessible
-      accessibilityLabel="Six-digit code"
+      accessibilityLabel={s.auth.sixDigitCode}
       accessibilityValue={{ text: value }}
       onPress={focus}
       style={[styles.row, style]}

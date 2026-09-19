@@ -10,32 +10,19 @@ import {
   Toggle,
 } from '@/components/ui';
 import { ProfileSubScreenLayout } from '@/features/profile/components/ProfileSubScreenLayout';
+import { useStrings } from '@/i18n';
 import { readerTones, theme, type ReaderTone } from '@/theme/palette';
 import {
-  READING_MODE_HINTS,
-  READING_MODES,
+  readingModeOptions,
   useThemeStore,
   type ThemePreference,
 } from '@/stores/themeStore';
-import {
-  FONT_SCALES,
-  FONT_SCALE_ORDER,
-  fontSize,
-  type FontScale,
-} from '@/theme/typography';
+import { FONT_SCALE_ORDER, fontSize, type FontScale } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
 
-const THEME_OPTIONS: { id: ThemePreference; label: string }[] = [
-  { id: 'light', label: 'Light' },
-  { id: 'dark', label: 'Dark' },
-  { id: 'system', label: 'System' },
-];
+const THEME_OPTIONS: ThemePreference[] = ['light', 'dark', 'system'];
 
-const TONES: { value: ReaderTone; label: string }[] = [
-  { value: 'paper', label: 'Paper' },
-  { value: 'sepia', label: 'Sepia' },
-  { value: 'midnight', label: 'Midnight' },
-];
+const TONES: ReaderTone[] = ['paper', 'sepia', 'midnight'];
 
 /**
  * Appearance.
@@ -49,6 +36,8 @@ const TONES: { value: ReaderTone; label: string }[] = [
  * they tap through the steps.
  */
 export function AppearanceScreen() {
+  const s = useStrings();
+  const words = s.profile.appearance;
   const themePreference = useThemeStore(state => state.themePreference);
   const setThemePreference = useThemeStore(state => state.setThemePreference);
   const fontScale = useThemeStore(state => state.fontScale);
@@ -61,17 +50,14 @@ export function AppearanceScreen() {
   const setKeepScreenAwake = useThemeStore(state => state.setKeepScreenAwake);
 
   return (
-    <ProfileSubScreenLayout
-      title="Appearance"
-      subtitle="Choose how the app looks on this device."
-    >
+    <ProfileSubScreenLayout title={words.title} subtitle={words.subtitle}>
       <View style={styles.previews}>
         {THEME_OPTIONS.map(option => (
           <ThemePreview
-            key={option.id}
-            id={option.id}
-            label={option.label}
-            selected={themePreference === option.id}
+            key={option}
+            id={option}
+            label={words.themes[option]}
+            selected={themePreference === option}
             onSelect={setThemePreference}
           />
         ))}
@@ -79,16 +65,16 @@ export function AppearanceScreen() {
 
       <View style={styles.section}>
         <Label size={fontSize.labelSmall + 0.5} tracking={1.5}>
-          Text size
+          {words.textSize}
         </Label>
         <Card tone="surface" padded={15} gap={14}>
           <View style={styles.row}>
             <View style={styles.rowBody}>
               <Text size={fontSize.body} leading={1}>
-                App text size
+                {words.appTextSize}
               </Text>
               <Text size={12.5} leading={1.2} tone="muted">
-                Applied to every screen
+                {words.appliedEverywhere}
               </Text>
             </View>
             <Text
@@ -97,7 +83,7 @@ export function AppearanceScreen() {
               weight="600"
               tone="primary"
             >
-              {FONT_SCALES[fontScale].label}
+              {words.scales[fontScale]}
             </Text>
           </View>
 
@@ -116,25 +102,25 @@ export function AppearanceScreen() {
 
       <View style={styles.section}>
         <Label size={fontSize.labelSmall + 0.5} tracking={1.5}>
-          Reading defaults
+          {words.readingDefaults}
         </Label>
         <Card tone="surface" padded={15} gap={16}>
           <View style={styles.row}>
             <View style={styles.rowBody}>
               <Text size={fontSize.body} leading={1}>
-                Page tone
+                {words.pageTone}
               </Text>
               <Text size={12.5} leading={1.2} tone="muted">
-                Applied to every book you open
+                {words.pageToneHint}
               </Text>
             </View>
             <View style={styles.toneRow}>
               {TONES.map(tone => (
                 <ToneChip
-                  key={tone.value}
-                  value={tone.value}
-                  label={tone.label}
-                  selected={pageTone === tone.value}
+                  key={tone}
+                  value={tone}
+                  label={s.reader.tones[tone]}
+                  selected={pageTone === tone}
                   onSelect={setPageTone}
                 />
               ))}
@@ -146,14 +132,14 @@ export function AppearanceScreen() {
           <View style={styles.modeRow}>
             <View style={styles.rowBody}>
               <Text size={fontSize.body} leading={1}>
-                Reading mode
+                {words.readingMode}
               </Text>
               <Text size={12.5} leading={1.2} tone="muted">
-                {READING_MODE_HINTS[readingMode]}
+                {s.reader.modes[readingMode].hint}
               </Text>
             </View>
             <SegmentedControl
-              options={READING_MODES}
+              options={readingModeOptions(s.reader.modes)}
               value={readingMode}
               onChange={setReadingMode}
               variant="soft"
@@ -165,16 +151,16 @@ export function AppearanceScreen() {
           <View style={styles.row}>
             <View style={styles.rowBody}>
               <Text size={fontSize.body} leading={1}>
-                Keep screen awake
+                {words.keepAwake}
               </Text>
               <Text size={12.5} leading={1.2} tone="muted">
-                While the reader is open
+                {words.keepAwakeHint}
               </Text>
             </View>
             <Toggle
               value={keepScreenAwake}
               onValueChange={setKeepScreenAwake}
-              accessibilityLabel="Keep screen awake"
+              accessibilityLabel={words.keepAwake}
             />
           </View>
         </Card>
@@ -298,13 +284,16 @@ const TextSizeStep = memo(function TextSizeStep({
   onSelect: (step: FontScale) => void;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
   const handlePress = useCallback(() => onSelect(step), [onSelect, step]);
 
   return (
     <Pressable
       accessibilityRole="radio"
       accessibilityState={{ selected }}
-      accessibilityLabel={`${FONT_SCALES[step].label} text size`}
+      accessibilityLabel={s.profile.appearance.textSizeA11y(
+        s.profile.appearance.scales[step],
+      )}
       onPress={handlePress}
       style={({ pressed }) => [
         styles.scaleStep,
@@ -340,13 +329,14 @@ const ToneChip = memo(function ToneChip({
   onSelect: (tone: ReaderTone) => void;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
   const handlePress = useCallback(() => onSelect(value), [onSelect, value]);
 
   return (
     <Pressable
       accessibilityRole="radio"
       accessibilityState={{ selected }}
-      accessibilityLabel={`${label} page tone`}
+      accessibilityLabel={s.profile.appearance.pageToneA11y(label)}
       onPress={handlePress}
       style={({ pressed }) => [
         styles.toneChip,

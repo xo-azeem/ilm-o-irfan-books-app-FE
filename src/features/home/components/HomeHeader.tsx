@@ -3,22 +3,23 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Bell } from 'lucide-react-native';
 
 import { Avatar, Display, IconButton, Text } from '@/components/ui';
+import { useStrings, type Strings } from '@/i18n';
 import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
 
 /** Splits the day the way a reader would describe it, not the way a clock does. */
-export function greetingFor(date = new Date()): string {
+export function greetingFor(s: Strings, date = new Date()): string {
   const hour = date.getHours();
   if (hour < 5) {
-    return 'Still awake';
+    return s.home.greeting.stillAwake;
   }
   if (hour < 12) {
-    return 'Good morning';
+    return s.home.greeting.morning;
   }
   if (hour < 17) {
-    return 'Good afternoon';
+    return s.home.greeting.afternoon;
   }
-  return 'Good evening';
+  return s.home.greeting.evening;
 }
 
 /**
@@ -40,16 +41,18 @@ export const HomeHeader = memo(function HomeHeader({
   onNotificationsPress?: () => void;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
   const fullName = name?.trim();
 
   return (
     <View style={styles.root}>
       <View style={styles.greeting}>
         <Text size={fontSize.caption} leading={1} tone="soft">
-          {greetingFor()}
-          {fullName ? `, ${fullName}` : ''}
+          {fullName
+            ? s.home.greetingWithName(greetingFor(s), fullName)
+            : greetingFor(s)}
         </Text>
-        <Display size={22}>Ready for another chapter?</Display>
+        <Display size={22}>{s.home.readyForAnotherChapter}</Display>
       </View>
 
       <View style={styles.actions}>
@@ -58,7 +61,7 @@ export const HomeHeader = memo(function HomeHeader({
             icon={Bell}
             onPress={onNotificationsPress}
             variant="plain"
-            accessibilityLabel="Notifications"
+            accessibilityLabel={s.home.notifications}
           />
           {hasNotifications ? (
             <View
@@ -75,7 +78,7 @@ export const HomeHeader = memo(function HomeHeader({
 
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Your profile"
+          accessibilityLabel={s.home.yourProfile}
           onPress={onProfilePress}
           style={({ pressed }) => (pressed ? styles.pressed : undefined)}
         >
@@ -132,22 +135,23 @@ const styles = StyleSheet.create({
  * greeting, which is already scrolled away.
  */
 export const HomeStickyHeader = memo(function HomeStickyHeader({
-  title = 'Discovery',
-  note = 'Personalised',
+  title,
+  note,
 }: {
   title?: string;
   note?: string;
 }) {
+  const s = useStrings();
   return (
     <View style={styles.sticky}>
-      <Display size="section">{title}</Display>
+      <Display size="section">{title ?? s.home.discovery}</Display>
       <Text
         size={fontSize.captionSmall}
         leading={1}
         weight="500"
         tone="primary"
       >
-        {note}
+        {note ?? s.home.personalised}
       </Text>
     </View>
   );

@@ -9,6 +9,7 @@ import { StyleSheet, View } from 'react-native';
 import { MailCheck } from 'lucide-react-native';
 
 import { Button, showDialog, Text, TextButton } from '@/components/ui';
+import { useStrings } from '@/i18n';
 import { describeOtpError, type OtpErrorKind } from '@/lib/supabase';
 import { fontSize } from '@/theme/typography';
 
@@ -54,11 +55,12 @@ export function CodeEntry({
   onVerify,
   onResend,
   cooldownOnMount = true,
-  verifyLabel = 'Verify code',
+  verifyLabel,
   hint,
   autoFocus = true,
   secondary,
 }: CodeEntryProps) {
+  const s = useStrings();
   const [code, setCode] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [isResending, setIsResending] = useState(false);
@@ -86,7 +88,7 @@ export function CodeEntry({
       if (digits.length < CODE_LENGTH) {
         setProblem({
           kind: 'invalid',
-          message: `Enter all ${CODE_LENGTH} digits from the email.`,
+          message: s.auth.code.enterAllDigits(CODE_LENGTH),
         });
         return;
       }
@@ -109,7 +111,7 @@ export function CodeEntry({
         setIsVerifying(false);
       }
     },
-    [onVerify],
+    [onVerify, s],
   );
 
   const handleResend = useCallback(async () => {
@@ -123,8 +125,8 @@ export function CodeEntry({
       setProblem(null);
       setCode('');
       showDialog({
-        title: 'Code sent',
-        message: `A new code is on its way to ${email}. Check spam if it does not arrive.`,
+        title: s.auth.code.sentTitle,
+        message: s.auth.code.sentMessage(email),
         tone: 'success',
         icon: MailCheck,
       });
@@ -134,14 +136,14 @@ export function CodeEntry({
         setCooldown(RESEND_COOLDOWN_SECONDS);
       }
       showDialog({
-        title: 'Could not resend',
+        title: s.auth.code.couldNotResend,
         message: described.message,
         tone: 'danger',
       });
     } finally {
       setIsResending(false);
     }
-  }, [cooldown, email, isResending, onResend]);
+  }, [cooldown, email, isResending, onResend, s]);
 
   const handleChange = useCallback((next: string) => {
     setCode(next);
@@ -164,14 +166,16 @@ export function CodeEntry({
           leading={1.4}
           tone={problem ? 'danger' : 'faint'}
         >
-          {problem?.message ??
-            hint ??
-            `Enter the ${CODE_LENGTH}-digit code we emailed to ${email}. You can paste it.`}
+          {problem?.message ?? hint ?? s.auth.code.hint(CODE_LENGTH, email)}
         </Text>
       </View>
 
       <Button
-        label={isVerifying ? 'Checking…' : verifyLabel}
+        label={
+          isVerifying
+            ? s.auth.code.checking
+            : (verifyLabel ?? s.auth.code.verify)
+        }
         onPress={() => void verify(code)}
         loading={isVerifying}
         disabled={code.length < CODE_LENGTH}
@@ -182,12 +186,12 @@ export function CodeEntry({
           <TextButton
             label={
               cooldown > 0
-                ? `Resend code in ${cooldown}s`
+                ? s.auth.code.resendIn(cooldown)
                 : isResending
-                  ? 'Sending…'
+                  ? s.auth.code.sending
                   : problem?.kind === 'expired'
-                    ? 'Send a new code'
-                    : 'Resend code'
+                    ? s.auth.code.sendNew
+                    : s.auth.code.resend
             }
             tone={cooldown > 0 || isResending ? 'muted' : 'primary'}
             onPress={() => void handleResend()}

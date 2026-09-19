@@ -19,6 +19,7 @@ import {
   CircularProgressValueText,
 } from '@/components/ui/CircularProgress';
 import { useReaderSurface } from '@/features/reader/useReaderSurface';
+import { useStrings } from '@/i18n';
 
 const EXIT_MS = 220;
 const COMPLETE_HOLD_MS = 180;
@@ -37,6 +38,7 @@ export const ReaderStageSkeleton = memo(function ReaderStageSkeleton({
   onFinished,
 }: ReaderStageSkeletonProps) {
   const surface = useReaderSurface();
+  const s = useStrings();
   const reduceMotion = useReducedMotion();
   const overlayOpacity = useSharedValue(1);
   const onFinishedRef = useRef(onFinished);
@@ -101,7 +103,7 @@ export const ReaderStageSkeleton = memo(function ReaderStageSkeleton({
       // flash of another colour between tapping a book and reading it.
       style={[styles.wrap, { backgroundColor: surface.stage }, overlayStyle]}
       accessibilityRole="progressbar"
-      accessibilityLabel="Loading book"
+      accessibilityLabel={s.reader.loadingBook}
       accessibilityState={{ busy: !ready }}
     >
       <View style={styles.center} pointerEvents="none">

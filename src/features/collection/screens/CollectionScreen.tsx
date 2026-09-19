@@ -14,6 +14,7 @@ import { ListSkeleton } from '@/components/skeletons/CatalogSkeletons';
 import { EmptyState, Label } from '@/components/ui';
 import { ROUTES } from '@/constants/routes';
 import { useLibrary } from '@/hooks/useAccount';
+import { useStrings } from '@/i18n';
 import { useCollectionBooks } from '@/hooks/useCatalog';
 import type { CatalogBook } from '@/services/catalog';
 import { isUrduTitle } from '@/services/script';
@@ -49,6 +50,7 @@ export function CollectionScreen() {
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'Collection'>>();
   const { colors } = useTheme();
+  const s = useStrings();
 
   const { collectionId, slug } = route.params ?? {};
   const { data: library } = useLibrary();
@@ -86,9 +88,9 @@ export function CollectionScreen() {
   // for a shelf someone chose.
   const sourceNote =
     source === 'weekly'
-      ? 'Drawn once a week, the same for every reader'
+      ? s.catalog.collection.weekly
       : source === 'newest'
-        ? 'Newest first'
+        ? s.catalog.collection.newestFirst
         : null;
 
   const openBook = useCallback(
@@ -116,13 +118,13 @@ export function CollectionScreen() {
   const header = (
     <View style={styles.header}>
       <ScreenHeader
-        title={collection?.title ?? 'Collection'}
+        title={collection?.title ?? s.catalog.collection.fallbackTitle}
         subtitle={collection?.subtitle}
         onBack={navigation.goBack}
       />
       {books.length > 0 ? (
         <Label>
-          {`${totalCount.toLocaleString('en-US')} ${totalCount === 1 ? 'book' : 'books'}${
+          {`${s.common.bookCount(totalCount)}${
             sourceNote ? ` · ${sourceNote}` : ''
           }`}
         </Label>
@@ -145,8 +147,8 @@ export function CollectionScreen() {
             // failure and not something to backfill with other books.
             <EmptyState
               art={null}
-              title="Nothing on this shelf yet"
-              message="The editors are still filling this collection. Check back soon."
+              title={s.catalog.collection.emptyTitle}
+              message={s.catalog.collection.emptyMessage}
             />
           )
         }

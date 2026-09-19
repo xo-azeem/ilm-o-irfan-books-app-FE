@@ -53,20 +53,18 @@ import type {
   AdminPeopleStackParamList,
   PeopleSegment,
 } from '../navigation/types';
+import { useStrings } from '@/i18n';
+import { strings } from '@/i18n/strings';
 
-const SEGMENTS: ReadonlyArray<{ value: PeopleSegment; label: string }> = [
-  { value: 'readers', label: 'Readers' },
-  { value: 'plans', label: 'Plans' },
-  { value: 'deletions', label: 'Deletions' },
-];
+const SEGMENT_VALUES: PeopleSegment[] = ['readers', 'plans', 'deletions'];
 
 type AudienceFilter = 'everyone' | 'subscribers' | 'expiring' | 'admins';
 
-const AUDIENCE_OPTIONS: Array<{ value: AudienceFilter; label: string }> = [
-  { value: 'everyone', label: 'Everyone' },
-  { value: 'subscribers', label: 'Subscribers' },
-  { value: 'expiring', label: 'Expiring' },
-  { value: 'admins', label: 'Admins' },
+const AUDIENCE_VALUES: AudienceFilter[] = [
+  'everyone',
+  'subscribers',
+  'expiring',
+  'admins',
 ];
 
 /** Each audience as the directory query understands it. */
@@ -105,6 +103,18 @@ export function AdminPeopleScreen() {
   const route =
     useRoute<RouteProp<AdminPeopleStackParamList, 'AdminPeopleHome'>>();
   const { colors } = useTheme();
+  const s = useStrings();
+  const words = s.adminPeople.people;
+  const segmentOptions = useMemo(
+    () =>
+      SEGMENT_VALUES.map(value => ({ value, label: words.segments[value] })),
+    [words],
+  );
+  const audienceOptions = useMemo(
+    () =>
+      AUDIENCE_VALUES.map(value => ({ value, label: words.audiences[value] })),
+    [words],
+  );
   const { scrollEndPadding } = useAppInsets();
   const currentUserId = useAuthStore(state => state.userId);
 
@@ -169,14 +179,14 @@ export function AdminPeopleScreen() {
 
   const subtitle =
     segment === 'readers'
-      ? `${stats?.user_count ?? 0} readers · ${stats?.subscriber_count ?? 0} subscribed · ${
-          stats?.admin_count ?? 0
-        } admins`
+      ? words.readersSubtitle(
+          stats?.user_count ?? 0,
+          stats?.subscriber_count ?? 0,
+          stats?.admin_count ?? 0,
+        )
       : segment === 'plans'
-        ? `${activePlans} ${activePlans === 1 ? 'plan' : 'plans'} live · ${
-            stats?.subscriber_count ?? 0
-          } subscribers`
-        : 'Requests to delete an account, awaiting your decision';
+        ? words.plansSubtitle(activePlans, stats?.subscriber_count ?? 0)
+        : words.deletionsSubtitle;
 
   const renderUser = useCallback(
     ({ item }: { item: AdminUserRow }) => (
@@ -196,7 +206,7 @@ export function AdminPeopleScreen() {
     >
       <View style={styles.header}>
         <AdminPageTitle
-          title="People"
+          title={words.title}
           subtitle={subtitle}
           action={
             segment === 'plans' ? (
@@ -210,7 +220,7 @@ export function AdminPeopleScreen() {
         />
 
         <AdminSegments
-          options={SEGMENTS}
+          options={segmentOptions}
           value={segment}
           onChange={setSegment}
         />
@@ -223,10 +233,10 @@ export function AdminPeopleScreen() {
               // term the list is still narrowed by.
               defaultValue={term}
               onSearch={setTerm}
-              placeholder="Search by name, email or phone"
+              placeholder={words.searchPlaceholder}
             />
             <AdminChipRow
-              options={AUDIENCE_OPTIONS}
+              options={audienceOptions}
               value={audience}
               onChange={setAudience}
             />
@@ -234,7 +244,7 @@ export function AdminPeopleScreen() {
               <View style={styles.countRow}>
                 {narrowed && matchCount != null ? (
                   <Text size={11.5} leading={1} tone="faint">
-                    {matchCount === 1 ? '1 match' : `${matchCount} matches`}
+                    {words.matches(matchCount)}
                   </Text>
                 ) : null}
                 {isPlaceholderData ? (
@@ -254,7 +264,7 @@ export function AdminPeopleScreen() {
         ) : users.error ? (
           <View style={styles.gutter}>
             <AdminErrorState
-              message="The reader list could not be loaded."
+              message={words.readersFailed}
               detail={errorMessage(users.error)}
               onRetry={() => void users.refetch()}
             />
@@ -288,17 +298,15 @@ export function AdminPeopleScreen() {
                 <AdminEmpty
                   title={
                     audience === 'expiring'
-                      ? 'Nothing expiring'
-                      : 'No accounts match'
+                      ? words.nothingExpiring
+                      : words.noAccountsMatch
                   }
                   message={
                     audience === 'expiring'
-                      ? `No subscription ends within ${EXPIRING_WINDOW_DAYS} days or is in billing trouble${
-                          term ? ` for “${term}”` : ''
-                        }.`
+                      ? words.nothingExpiringMessage(EXPIRING_WINDOW_DAYS, term)
                       : term
-                        ? `Nothing matched “${term}”. Try a different name, email or phone.`
-                        : 'Try a different search term, or switch back to Everyone.'
+                        ? words.nothingMatched(term)
+                        : words.tryDifferent
                   }
                 />
               )
@@ -323,7 +331,7 @@ export function AdminPeopleScreen() {
       ) : plans.error ? (
         <View style={styles.gutter}>
           <AdminErrorState
-            message="The plan list could not be loaded."
+            message={words.plansFailed}
             detail={errorMessage(plans.error)}
             onRetry={() => void plans.refetch()}
           />
@@ -339,9 +347,9 @@ export function AdminPeopleScreen() {
         >
           {(plans.data ?? []).length === 0 ? (
             <AdminEmpty
-              title="No plans yet"
-              message="Define at least one plan so a store purchase maps to something readers recognise on the paywall."
-              actionLabel="Add the first plan"
+              title={words.noPlans}
+              message={words.noPlansMessage}
+              actionLabel={words.addFirstPlan}
               onAction={() => navigation.navigate(ADMIN_ROUTES.PLAN_EDITOR, {})}
             />
           ) : (
@@ -373,25 +381,27 @@ function describe(
   user: AdminUserRow,
   isSelf: boolean,
 ): { text: string; warn: boolean } {
+  const words = strings().adminPeople.people;
+  const email = user.email ?? words.noEmail;
   if (user.entitlement_status === 'billing_issue') {
     return {
       text: user.expires_at
-        ? `Payment failed · access ends ${formatDate(user.expires_at)}`
-        : 'Payment failed',
+        ? words.paymentFailedEnds(formatDate(user.expires_at))
+        : words.paymentFailed,
       warn: true,
     };
   }
   if (isSelf) {
-    return { text: `${user.email ?? 'No email'} · that's you`, warn: false };
+    return { text: words.thatsYou(email), warn: false };
   }
   if (user.is_subscriber && user.expires_at) {
     return {
-      text: `${user.email ?? 'No email'} · renews ${formatDate(user.expires_at)}`,
+      text: words.renews(email, formatDate(user.expires_at)),
       warn: false,
     };
   }
   return {
-    text: `${user.email ?? 'No email'} · joined ${formatDate(user.created_at)}`,
+    text: words.joined(email, formatDate(user.created_at)),
     warn: false,
   };
 }
@@ -406,6 +416,7 @@ const PersonRow = memo(function PersonRow({
   onPress: (userId: string) => void;
 }) {
   const { colors } = useTheme();
+  const words = useStrings().adminPeople.people;
   const handlePress = useCallback(() => onPress(user.id), [onPress, user.id]);
 
   const isAdmin = user.role === 'admin';
@@ -415,7 +426,7 @@ const PersonRow = memo(function PersonRow({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={user.full_name || user.email || 'Reader'}
+      accessibilityLabel={user.full_name || user.email || words.reader}
       onPress={handlePress}
       style={({ pressed }) => [
         styles.personRow,
@@ -447,20 +458,20 @@ const PersonRow = memo(function PersonRow({
             numberOfLines={1}
             style={styles.shrink}
           >
-            {user.full_name || user.email || 'Unnamed reader'}
+            {user.full_name || user.email || words.unnamedReader}
           </Text>
           {isAdmin ? (
-            <AdminTag label="ADMIN" tone="success" small />
+            <AdminTag label={words.admin} tone="success" small />
           ) : trouble ? (
-            <AdminTag label="BILLING" tone="warning" small />
+            <AdminTag label={words.billing} tone="warning" small />
           ) : user.is_subscriber ? (
             <AdminTag
-              label={(user.plan_name ?? 'Premium').toUpperCase()}
+              label={(user.plan_name ?? words.premium).toUpperCase()}
               tone="premium"
               small
             />
           ) : (
-            <AdminTag label="FREE" tone="neutral" small />
+            <AdminTag label={words.free} tone="neutral" small />
           )}
         </View>
 
@@ -479,12 +490,6 @@ const PersonRow = memo(function PersonRow({
   );
 });
 
-const INTERVAL_LABEL: Record<AdminPlan['interval'], string> = {
-  month: 'per month',
-  year: 'per year',
-  lifetime: 'once',
-};
-
 const PlanCard = memo(function PlanCard({
   plan,
   lead,
@@ -496,6 +501,7 @@ const PlanCard = memo(function PlanCard({
   onPress: () => void;
 }) {
   const { colors } = useTheme();
+  const words = useStrings().adminPeople.people;
 
   return (
     <Pressable
@@ -525,7 +531,7 @@ const PlanCard = memo(function PlanCard({
               {plan.name}
             </Text>
             {!plan.is_active ? (
-              <AdminTag label="OFF SALE" tone="neutral" small />
+              <AdminTag label={words.offSale} tone="neutral" small />
             ) : null}
           </View>
           <Label
@@ -548,7 +554,7 @@ const PlanCard = memo(function PlanCard({
             {formatMoney(plan.price_cents, plan.currency)}
           </Text>
           <Text size={10.5} leading={1} tone="muted" align="right">
-            {INTERVAL_LABEL[plan.interval]}
+            {words.intervals[plan.interval]}
           </Text>
         </View>
       </View>
@@ -568,7 +574,7 @@ const PlanCard = memo(function PlanCard({
         </View>
       ) : (
         <Text size={11.5} leading={1.4} tone="warning">
-          No benefits listed — the paywall will show an empty card.
+          {words.noBenefits}
         </Text>
       )}
 
@@ -581,11 +587,9 @@ const PlanCard = memo(function PlanCard({
           tone={plan.is_active ? 'action' : 'muted'}
           style={styles.shrink}
         >
-          {plan.is_active
-            ? 'Offered on the paywall'
-            : 'Hidden from the paywall. Existing holders keep their access.'}
+          {plan.is_active ? words.offered : words.hiddenFromPaywall}
         </Text>
-        <AdminTextAction label="Edit" onPress={onPress} />
+        <AdminTextAction label={words.edit} onPress={onPress} />
       </View>
     </Pressable>
   );

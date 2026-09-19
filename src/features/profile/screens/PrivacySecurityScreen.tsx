@@ -29,6 +29,7 @@ import { ProfileSubScreenLayout } from '@/features/profile/components/ProfileSub
 import {
   accountSecurityRows,
   legalRows,
+  type AccountSecurityRowId,
 } from '@/features/profile/data/profileContent';
 import type { ProfileStackParamList } from '@/features/profile/navigation/types';
 import { useSubscription } from '@/hooks/useAccount';
@@ -38,6 +39,7 @@ import {
   useStoreConfirmationWatch,
   useWithdrawCancellation,
 } from '@/hooks/useBilling';
+import { useDateLocale, useStrings, type Strings } from '@/i18n';
 import { useAccess } from '@/lib/access';
 import { exportMyDataToFile, shareMyData } from '@/services/dataExport';
 import {
@@ -62,14 +64,14 @@ const MANAGE_SUBSCRIPTIONS_URL =
     ? 'https://apps.apple.com/account/subscriptions'
     : 'https://play.google.com/store/account/subscriptions';
 
-function formatDate(iso: string | null | undefined): string {
+function formatDate(iso: string | null | undefined, locale: string): string {
   if (!iso) {
     return '—';
   }
   const date = new Date(iso);
   return Number.isNaN(date.getTime())
     ? '—'
-    : date.toLocaleDateString('en-GB', {
+    : date.toLocaleDateString(locale, {
         day: 'numeric',
         month: 'long',
         year: 'numeric',
@@ -77,7 +79,11 @@ function formatDate(iso: string | null | undefined): string {
 }
 
 /** An absolute moment, for a deletion the reader needs to be able to plan around. */
-function formatDateTime(iso: string | null | undefined): string {
+function formatDateTime(
+  iso: string | null | undefined,
+  locale: string,
+  at: string,
+): string {
   if (!iso) {
     return '—';
   }
@@ -85,7 +91,7 @@ function formatDateTime(iso: string | null | undefined): string {
   if (Number.isNaN(date.getTime())) {
     return '—';
   }
-  return `${formatDate(iso)} at ${date.toLocaleTimeString('en-GB', {
+  return `${formatDate(iso, locale)} ${at} ${date.toLocaleTimeString(locale, {
     hour: '2-digit',
     minute: '2-digit',
   })}`;
@@ -98,47 +104,52 @@ function formatDateTime(iso: string | null | undefined): string {
  * not called that: to the reader it is a deletion still in progress that an
  * admin is looking at, not a fault they can do anything about.
  */
-function describeRequest(request: DeletionRequest): {
+function describeRequest(
+  request: DeletionRequest,
+  s: Strings,
+  locale: string,
+): {
   title: string;
   message: string;
   tone: 'info' | 'warning' | 'danger';
   icon: typeof Hourglass;
 } {
+  const words = s.account.privacy.request;
   switch (request.status) {
     case 'pending':
       return {
-        title: 'Your request is with our team',
-        message: `Sent on ${formatDate(request.requestedAt)}. An admin will review it and you will be notified by email and in the app. You can withdraw the request at any time until it is approved.`,
+        title: words.pendingTitle,
+        message: words.pendingMessage(formatDate(request.requestedAt, locale)),
         tone: 'info',
         icon: Hourglass,
       };
     case 'approved':
       return {
-        title: `Scheduled for ${formatDateTime(request.scheduledFor)}`,
-        message:
-          'Your account, reading progress, wishlist, downloads and highlights will be removed then. Cancel the deletion before that moment to keep everything.',
+        title: words.scheduledTitle(
+          formatDateTime(request.scheduledFor, locale, s.account.privacy.at),
+        ),
+        message: words.scheduledMessage,
         tone: 'danger',
         icon: CalendarClock,
       };
     case 'processing':
     case 'failed':
       return {
-        title: 'In progress',
-        message:
-          'Your account is being deleted. You will be signed out when it completes; nothing more is needed from you.',
+        title: words.inProgress,
+        message: words.inProgressMessage,
         tone: 'danger',
         icon: Trash2,
       };
     case 'completed':
       return {
-        title: 'Account deleted',
-        message: 'This account no longer exists. You will be signed out.',
+        title: words.deleted,
+        message: words.deletedMessage,
         tone: 'danger',
         icon: Trash2,
       };
     default:
       return {
-        title: 'Deletion request',
+        title: words.fallback,
         message: '',
         tone: 'info',
         icon: Hourglass,
@@ -164,6 +175,9 @@ function describeRequest(request: DeletionRequest): {
 export function PrivacySecurityScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<ProfileStackParamList>>();
+  const s = useStrings();
+  const locale = useDateLocale();
+  const words = s.account.privacy;
   const { status, request, cancel } = useAccountDeletion();
   const reasonSheet = useSheet();
   const [reason, setReason] = useState('');
@@ -189,24 +203,29 @@ export function PrivacySecurityScreen() {
   const storeLabel = storeName(subscription?.store);
   useStoreConfirmationWatch(availability === 'pending');
 
-  const openUrl = useCallback((url: string) => {
-    void Linking.openURL(url).catch(() =>
-      showDialog({
-        title: 'Could not open link',
-        message: 'Please try again from a browser.',
-        tone: 'warning',
-      }),
-    );
-  }, []);
+  const openUrl = useCallback(
+    (url: string) => {
+      void Linking.openURL(url).catch(() =>
+        showDialog({
+          title: words.link.couldNotOpen,
+          message: words.link.tryBrowser,
+          tone: 'warning',
+        }),
+      );
+    },
+    [words],
+  );
 
-  const showError = useCallback((title: string, error: unknown) => {
-    showDialog({
-      title,
-      message:
-        error instanceof Error ? error.message : 'Please try again shortly.',
-      tone: 'danger',
-    });
-  }, []);
+  const showError = useCallback(
+    (title: string, error: unknown) => {
+      showDialog({
+        title,
+        message: error instanceof Error ? error.message : words.tryShortly,
+        tone: 'danger',
+      });
+    },
+    [words],
+  );
 
   /**
    * Records the intent on the backend, then hands the reader to the store —
@@ -215,39 +234,35 @@ export function PrivacySecurityScreen() {
    * webhook and the screen reads it back.
    */
   const handleCancelMembership = useCallback(() => {
+    const cm = words.cancelMembership;
     if (availability === 'not_store_managed') {
       showDialog({
-        title: 'Managed by us',
-        message:
-          'This membership is not billed through the App Store or Google Play, so there is nothing to cancel in a store. Write to support and we will sort it out.',
+        title: cm.managedByUs,
+        message: cm.managedByUsMessage,
         tone: 'info',
       });
       return;
     }
-    const until = expiresAt ? formatDate(expiresAt) : null;
+    const until = expiresAt ? formatDate(expiresAt, locale) : null;
     showDialog({
-      title: 'Cancel membership?',
+      title: cm.title,
       message: [
-        until
-          ? `You keep full access until ${until}; after that it will not renew.`
-          : 'You keep full access until the end of the period you have paid for; after that it will not renew.',
-        `${storeLabel} opens next for you to turn off auto-renew. We will email you once it is done.`,
+        until ? cm.keepUntil(until) : cm.keepUntilPeriod,
+        cm.storeOpensNext(storeLabel),
       ].join('\n\n'),
       icon: CalendarClock,
       actions: [
-        { label: 'Keep membership', style: 'cancel' },
+        { label: cm.keepMembership, style: 'cancel' },
         {
-          label: 'Continue to cancel',
+          label: cm.continueToCancel,
           style: 'destructive',
           onPress: () =>
             cancelMembership.mutate(undefined, {
               onSuccess: outcome => {
                 if (outcome.status === 'already_cancelled') {
                   showDialog({
-                    title: 'Already cancelled',
-                    message: until
-                      ? `Your membership is already set to end on ${until}.`
-                      : 'Your membership is already set to end.',
+                    title: cm.alreadyCancelled,
+                    message: until ? cm.alreadyEndsOn(until) : cm.alreadyEnds,
                     tone: 'info',
                     icon: CalendarClock,
                   });
@@ -255,23 +270,21 @@ export function PrivacySecurityScreen() {
                 }
                 if (outcome.opened.status === 'unavailable') {
                   showDialog({
-                    title: `Finish in ${storeLabel}`,
-                    message:
-                      'Your request is noted. To stop the renewal, turn off auto-renew in your subscriptions.',
+                    title: cm.finishIn(storeLabel),
+                    message: cm.finishMessage,
                     tone: 'info',
                     icon: Store,
                     actions: [
-                      { label: 'Later', style: 'cancel' },
+                      { label: cm.later, style: 'cancel' },
                       {
-                        label: 'Open subscriptions',
+                        label: cm.openSubscriptions,
                         onPress: () => openUrl(MANAGE_SUBSCRIPTIONS_URL),
                       },
                     ],
                   });
                 }
               },
-              onError: error =>
-                showError('Could not start the cancellation', error),
+              onError: error => showError(cm.couldNotStart, error),
             }),
         },
       ],
@@ -280,23 +293,25 @@ export function PrivacySecurityScreen() {
     availability,
     cancelMembership,
     expiresAt,
+    locale,
     openUrl,
     showError,
     storeLabel,
+    words,
   ]);
 
   const handleKeepMembership = useCallback(() => {
     withdrawCancellation.mutate(undefined, {
       onSuccess: () =>
         showDialog({
-          title: 'Membership kept',
-          message:
-            'Your cancellation request has been withdrawn. If you already turned off auto-renew in the store, turn it back on there.',
+          title: words.cancelMembership.kept,
+          message: words.cancelMembership.keptMessage,
           tone: 'success',
         }),
-      onError: error => showError('Could not withdraw', error),
+      onError: error =>
+        showError(words.cancelMembership.couldNotWithdraw, error),
     });
-  }, [showError, withdrawCancellation]);
+  }, [showError, withdrawCancellation, words]);
 
   // ── Data export ──────────────────────────────────────────────────────────
   /**
@@ -305,45 +320,45 @@ export function PrivacySecurityScreen() {
    * emailed and nothing waits.
    */
   const handleExport = useCallback(() => {
+    const ex = words.export;
     showDialog({
-      title: 'Download my data',
-      message:
-        'We will prepare a JSON file with your account, profile, membership, reading record, highlights, wishlist and downloads. Save it to your phone, or share it to Drive, Mail or another app.',
+      title: ex.title,
+      message: ex.message,
       tone: 'info',
       icon: Download,
       actions: [
-        { label: 'Cancel', style: 'cancel' },
+        { label: s.common.cancel, style: 'cancel' },
         {
-          label: 'Share',
+          label: ex.share,
           onPress: () =>
             void shareMyData().then(
               () => undefined,
-              error => showError('Could not prepare your data', error),
+              error => showError(ex.couldNotPrepare, error),
             ),
         },
         {
-          label: 'Save as file',
+          label: ex.saveAsFile,
           onPress: () =>
             void exportMyDataToFile().then(
               result => {
                 if (result.saved) {
                   showDialog({
-                    title: 'Saved',
-                    message: 'Your data is in the file you chose.',
+                    title: ex.saved,
+                    message: ex.savedMessage,
                     tone: 'success',
                     icon: Download,
                   });
                 }
               },
-              error => showError('Could not prepare your data', error),
+              error => showError(ex.couldNotPrepare, error),
             ),
         },
       ],
     });
-  }, [showError]);
+  }, [s, showError, words]);
 
   const handleSecurityRow = useCallback(
-    (id: string) => {
+    (id: AccountSecurityRowId) => {
       switch (id) {
         case 'sign-in-methods':
           navigation.navigate('SignInMethods');
@@ -382,8 +397,8 @@ export function PrivacySecurityScreen() {
         reasonSheet.close();
         setReason('');
         showDialog({
-          title: 'Request received',
-          message: `Our team will review it and let you know. If approved, the deletion is scheduled ${next.graceDays} days later, and you can cancel it from this screen at any time until then.`,
+          title: words.request.received,
+          message: words.request.receivedMessage(next.graceDays),
           tone: 'info',
           icon: Hourglass,
         });
@@ -396,14 +411,14 @@ export function PrivacySecurityScreen() {
         }
         if (isBillingBlocker(error)) {
           showDialog({
-            title: 'Cancel your membership first',
+            title: words.request.cancelMembershipFirst,
             message: (error as DeletionRequestError).message,
             tone: 'warning',
             icon: Store,
             actions: [
-              { label: 'Not now', style: 'cancel' },
+              { label: words.request.notNow, style: 'cancel' },
               {
-                label: 'Manage subscription',
+                label: words.request.manageSubscription,
                 onPress: () => openUrl(MANAGE_SUBSCRIPTIONS_URL),
               },
             ],
@@ -415,7 +430,7 @@ export function PrivacySecurityScreen() {
           error.code === 'ADMIN_ACCOUNT'
         ) {
           showDialog({
-            title: 'Account cannot be deleted',
+            title: words.request.cannotDelete,
             message: error.message,
             tone: 'warning',
             icon: ShieldCheck,
@@ -429,10 +444,10 @@ export function PrivacySecurityScreen() {
           reasonSheet.open();
           return;
         }
-        showError('Could not send the request', error);
+        showError(words.request.couldNotSend, error);
       },
     });
-  }, [openUrl, reason, reasonSheet, reasonTooLong, request, showError]);
+  }, [openUrl, reason, reasonSheet, reasonTooLong, request, showError, words]);
 
   const handleDelete = useCallback(() => {
     if (!data) {
@@ -448,16 +463,16 @@ export function PrivacySecurityScreen() {
         first.code === 'BILLING_UNRESOLVED';
       showDialog({
         title: isBilling
-          ? 'Cancel your membership first'
-          : 'Account cannot be deleted',
+          ? words.request.cancelMembershipFirst
+          : words.request.cannotDelete,
         message: first.message,
         tone: 'warning',
         icon: isBilling ? Store : ShieldCheck,
         actions: isBilling
           ? [
-              { label: 'Not now', style: 'cancel' },
+              { label: words.request.notNow, style: 'cancel' },
               {
-                label: 'Manage subscription',
+                label: words.request.manageSubscription,
                 onPress: () => openUrl(MANAGE_SUBSCRIPTIONS_URL),
               },
             ]
@@ -467,32 +482,34 @@ export function PrivacySecurityScreen() {
     }
 
     reasonSheet.open();
-  }, [blockers, data, openUrl, reasonSheet]);
+  }, [blockers, data, openUrl, reasonSheet, words]);
 
   const handleWithdraw = useCallback(() => {
     const approved = current?.status === 'approved';
     showDialog({
-      title: approved ? 'Cancel the deletion?' : 'Withdraw the request?',
+      title: approved
+        ? words.request.cancelDeletionTitle
+        : words.request.withdrawTitle,
       message: approved
-        ? 'The scheduled deletion will be cancelled and your account kept as it is.'
-        : 'The request will be withdrawn and nothing will be removed.',
+        ? words.request.cancelDeletionMessage
+        : words.request.withdrawMessage,
       actions: [
-        { label: 'Go back', style: 'cancel' },
+        { label: words.request.goBack, style: 'cancel' },
         {
-          label: 'Keep my account',
+          label: words.request.keepAccount,
           onPress: () =>
             cancel.mutate(undefined, {
               onError: error => {
                 if (isStaleDeletionState(error)) {
                   return;
                 }
-                showError('Could not withdraw the request', error);
+                showError(words.request.couldNotWithdraw, error);
               },
             }),
         },
       ],
     });
-  }, [cancel, current?.status, showError]);
+  }, [cancel, current?.status, showError, words]);
 
   const requestCard = useMemo(() => {
     if (!current) {
@@ -500,7 +517,7 @@ export function PrivacySecurityScreen() {
     }
 
     if (open || current.status === 'completed') {
-      const copy = describeRequest(current);
+      const copy = describeRequest(current, s, locale);
       return (
         <Callout
           title={copy.title}
@@ -512,10 +529,10 @@ export function PrivacySecurityScreen() {
               <Button
                 label={
                   cancel.isPending
-                    ? 'Withdrawing…'
+                    ? words.request.withdrawing
                     : current.status === 'approved'
-                      ? 'Cancel deletion'
-                      : 'Withdraw request'
+                      ? words.request.cancelDeletion
+                      : words.request.withdrawRequest
                 }
                 size="sm"
                 variant="secondary"
@@ -531,11 +548,16 @@ export function PrivacySecurityScreen() {
     if (current.status === 'rejected') {
       return (
         <Callout
-          title="Your last request was declined"
+          title={words.request.declinedTitle}
           message={
             current.decisionNote
-              ? `On ${formatDate(current.decidedAt)}: ${current.decisionNote}`
-              : `Declined on ${formatDate(current.decidedAt)}. You can request again below.`
+              ? words.request.declinedOn(
+                  formatDate(current.decidedAt, locale),
+                  current.decisionNote,
+                )
+              : words.request.declinedAgain(
+                  formatDate(current.decidedAt, locale),
+                )
           }
           tone="info"
           icon={XCircle}
@@ -544,21 +566,32 @@ export function PrivacySecurityScreen() {
     }
 
     return null;
-  }, [cancel.isPending, current, handleWithdraw, open, withdrawable]);
+  }, [
+    cancel.isPending,
+    current,
+    handleWithdraw,
+    locale,
+    open,
+    s,
+    withdrawable,
+    words,
+  ]);
 
   const membershipRow = useMemo(() => {
+    const cm = words.cancelMembership;
     switch (availability) {
       case 'cancellable':
       case 'not_store_managed':
         return (
           <SettingsRow
-            title="Cancel membership"
+            title={cm.rowCancel}
             subtitle={
               availability === 'cancellable'
-                ? `Billed by ${storeLabel} · auto-renews${
-                    expiresAt ? ` on ${formatDate(expiresAt)}` : ''
-                  }`
-                : 'Not billed through a store'
+                ? cm.billedBy(
+                    storeLabel,
+                    expiresAt ? formatDate(expiresAt, locale) : null,
+                  )
+                : cm.notBilledByStore
             }
             danger
             onPress={handleCancelMembership}
@@ -567,11 +600,11 @@ export function PrivacySecurityScreen() {
       case 'pending':
         return (
           <SettingsRow
-            title="Cancellation requested"
-            subtitle={`Finish in ${storeLabel}, or keep your membership`}
+            title={cm.requested}
+            subtitle={cm.requestedHint(storeLabel)}
             trailing={
               <Button
-                label={withdrawCancellation.isPending ? 'Keeping…' : 'Keep'}
+                label={withdrawCancellation.isPending ? cm.keeping : cm.keep}
                 size="sm"
                 variant="secondary"
                 onPress={handleKeepMembership}
@@ -583,11 +616,11 @@ export function PrivacySecurityScreen() {
       case 'ending':
         return (
           <SettingsRow
-            title="Membership ending"
+            title={cm.ending}
             subtitle={
               expiresAt
-                ? `Access until ${formatDate(expiresAt)} · resume in ${storeLabel}`
-                : `Resume in ${storeLabel} to keep it`
+                ? cm.endingHint(formatDate(expiresAt, locale), storeLabel)
+                : cm.resumeIn(storeLabel)
             }
             onPress={() => openUrl(MANAGE_SUBSCRIPTIONS_URL)}
           />
@@ -595,11 +628,9 @@ export function PrivacySecurityScreen() {
       default:
         return (
           <SettingsRow
-            title="Membership"
+            title={cm.membership}
             subtitle={
-              subscription?.canAccessPremium
-                ? 'Active — see plan and billing'
-                : 'No active membership'
+              subscription?.canAccessPremium ? cm.activeHint : cm.noActive
             }
             onPress={() => navigation.navigate('Subscription')}
           />
@@ -610,45 +641,44 @@ export function PrivacySecurityScreen() {
     expiresAt,
     handleCancelMembership,
     handleKeepMembership,
+    locale,
     navigation,
     openUrl,
     storeLabel,
     subscription?.canAccessPremium,
     withdrawCancellation.isPending,
+    words,
   ]);
 
   return (
-    <ProfileSubScreenLayout
-      title="Privacy & security"
-      subtitle="You decide what leaves this device."
-    >
-      <SettingsGroup title="Account security">
+    <ProfileSubScreenLayout title={words.title} subtitle={words.subtitle}>
+      <SettingsGroup title={words.accountSecurity}>
         {accountSecurityRows.map(row => (
           <SettingsRow
-            key={row.id}
-            title={row.label}
-            icon={row.id === 'export' ? Share2 : undefined}
-            onPress={() => handleSecurityRow(row.id)}
+            key={row}
+            title={words.rows[row]}
+            icon={row === 'export' ? Share2 : undefined}
+            onPress={() => handleSecurityRow(row)}
           />
         ))}
       </SettingsGroup>
 
-      <SettingsGroup title="Membership">
+      <SettingsGroup title={words.membership}>
         {membershipRow}
         <SettingsRow
-          title="Manage in the store"
-          subtitle={`Plans, receipts and auto-renew live in ${storeLabel}`}
+          title={words.manageInStore}
+          subtitle={words.manageInStoreHint(storeLabel)}
           onPress={() => openUrl(MANAGE_SUBSCRIPTIONS_URL)}
         />
       </SettingsGroup>
 
-      <SettingsGroup title="Legal">
+      <SettingsGroup title={words.legal}>
         {legalRows.map(row => (
           <SettingsRow
-            key={row.id}
-            title={row.label}
+            key={row}
+            title={words.legalRows[row]}
             onPress={() =>
-              openUrl(row.id === 'terms' ? TERMS_URL : PRIVACY_POLICY_URL)
+              openUrl(row === 'terms' ? TERMS_URL : PRIVACY_POLICY_URL)
             }
           />
         ))}
@@ -656,7 +686,7 @@ export function PrivacySecurityScreen() {
 
       <View style={styles.deletion}>
         <Text size={fontSize.caption} weight="600" tone="muted">
-          DELETE ACCOUNT
+          {words.deleteAccount}
         </Text>
 
         {requestCard}
@@ -665,8 +695,8 @@ export function PrivacySecurityScreen() {
           <Callout
             title={
               blockers[0].code === 'ADMIN_ACCOUNT'
-                ? 'Account cannot be deleted'
-                : 'Cancel your membership first'
+                ? words.request.cannotDelete
+                : words.request.cancelMembershipFirst
             }
             message={blockers[0].message}
             tone="warning"
@@ -674,7 +704,7 @@ export function PrivacySecurityScreen() {
             action={
               blockers[0].code !== 'ADMIN_ACCOUNT' ? (
                 <Button
-                  label="Manage subscription"
+                  label={words.request.manageSubscription}
                   size="sm"
                   variant="secondary"
                   onPress={() => openUrl(MANAGE_SUBSCRIPTIONS_URL)}
@@ -687,18 +717,13 @@ export function PrivacySecurityScreen() {
         {!open && current?.status !== 'completed' ? (
           <>
             <Text size={fontSize.bodySmall} tone="muted">
-              Deleting your account removes your profile, reading progress,
-              wishlist, downloads and highlights. Billing records held by the
-              App Store, Google Play or RevenueCat may be retained as required
-              by law. Our team reviews every request; an approved one is
-              scheduled {data?.graceDays ?? 7} days later, and you can cancel it
-              until then.
+              {words.request.explainer(data?.graceDays ?? 7)}
             </Text>
             <Button
               label={
                 current?.status === 'rejected'
-                  ? 'Request again'
-                  : 'Request deletion'
+                  ? words.request.requestAgain
+                  : words.request.requestDeletion
               }
               variant="danger"
               size="md"
@@ -712,11 +737,15 @@ export function PrivacySecurityScreen() {
       <Sheet
         visible={reasonSheet.visible}
         onClose={reasonSheet.close}
-        title="Request account deletion"
+        title={words.request.sheetTitle}
         scrollable
         footer={
           <Button
-            label={request.isPending ? 'Sending…' : 'Request deletion'}
+            label={
+              request.isPending
+                ? words.request.sending
+                : words.request.requestDeletion
+            }
             variant="dangerSolid"
             onPress={submitRequest}
             loading={request.isPending}
@@ -728,15 +757,13 @@ export function PrivacySecurityScreen() {
         <View style={styles.sheetBody}>
           <Card tone="alt" padded>
             <Text size={fontSize.bodySmall} weight="600">
-              What deletion does
+              {words.request.whatItDoes}
             </Text>
             <Text size={fontSize.bodySmall} tone="soft" style={styles.warning}>
-              • Your profile, reading progress, wishlist, downloads and
-              highlights are removed and cannot be recovered.
+              {words.request.bullet1}
             </Text>
             <Text size={fontSize.bodySmall} tone="soft" style={styles.warning}>
-              • Store and RevenueCat billing records may be retained as required
-              by law.
+              {words.request.bullet2}
             </Text>
             {warnings.map(warning => (
               <Text
@@ -751,31 +778,31 @@ export function PrivacySecurityScreen() {
           </Card>
 
           <Text size={fontSize.bodySmall} tone="muted">
-            Tell us why, if you like. It helps us improve, and it is read by the
-            admin who reviews your request.
+            {words.request.tellUsWhy}
           </Text>
 
           <TextField
-            label="Reason (optional)"
+            label={words.request.reasonLabel}
             value={reason}
             onChangeText={setReason}
-            placeholder="e.g. I no longer use the app"
+            placeholder={words.request.reasonPlaceholder}
             multiline
             height={110}
             textAlignVertical="top"
             maxLength={DELETION_REASON_MAX_LENGTH + 50}
             error={
               reasonTooLong
-                ? `Keep the reason under ${DELETION_REASON_MAX_LENGTH} characters (${reason.length} now).`
+                ? words.request.reasonTooLong(
+                    DELETION_REASON_MAX_LENGTH,
+                    reason.length,
+                  )
                 : undefined
             }
             hint={`${reason.length}/${DELETION_REASON_MAX_LENGTH}`}
           />
 
           <Text size={fontSize.caption} tone="muted">
-            Sending a request does not delete anything yet. Our team will let
-            you know the decision, and you can cancel from Profile → Privacy &
-            security at any time before the deletion runs.
+            {words.request.footer}
           </Text>
         </View>
       </Sheet>

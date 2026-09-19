@@ -5,6 +5,7 @@ import { LayoutDashboard, ShieldCheck } from 'lucide-react-native';
 import { Button, Card, IconTile, Text } from '@/components/ui';
 import { useAuthStore } from '@/stores/authStore';
 import { fontSize } from '@/theme/typography';
+import { useStrings } from '@/i18n';
 
 /**
  * The way back to the admin tool, for an admin using the app as a reader.
@@ -19,6 +20,7 @@ import { fontSize } from '@/theme/typography';
  * never appears for them.
  */
 export const AdminSwitchCard = memo(function AdminSwitchCard() {
+  const s = useStrings();
   const isAdmin = useAuthStore(state => state.isAdmin);
   const setViewingAsReader = useAuthStore(state => state.setViewingAsReader);
 
@@ -37,16 +39,15 @@ export const AdminSwitchCard = memo(function AdminSwitchCard() {
         <IconTile icon={ShieldCheck} tileTone="primary" />
         <View style={styles.body}>
           <Text size={fontSize.bodySmall} leading={1.3} weight="600">
-            You’re using the app as a reader
+            {s.profile.adminCard.title}
           </Text>
           <Text size={fontSize.captionSmall} leading={1.45} tone="muted">
-            This is an admin account, so every book opens without a membership.
-            Readers see the paywall where you don’t.
+            {s.profile.adminCard.body}
           </Text>
         </View>
       </View>
       <Button
-        label="Back to admin panel"
+        label={s.profile.adminCard.back}
         icon={LayoutDashboard}
         variant="secondary"
         size="md"

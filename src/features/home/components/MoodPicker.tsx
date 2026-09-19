@@ -13,6 +13,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { Chip, ChipWrap, Display, Icon, Text } from '@/components/ui';
+import { useStrings } from '@/i18n';
 import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
 
@@ -52,18 +53,6 @@ export function matchesMood(
   const subject = genre.toLowerCase();
   return MOOD_SUBJECTS[mood].some(term => subject.includes(term));
 }
-
-/**
- * What the app says back once a mood is picked. The point is that the reader
- * feels answered rather than merely recorded, so each line names the mood and
- * then has a little fun at their expense.
- */
-export const MOOD_REPLIES: Record<ReadingMood, string> = {
-  Reflective: 'Deep waters tonight. Go gently.',
-  Curious: "Oh, so you're curious. That's how it starts.",
-  Focused: 'Focused it is. Phone face-down, please.',
-  Calm: 'Calm. Consider the tea poured.',
-};
 
 const MOTION = { reduceMotion: ReduceMotion.System } as const;
 
@@ -106,7 +95,7 @@ const COLLAPSE_MS = 340;
 export const MoodPicker = memo(function MoodPicker({
   value,
   onChange,
-  title = 'How are you reading tonight?',
+  title: titleProp,
   /** The parent's row gap, absorbed as the card collapses so nothing jumps. */
   gap = 26,
 }: {
@@ -116,6 +105,11 @@ export const MoodPicker = memo(function MoodPicker({
   gap?: number;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
+  // What the app says back once a mood is picked. The point is that the
+  // reader feels answered rather than merely recorded, so each line names the
+  // mood and then has a little fun at their expense.
+  const title = titleProp ?? s.home.mood.title;
 
   // Captured on first layout so the collapse has a real height to travel from.
   const [height, setHeight] = useState<number | null>(null);
@@ -389,7 +383,7 @@ export const MoodPicker = memo(function MoodPicker({
                 align="center"
                 tone="muted"
               >
-                {MOOD_REPLIES[picked]}
+                {s.home.mood.replies[picked]}
               </Text>
             </Animated.View>
           ) : null}
@@ -409,10 +403,16 @@ const MoodChip = memo(function MoodChip({
   selected: boolean;
   onSelect: (mood: ReadingMood) => void;
 }) {
+  const s = useStrings();
   const handlePress = useCallback(() => onSelect(mood), [mood, onSelect]);
 
   return (
-    <Chip label={mood} selected={selected} size="sm" onPress={handlePress} />
+    <Chip
+      label={s.home.mood.labels[mood]}
+      selected={selected}
+      size="sm"
+      onPress={handlePress}
+    />
   );
 });
 

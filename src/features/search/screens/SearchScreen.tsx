@@ -36,6 +36,7 @@ import {
 } from '@/features/search/hooks/useSearchFilters';
 import { useRecentSearches } from '@/features/search/hooks/useRecentSearches';
 import { useLibrary } from '@/hooks/useAccount';
+import { useStrings } from '@/i18n';
 import {
   useCatalogFeed,
   useCategories,
@@ -121,6 +122,8 @@ const MIN_FILTERED_ROWS = 8;
  * catalogue can know.
  */
 export function SearchScreen() {
+  const s = useStrings();
+  const words = s.catalog.discover;
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { colors } = useTheme();
@@ -375,13 +378,13 @@ export function SearchScreen() {
     <View style={styles.controls}>
       <IconControl
         icon={SlidersHorizontal}
-        label="Filters"
+        label={words.filters}
         active={activeCount > 0}
         onPress={filterSheet.open}
       />
       <IconControl
         icon={LayoutGrid}
-        label="Browse by subject"
+        label={words.browseBySubject}
         active={subjectsOpen || filters.categoryId != null}
         onPress={toggleSubjects}
       />
@@ -390,7 +393,9 @@ export function SearchScreen() {
 
   const header = (
     <View style={styles.header}>
-      {!searching ? <ScreenHeader title="Discover" action={controls} /> : null}
+      {!searching ? (
+        <ScreenHeader title={words.title} action={controls} />
+      ) : null}
 
       <View style={styles.searchRow}>
         <SearchField
@@ -398,12 +403,16 @@ export function SearchScreen() {
           onChangeText={setQuery}
           onSearch={setTerm}
           onFocus={handleFocus}
-          placeholder="Search books, authors, subjects…"
+          placeholder={words.searchPlaceholder}
           onSubmitEditing={rememberQuery}
           style={styles.grow}
         />
         {searching ? (
-          <TextButton label="Cancel" tone="muted" onPress={cancelSearch} />
+          <TextButton
+            label={words.cancel}
+            tone="muted"
+            onPress={cancelSearch}
+          />
         ) : null}
       </View>
 
@@ -415,13 +424,13 @@ export function SearchScreen() {
             <FilterChip
               key={tokenKey(token)}
               token={token}
-              label={tokenLabel(token, subjectName)}
+              label={tokenLabel(token, subjectName, s)}
               onRemove={remove}
             />
           ))}
 
           {activeCount > 1 ? (
-            <TextButton label="Clear all" tone="muted" onPress={reset} />
+            <TextButton label={words.clearAll} tone="muted" onPress={reset} />
           ) : null}
         </ChipRow>
       ) : null}
@@ -447,7 +456,7 @@ export function SearchScreen() {
       ) : null}
 
       <View style={styles.labelRow}>
-        <Label>All books</Label>
+        <Label>{words.allBooks}</Label>
         {isPlaceholderData ? (
           <ActivityIndicator size="small" color={colors.primary} />
         ) : null}
@@ -466,8 +475,8 @@ export function SearchScreen() {
       {recents.length > 0 && searching ? (
         <View style={styles.section}>
           <View style={styles.recentHeader}>
-            <Label>Recent</Label>
-            <TextButton label="Clear" tone="muted" onPress={clear} />
+            <Label>{words.recent}</Label>
+            <TextButton label={words.clear} tone="muted" onPress={clear} />
           </View>
           <ChipWrap gap={9}>
             {recents.map(term => (
@@ -504,8 +513,8 @@ export function SearchScreen() {
                 style={styles.noResults}
               >
                 {query.trim() || activeCount > 0
-                  ? 'Nothing matched that. Try a different word, or clear your filters.'
-                  : 'No published books are available yet.'}
+                  ? words.nothingMatched
+                  : words.noBooksYet}
               </Text>
             )
           }
@@ -589,6 +598,7 @@ function FilterChip({
   label: string;
   onRemove: (token: FilterToken) => void;
 }) {
+  const s = useStrings();
   const handlePress = useCallback(() => onRemove(token), [onRemove, token]);
   return (
     <Chip
@@ -597,7 +607,7 @@ function FilterChip({
       selected
       size="sm"
       onPress={handlePress}
-      accessibilityLabel={`Remove filter ${label}`}
+      accessibilityLabel={s.catalog.discover.removeFilter(label)}
     />
   );
 }

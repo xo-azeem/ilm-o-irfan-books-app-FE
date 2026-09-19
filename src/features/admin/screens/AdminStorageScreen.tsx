@@ -25,6 +25,7 @@ import { useAppInsets } from '@/hooks/useAppInsets';
 import { useDeleteStorageObject, useStorageAudit } from '@/hooks/useAdmin';
 import { palette } from '@/theme/palette';
 import { useTheme } from '@/theme/ThemeContext';
+import { useStrings } from '@/i18n';
 
 type StorageTarget = { bucket: 'covers' | 'pdfs'; name: string };
 
@@ -36,6 +37,8 @@ type StorageTarget = { bucket: 'covers' | 'pdfs'; name: string };
  * are fixed in the editor where the replacement belongs.
  */
 export function AdminStorageScreen() {
+  const s = useStrings();
+  const words = s.admin.storage;
   // Opening a broken book means crossing into the Library tab, so this reaches
   // past its own stack rather than duplicating the editor.
   const navigation = useNavigation<{
@@ -80,14 +83,12 @@ export function AdminStorageScreen() {
       ).length;
       setConfirmAll(false);
       if (failed === 0) {
-        toast.success(`${orphans.length} files deleted.`);
+        toast.success(words.filesDeleted(orphans.length));
       } else {
-        toast.error(
-          `${orphans.length - failed} deleted, ${failed} could not be removed.`,
-        );
+        toast.error(words.partlyDeleted(orphans.length - failed, failed));
       }
     });
-  }, [data?.orphans, remove, toast]);
+  }, [data?.orphans, remove, toast, words]);
 
   return (
     <SafeAreaView
@@ -95,7 +96,7 @@ export function AdminStorageScreen() {
       edges={['top', 'left', 'right']}
     >
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <AdminBackLink label="System" />
+        <AdminBackLink label={s.admin.system.title} />
       </View>
 
       <ScrollView
@@ -109,11 +110,11 @@ export function AdminStorageScreen() {
         showsVerticalScrollIndicator={false}
       >
         <AdminScreenTitle
-          title="Storage"
+          title={words.title}
           subtitle={
             data
-              ? `${formatBytes(totalBytes)} across ${fileCount} files`
-              : 'Counting the files…'
+              ? words.across(formatBytes(totalBytes), fileCount)
+              : words.counting
           }
         />
 
@@ -121,8 +122,8 @@ export function AdminStorageScreen() {
           <AdminMenuSkeleton count={4} height={72} />
         ) : error || !data ? (
           <AdminErrorState
-            title="Couldn't read storage"
-            message="The audit did not come back. Nothing has been changed."
+            title={words.loadFailed}
+            message={words.loadFailedMessage}
             detail={error ? errorMessage(error) : undefined}
             onRetry={() => void refetch()}
           />
@@ -161,17 +162,17 @@ export function AdminStorageScreen() {
               <View style={styles.legend}>
                 <LegendRow
                   color={palette.green}
-                  label="Book PDFs"
+                  label={words.bookPdfs}
                   value={`${formatBytes(pdfBytes)} · ${data.totals.pdfs_count}`}
                 />
                 <LegendRow
                   color={palette.lime}
-                  label="Covers"
+                  label={words.covers}
                   value={`${formatBytes(coverBytes)} · ${data.totals.covers_count}`}
                 />
                 <LegendRow
                   color={colors.warning}
-                  label="Not linked to a book"
+                  label={words.notLinked}
                   value={`${formatBytes(orphanBytes)} · ${data.orphans.length}`}
                   warn
                 />
@@ -181,11 +182,11 @@ export function AdminStorageScreen() {
             {data.orphans.length > 0 ? (
               <View style={styles.block}>
                 <AdminSectionHeader
-                  title={`Orphaned files · ${data.orphans.length}`}
+                  title={words.orphaned(data.orphans.length)}
                   tone="warning"
                   action={
                     <AdminOutlineButton
-                      label="Delete all"
+                      label={s.admin.ui.deleteAll}
                       small
                       destructive
                       fullWidth={false}
@@ -210,7 +211,7 @@ export function AdminStorageScreen() {
 
             {data.broken.length > 0 ? (
               <AdminRowGroup
-                title={`Books with a missing file · ${data.broken.length}`}
+                title={words.brokenBooks(data.broken.length)}
                 tone="warning"
               >
                 {data.broken.map(book => (
@@ -232,14 +233,14 @@ export function AdminStorageScreen() {
                         numberOfLines={1}
                       >
                         {book.missing_pdf && book.missing_cover
-                          ? 'No PDF, no cover'
+                          ? words.noPdfNoCover
                           : book.missing_pdf
-                            ? 'No PDF'
-                            : 'No cover'}
+                            ? words.noPdf
+                            : words.noCover}
                       </Text>
                     </View>
                     <AdminTextAction
-                      label="Open"
+                      label={s.admin.ui.open}
                       size={11.5}
                       onPress={() =>
                         navigation.navigate(ADMIN_ROUTES.LIBRARY, {
@@ -258,15 +259,13 @@ export function AdminStorageScreen() {
 
             {data.orphans.length === 0 && data.broken.length === 0 ? (
               <AdminEmpty
-                title="Nothing to clean up"
-                message="Every stored file belongs to a book or an author, and every book points at a file that exists."
+                title={words.nothingToClean}
+                message={words.nothingToCleanMessage}
               />
             ) : null}
 
             <Text size={11.5} leading={1.45} tone="faint">
-              A file a book still points at cannot be deleted here — replace it
-              from the book editor instead, so the record and the file change
-              together.
+              {words.note}
             </Text>
           </>
         )}
@@ -274,10 +273,10 @@ export function AdminStorageScreen() {
 
       <AdminConfirmSheet
         visible={target !== null}
-        title="Delete this file?"
-        message={`${target?.name ?? ''} is removed from storage permanently.`}
-        consequences={['Nothing points at it, so no book changes']}
-        confirmLabel="Delete"
+        title={words.deleteFile}
+        message={words.deleteFileMessage(target?.name ?? '')}
+        consequences={[words.deleteFileConsequence]}
+        confirmLabel={s.admin.ui.delete}
         destructive
         loading={remove.isPending}
         onCancel={clearTarget}
@@ -286,7 +285,7 @@ export function AdminStorageScreen() {
           remove.mutate(target, {
             onSuccess: () => {
               clearTarget();
-              toast.success('File deleted.');
+              toast.success(words.fileDeleted);
             },
             onError: caught => {
               clearTarget();
@@ -298,13 +297,10 @@ export function AdminStorageScreen() {
 
       <AdminConfirmSheet
         visible={confirmAll}
-        title={`Delete ${data?.orphans.length ?? 0} orphaned files?`}
-        message={`${formatBytes(orphanBytes)} is removed from storage permanently.`}
-        consequences={[
-          'No book or author points at any of them',
-          'This cannot be undone — there is no bin',
-        ]}
-        confirmLabel="Delete all"
+        title={words.deleteAllTitle(data?.orphans.length ?? 0)}
+        message={words.deleteAllMessage(formatBytes(orphanBytes))}
+        consequences={words.deleteAllConsequences}
+        confirmLabel={s.admin.ui.deleteAll}
         destructive
         loading={remove.isPending}
         onCancel={() => setConfirmAll(false)}
@@ -365,6 +361,7 @@ const OrphanRow = memo(function OrphanRow({
   onDelete: (target: StorageTarget) => void;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
   const handleDelete = useCallback(
     () => onDelete({ bucket, name }),
     [bucket, name, onDelete],
@@ -399,12 +396,15 @@ const OrphanRow = memo(function OrphanRow({
           {name}
         </Label>
         <Text size={10.5} leading={1.2} tone="faint" numberOfLines={1}>
-          {`${formatBytes(size)} · uploaded ${formatRelative(createdAt)}`}
+          {s.admin.storage.uploaded(
+            formatBytes(size),
+            formatRelative(createdAt),
+          )}
         </Text>
       </View>
 
       <AdminOutlineButton
-        label="Delete"
+        label={s.admin.ui.delete}
         small
         destructive
         fullWidth={false}

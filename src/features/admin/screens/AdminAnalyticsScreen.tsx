@@ -25,20 +25,11 @@ import { useAppInsets } from '@/hooks/useAppInsets';
 import { useAdminAnalytics } from '@/hooks/useAdmin';
 import type { TimeSeriesPoint } from '@/services/admin';
 import { useTheme } from '@/theme/ThemeContext';
+import { useStrings, type Strings } from '@/i18n';
 
 type Range = '7' | '30' | '90';
 
-const RANGE_OPTIONS: ReadonlyArray<{ value: Range; label: string }> = [
-  { value: '7', label: '7 days' },
-  { value: '30', label: '30 days' },
-  { value: '90', label: '90 days' },
-];
-
-const RANGE_WORD: Record<Range, string> = {
-  '7': 'week',
-  '30': '30 days',
-  '90': '90 days',
-};
+const RANGES: Range[] = ['7', '30', '90'];
 
 /**
  * Analytics.
@@ -49,6 +40,12 @@ const RANGE_WORD: Record<Range, string> = {
  */
 export function AdminAnalyticsScreen() {
   const { colors } = useTheme();
+  const s = useStrings();
+  const words = s.admin.analytics;
+  const rangeOptions = useMemo(
+    () => RANGES.map(value => ({ value, label: words.ranges[value] })),
+    [words],
+  );
   const { scrollEndPadding } = useAppInsets();
   const [range, setRange] = useState<Range>('7');
 
@@ -76,7 +73,7 @@ export function AdminAnalyticsScreen() {
       edges={['top', 'left', 'right']}
     >
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <AdminBackLink label="System" />
+        <AdminBackLink label={s.admin.system.title} />
       </View>
 
       <ScrollView
@@ -90,9 +87,9 @@ export function AdminAnalyticsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.titleBlock}>
-          <AdminScreenTitle title="Analytics" />
+          <AdminScreenTitle title={words.title} />
           <AdminSegmented
-            options={RANGE_OPTIONS}
+            options={rangeOptions}
             value={range}
             onChange={setRange}
             compact
@@ -103,21 +100,24 @@ export function AdminAnalyticsScreen() {
           <AdminStatsSkeleton />
         ) : error || !data ? (
           <AdminErrorState
-            title="Couldn't load analytics"
-            message="The report did not come back. This is usually the server rather than your connection."
+            title={words.loadFailed}
+            message={words.loadFailedMessage}
             detail={error ? errorMessage(error) : undefined}
             onRetry={() => void refetch()}
           />
         ) : (
           <>
             <AdminBarChart
-              title="Reading sessions"
+              title={words.readingSessions}
               total={sum(data.reads)}
               delta={
                 readsDelta === null
                   ? null
                   : {
-                      label: `${formatDelta(readsDelta)} vs last ${RANGE_WORD[range]}`,
+                      label: words.vsLast(
+                        formatDelta(readsDelta, s),
+                        words.rangeWords[range],
+                      ),
                       up: readsDelta >= 0,
                     }
               }
@@ -126,40 +126,45 @@ export function AdminAnalyticsScreen() {
 
             <AdminStatRow>
               <AdminStat
-                label="New readers"
+                label={words.newReaders}
                 value={data.audience.new_in_period}
                 hint={
-                  signupsDelta === null ? undefined : formatDelta(signupsDelta)
+                  signupsDelta === null
+                    ? undefined
+                    : formatDelta(signupsDelta, s)
                 }
                 tone="success"
               />
-              <AdminStat label="Downloads" value={sum(data.downloads)} />
+              <AdminStat label={words.downloads} value={sum(data.downloads)} />
               <AdminStat
-                label="Active readers"
+                label={words.activeReaders}
                 value={data.audience.active_in_period}
-                hint={`of ${data.audience.total}`}
+                hint={words.ofTotal(data.audience.total)}
               />
             </AdminStatRow>
 
             <AdminBarChart
-              title="New readers"
+              title={words.newReaders}
               total={sum(data.signups)}
               delta={
                 signupsDelta === null
                   ? null
                   : {
-                      label: `${formatDelta(signupsDelta)} vs last ${RANGE_WORD[range]}`,
+                      label: words.vsLast(
+                        formatDelta(signupsDelta, s),
+                        words.rangeWords[range],
+                      ),
                       up: signupsDelta >= 0,
                     }
               }
               points={data.signups}
             />
 
-            <AdminRowGroup title={`Most read this ${RANGE_WORD[range]}`}>
+            <AdminRowGroup title={words.mostRead(words.rangeWords[range])}>
               {data.top_books.length === 0 ? (
                 <View style={styles.emptyRow}>
                   <Text size={12.5} leading={1.45} tone="muted">
-                    No book has been opened in this window yet.
+                    {words.noBookOpened}
                   </Text>
                 </View>
               ) : (
@@ -170,9 +175,10 @@ export function AdminAnalyticsScreen() {
                       key={book.book_id}
                       rank={index + 1}
                       label={book.title}
-                      sublabel={`${book.readers} readers · ${Math.round(
-                        book.avg_progress * 100,
-                      )}% average progress`}
+                      sublabel={words.readersProgress(
+                        book.readers,
+                        Math.round(book.avg_progress * 100),
+                      )}
                       accent={book.cover_color}
                     />
                   ))
@@ -180,27 +186,27 @@ export function AdminAnalyticsScreen() {
             </AdminRowGroup>
 
             <View style={styles.block}>
-              <AdminEyebrow>Where reading happens</AdminEyebrow>
+              <AdminEyebrow>{words.whereReadingHappens}</AdminEyebrow>
               <AdminShareBars
                 rows={categoryRows}
-                emptyLabel="No category has been opened in this window yet."
+                emptyLabel={words.noCategoryOpened}
               />
             </View>
 
             <AdminStatRow>
               <AdminStat
-                label="Published"
+                label={words.published}
                 value={data.catalog.published}
                 tone="success"
               />
-              <AdminStat label="Drafts" value={data.catalog.draft} />
+              <AdminStat label={words.drafts} value={data.catalog.draft} />
               <AdminStat
-                label="Premium"
+                label={words.premium}
                 value={data.catalog.premium}
                 tone="accent"
               />
               <AdminStat
-                label="Missing files"
+                label={words.missingFiles}
                 value={data.catalog.missing_pdf + data.catalog.missing_cover}
                 tone={
                   data.catalog.missing_pdf + data.catalog.missing_cover > 0
@@ -242,8 +248,8 @@ function useDelta(
   }, [days, doubled]);
 }
 
-function formatDelta(change: number): string {
-  if (change === 0) return 'level';
+function formatDelta(change: number, s: Strings): string {
+  if (change === 0) return s.admin.analytics.level;
   return `${change > 0 ? '+' : '−'}${Math.abs(change)}%`;
 }
 

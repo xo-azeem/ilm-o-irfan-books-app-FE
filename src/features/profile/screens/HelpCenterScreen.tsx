@@ -1,4 +1,4 @@
-import { memo, useCallback, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import { ChevronDown, ChevronUp, Mail } from 'lucide-react-native';
 
@@ -16,12 +16,12 @@ import { ProfileSubScreenLayout } from '@/features/profile/components/ProfileSub
 import { useHomeCatalog } from '@/hooks/useCatalog';
 import {
   aboutDetails,
-  helpTopics,
   supportContact,
 } from '@/features/profile/data/profileContent';
 import { radius } from '@/theme/palette';
 import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
+import { useStrings } from '@/i18n';
 
 const STORE_REVIEW_URL = 'https://ilmoirfan.com/rate';
 
@@ -33,10 +33,20 @@ const STORE_REVIEW_URL = 'https://ilmoirfan.com/rate';
  */
 export function HelpCenterScreen() {
   const { colors } = useTheme();
+  const s = useStrings();
+  const words = s.profile.help;
   // The address an admin set, from `app_settings` by way of the home feed.
   // The bundled one is only what an offline first launch has to fall back on.
   const { data: home } = useHomeCatalog();
   const supportEmail = home?.supportEmail || supportContact.email;
+  const helpTopics = useMemo(
+    () =>
+      words.topics.map((topic, index) => ({
+        id: `help${index + 1}`,
+        ...topic,
+      })),
+    [words],
+  );
   const [query, setQuery] = useState('');
   const [openTopic, setOpenTopic] = useState<string | null>(
     helpTopics[0]?.id ?? null,
@@ -57,40 +67,39 @@ export function HelpCenterScreen() {
 
   const emailSupport = useCallback(() => {
     void Linking.openURL(
-      `mailto:${supportEmail}?subject=${encodeURIComponent('Ilm o Irfan support')}`,
+      `mailto:${supportEmail}?subject=${encodeURIComponent(words.subject)}`,
     ).catch(() =>
       showDialog({
-        title: 'No mail app',
-        message: `Write to us at ${supportEmail}.`,
+        title: words.noMailApp,
+        message: words.writeToUs(supportEmail),
         tone: 'info',
         icon: Mail,
       }),
     );
-  }, [supportEmail]);
+  }, [supportEmail, words]);
 
   const rateApp = useCallback(() => {
     void Linking.openURL(STORE_REVIEW_URL).catch(() =>
       showDialog({
-        title: 'Could not open the store',
-        message: 'Please search for Ilm o Irfan in your app store.',
+        title: words.storeFailed,
+        message: words.storeFallback,
         tone: 'warning',
       }),
     );
-  }, []);
+  }, [words]);
 
   return (
-    <ProfileSubScreenLayout title="Help center" gap={20}>
+    <ProfileSubScreenLayout title={words.title} gap={20}>
       <SearchField
         value={query}
         onChangeText={setQuery}
-        placeholder="Search help topics"
+        placeholder={words.searchPlaceholder}
       />
 
       {topics.length === 0 ? (
         <Card tone="alt" padded={16}>
           <Text size={fontSize.caption} leading={1.6} tone="muted">
-            Nothing matched “{query.trim()}”. Try a different word, or email us
-            below.
+            {words.nothingMatched(query.trim())}
           </Text>
         </Card>
       ) : (
@@ -110,7 +119,7 @@ export function HelpCenterScreen() {
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Email ${supportEmail}`}
+        accessibilityLabel={words.emailA11y(supportEmail)}
         onPress={emailSupport}
         style={({ pressed }) => [
           styles.support,
@@ -127,10 +136,10 @@ export function HelpCenterScreen() {
         />
         <View style={styles.supportBody}>
           <Text size={14.5} leading={1} weight="500">
-            Still stuck?
+            {words.stillStuck}
           </Text>
           <Text size={12.5} leading={1.2} tone="muted">
-            {`${supportEmail} · ${supportContact.replyTime}`}
+            {`${supportEmail} · ${words.replyTime}`}
           </Text>
         </View>
         <View
@@ -142,23 +151,23 @@ export function HelpCenterScreen() {
             weight="600"
             tone="onPrimary"
           >
-            Email us
+            {words.emailUs}
           </Text>
         </View>
       </Pressable>
 
-      <SettingsGroup title="About">
+      <SettingsGroup title={words.about}>
         {aboutDetails.map(detail => (
           <SettingsRow
             key={detail.id}
-            title={detail.label}
+            title={words[detail.id]}
             value={detail.value}
             chevron={false}
             dense
           />
         ))}
         <SettingsRow
-          title="Rate the app"
+          title={words.rateApp}
           value="★★★★★"
           onPress={rateApp}
           dense

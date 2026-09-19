@@ -19,6 +19,7 @@ import {
   useAppStatus,
   useAppStatusPolling,
 } from '@/hooks/useAppStatus';
+import { useDateLocale, useStrings } from '@/i18n';
 import { useAuthStore } from '@/stores/authStore';
 import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
@@ -38,9 +39,6 @@ const IOS_APP_STORE_ID: string | null = null;
 const IOS_STORE_URL = IOS_APP_STORE_ID
   ? `https://apps.apple.com/app/id${IOS_APP_STORE_ID}`
   : null;
-
-const DEFAULT_MAINTENANCE_MESSAGE =
-  'We’re doing a little work on the library. It will be back shortly — your books, progress and downloads are exactly where you left them.';
 
 /**
  * The two notices that can stand between an install and the app.
@@ -63,6 +61,9 @@ export const AppGateScreen = memo(function AppGateScreen({
   onAdminSignIn: () => void;
 }) {
   const { colors } = useTheme();
+  const s = useStrings();
+  const words = s.status;
+  const locale = useDateLocale();
   const client = useQueryClient();
   const status = useAppStatus();
   // While this screen is up the flags are re-read every few seconds, so the
@@ -88,19 +89,19 @@ export const AppGateScreen = memo(function AppGateScreen({
       return;
     }
     showDialog({
-      title: 'Sign out first?',
-      message: `${signedInEmail} is signed in on this phone. Admin sign-in signs that account out; it can sign back in once the library reopens.`,
+      title: words.signOutFirst,
+      message: words.signOutFirstMessage(signedInEmail),
       tone: 'warning',
       actions: [
-        { label: 'Keep it', style: 'cancel' },
+        { label: words.keepIt, style: 'cancel' },
         {
-          label: 'Sign out and continue',
+          label: words.signOutAndContinue,
           style: 'destructive',
           onPress: onAdminSignIn,
         },
       ],
     });
-  }, [onAdminSignIn, signedInEmail]);
+  }, [onAdminSignIn, signedInEmail, words]);
 
   const retry = useCallback(async () => {
     setChecking(true);
@@ -114,7 +115,7 @@ export const AppGateScreen = memo(function AppGateScreen({
 
   const openStore = useCallback(async () => {
     const url = Platform.OS === 'ios' ? IOS_STORE_URL : ANDROID_STORE_URL;
-    const storeName = Platform.OS === 'ios' ? 'App Store' : 'Play Store';
+    const storeName = Platform.OS === 'ios' ? words.appStore : words.playStore;
     try {
       if (!url) {
         throw new Error('No store page configured.');
@@ -122,26 +123,26 @@ export const AppGateScreen = memo(function AppGateScreen({
       await Linking.openURL(url);
     } catch {
       showDialog({
-        title: `Open the ${storeName}`,
-        message: `Search for “Ilm o Irfan” in the ${storeName} and tap Update.`,
+        title: words.openStore(storeName),
+        message: words.searchInStore(storeName),
         tone: 'info',
       });
     }
-  }, []);
+  }, [words]);
 
   const contactSupport = useCallback(async () => {
     try {
       await Linking.openURL(
-        `mailto:${supportEmail}?subject=${encodeURIComponent('Ilm o Irfan')}`,
+        `mailto:${supportEmail}?subject=${encodeURIComponent(words.mailSubject)}`,
       );
     } catch {
       showDialog({
-        title: 'No mail app found',
-        message: `Write to us at ${supportEmail}.`,
+        title: words.noMailApp,
+        message: words.writeToUs(supportEmail),
         tone: 'info',
       });
     }
-  }, [supportEmail]);
+  }, [supportEmail, words]);
 
   const maintenance = gate === 'maintenance';
 
@@ -165,33 +166,35 @@ export const AppGateScreen = memo(function AppGateScreen({
               strokeWidth={1.7}
             />
           }
-          title={maintenance ? 'Back in a moment.' : 'A newer app is waiting.'}
+          title={maintenance ? words.backInAMoment : words.newerApp}
           message={
             maintenance
-              ? `${status.maintenanceMessage ?? DEFAULT_MAINTENANCE_MESSAGE}${
+              ? `${status.maintenanceMessage ?? words.defaultMaintenance}${
                   checkedAt
-                    ? ` Still closed — checked at ${checkedAt.toLocaleTimeString(
-                        undefined,
-                        { hour: 'numeric', minute: '2-digit' },
-                      )}. This page opens by itself the moment the library is back.`
+                    ? words.stillClosed(
+                        checkedAt.toLocaleTimeString(locale, {
+                          hour: 'numeric',
+                          minute: '2-digit',
+                        }),
+                      )
                     : ''
                 }`
-              : `This version (${APP_VERSION}) is no longer supported. Update to keep reading — your books, progress and downloads carry over.`
+              : words.unsupported(APP_VERSION)
           }
           action={
             maintenance
               ? {
-                  label: checking ? 'Checking…' : 'Try again',
+                  label: checking ? words.checking : words.tryAgain,
                   onPress: () => {
                     if (!checking) {
                       void retry();
                     }
                   },
                 }
-              : { label: 'Update the app', onPress: () => void openStore() }
+              : { label: words.updateApp, onPress: () => void openStore() }
           }
           link={{
-            label: 'Contact support',
+            label: words.contactSupport,
             onPress: () => void contactSupport(),
           }}
         />
@@ -204,14 +207,14 @@ export const AppGateScreen = memo(function AppGateScreen({
           align="center"
           tone="faint"
         >
-          {`${supportEmail} · version ${APP_VERSION}`}
+          {words.footer(supportEmail, APP_VERSION)}
         </Text>
         <TextButton
-          label="Admin sign-in"
+          label={words.adminSignIn}
           tone="muted"
           size={fontSize.captionSmall}
           onPress={adminSignIn}
-          accessibilityHint="Opens the sign-in screen for admin accounts"
+          accessibilityHint={words.adminSignInHint}
         />
       </View>
     </SafeAreaView>

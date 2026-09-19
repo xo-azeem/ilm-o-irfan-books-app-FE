@@ -13,6 +13,7 @@ import {
   syncDownload,
   toggleHighlight,
   toggleWishlist,
+  updateLocalePreference,
   updateProfile,
   updateReadingGoal,
   type LibraryProgressBook,
@@ -20,6 +21,7 @@ import {
   type ProfileDetails,
   type ProfileForm,
 } from '@/services/account';
+import type { Locale } from '@/i18n/locale';
 import type { HighlightRow } from '@/services/api/types';
 import { getAvatarUrl, uploadAvatar } from '@/services/avatar';
 import { readBookmarks, writeBookmarks } from '@/services/bookmarkCache';
@@ -273,6 +275,33 @@ export function useUpdateProfile() {
     mutationFn: (profile: ProfileForm) => updateProfile(profile),
     onSuccess: () =>
       client.invalidateQueries({ queryKey: scoped('profile', userId) }),
+  });
+}
+
+/**
+ * Records the interface language on the account.
+ *
+ * The cached profile takes the new language at once and any profile read in
+ * flight is cancelled, so a fetch that began before the write cannot land
+ * afterwards carrying the old one — which `LocaleSyncProvider` would then
+ * read as a change made elsewhere and switch the device back to. A failure
+ * changes nothing on the device: the language stays as chosen, and the next
+ * sign-in on another device simply finds the previous one.
+ */
+export function useSaveLocale() {
+  const client = useQueryClient();
+  const userId = useAuthStore(state => state.userId);
+  const queryKey = scoped('profile', userId);
+
+  return useMutation({
+    mutationFn: (locale: Locale) => updateLocalePreference(locale),
+    onMutate: async locale => {
+      await client.cancelQueries({ queryKey });
+      client.setQueryData<ProfileDetails>(queryKey, current =>
+        current ? { ...current, locale } : current,
+      );
+    },
+    onSuccess: () => client.invalidateQueries({ queryKey }),
   });
 }
 

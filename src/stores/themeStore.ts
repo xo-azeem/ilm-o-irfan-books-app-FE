@@ -36,6 +36,9 @@ export type ReadingMode = (typeof READING_MODE_VALUES)[number];
 
 export const DEFAULT_READING_MODE: ReadingMode = 'flip';
 
+/** Plain paper until the reader picks a tone; sepia is a choice, not a default. */
+export const DEFAULT_PAGE_TONE: PageTone = 'paper';
+
 /**
  * What each mode is called, and the line that describes it, live in the
  * dictionary (`reader.modes`) keyed by these values, so both places that
@@ -115,7 +118,7 @@ function sanitizeSettings(persisted: unknown): ThemeSettings {
   return {
     themePreference: pick(saved.themePreference, THEME_PREFERENCES, 'dark'),
     fontScale: pick(saved.fontScale, FONT_SCALE_ORDER, 'default'),
-    pageTone: pick(saved.pageTone, PAGE_TONES, 'sepia'),
+    pageTone: pick(saved.pageTone, PAGE_TONES, DEFAULT_PAGE_TONE),
     readingMode: pick(
       saved.readingMode,
       READING_MODE_VALUES,
@@ -135,7 +138,7 @@ export const useThemeStore = create<ThemeState>()(
       // palette the design never specifies. Readers can still pick System.
       themePreference: 'dark',
       fontScale: 'default',
-      pageTone: 'sepia',
+      pageTone: DEFAULT_PAGE_TONE,
       readingMode: DEFAULT_READING_MODE,
       keepScreenAwake: true,
 

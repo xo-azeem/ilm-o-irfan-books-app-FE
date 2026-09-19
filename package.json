@@ -28,7 +28,7 @@
     "@react-navigation/native-stack": "^7.17.0",
     "@supabase/supabase-js": "^2.109.0",
     "@tanstack/react-query": "^5.101.4",
-    "expo": "~57.0.23",
+    "expo": "~57.0.24",
     "expo-file-system": "~57.0.7",
     "expo-keep-awake": "~57.0.2",
     "expo-secure-store": "~57.0.4",

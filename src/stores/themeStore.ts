@@ -27,18 +27,24 @@ export type PageTone = (typeof PAGE_TONES)[number];
 /**
  * How a book moves under the finger.
  *
- * `swipe` carries one page off and the next on, `flip` folds the page over on
- * its spine the way paper does, and `scroll` runs the whole book as one
+ * `flip` folds the page over on its spine the way paper does, `swipe` carries
+ * one page off and the next on, and `scroll` runs the whole book as one
  * continuous column. The first two are a page at a time and differ only in the
  * motion; the last is a different way of holding the book.
+ *
+ * The paper flip is the reader's default and the first choice offered: it is
+ * the one that makes the library feel like a shelf of books rather than a
+ * viewer of files. The order here is the order of the segments.
  */
-export const READING_MODE_VALUES = ['swipe', 'flip', 'scroll'] as const;
+export const READING_MODE_VALUES = ['flip', 'swipe', 'scroll'] as const;
 
 export type ReadingMode = (typeof READING_MODE_VALUES)[number];
 
+export const DEFAULT_READING_MODE: ReadingMode = 'flip';
+
 export const READING_MODES: { value: ReadingMode; label: string }[] = [
-  { value: 'swipe', label: 'Swipe' },
   { value: 'flip', label: 'Flip' },
+  { value: 'swipe', label: 'Swipe' },
   { value: 'scroll', label: 'Scroll' },
 ];
 
@@ -51,14 +57,14 @@ export const READING_MODES: { value: ReadingMode; label: string }[] = [
  * adding a fourth cannot leave either of them describing the wrong thing.
  */
 export const READING_MODE_TAGS: Record<ReadingMode, string> = {
-  swipe: 'PAGE BY PAGE',
   flip: 'PAPER FLIP',
+  swipe: 'PAGE BY PAGE',
   scroll: 'ONE COLUMN',
 };
 
 export const READING_MODE_HINTS: Record<ReadingMode, string> = {
-  swipe: 'One page at a time, turned sideways',
   flip: 'Pages fold over on the spine, the way paper does',
+  swipe: 'One page at a time, turned sideways',
   scroll: 'The book runs as one column you scroll',
 };
 
@@ -126,7 +132,11 @@ function sanitizeSettings(persisted: unknown): ThemeSettings {
     themePreference: pick(saved.themePreference, THEME_PREFERENCES, 'dark'),
     fontScale: pick(saved.fontScale, FONT_SCALE_ORDER, 'default'),
     pageTone: pick(saved.pageTone, PAGE_TONES, 'sepia'),
-    readingMode: pick(saved.readingMode, READING_MODE_VALUES, 'swipe'),
+    readingMode: pick(
+      saved.readingMode,
+      READING_MODE_VALUES,
+      DEFAULT_READING_MODE,
+    ),
     keepScreenAwake:
       typeof saved.keepScreenAwake === 'boolean' ? saved.keepScreenAwake : true,
   };
@@ -142,7 +152,7 @@ export const useThemeStore = create<ThemeState>()(
       themePreference: 'dark',
       fontScale: 'default',
       pageTone: 'sepia',
-      readingMode: 'swipe',
+      readingMode: DEFAULT_READING_MODE,
       keepScreenAwake: true,
 
       setThemePreference: preference => {
@@ -157,7 +167,8 @@ export const useThemeStore = create<ThemeState>()(
     {
       name: 'ilm-theme-preference',
       storage: createJSONStorage(() => mmkvStorage),
-      version: 1,
+      // 2: the paper flip became the default reading mode.
+      version: 2,
 
       // Only the settings are written back. Without this the setters are handed
       // to JSON.stringify on every change just to be dropped again.
@@ -169,7 +180,18 @@ export const useThemeStore = create<ThemeState>()(
         keepScreenAwake: state.keepScreenAwake,
       }),
 
-      migrate: persisted => sanitizeSettings(persisted),
+      // Version 1 wrote every setting back on any change, so a record from
+      // then says `swipe` whether the reader chose it or only ever changed
+      // the theme. There is no telling the two apart, and the flip is the
+      // reading the app is meant to open on, so a record from before it was
+      // the default is brought onto it once. Anyone who prefers the swipe
+      // is one tap in the reader's own sheet from having it back.
+      migrate: (persisted, version) => {
+        const settings = sanitizeSettings(persisted);
+        return version < 2
+          ? { ...settings, readingMode: DEFAULT_READING_MODE }
+          : settings;
+      },
 
       // `migrate` only fires when the version changes, but a stored value can be
       // wrong on any launch — hand-edited storage, a downgrade, a half-written

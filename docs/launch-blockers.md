@@ -215,9 +215,20 @@ nothing to sell until the products exist in each store.
    `https://rwnmckrepvycydmtgvcq.supabase.co/functions/v1/revenuecat-webhook`,
    Authorization header = the backend's `REVENUECAT_WEBHOOK_AUTH`. (The
    backend agent can confirm the exact function name.)
-6. **This repo:** put the two keys in `.env` and in EAS
-   (`eas env:create --scope project --name REVENUECAT_IOS_KEY …`, same for
-   Android), then **rebuild natively** — `react-native-config` bakes them in.
+6. **This repo:** put the two keys and `REVENUECAT_ENTITLEMENT_ID` in
+   `.env` and in EAS (`eas env:create --scope project --name
+   REVENUECAT_IOS_KEY …`, same for the others), then **rebuild natively** —
+   `react-native-config` bakes them in. The entitlement id here and the
+   backend's secret of the same name must be the dashboard's identifier
+   (`ilm_o_irfan_pro`), or a purchase the SDK reports never unlocks.
+
+   **Testing before the stores are set up.** A RevenueCat *Test Store* key
+   (`test_…`) goes in both key slots; the SDK then sells the offering from
+   the Test Store with no App Store / Play products at all, and the webhook
+   fires as for a real purchase. `hostedPaywallOnly` in `useMembershipOptions`
+   covers the case where the Test Store's packages match no admin plan: the
+   screen offers RevenueCat's own dashboard paywall
+   (`react-native-purchases-ui`, `presentHostedPaywall`) instead of nothing.
 7. **Verify:** Profile → Subscription shows the monthly price from the store
    (never a hard-coded one); a sandbox purchase flips `canAccessPremium` and
    the backend's `entitlements-status` shows the row.

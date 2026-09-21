@@ -446,6 +446,7 @@ export const account: typeof en = {
     recommended: 'تجویز کردہ',
     unavailable:
       'اس وقت اس ڈیوائس پر رکنیت نہیں خریدی جا سکتی۔ اپنا کنکشن چیک کر کے دوبارہ کوشش کریں۔',
+    seeOptions: 'رکنیت کے اختیارات دیکھیں',
     subscribeFor: price => `${price} میں رکنیت لیں`,
     subscribe: 'رکنیت لیں',
     openingStore: 'اسٹور کھل رہا ہے…',

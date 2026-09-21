@@ -31,6 +31,7 @@ import { useLibrary, useSubscription } from '@/hooks/useAccount';
 import {
   useCancelMembership,
   useMembershipOptions,
+  usePresentHostedPaywall,
   usePurchaseMembership,
   useRestorePurchases,
   useStoreConfirmationWatch,
@@ -102,8 +103,10 @@ export function SubscriptionScreen() {
   const { data: library } = useLibrary();
   const { reason, expiresAt } = useAccess();
 
-  const { options, features, unavailable } = useMembershipOptions();
+  const { options, features, unavailable, hostedPaywallOnly } =
+    useMembershipOptions();
   const purchase = usePurchaseMembership();
+  const hostedPaywall = usePresentHostedPaywall();
   const { restore, isPending: isRestoring } = useRestorePurchases();
   const cancel = useCancelMembership();
   const withdraw = useWithdrawCancellation();
@@ -154,6 +157,38 @@ export function SubscriptionScreen() {
     },
     [purchase, s, words],
   );
+
+  /**
+   * RevenueCat's own paywall, for the case the in-app one cannot quote — see
+   * `hostedPaywallOnly`. Reported exactly like a purchase: a success has
+   * already re-read the entitlement, a failure gets the store's words.
+   */
+  const handleHostedPaywall = useCallback(() => {
+    hostedPaywall.mutate(
+      {},
+      {
+        onSuccess: outcome => {
+          if (
+            outcome.status === 'error' ||
+            outcome.status === 'not_presented'
+          ) {
+            showDialog({
+              title: words.purchaseFailed,
+              message: s.account.paywall.unavailable,
+              tone: 'danger',
+            });
+          }
+        },
+        onError: error =>
+          showDialog({
+            title: words.purchaseFailed,
+            message:
+              error instanceof Error ? error.message : s.common.pleaseTryAgain,
+            tone: 'danger',
+          }),
+      },
+    );
+  }, [hostedPaywall, s, words]);
 
   /**
    * Restore purchases — required by Apple review, and the only way back for a
@@ -421,10 +456,13 @@ export function SubscriptionScreen() {
           features={features}
           reason={reason}
           unavailable={unavailable}
-          isPurchasing={purchase.isPending}
+          isPurchasing={purchase.isPending || hostedPaywall.isPending}
           isRestoring={isRestoring}
           onSubscribe={handleSubscribe}
           onRestore={handleRestore}
+          onOpenHostedPaywall={
+            hostedPaywallOnly ? handleHostedPaywall : undefined
+          }
         />
       </ProfileSubScreenLayout>
     );

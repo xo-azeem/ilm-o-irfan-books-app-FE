@@ -12,9 +12,11 @@ import {
   getBillingOffering,
   isBillingAvailable,
   openManageSubscriptions,
+  presentHostedPaywall,
   purchaseMembership,
   restoreMembership,
   type BillingPackage,
+  type HostedPaywallOutcome,
   type ManageSubscriptionsOutcome,
   type PurchaseOutcome,
 } from '@/services/billing';
@@ -118,6 +120,18 @@ export function useMembershipOptions() {
      */
     unavailable:
       !isBillingAvailable() || Boolean(offeringError) || options.length === 0,
+    /**
+     * The store answered but none of its packages matches a plan the admin
+     * has set up, so the in-app paywall has nothing to quote. RevenueCat's
+     * own paywall still can — it sells the offering as the dashboard
+     * describes it — and is offered in that one case.
+     */
+    hostedPaywallOnly:
+      isBillingAvailable() &&
+      !offeringPending &&
+      !offeringError &&
+      (offering?.packages.length ?? 0) > 0 &&
+      options.length === 0,
   };
 }
 
@@ -153,6 +167,36 @@ export function usePurchaseMembership() {
         return;
       }
       void client.invalidateQueries({ queryKey: ['subscription', userId] });
+    },
+  });
+}
+
+/**
+ * RevenueCat's hosted paywall, then the same re-read the in-app one does.
+ *
+ * A purchase or a restore from the sheet asks the backend whether it took,
+ * exactly as `usePurchaseMembership` does — the sheet's own "purchased" is
+ * not what unlocks a book.
+ */
+export function usePresentHostedPaywall() {
+  const client = useQueryClient();
+  const userId = useAuthStore(state => state.userId);
+  const refresh = useAccessStore(state => state.refresh);
+
+  return useMutation({
+    mutationFn: async (
+      params: { requireEntitlement?: boolean } = {},
+    ): Promise<HostedPaywallOutcome> => {
+      const outcome = await presentHostedPaywall(params);
+      if (outcome.status === 'purchased' || outcome.status === 'restored') {
+        await refresh();
+      }
+      return outcome;
+    },
+    onSuccess: outcome => {
+      if (outcome.status === 'purchased' || outcome.status === 'restored') {
+        void client.invalidateQueries({ queryKey: ['subscription', userId] });
+      }
     },
   });
 }

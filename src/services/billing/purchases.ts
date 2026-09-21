@@ -7,6 +7,7 @@ import Purchases, {
   type PurchasesOffering,
   type PurchasesPackage,
 } from 'react-native-purchases';
+import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
 
 import { env } from '@/config/env';
 import { strings } from '@/i18n/strings';
@@ -31,12 +32,14 @@ import type { BillingStore } from '@/services/billing/options';
  */
 
 /**
- * The entitlement identifier configured in RevenueCat. Exactly `premium`.
+ * The entitlement identifier configured in RevenueCat — `env.revenueCatEntitlement`,
+ * from `REVENUECAT_ENTITLEMENT_ID`, so a build and its backend can be pointed
+ * at the same dashboard entitlement without a code change.
  *
  * Read from `customerInfo` after a purchase or a restore as a sanity check on
  * the configuration — not as the access decision, which is the backend's.
  */
-export const PREMIUM_ENTITLEMENT = 'premium';
+export const PREMIUM_ENTITLEMENT = env.revenueCatEntitlement;
 
 /** The plan code the backend falls back to when it cannot match a product. */
 export const PREMIUM_PLAN_CODE = 'premium_monthly';
@@ -92,9 +95,9 @@ export function configureBilling(): boolean {
   Purchases.configure({ apiKey: env.revenueCatKey });
   configured = true;
 
-  if (__DEV__) {
-    void Purchases.setLogLevel(LOG_LEVEL.WARN);
-  }
+  // Verbose in development, where the SDK's own log is the fastest way to
+  // see a misconfigured product or entitlement; quiet in a release build.
+  void Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.VERBOSE : LOG_LEVEL.ERROR);
 
   return true;
 }
@@ -397,7 +400,63 @@ export async function openManageSubscriptions(
   }
 }
 
-/** Whether RevenueCat currently considers `premium` active for this id. */
+/** What RevenueCat's own paywall came back with. */
+export type HostedPaywallOutcome = {
+  /** The sheet ended in a purchase or a restore. Still not the unlock: the
+   *  caller re-reads `entitlements-status` and that is what opens books. */
+  status: 'purchased' | 'restored' | 'cancelled' | 'not_presented' | 'error';
+};
+
+/**
+ * RevenueCat's hosted paywall — the one designed in the dashboard — for the
+ * current offering.
+ *
+ * The app's own paywall (`MembershipPaywall`) is the front door: it quotes
+ * the store's prices against the backend's plans. This is the stand-in for
+ * when that has nothing it can sell — the offering's packages match no plan
+ * the admin has set up — and for testing a dashboard paywall directly. With
+ * `requireEntitlement`, the sheet is skipped for a reader RevenueCat already
+ * sees as entitled (`presentPaywallIfNeeded`).
+ *
+ * As with `purchaseMembership`, a success here is not the unlock. The
+ * webhook writes the entitlement and the caller re-reads it from the
+ * backend, which is the only thing `get-signed-pdf` will believe.
+ */
+export async function presentHostedPaywall({
+  requireEntitlement = false,
+}: { requireEntitlement?: boolean } = {}): Promise<HostedPaywallOutcome> {
+  if (!configureBilling()) {
+    throw new Error(strings().services.billing.cannotPurchase);
+  }
+
+  let result: PAYWALL_RESULT;
+  try {
+    result = requireEntitlement
+      ? await RevenueCatUI.presentPaywallIfNeeded({
+          requiredEntitlementIdentifier: PREMIUM_ENTITLEMENT,
+          displayCloseButton: true,
+        })
+      : await RevenueCatUI.presentPaywall({ displayCloseButton: true });
+  } catch (error) {
+    throw new Error(storeMessage(error));
+  }
+
+  switch (result) {
+    case PAYWALL_RESULT.PURCHASED:
+      return { status: 'purchased' };
+    case PAYWALL_RESULT.RESTORED:
+      return { status: 'restored' };
+    case PAYWALL_RESULT.CANCELLED:
+      return { status: 'cancelled' };
+    case PAYWALL_RESULT.NOT_PRESENTED:
+      return { status: 'not_presented' };
+    case PAYWALL_RESULT.ERROR:
+    default:
+      return { status: 'error' };
+  }
+}
+
+/** Whether RevenueCat currently considers the entitlement active for this id. */
 export function hasPremiumEntitlement(
   customerInfo: CustomerInfo | null | undefined,
 ): boolean {

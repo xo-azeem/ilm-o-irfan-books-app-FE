@@ -75,6 +75,17 @@ function resolveRevenueCatKey(): string {
 }
 
 /**
+ * The RevenueCat entitlement that means "member". Has to be the identifier
+ * configured in the RevenueCat dashboard, and the same one the backend's
+ * webhook is told about (`REVENUECAT_ENTITLEMENT_ID`), or a purchase the
+ * SDK reports as active is one the backend never unlocks. `premium` is the
+ * historical default; the dashboard for this app uses `ilm_o_irfan_pro`.
+ */
+function resolveRevenueCatEntitlement(): string {
+  return Config.REVENUECAT_ENTITLEMENT_ID?.trim() || 'premium';
+}
+
+/**
  * Google Sign-In client ids. Public by design, like the RevenueCat keys.
  *
  * `web` is the OAuth *Web* client from the same Google Cloud project Supabase
@@ -106,6 +117,8 @@ export const env = {
   supabaseAnonKey: supabase.anonKey,
   /** Public RevenueCat SDK key for this platform; `''` when unconfigured. */
   revenueCatKey: resolveRevenueCatKey(),
+  /** The RevenueCat entitlement identifier that grants membership. */
+  revenueCatEntitlement: resolveRevenueCatEntitlement(),
   /** Google OAuth client ids; `web` empty means Google sign-in is off. */
   google: resolveGoogleClientIds(),
   /**

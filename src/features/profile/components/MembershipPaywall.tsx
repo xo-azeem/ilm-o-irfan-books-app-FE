@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import {
   Badge,
+  Button,
   DiagonalTexture,
   Display,
   Icon,
@@ -47,6 +48,7 @@ export const MembershipPaywall = memo(function MembershipPaywall({
   isRestoring,
   onSubscribe,
   onRestore,
+  onOpenHostedPaywall,
 }: {
   /** The packages the store is actually offering. Empty means nothing to sell. */
   options: MembershipOption[];
@@ -60,6 +62,11 @@ export const MembershipPaywall = memo(function MembershipPaywall({
   isRestoring?: boolean;
   onSubscribe: (option: MembershipOption) => void;
   onRestore?: () => void;
+  /**
+   * Opens RevenueCat's own paywall. Given only when the store is selling
+   * something the in-app list cannot quote — see `hostedPaywallOnly`.
+   */
+  onOpenHostedPaywall?: () => void;
 }) {
   const { colors } = useTheme();
   const s = useStrings();
@@ -163,7 +170,15 @@ export const MembershipPaywall = memo(function MembershipPaywall({
           </View>
         ) : null}
 
-        {unavailable ? (
+        {onOpenHostedPaywall ? (
+          <Button
+            label={isPurchasing ? words.openingStore : words.seeOptions}
+            variant="gold"
+            size="lg"
+            disabled={isPurchasing}
+            onPress={onOpenHostedPaywall}
+          />
+        ) : unavailable ? (
           <Text size={12.5} leading={1.5} align="center" tone="muted">
             {words.unavailable}
           </Text>

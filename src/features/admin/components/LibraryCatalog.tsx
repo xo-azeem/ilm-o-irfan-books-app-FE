@@ -395,11 +395,8 @@ function collectionDetail(collection: AdminCollection): string {
   if (collection.is_system) {
     const note = systemShelfNote(collection.slug);
     const rail = note?.label ?? words.shelfNotes.homeRail;
-    if (!note?.curated) {
-      return words.catalog.drawnWeekly(rail);
-    }
-    return collection.book_count === 0
-      ? words.catalog.newestStandIn(rail)
+    return collection.published_count === 0 && note
+      ? words.catalog.standsIn(rail, note.standIn)
       : words.catalog.railLive(rail, collection.published_count);
   }
   const live = words.counts.books(collection.published_count);
@@ -427,12 +424,9 @@ const ShelfRow = memo(function ShelfRow({
   const hidden = !collection.is_published;
   // Empty means empty for readers: a shelf of drafts is not on Home. The two
   // system shelves that stand in newest books are never empty on Home.
-  const standsIn =
-    collection.is_system &&
-    (systemShelfNote(collection.slug)?.curated === false ||
-      collection.slug === 'home-hero' ||
-      collection.slug === 'new-arrivals');
-  const empty = collection.published_count === 0 && !standsIn;
+  // Every system shelf stands in for itself when empty, so none of them is
+  // ever the "empty, not shown" a bare collection would be.
+  const empty = collection.published_count === 0 && !collection.is_system;
 
   return (
     <View

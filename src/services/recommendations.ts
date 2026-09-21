@@ -90,6 +90,15 @@ export const ALL_RECOMMENDATIONS: RecommendationParams = {
   limit: 50,
 };
 
+/**
+ * One rail's page: every rail the backend will build, each at its longest,
+ * so the page behind any "Because you read …" on Home is that rail continued.
+ */
+export const RAIL_RECOMMENDATIONS: RecommendationParams = {
+  sections: 6,
+  perSection: 20,
+};
+
 function clamp(value: number | undefined, max: number): number | undefined {
   if (value == null) {
     return undefined;

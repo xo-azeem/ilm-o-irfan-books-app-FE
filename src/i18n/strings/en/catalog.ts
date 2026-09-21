@@ -74,6 +74,16 @@ export const catalog = {
     remove: 'Remove',
     removeFromSaved: (title: string) => `Remove ${title} from saved`,
   },
+  /** The list/tiles switch every long list of books carries. */
+  list: {
+    showTiles: 'Show as tiles',
+    showList: 'Show as list',
+  },
+  recommendations: {
+    fallbackTitle: 'Recommended for you',
+    emptyTitle: 'Nothing to recommend yet',
+    emptyMessage: 'Finish a book and this shelf fills with more like it.',
+  },
   collection: {
     fallbackTitle: 'Collection',
     weekly: 'Drawn once a week, the same for every reader',

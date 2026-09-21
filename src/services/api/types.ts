@@ -323,13 +323,14 @@ export type RecommendationsPayload = {
 /**
  * `home-feed` bundles the public reads into one round trip.
  *
- * `carousel` is the admin's own slide list and `shelves.trending` is the
- * weekly draw `trending-weekly` serves — both arrive complete and in order.
- * `hero` and `newArrivals` are the `home-hero` and `new-arrivals`
- * collections in the admin's `sort_order`, each falling back server-side to
- * the newest published books, so neither is blank and neither is special-cased
- * here. A deployment that predates all of this omits `shelves` entirely — the
- * only case the rails are derived from `books` locally.
+ * `carousel` is the admin's own slide list, complete and in order. The three
+ * rails are the `home-hero`, `trending` and `new-arrivals` collections in the
+ * admin's `sort_order`, each falling back server-side when the admin has
+ * curated nothing — `trending` to the weekly draw `trending-weekly` serves,
+ * the other two to the newest published books — so none is blank and none
+ * is special-cased here. A deployment that predates all of this omits
+ * `shelves` entirely — the only case the rails are derived from `books`
+ * locally.
  */
 export type HomeFeedShelves = {
   hero: BookListItem[];

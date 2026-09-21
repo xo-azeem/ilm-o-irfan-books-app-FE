@@ -12,14 +12,17 @@ export const adminLibrary = {
     'home-hero': {
       label: 'Home hero',
       note: 'The featured rail at the top of Home. When empty, the newest published books stand in.',
+      standIn: 'the newest published books stand in',
     },
     trending: {
       label: 'Trending this week',
-      note: 'Ten books drawn by the server once a week, the same for every reader, with a new draw every Monday. There is nothing to pick here.',
+      note: 'Home shows the first ten, in this order; “See all” opens the whole list. Leave it empty and the server draws ten books at random once a week, the same for every reader, with a new draw every Monday.',
+      standIn: 'this week’s draw stands in',
     },
     'new-arrivals': {
       label: 'New arrivals',
       note: 'Home shows the first ten, in this order; “See all” opens the whole list. Leave it empty and the newest published books stand in.',
+      standIn: 'the newest published books stand in',
     },
     homeRail: 'Home rail',
   },
@@ -127,8 +130,7 @@ export const adminLibrary = {
     addFirstCollection: 'Add the first collection',
     collectionOrderHint:
       'Move a collection and readers see the new order on Home immediately. A hidden collection stays linkable but disappears from Home. The three Home rails are listed here so they can be retitled or hidden; they cannot be deleted.',
-    drawnWeekly: (rail: string) => `${rail} · drawn weekly`,
-    newestStandIn: (rail: string) => `${rail} · newest books stand in`,
+    standsIn: (rail: string, standIn: string) => `${rail} · ${standIn}`,
     railLive: (rail: string, live: number) => `${rail} · ${live} live`,
     inDraft: (live: string, drafts: number) => `${live} · ${drafts} in draft`,
     hidden: 'HIDDEN',
@@ -418,8 +420,8 @@ export const adminLibrary = {
     unknownTitle: 'Unknown title',
     liveOnHome: 'live on Home',
     hiddenFromHome: 'hidden from Home',
-    nothingCurated: (rail: string) =>
-      `${rail} · nothing curated, the newest books stand in`,
+    nothingCurated: (rail: string, standIn: string) =>
+      `${rail} · nothing curated, ${standIn}`,
     emptyNotShown: 'Empty collections are not shown on Home.',
     enterTitle: 'Enter a collection title.',
     saved: 'Collection saved.',
@@ -445,8 +447,7 @@ export const adminLibrary = {
       'A hidden collection stays linkable but disappears from Home.',
     booksInOrder: 'Books, in order',
     addBooks: 'Add books',
-    nothingCuratedEmpty:
-      'Nothing curated — the newest published books stand in.',
+    nothingCuratedEmpty: (standIn: string) => `Nothing curated — ${standIn}.`,
     noBooksEmpty: 'No books yet — an empty collection is not shown on Home.',
     orderHint:
       'Top to bottom here is the order readers see. Drafts stay in the order but are not shown until published.',

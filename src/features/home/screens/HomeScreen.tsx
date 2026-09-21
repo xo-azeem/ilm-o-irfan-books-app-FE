@@ -45,6 +45,7 @@ import { useStrings } from '@/i18n';
 import { useAccess } from '@/lib/access';
 import { useHomeCatalog } from '@/hooks/useCatalog';
 import { useRecommendations } from '@/hooks/useRecommendations';
+import type { RecommendationRail } from '@/services/recommendations';
 import {
   HOME_RAIL_LIMIT,
   type CatalogBook,
@@ -205,6 +206,20 @@ export function HomeScreen() {
   );
   const openLibrary = useCallback(
     () => navigation.navigate(ROUTES.MY_LIBRARY),
+    [navigation],
+  );
+
+  // A "Because you read …" rail in full. The rail's own heading goes along so
+  // the page opens under the words just tapped; the cold-start rail has no
+  // section and opens the whole ranked list.
+  const openRecommendations = useCallback(
+    (rail?: RecommendationRail) =>
+      navigation.navigate(
+        ROUTES.RECOMMENDATIONS,
+        rail
+          ? { sectionId: rail.id, title: rail.title, subtitle: rail.subtitle }
+          : undefined,
+      ),
     [navigation],
   );
 
@@ -377,6 +392,12 @@ export function HomeScreen() {
                   key={section.id}
                   title={section.title}
                   subtitle={section.subtitle}
+                  action={
+                    <RailAction
+                      label={s.common.seeAll}
+                      onPress={() => openRecommendations(section)}
+                    />
+                  }
                   gap={14}
                 >
                   {section.books.map(book => (
@@ -398,6 +419,12 @@ export function HomeScreen() {
             <BookRail
               title={s.home.coldStart.title}
               subtitle={s.home.coldStart.subtitle}
+              action={
+                <RailAction
+                  label={s.common.seeAll}
+                  onPress={() => openRecommendations()}
+                />
+              }
               gap={14}
             >
               {recommendations.books.map(book => (

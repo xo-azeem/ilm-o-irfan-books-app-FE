@@ -7,6 +7,8 @@ export const ROUTES = {
   BOOK_DETAIL: 'BookDetail',
   BOOK_READER: 'BookReader',
   COLLECTION: 'Collection',
+  /** One "Because you read …" rail in full, or the whole ranked list. */
+  RECOMMENDATIONS: 'Recommendations',
   WISHLIST: 'Wishlist',
   LOGIN: 'Login',
   SIGN_UP: 'SignUp',
@@ -28,6 +30,7 @@ export const ROUTE_LABELS: Record<RouteName, string> = {
   [ROUTES.BOOK_DETAIL]: 'Book',
   [ROUTES.BOOK_READER]: 'Reader',
   [ROUTES.COLLECTION]: 'Collection',
+  [ROUTES.RECOMMENDATIONS]: 'Recommendations',
   [ROUTES.WISHLIST]: 'Wishlist',
   [ROUTES.LOGIN]: 'Login',
   [ROUTES.SIGN_UP]: 'Sign up',

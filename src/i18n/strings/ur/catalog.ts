@@ -79,6 +79,16 @@ export const catalog: typeof en = {
     remove: 'ہٹائیں',
     removeFromSaved: title => `${title} کو محفوظ فہرست سے ہٹائیں`,
   },
+  list: {
+    showTiles: 'ٹائلوں میں دکھائیں',
+    showList: 'فہرست میں دکھائیں',
+  },
+  recommendations: {
+    fallbackTitle: 'آپ کے لیے تجویز کردہ',
+    emptyTitle: 'ابھی تجویز کرنے کو کچھ نہیں',
+    emptyMessage:
+      'ایک کتاب مکمل کریں تو یہ شیلف اسی جیسی کتابوں سے بھر جائے گی۔',
+  },
   collection: {
     fallbackTitle: 'مجموعہ',
     weekly: 'ہفتے میں ایک بار چنی جاتی ہیں، ہر قاری کے لیے یکساں',

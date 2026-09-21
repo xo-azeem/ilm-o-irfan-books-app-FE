@@ -1,5 +1,4 @@
 import { useCallback, useMemo } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
 import {
   useNavigation,
   useRoute,
@@ -8,18 +7,13 @@ import {
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '@/app/navigation/types';
-import { BookListRow, type BookSummary } from '@/components/books';
-import { Screen, ScreenHeader } from '@/components/layout';
-import { ListSkeleton } from '@/components/skeletons/CatalogSkeletons';
-import { EmptyState, Label } from '@/components/ui';
+import { BookListPage, type BookSummary } from '@/components/books';
 import { ROUTES } from '@/constants/routes';
 import { useLibrary } from '@/hooks/useAccount';
 import { useStrings } from '@/i18n';
 import { useCollectionBooks } from '@/hooks/useCatalog';
 import type { CatalogBook } from '@/services/catalog';
 import { isUrduTitle } from '@/services/script';
-import { layout } from '@/theme/palette';
-import { useTheme } from '@/theme/ThemeContext';
 
 function toSummary(book: CatalogBook, inLibrary: boolean): BookSummary {
   return {
@@ -37,19 +31,20 @@ function toSummary(book: CatalogBook, inLibrary: boolean): BookSummary {
 }
 
 /**
- * One curated collection.
+ * One collection, in full: a curated shelf, or Trending / New arrivals
+ * continued past the ten on Home.
  *
- * The books arrive in the order an editor arranged them and are drawn in that
- * order — nothing here sorts, filters or tops up the shelf. The heading comes
- * from the collection the endpoint sends back with the first page, so a deep
- * link that carries only a slug titles itself correctly and a title an editor
- * changes is right on the next load rather than at the next release.
+ * The books arrive in the order the backend serves them — an editor's
+ * arrangement, or its stand-in when the editor has arranged nothing — and
+ * are drawn in that order. Nothing here sorts, filters or tops up the list.
+ * The heading comes from the collection the endpoint sends back with the
+ * first page, so a deep link that carries only a slug titles itself and a
+ * title an editor changes is right on the next load.
  */
 export function CollectionScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'Collection'>>();
-  const { colors } = useTheme();
   const s = useStrings();
 
   const { collectionId, slug } = route.params ?? {};
@@ -76,8 +71,11 @@ export function CollectionScreen() {
   );
 
   const books = useMemo(
-    () => data?.pages.flatMap(page => page.data) ?? [],
-    [data],
+    () =>
+      (data?.pages.flatMap(page => page.data) ?? []).map(book =>
+        toSummary(book, libraryIds.has(book.id)),
+      ),
+    [data, libraryIds],
   );
   const collection = data?.pages[0]?.collection ?? null;
   const totalCount = data?.pages[0]?.totalCount ?? books.length;
@@ -105,93 +103,30 @@ export function CollectionScreen() {
     }
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
-  const renderItem = useCallback(
-    ({ item }: { item: CatalogBook }) => (
-      <BookListRow
-        book={toSummary(item, libraryIds.has(item.id))}
-        onPress={openBook}
-      />
-    ),
-    [libraryIds, openBook],
-  );
-
-  const header = (
-    <View style={styles.header}>
-      <ScreenHeader
-        title={collection?.title ?? s.catalog.collection.fallbackTitle}
-        subtitle={collection?.subtitle}
-        onBack={navigation.goBack}
-      />
-      {books.length > 0 ? (
-        <Label>
-          {`${s.common.bookCount(totalCount)}${
-            sourceNote ? ` · ${sourceNote}` : ''
-          }`}
-        </Label>
-      ) : null}
-      {isPending ? <ListSkeleton count={5} /> : null}
-    </View>
-  );
+  const refresh = useCallback(() => void refetch(), [refetch]);
 
   return (
-    <Screen scrollable={false} padding={0}>
-      <FlatList
-        data={books}
-        keyExtractor={item => item.id}
-        renderItem={renderItem}
-        ItemSeparatorComponent={ListGap}
-        ListHeaderComponent={header}
-        ListEmptyComponent={
-          isPending ? null : (
-            // An empty collection is a real answer from the backend, not a
-            // failure and not something to backfill with other books.
-            <EmptyState
-              art={null}
-              title={s.catalog.collection.emptyTitle}
-              message={s.catalog.collection.emptyMessage}
-            />
-          )
-        }
-        ListFooterComponent={
-          isFetchingNextPage ? (
-            <ActivityIndicator color={colors.primary} style={styles.spinner} />
-          ) : null
-        }
-        refreshing={isRefetching}
-        onRefresh={() => void refetch()}
-        onEndReachedThreshold={0.8}
-        onEndReached={loadMore}
-        showsVerticalScrollIndicator={false}
-        initialNumToRender={8}
-        windowSize={9}
-        style={styles.grow}
-        contentContainerStyle={styles.list}
-      />
-    </Screen>
+    <BookListPage
+      title={collection?.title ?? s.catalog.collection.fallbackTitle}
+      subtitle={collection?.subtitle}
+      note={`${s.common.bookCount(totalCount)}${
+        sourceNote ? ` · ${sourceNote}` : ''
+      }`}
+      books={books}
+      isPending={isPending}
+      // Loading the next page is not a refresh, and must not spin the pull.
+      isRefetching={isRefetching && !isFetchingNextPage}
+      isFetchingNextPage={isFetchingNextPage}
+      onRefresh={refresh}
+      onLoadMore={loadMore}
+      onBack={navigation.goBack}
+      onPressBook={openBook}
+      // The trending shelf is a ranking, and its tiles say so as the rail does.
+      ranked={collection?.slug === 'trending'}
+      empty={{
+        title: s.catalog.collection.emptyTitle,
+        message: s.catalog.collection.emptyMessage,
+      }}
+    />
   );
 }
-
-function ListGap() {
-  return <View style={styles.gap} />;
-}
-
-const styles = StyleSheet.create({
-  grow: {
-    flex: 1,
-  },
-  list: {
-    paddingHorizontal: layout.screenPadding,
-    paddingBottom: 12,
-  },
-  header: {
-    gap: 18,
-    paddingBottom: 14,
-  },
-  gap: {
-    height: 14,
-  },
-  spinner: {
-    alignSelf: 'center',
-    paddingTop: 18,
-  },
-});

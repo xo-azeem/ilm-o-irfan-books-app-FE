@@ -94,7 +94,8 @@ function bookBadges(book: AdminBookOption | undefined): RowBadge[] {
  *
  * The three system shelves — `home-hero`, `trending`, `new-arrivals` — are
  * Home's own rails. They can be retitled and hidden here, but not deleted or
- * re-slugged, and Trending has no book list at all: the server draws it.
+ * re-slugged. Each stands in for itself when left empty — Trending with the
+ * server's weekly draw, the other two with the newest published books.
  */
 export function AdminCollectionEditorScreen() {
   const navigation = useNavigation();
@@ -161,8 +162,6 @@ export function AdminCollectionEditorScreen() {
 
   const isSystem = existing?.is_system ?? false;
   const systemNote = isSystem ? systemShelfNote(existing?.slug ?? '') : null;
-  // Trending's membership is the server's weekly draw; anything picked here
-  // would be written and then ignored, so the list is not offered at all.
   const hasBookList = !isSystem || (systemNote?.curated ?? true);
 
   const resolvedSlug = form.slug.trim() || slugify(form.title);
@@ -219,7 +218,7 @@ export function AdminCollectionEditorScreen() {
     }
     if (form.bookIds.length === 0) {
       return systemNote
-        ? words.nothingCurated(systemNote.label)
+        ? words.nothingCurated(systemNote.label, systemNote.standIn)
         : words.emptyNotShown;
     }
     const count = s.adminLibrary.counts.books(form.bookIds.length);
@@ -392,7 +391,9 @@ export function AdminCollectionEditorScreen() {
             <AdminOrderableList
               items={orderedItems}
               emptyLabel={
-                systemNote ? words.nothingCuratedEmpty : words.noBooksEmpty
+                systemNote
+                  ? words.nothingCuratedEmpty(systemNote.standIn)
+                  : words.noBooksEmpty
               }
               onChange={next =>
                 setForm(current => ({

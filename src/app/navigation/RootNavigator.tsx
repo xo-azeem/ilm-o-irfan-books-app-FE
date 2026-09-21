@@ -31,6 +31,7 @@ import { ResetPasswordScreen } from '@/features/auth/screens/ResetPasswordScreen
 import { VerifyEmailScreen } from '@/features/auth/screens/VerifyEmailScreen';
 import { BookDetailScreen } from '@/features/book-detail/screens/BookDetailScreen';
 import { CollectionScreen } from '@/features/collection/screens/CollectionScreen';
+import { RecommendationsScreen } from '@/features/home/screens/RecommendationsScreen';
 import { HomeScreen } from '@/features/home/screens/HomeScreen';
 import { LibraryScreen } from '@/features/library/screens/LibraryScreen';
 import { OnboardingNavigator } from '@/features/onboarding/navigation/OnboardingNavigator';
@@ -173,6 +174,12 @@ function ConsumerNavigator() {
         component={CollectionScreen}
         options={{ animation: 'slide_from_right' }}
         getId={({ params }) => params.collectionId ?? params.slug}
+      />
+      <Stack.Screen
+        name={ROUTES.RECOMMENDATIONS}
+        component={RecommendationsScreen}
+        options={{ animation: 'slide_from_right' }}
+        getId={({ params }) => params?.sectionId ?? 'all'}
       />
       <Stack.Screen
         name={ROUTES.WISHLIST}

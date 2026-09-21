@@ -2,12 +2,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { LayoutGrid, SlidersHorizontal } from 'lucide-react-native';
+import { Shapes, SlidersHorizontal } from 'lucide-react-native';
 
 import type { RootStackParamList } from '@/app/navigation/types';
-import { BookListRow, type BookSummary } from '@/components/books';
+import {
+  BookListLayoutToggle,
+  useBookListLayout,
+  useBookListRendering,
+  type BookSummary,
+} from '@/components/books';
 import { Screen, ScreenHeader } from '@/components/layout';
-import { ListSkeleton } from '@/components/skeletons/CatalogSkeletons';
 import {
   Chip,
   ChipRow,
@@ -350,12 +354,9 @@ export function SearchScreen() {
     return summaries;
   }, [filtered, libraryIds]);
 
-  const renderItem = useCallback(
-    ({ item }: { item: BookSummary }) => (
-      <BookListRow book={item} onPress={openBook} />
-    ),
-    [openBook],
-  );
+  // Rows or tiles, as the reader last chose on any list in the app.
+  const { bookLayout } = useBookListLayout();
+  const rendering = useBookListRendering({ bookLayout, onPressBook: openBook });
 
   /**
    * Discover's rail is the home carousel — the admin's slides, or the backend's
@@ -371,9 +372,10 @@ export function SearchScreen() {
     [navigation],
   );
 
-  // The filter and subject controls sit at the top right of the screen, beside
-  // the title. While searching the title is gone — "Cancel" takes its place next
-  // to the field — so they drop into the chip row to stay within reach.
+  // The filter, category and layout controls sit at the top right of the
+  // screen, beside the title. While searching the title is gone — "Cancel"
+  // takes its place next to the field — so they drop into the chip row to
+  // stay within reach.
   const controls = (
     <View style={styles.controls}>
       <IconControl
@@ -383,11 +385,12 @@ export function SearchScreen() {
         onPress={filterSheet.open}
       />
       <IconControl
-        icon={LayoutGrid}
+        icon={Shapes}
         label={words.browseBySubject}
         active={subjectsOpen || filters.categoryId != null}
         onPress={toggleSubjects}
       />
+      <BookListLayoutToggle />
     </View>
   );
 
@@ -462,7 +465,7 @@ export function SearchScreen() {
         ) : null}
       </View>
 
-      {isPending && books.length === 0 ? <ListSkeleton count={4} /> : null}
+      {isPending && books.length === 0 ? rendering.skeleton : null}
     </View>
   );
 
@@ -497,10 +500,13 @@ export function SearchScreen() {
     <>
       <Screen scrollable={false} padding={0}>
         <FlatList
+          key={rendering.listKey}
           data={rows}
           keyExtractor={keyExtractor}
-          renderItem={renderItem}
-          ItemSeparatorComponent={ListGap}
+          renderItem={rendering.renderItem}
+          numColumns={rendering.columns}
+          columnWrapperStyle={rendering.columnWrapperStyle}
+          ItemSeparatorComponent={rendering.ItemSeparatorComponent}
           ListHeaderComponent={header}
           ListFooterComponent={footer}
           ListEmptyComponent={
@@ -529,7 +535,7 @@ export function SearchScreen() {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
-          initialNumToRender={8}
+          initialNumToRender={rendering.initialNumToRender}
           maxToRenderPerBatch={8}
           updateCellsBatchingPeriod={50}
           windowSize={9}
@@ -612,10 +618,6 @@ function FilterChip({
   );
 }
 
-function ListGap() {
-  return <View style={styles.gap} />;
-}
-
 const styles = StyleSheet.create({
   list: {
     paddingHorizontal: layout.screenPadding,
@@ -645,9 +647,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-  },
-  gap: {
-    height: 14,
   },
   footer: {
     gap: 20,

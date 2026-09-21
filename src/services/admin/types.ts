@@ -154,19 +154,26 @@ export type AdminCollection = {
 /**
  * What each system shelf is, for the editor to say so.
  *
- * `trending` in particular has no membership to edit — its books are drawn
- * weekly by the server — so the editor hides the book list for it.
+ * All three take a curated list now. Each has a stand-in the server serves
+ * when the list is empty — the newest published books, or for `trending`
+ * the weekly draw — which is what `standIn` names in the editor.
  */
 const SYSTEM_SHELF_CURATED: Record<
   'home-hero' | 'trending' | 'new-arrivals',
   boolean
 > = {
   'home-hero': true,
-  trending: false,
+  trending: true,
   'new-arrivals': true,
 };
 
-export type SystemShelfNote = { label: string; note: string; curated: boolean };
+export type SystemShelfNote = {
+  label: string;
+  note: string;
+  /** What readers see while the list is empty, for the editor's copy. */
+  standIn: string;
+  curated: boolean;
+};
 
 /** The words come from the dictionary, so the editor reads in the admin's language. */
 export function systemShelfNote(slug: string): SystemShelfNote | undefined {

@@ -10,6 +10,7 @@ import { useAuthStore } from '@/stores/authStore';
 export {
   ALL_RECOMMENDATIONS,
   HOME_RECOMMENDATIONS,
+  RAIL_RECOMMENDATIONS,
 } from '@/services/recommendations';
 
 /**

@@ -46,6 +46,14 @@ export type RootStackParamList = {
    * page, and the screen reads it from there.
    */
   Collection: { collectionId?: string; slug?: string };
+  /**
+   * One "Because you read …" rail continued, or — with no `sectionId` — the
+   * whole ranked list. The heading is carried from the rail so the page opens
+   * under the words the reader tapped; the backend's own words replace them
+   * once the fuller read lands.
+   */
+  Recommendations:
+    { sectionId?: string; title?: string; subtitle?: string } | undefined;
   Wishlist: undefined;
 };
 

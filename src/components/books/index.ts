@@ -8,4 +8,12 @@ export {
   RailAction,
   type BookSummary,
 } from './BookCards';
+export {
+  BookListLayoutToggle,
+  BookTile,
+  useBookListLayout,
+  useBookListRendering,
+  useTileGrid,
+} from './BookListLayout';
+export { BookListPage, type BookListPageProps } from './BookListPage';
 export { CollectionCard, CategoryTile } from './CollectionCard';

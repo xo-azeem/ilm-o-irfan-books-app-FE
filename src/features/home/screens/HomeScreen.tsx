@@ -342,6 +342,31 @@ export function HomeScreen() {
 
           <MoodPicker value={mood} onChange={setMood} gap={26} />
 
+          {/* New arrivals lead: the freshest books first, then what the reader
+              might like, then the week's draw. */}
+          {arrivals.length > 0 ? (
+            <BookRail
+              title={s.services.shelves.arrivals.title}
+              subtitle={s.services.shelves.arrivals.subtitle}
+              action={
+                <SeeAll
+                  link={data?.arrivalsLink ?? null}
+                  onPress={openCollection}
+                />
+              }
+            >
+              {/* The same card as Trending — same width, same author line —
+                  so the two rails read as one shelf, whatever the font scale. */}
+              {arrivals.slice(0, HOME_RAIL_LIMIT).map(book => (
+                <BookCard
+                  key={book.id}
+                  book={toSummary(book)}
+                  onPress={openBook}
+                />
+              ))}
+            </BookRail>
+          ) : null}
+
           {/* Both headings below are the backend's own words. "Because you read
               X" is composed there from the book the reader actually finished,
               and a reader with no history gets a neutral heading instead —
@@ -404,29 +429,6 @@ export function HomeScreen() {
                   key={book.id}
                   book={toSummary(book)}
                   rank={index + 1}
-                  onPress={openBook}
-                />
-              ))}
-            </BookRail>
-          ) : null}
-
-          {arrivals.length > 0 ? (
-            <BookRail
-              title={s.services.shelves.arrivals.title}
-              subtitle={s.services.shelves.arrivals.subtitle}
-              action={
-                <SeeAll
-                  link={data?.arrivalsLink ?? null}
-                  onPress={openCollection}
-                />
-              }
-            >
-              {/* The same card as Trending — same width, same author line —
-                  so the two rails read as one shelf, whatever the font scale. */}
-              {arrivals.slice(0, HOME_RAIL_LIMIT).map(book => (
-                <BookCard
-                  key={book.id}
-                  book={toSummary(book)}
                   onPress={openBook}
                 />
               ))}

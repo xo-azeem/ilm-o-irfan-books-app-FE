@@ -11,6 +11,11 @@ export const SCALE_STEP = 0.25;
  * page instead — but only the page's own margins may go, never a line of type,
  * which is what this ceiling is for: 1.18 puts roughly 8% of the width past
  * each edge, inside the margin of every book we carry.
+ *
+ * This is only where a book starts. Its own margin is measured from the page
+ * once it is on screen (`pageInk.ts`), and the fill follows that — wider for
+ * a book set with generous margins, never past its type — per book, and
+ * remembered.
  */
 export const PAGE_FILL_LIMIT = 1.18;
 

@@ -2,6 +2,7 @@ package com.ilmoirfanapp
 import expo.modules.ReactActivityDelegateWrapper
 
 import android.os.Bundle
+import android.view.WindowManager
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
@@ -19,6 +20,13 @@ class MainActivity : ReactActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     setTheme(R.style.AppTheme)
     super.onCreate(savedInstanceState)
+    // The books are the product: no screenshots, no screen recording, and a
+    // blank card in the recents switcher. Set here rather than only from JS
+    // (expo-screen-capture does the same) so it holds from the first frame.
+    window.setFlags(
+      WindowManager.LayoutParams.FLAG_SECURE,
+      WindowManager.LayoutParams.FLAG_SECURE,
+    )
   }
 
   /**

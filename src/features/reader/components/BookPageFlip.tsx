@@ -36,6 +36,8 @@ import { useThemeStore } from '@/stores/themeStore';
 import { useReaderSurface } from '@/features/reader/useReaderSurface';
 import { usePageCapture } from '@/features/reader/usePageCapture';
 import { usePageTurn, type TurnDirection } from '@/features/reader/usePageTurn';
+import { usePageTurnSound } from '@/features/reader/usePageTurnSound';
+import { usePageFit } from '@/features/reader/usePageFit';
 import { usePaperFlip } from '@/features/reader/usePaperFlip';
 
 export type BookPageFlipHandle = {
@@ -111,7 +113,7 @@ type Box = { width: number; height: number };
  * limit — while that buys height. Anything past the frame's edge is the page's
  * margin, and the stage clips it.
  */
-function pageBox(frame: Box, aspect: number): Box | null {
+function pageBox(frame: Box, aspect: number, fillLimit: number): Box | null {
   if (
     frame.width <= 0 ||
     frame.height <= 0 ||
@@ -123,7 +125,7 @@ function pageBox(frame: Box, aspect: number): Box | null {
 
   // What it would take to fill the height outright, and what we will allow.
   const toFill = (frame.height * aspect) / frame.width;
-  const fill = Math.min(Math.max(toFill, 1), PAGE_FILL_LIMIT);
+  const fill = Math.min(Math.max(toFill, 1), fillLimit);
   const width = frame.width * fill;
   const height = Math.min(frame.height, width / aspect);
 
@@ -427,6 +429,7 @@ export const BookPageFlip = memo(
     const zoomed = zoom > MIN_SCALE + ZOOM_EPS;
     const zoomRef = useRef(zoom);
     zoomRef.current = zoom;
+    const playPageTurn = usePageTurnSound();
     const paged = readingMode !== 'scroll';
     /**
      * The swipe mode of a right-bound book: the document view's own pager
@@ -465,6 +468,14 @@ export const BookPageFlip = memo(
 
     /** What a picture of the page is taken of: the document view and its tone. */
     const shotRef = useRef<View>(null);
+
+    // How far past the screen this book's page may be drawn: its own blank
+    // margin, measured from the page — see `pageInk.ts` / `usePageFit`.
+    const { fillLimit, measureNow, measureLater } = usePageFit(
+      shapeKey,
+      PAGE_FILL_LIMIT,
+      shotRef,
+    );
 
     /**
      * A picture has arrived. If it is of the page in hand of a fold already in
@@ -566,6 +577,7 @@ export const BookPageFlip = memo(
       renderDeadlineRef.current = null;
       handlers.current.onRender?.();
     }, []);
+
     const expectRender = useCallback(() => {
       if (renderDeadlineRef.current != null) {
         clearTimeout(renderDeadlineRef.current);
@@ -575,6 +587,28 @@ export const BookPageFlip = memo(
         RENDER_DEADLINE_MS,
       );
     }, [announceRender]);
+
+    /**
+     * The page is on screen. Before the loader lifts, its margins are read
+     * and the fill may grow to them — which changes the box, remounts the
+     * document view at the new width, and brings a second render, announced
+     * then. Only a first open of a book takes that road; later opens start
+     * at the width learnt here.
+     */
+    const fillRef = useRef(fillLimit);
+    fillRef.current = fillLimit;
+    const handleRendered = useCallback(() => {
+      const before = fillRef.current;
+      void measureNow(true).finally(() => {
+        if (Math.abs(fillRef.current - before) < 1e-6) {
+          announceRender();
+        } else {
+          // Growing: the view is about to be mounted again at the new width,
+          // and that load gets its own deadline.
+          expectRender();
+        }
+      });
+    }, [announceRender, expectRender, measureNow]);
     useEffect(
       () => () => {
         if (renderDeadlineRef.current != null) {
@@ -970,6 +1004,8 @@ export const BookPageFlip = memo(
           closeFold(pageRef.current);
           return;
         }
+        // The leaf has come over: the one moment that sounds like a page.
+        if (commit) playPageTurn();
         turn.landed = true;
         if (coverTimerRef.current) {
           clearTimeout(coverTimerRef.current);
@@ -991,7 +1027,7 @@ export const BookPageFlip = memo(
           PAGE_FLIP.graceMs,
         );
       },
-      [applyPage, closeFold],
+      [applyPage, closeFold, playPageTurn],
     );
 
     const paperFlip = usePaperFlip({
@@ -1307,10 +1343,11 @@ export const BookPageFlip = memo(
         // The new page is here. A swipe still drawn back from a flick grows it
         // in from this, rather than guessing at when the pager would land.
         settleTurn();
+        measureLater();
 
         handlers.current.onPageChanged(landed, total);
       },
-      [closeFold, setBounds, settleTurn],
+      [closeFold, measureLater, setBounds, settleTurn],
     );
 
     const handleLoadProgress = useCallback((percent: number) => {
@@ -1334,7 +1371,7 @@ export const BookPageFlip = memo(
 
     // Scrolling runs the book as one column, which fills the screen by itself;
     // a page turned on its own gets drawn to the shape of the page.
-    const box = paged ? pageBox(frame, aspect) : null;
+    const box = paged ? pageBox(frame, aspect, fillLimit) : null;
     // Memoised on the numbers rather than on `box`, which is a fresh object
     // every render: the page's style reaches an animated view, and handing it a
     // new object per render is how a transform gets rebuilt mid-fold.
@@ -1357,8 +1394,7 @@ export const BookPageFlip = memo(
      * For that the view is mounted again, once, at the width it should have
      * been, on the page the reader is looking at.
      */
-    const probeWidth =
-      paged && frame.width > 0 ? frame.width * PAGE_FILL_LIMIT : 0;
+    const probeWidth = paged && frame.width > 0 ? frame.width * fillLimit : 0;
     const mountWidth = boxWidth > 0 ? boxWidth : probeWidth;
     const pageSize = useMemo(
       () =>
@@ -1547,7 +1583,7 @@ export const BookPageFlip = memo(
                           showsHorizontalScrollIndicator={false}
                           trustAllCerts
                           onLoadComplete={handleLoadComplete}
-                          onRender={announceRender}
+                          onRender={handleRendered}
                           onLoadProgress={handleLoadProgress}
                           onPageChanged={handlePageChanged}
                           onPageSingleTap={handleSingleTap}

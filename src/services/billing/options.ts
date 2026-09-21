@@ -94,6 +94,17 @@ function productColumnsFor(store: BillingStore): PlanProductColumn[] {
  * Apple Pay and Google Pay are payment methods inside the App Store / Play
  * sheets — not separate product ids.
  */
+/** A store product id, then the same without its `:basePlan` / `:offer` suffixes. */
+export function productIdCandidates(productId: string): string[] {
+  const out = [productId];
+  let cut = productId.lastIndexOf(':');
+  while (cut > 0) {
+    out.push(productId.slice(0, cut));
+    cut = productId.lastIndexOf(':', cut - 1);
+  }
+  return out;
+}
+
 export function planForPackage<P extends PackageLike, T extends PlanLike>(
   item: P,
   plans: T[] | undefined,
@@ -104,10 +115,15 @@ export function planForPackage<P extends PackageLike, T extends PlanLike>(
   // would equal the `undefined` a plan carries for a column it does not set,
   // handing the reader the first plan in the list.
   if (item.productId) {
-    for (const column of productColumnsFor(store)) {
-      const match = plans?.find(plan => plan[column] === item.productId);
-      if (match) {
-        return match;
+    // Google Play reports a subscription as `subscriptionId:basePlanId`, so
+    // `premium_monthly:monthly` is the plan an admin entered as
+    // `premium_monthly`. The full id is tried first, then each shorter form.
+    for (const productId of productIdCandidates(item.productId)) {
+      for (const column of productColumnsFor(store)) {
+        const match = plans?.find(plan => plan[column] === productId);
+        if (match) {
+          return match;
+        }
       }
     }
   }

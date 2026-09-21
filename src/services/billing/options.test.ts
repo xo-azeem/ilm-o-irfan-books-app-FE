@@ -6,6 +6,7 @@ import {
   cheapestRow,
   defaultFeatures,
   planForPackage,
+  productIdCandidates,
   type PackageLike,
   type PlanLike,
 } from './options';
@@ -289,5 +290,31 @@ describe('the default pitch bullets', () => {
 
   it('is empty rather than undefined with no plans', () => {
     assert.deepEqual(defaultFeatures(undefined, DEFAULT_CODE), []);
+  });
+});
+
+describe('productIdCandidates', () => {
+  it('tries the Play base-plan and offer forms after the full id', () => {
+    assert.deepEqual(productIdCandidates('premium_monthly:monthly:intro'), [
+      'premium_monthly:monthly:intro',
+      'premium_monthly:monthly',
+      'premium_monthly',
+    ]);
+    assert.deepEqual(productIdCandidates('premium_monthly'), [
+      'premium_monthly',
+    ]);
+  });
+
+  it('matches a Play subscription to the plan entered without a base plan', () => {
+    const plans = [
+      { code: 'premium_monthly', play_store_product_id: 'premium_monthly' },
+    ];
+    const plan = planForPackage(
+      { productId: 'premium_monthly:monthly' },
+      plans,
+      'other',
+      'play_store',
+    );
+    assert.equal(plan?.code, 'premium_monthly');
   });
 });

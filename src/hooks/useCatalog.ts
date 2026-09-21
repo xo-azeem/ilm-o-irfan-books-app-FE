@@ -14,6 +14,7 @@ import {
   getCarousel,
   getCategories,
   getCollectionBooks,
+  getCollections,
   getHomeCatalog,
   getWeeklyTrending,
   HOME_RAIL_LIMIT,
@@ -99,6 +100,20 @@ export function useCategories() {
   return useQuery({
     queryKey: ['catalog', 'categories'],
     queryFn: ({ signal }) => getCategories(signal),
+    staleTime: 10 * 60_000,
+  });
+}
+
+/**
+ * Every collection a reader can open, for the browse drawer. Reference
+ * data like the categories: read once, kept for ten minutes, and refreshed
+ * behind whatever is on screen.
+ */
+export function useCollections(options: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: ['catalog', 'collections'],
+    queryFn: ({ signal }) => getCollections(signal),
+    enabled: options.enabled ?? true,
     staleTime: 10 * 60_000,
   });
 }

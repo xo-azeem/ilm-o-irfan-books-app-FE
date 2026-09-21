@@ -74,10 +74,15 @@ export const catalog = {
     remove: 'Remove',
     removeFromSaved: (title: string) => `Remove ${title} from saved`,
   },
-  /** The list/tiles switch every long list of books carries. */
-  list: {
-    showTiles: 'Show as tiles',
-    showList: 'Show as list',
+  /** The drawer that lists every category and collection. */
+  browse: {
+    title: 'Browse',
+    searchPlaceholder: 'Search categories and collections',
+    categories: 'Categories',
+    collections: 'Collections',
+    nothingMatched: 'Nothing matched that.',
+    empty: 'Nothing to browse yet.',
+    couldNotLoad: 'Could not load the list.',
   },
   recommendations: {
     fallbackTitle: 'Recommended for you',

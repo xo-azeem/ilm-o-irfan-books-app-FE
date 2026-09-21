@@ -10,7 +10,7 @@ import type {
 
 /**
  * Discover's filter state — the single source of truth behind the filter
- * sheet, the subject panel and the chip row under the search field. All three
+ * sheet, the browse drawer and the chip row under the search field. All three
  * read this object and write it through the same actions, so a subject picked
  * on the panel is the same filter the sheet shows selected and the same chip
  * the reader can dismiss.

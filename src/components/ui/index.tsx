@@ -113,6 +113,7 @@ export {
 export { ViewToggle, type ViewMode } from './ViewToggle';
 
 export { Sheet, SheetSection, useSheet, type SheetProps } from './Sheet';
+export { Drawer, type DrawerProps } from './Drawer';
 
 export {
   DialogLayer,

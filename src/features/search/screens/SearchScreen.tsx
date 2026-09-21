@@ -31,7 +31,7 @@ import {
   SearchSuggestions,
   type Suggestion,
 } from '@/features/search/components/SearchSuggestions';
-import { SubjectPanel } from '@/features/search/components/SubjectPanel';
+import { BrowseDrawer } from '@/features/search/components/BrowseDrawer';
 import {
   tokenKey,
   tokenLabel,
@@ -44,9 +44,15 @@ import { useStrings } from '@/i18n';
 import {
   useCatalogFeed,
   useCategories,
+  useCollections,
   useHomeCatalog,
 } from '@/hooks/useCatalog';
-import type { CatalogBook, CatalogSlide } from '@/services/catalog';
+import type {
+  CatalogBook,
+  CatalogCategory,
+  CatalogCollection,
+  CatalogSlide,
+} from '@/services/catalog';
 import { isUrduTitle } from '@/services/script';
 import { layout } from '@/theme/palette';
 import { useTheme } from '@/theme/ThemeContext';
@@ -96,8 +102,10 @@ type SuggestionIndexEntry = {
 /** The space between the header's rows. */
 const HEADER_GAP = 20;
 
-/** A stable empty list, so the rail's hooks do not see a new array every render. */
+/** Stable empty lists, so the hooks below do not see a new array every render. */
 const EMPTY_CAROUSEL: CatalogSlide[] = [];
+const EMPTY_CATEGORIES: CatalogCategory[] = [];
+const EMPTY_COLLECTIONS: CatalogCollection[] = [];
 
 /**
  * How many rows the downloaded filter has to leave on screen before the list
@@ -115,7 +123,7 @@ const MIN_FILTERED_ROWS = 8;
  * Discover.
  *
  * One list, paged from the backend, with the whole catalogue underneath it: the
- * search field narrows it, the subject panel and the filter sheet narrow it
+ * search field narrows it, the browse drawer and the filter sheet narrow it
  * further, and clearing everything leaves the complete catalogue to scroll.
  *
  * Every filter and the ordering are the database's — applied before the page is
@@ -139,10 +147,15 @@ export function SearchScreen() {
   const [query, setQuery] = useState('');
   const [term, setTerm] = useState('');
   const [focused, setFocused] = useState(false);
-  const [subjectsOpen, setSubjectsOpen] = useState(false);
   const filterSheet = useSheet();
+  const browseDrawer = useSheet();
 
-  const { data: categories = [] } = useCategories();
+  const categoriesQuery = useCategories();
+  const categories = categoriesQuery.data ?? EMPTY_CATEGORIES;
+  // Read alongside the categories, so the drawer opens full the first time
+  // rather than after a round trip of its own.
+  const collectionsQuery = useCollections();
+  const collections = collectionsQuery.data ?? EMPTY_COLLECTIONS;
   const { data: home } = useHomeCatalog();
   const { data: library } = useLibrary();
   const { recents, remember, clear } = useRecentSearches();
@@ -316,15 +329,11 @@ export function SearchScreen() {
     }
   }, [remember]);
 
-  const toggleSubjects = useCallback(() => setSubjectsOpen(open => !open), []);
-
-  /** Picking a subject closes the panel, so the results are what it reveals. */
-  const handleSubject = useCallback(
-    (id: string | null) => {
-      setCategory(id);
-      setSubjectsOpen(false);
-    },
-    [setCategory],
+  // A collection is a page of its own, not a filter on this list.
+  const openCollection = useCallback(
+    (collectionId: string) =>
+      navigation.navigate(ROUTES.COLLECTION, { collectionId }),
+    [navigation],
   );
 
   const subjectName = useCallback(
@@ -387,8 +396,8 @@ export function SearchScreen() {
       <IconControl
         icon={Shapes}
         label={words.browseBySubject}
-        active={subjectsOpen || filters.categoryId != null}
-        onPress={toggleSubjects}
+        active={filters.categoryId != null}
+        onPress={browseDrawer.open}
       />
       <BookListLayoutToggle />
     </View>
@@ -437,14 +446,6 @@ export function SearchScreen() {
           ) : null}
         </ChipRow>
       ) : null}
-
-      <SubjectPanel
-        open={subjectsOpen}
-        columnGap={HEADER_GAP}
-        categories={categories}
-        selectedId={filters.categoryId}
-        onSelect={handleSubject}
-      />
 
       {searching ? (
         <SearchSuggestions
@@ -543,6 +544,18 @@ export function SearchScreen() {
           contentContainerStyle={styles.list}
         />
       </Screen>
+
+      <BrowseDrawer
+        visible={browseDrawer.visible}
+        onClose={browseDrawer.close}
+        categories={categories}
+        collections={collections}
+        isPending={categoriesQuery.isPending || collectionsQuery.isPending}
+        isError={categoriesQuery.isError || collectionsQuery.isError}
+        selectedCategoryId={filters.categoryId}
+        onSelectCategory={setCategory}
+        onOpenCollection={openCollection}
+      />
 
       <FilterSheet
         visible={filterSheet.visible}

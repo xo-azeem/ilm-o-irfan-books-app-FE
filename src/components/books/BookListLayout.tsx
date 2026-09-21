@@ -1,6 +1,5 @@
 import { memo, useCallback, useMemo } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
-import { LayoutGrid, LayoutList } from 'lucide-react-native';
 
 import {
   BookCard,
@@ -11,8 +10,7 @@ import {
   CatalogGridSkeleton,
   ListSkeleton,
 } from '@/components/skeletons/CatalogSkeletons';
-import { IconButton } from '@/components/ui';
-import { useStrings } from '@/i18n';
+import { ViewToggle, type ViewMode } from '@/components/ui';
 import { useBookListStore, type BookListLayout } from '@/stores/bookListStore';
 import {
   TILE_GAP,
@@ -34,36 +32,28 @@ export function useTileGrid(): TileGrid {
   return useMemo(() => tileGridFor(width), [width]);
 }
 
-/** The reader's current choice, and the switch. */
+/** The reader's current choice, and the setter. */
 export function useBookListLayout(): {
   bookLayout: BookListLayout;
-  toggleLayout: () => void;
+  setLayout: (layout: BookListLayout) => void;
 } {
   const bookLayout = useBookListStore(state => state.layout);
-  const toggleLayout = useBookListStore(state => state.toggleLayout);
-  return { bookLayout, toggleLayout };
+  const setLayout = useBookListStore(state => state.setLayout);
+  return { bookLayout, setLayout };
 }
 
 /**
- * The switch itself: one button that shows the layout a tap will give — a
- * grid while the list is a list, rows while it is tiles.
+ * The switch itself: the Library's grid/list control, so the same button
+ * means the same thing on every shelf in the app.
  */
 export const BookListLayoutToggle = memo(function BookListLayoutToggle() {
-  const s = useStrings();
-  const { bookLayout, toggleLayout } = useBookListLayout();
-  const toTiles = bookLayout === 'list';
-  return (
-    <IconButton
-      icon={toTiles ? LayoutGrid : LayoutList}
-      buttonSize={36}
-      size={15}
-      variant="secondary"
-      onPress={toggleLayout}
-      accessibilityLabel={
-        toTiles ? s.catalog.list.showTiles : s.catalog.list.showList
-      }
-    />
+  const { bookLayout, setLayout } = useBookListLayout();
+  const value: ViewMode = bookLayout === 'tiles' ? 'grid' : 'list';
+  const handleChange = useCallback(
+    (next: ViewMode) => setLayout(next === 'grid' ? 'tiles' : 'list'),
+    [setLayout],
   );
+  return <ViewToggle value={value} onChange={handleChange} />;
 });
 
 /** A tile in the grid: the cover with its title and author beneath. */

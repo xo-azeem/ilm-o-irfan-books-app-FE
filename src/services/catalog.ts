@@ -15,7 +15,6 @@ import {
   isEndpointMissing,
   request,
   requestData,
-  requestList,
   requestPage,
   withEndpoint,
   type Page,
@@ -1032,16 +1031,44 @@ export async function getCollectionBooks({
   }
 }
 
+/**
+ * Every page of a reference list, in one array.
+ *
+ * Categories and collections are the admin's to add without limit, and the
+ * browse drawer lists all of them — so the read follows `hasNextPage` to
+ * the end rather than stopping at the first page and silently dropping
+ * whatever an admin added past it. The pages are the endpoint's largest.
+ */
+const REFERENCE_PAGE_SIZE = 100;
+/** More than this many pages is a fault, not a catalogue; stop rather than spin. */
+const REFERENCE_MAX_PAGES = 50;
+
+async function requestAll<T>(name: string, signal?: AbortSignal): Promise<T[]> {
+  const rows: T[] = [];
+  for (let page = 1; page <= REFERENCE_MAX_PAGES; page++) {
+    const result = await requestPage<T>(name, {
+      page,
+      pageSize: REFERENCE_PAGE_SIZE,
+      signal,
+    });
+    rows.push(...result.data);
+    if (!result.hasNextPage || result.data.length === 0) {
+      break;
+    }
+  }
+  return rows;
+}
+
 export async function getCategories(
   signal?: AbortSignal,
 ): Promise<CatalogCategory[]> {
   return withEndpoint(
     ENDPOINTS.categoriesList,
     async () => {
-      const rows = await requestList<CategoryRow>(ENDPOINTS.categoriesList, {
-        pageSize: 100,
+      const rows = await requestAll<CategoryRow>(
+        ENDPOINTS.categoriesList,
         signal,
-      });
+      );
       return rows.map(toCategory);
     },
     async () => {
@@ -1052,6 +1079,37 @@ export async function getCategories(
         .order('label');
 
       return unwrap(result).map(row => toCategory(row as CategoryRow));
+    },
+  );
+}
+
+/**
+ * Every admin-made collection a reader can open, in the admin's order.
+ *
+ * The same rule as Home's strip: the system shelves are rails of their own
+ * and an empty collection is not shown. `home-feed` carries only the first
+ * twenty for the strip; this is the whole list, for browsing.
+ */
+export async function getCollections(
+  signal?: AbortSignal,
+): Promise<CatalogCollection[]> {
+  return withEndpoint(
+    ENDPOINTS.collectionsList,
+    async () => {
+      const rows = await requestAll<CollectionRow>(
+        ENDPOINTS.collectionsList,
+        signal,
+      );
+      return stripCollections(rows);
+    },
+    async () => {
+      const result = await supabase
+        .from('collection_summaries')
+        .select('id,slug,title,subtitle,accent,kind,book_count,sort_order')
+        .order('sort_order')
+        .order('id');
+
+      return stripCollections(unwrap(result) as CollectionRow[]);
     },
   );
 }

@@ -21,16 +21,13 @@ export const DEFAULT_BOOK_LIST_LAYOUT: BookListLayout = 'list';
 type BookListState = {
   layout: BookListLayout;
   setLayout: (layout: BookListLayout) => void;
-  toggleLayout: () => void;
 };
 
 export const useBookListStore = create<BookListState>()(
   persist(
-    (set, get) => ({
+    set => ({
       layout: DEFAULT_BOOK_LIST_LAYOUT,
       setLayout: layout => set({ layout }),
-      toggleLayout: () =>
-        set({ layout: get().layout === 'list' ? 'tiles' : 'list' }),
     }),
     {
       name: 'ilm-book-list-layout',

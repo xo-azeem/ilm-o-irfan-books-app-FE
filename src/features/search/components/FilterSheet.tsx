@@ -48,7 +48,7 @@ export type FilterSheetProps = {
  * grab handle, labelled groups, and a green action at the foot that states how
  * many books the current selection leaves.
  *
- * Subject sits at the top, and it is the same `categoryId` the subject panel
+ * Subject sits at the top, and it is the same `categoryId` the browse drawer
  * writes — the sheet is a second way to reach one filter, not a second filter.
  *
  * Every control here narrows or orders the query itself, so the count on the

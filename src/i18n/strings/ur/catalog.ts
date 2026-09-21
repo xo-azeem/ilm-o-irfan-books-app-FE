@@ -79,9 +79,14 @@ export const catalog: typeof en = {
     remove: 'ہٹائیں',
     removeFromSaved: title => `${title} کو محفوظ فہرست سے ہٹائیں`,
   },
-  list: {
-    showTiles: 'ٹائلوں میں دکھائیں',
-    showList: 'فہرست میں دکھائیں',
+  browse: {
+    title: 'براؤز کریں',
+    searchPlaceholder: 'زمرے اور مجموعے تلاش کریں',
+    categories: 'زمرے',
+    collections: 'مجموعے',
+    nothingMatched: 'اس سے کچھ نہیں ملا۔',
+    empty: 'ابھی براؤز کرنے کو کچھ نہیں۔',
+    couldNotLoad: 'فہرست لوڈ نہیں ہو سکی۔',
   },
   recommendations: {
     fallbackTitle: 'آپ کے لیے تجویز کردہ',

@@ -14,7 +14,6 @@ import {
   showDialog,
   StatTile,
   Text,
-  TextButton,
 } from '@/components/ui';
 import {
   CalendarClock,
@@ -552,11 +551,12 @@ export function SubscriptionScreen() {
                 size="sm"
                 onPress={openStore}
               />
-              <TextButton
+              <Button
                 label={
                   withdraw.isPending ? words.keeping : words.keepMyMembership
                 }
-                tone="muted"
+                variant="ghost"
+                size="sm"
                 disabled={withdraw.isPending}
                 onPress={handleKeep}
               />
@@ -591,40 +591,46 @@ export function SubscriptionScreen() {
               onPress={() => handleSubscribe(option)}
             />
           ))}
-        <View style={styles.footerLinks}>
-          <TextButton
-            label={words.paymentMethod}
-            tone="muted"
-            onPress={() =>
-              showDialog({
-                title: words.paymentMethod,
-                message: words.paymentMethodMessage,
-                tone: 'info',
-                icon: CreditCard,
-              })
+        {/* One control, one component: every action on this screen is the
+            same button, so nothing here reads as a link the reader might
+            miss — least of all the one that ends the membership. */}
+        <Button
+          label={words.paymentMethod}
+          variant="secondary"
+          size="md"
+          icon={CreditCard}
+          onPress={() =>
+            showDialog({
+              title: words.paymentMethod,
+              message: words.paymentMethodMessage,
+              tone: 'info',
+              icon: CreditCard,
+            })
+          }
+        />
+        <Button
+          label={isRestoring ? words.restoring : words.restorePurchases}
+          variant="secondary"
+          size="md"
+          disabled={isRestoring}
+          onPress={handleRestore}
+        />
+        {/* Nothing to cancel for an admin without a subscription, a lapsed
+            reader, or one whose request is pending — and a comp gets the
+            support dialog rather than a store sheet with nothing in it. The
+            tap itself only asks; `handleCancel` puts the question first. */}
+        {availability === 'cancellable' ||
+        availability === 'not_store_managed' ? (
+          <Button
+            label={
+              cancel.isPending ? words.openingStore : words.cancelMembership
             }
+            variant="danger"
+            size="md"
+            disabled={cancel.isPending}
+            onPress={handleCancel}
           />
-          <TextButton
-            label={isRestoring ? words.restoring : words.restorePurchases}
-            tone="muted"
-            disabled={isRestoring}
-            onPress={handleRestore}
-          />
-          {/* Nothing to cancel for an admin without a subscription, a lapsed
-              reader, or one whose request is pending — and a comp gets the
-              support dialog rather than a store sheet with nothing in it. */}
-          {availability === 'cancellable' ||
-          availability === 'not_store_managed' ? (
-            <TextButton
-              label={
-                cancel.isPending ? words.openingStore : words.cancelMembership
-              }
-              tone="danger"
-              disabled={cancel.isPending}
-              onPress={handleCancel}
-            />
-          ) : null}
-        </View>
+        ) : null}
       </View>
     </ProfileSubScreenLayout>
   );
@@ -684,10 +690,6 @@ const styles = StyleSheet.create({
   footer: {
     gap: 14,
     paddingTop: 4,
-  },
-  footerLinks: {
-    alignItems: 'center',
-    gap: 12,
   },
   calloutActions: {
     alignItems: 'flex-start',

@@ -110,17 +110,20 @@ export const PAGE_FLIP = {
   followTouch: 0.42,
   followFrame: 0.3,
   /**
-   * A fold let go of past this much of the way turns the page regardless.
+   * A fold let go of past this much of a *sweep* turns the page regardless.
    *
-   * The corner has come a third of its way to the far edge — a good handful
-   * of page in the hand, and well short of the spine. Any less and the leaf
-   * drops back where it came from, and stays there.
+   * Measured against the width of the glass, not of the page: the page is
+   * drawn wider than the screen so its margins fall off the edges, and a
+   * fraction of that is more than a thumb can travel — see `sweepProgress`.
+   * About a quarter of the screen, then: a good handful of page in the hand,
+   * and well short of the spine. Any less and the leaf drops back where it
+   * came from, and stays there.
    */
-  commitRatio: 0.3,
+  commitRatio: 0.24,
   /** ...and so does a flick this fast (pt/ms), however short it was. */
-  flickVelocity: 0.46,
+  flickVelocity: 0.4,
   /** The least fold a flick has to have started before it counts as one. */
-  flickMin: 0.06,
+  flickMin: 0.05,
   /**
    * How recently (ms) the finger has to have been moving, when it lifts, for
    * its speed to count as a flick. A finger that swept the page and then

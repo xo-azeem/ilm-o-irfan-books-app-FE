@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { foldFrame, half, type Pt } from './paperFold';
+import { foldFrame, half, sweepProgress, type Pt } from './paperFold';
 
 /**
  * The fold, as the design has it.
@@ -354,5 +354,50 @@ describe('paper fold as views', () => {
       assert.ok(Math.abs(along(apply(band, { x: 0, y: 0 })) - -26) < 1e-6);
       assert.ok(Math.abs(along(apply(band, { x: 40, y: SIZE })) - 14) < 1e-6);
     }
+  });
+});
+
+describe('sweepProgress', () => {
+  /** Where the corner is after the finger has travelled `travel` points. */
+  const cornerAfter = (pageWidth: number, travel: number, amplify = 2) =>
+    pageWidth - amplify * travel;
+
+  it('costs the same sweep however far the page runs past the screen', () => {
+    // The reader drags a quarter of the glass. The page may be drawn at the
+    // frame's width or half again as wide — the turn must feel identical.
+    const screen = 393;
+    const travel = screen * 0.25;
+    const tight = sweepProgress(cornerAfter(393, travel), 1, 393, screen);
+    const filled = sweepProgress(cornerAfter(570, travel), 1, 570, screen);
+    assert.ok(Math.abs(tight - filled) < 1e-9, `${tight} vs ${filled}`);
+  });
+
+  it('reads the sweep as the fraction of the screen the finger crossed', () => {
+    const screen = 400;
+    // Amplified 2×, a 50pt travel puts the corner 100pt in on a 600pt page.
+    const swept = sweepProgress(cornerAfter(600, 50), 1, 600, screen);
+    assert.ok(Math.abs(swept - 50 / screen) < 1e-9, String(swept));
+  });
+
+  it('is the same coming back as going forward', () => {
+    const screen = 393;
+    const page = 570;
+    const travel = 80;
+    const forward = sweepProgress(page - 2 * travel, 1, page, screen);
+    const back = sweepProgress(-page + 2 * travel, -1, page, screen);
+    assert.ok(Math.abs(forward - back) < 1e-9, `${forward} vs ${back}`);
+  });
+
+  it('measures against the page when the page is the narrower of the two', () => {
+    // A landscape page on a tablet is fitted whole, narrower than the glass;
+    // the fold cannot be dragged off paper that is not there.
+    const swept = sweepProgress(300 - 2 * 75, 1, 300, 1000);
+    assert.ok(Math.abs(swept - 75 / 300) < 1e-9, String(swept));
+  });
+
+  it('never leaves 0..1, and answers an unmeasured stage with nothing', () => {
+    assert.equal(sweepProgress(0, 1, 0, 393), 0);
+    assert.equal(sweepProgress(-9999, 1, 570, 393), 1);
+    assert.equal(sweepProgress(9999, 1, 570, 393), 0);
   });
 });

@@ -14,7 +14,7 @@ import {
 } from 'react-native-reanimated';
 
 import { MIN_SCALE, PAGE_FLIP } from '@/features/reader/constants';
-import { progressOf, tether } from '@/features/reader/paperFold';
+import { sweepProgress, tether } from '@/features/reader/paperFold';
 import type { TurnDirection } from '@/features/reader/usePageTurn';
 
 /** Past this the reader is looking at part of a page, and a drag pans it. */
@@ -321,6 +321,12 @@ export function usePaperFlip({
     [cy, dir, ended, fx, fy, restX, turnedX, tx, ty],
   );
 
+  /** How far the fold has come, against the sweep a hand can make. */
+  const swept = useCallback(() => {
+    'worklet';
+    return sweepProgress(tx.value, dir.value, w.value, areaW.value);
+  }, [areaW, dir, tx, w]);
+
   const release = useCallback(() => {
     'worklet';
     if (edge.value !== 0) edge.value = withTiming(0, EDGE);
@@ -329,7 +335,7 @@ export function usePaperFlip({
 
     // Measured off the point the corner is chasing rather than the eased one:
     // the reader's hand has already said where the page is going.
-    const covered = progressOf(tx.value, dir.value, w.value);
+    const covered = swept();
     // The speed is the last move's, and a finger that has stopped sends no
     // moves: only a finger still moving as it lifts was flicking.
     const moving = Date.now() - lastAt.value <= PAGE_FLIP.flickWindowMs;
@@ -343,7 +349,7 @@ export function usePaperFlip({
     const commit = covered >= PAGE_FLIP.commitRatio || (flicked && agrees);
 
     land(commit, commit ? TURN : SETTLE);
-  }, [dir, dragging, edge, land, lastAt, tx, velocity, w]);
+  }, [dir, dragging, edge, land, lastAt, swept, velocity]);
 
   const gesture = useMemo(
     () =>

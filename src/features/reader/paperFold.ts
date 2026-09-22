@@ -91,6 +91,33 @@ export function progressOf(x: number, dir: number, w: number): number {
   return Math.min(1, Math.max(0, t));
 }
 
+/**
+ * The same fold, as a fraction of the sweep a hand can actually make.
+ *
+ * `progressOf` measures the corner against the page, and the page is drawn
+ * wider than the screen — its margins run off both edges, which is what
+ * fills the screen top to bottom. A thumb cannot travel that far, so judging
+ * a turn on it makes the gesture harder the more of the screen the page
+ * fills: a third of a page one-and-a-half screens wide is half the glass.
+ * Measured against what is reachable instead, a turn costs the same sweep
+ * whatever a book's margins turned out to be, on any screen.
+ *
+ * `reach` is the visible width; a page narrower than the screen is its own
+ * limit, because the fold cannot be dragged off paper that is not there.
+ */
+export function sweepProgress(
+  x: number,
+  dir: number,
+  pageWidth: number,
+  reach: number,
+): number {
+  'worklet';
+  if (pageWidth <= 0) return 0;
+  const span = Math.min(reach > 0 ? reach : pageWidth, pageWidth);
+  if (span <= 0) return 0;
+  return Math.min(1, (progressOf(x, dir, pageWidth) * pageWidth) / span);
+}
+
 /** How far past the crease the cast shadow's axis runs, in points. */
 export const CAST_FROM = -3;
 export const CAST_TO = 105;

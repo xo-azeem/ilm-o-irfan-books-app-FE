@@ -1,0 +1,170 @@
+/* The reader's own palette: ink on paper by day, the app's green-black by night. */
+:root {
+  --bg: #f6f4ec;
+  --surface: #ffffff;
+  --ink: #16201a;
+  --soft: #3d4a41;
+  --muted: #64756a;
+  --line: #dcdccf;
+  --green: #2d8a47;
+  --green-soft: #1f6e37;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #080b09;
+    --surface: #101613;
+    --ink: #eef2ea;
+    --soft: #c3cdc4;
+    --muted: #8a9e8e;
+    --line: rgba(241, 245, 238, 0.12);
+    --green: #3fa660;
+    --green-soft: #8fbf6a;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.65 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+}
+
+.wrap {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem 4rem;
+}
+
+header {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.brand {
+  display: inline-block;
+  font-size: 0.8rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--green);
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+h1 {
+  font-size: clamp(1.75rem, 5vw, 2.4rem);
+  line-height: 1.15;
+  margin: 0 0 0.6rem;
+  letter-spacing: -0.015em;
+}
+
+.updated {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+h2 {
+  font-size: 1.2rem;
+  margin: 2.4rem 0 0.75rem;
+  letter-spacing: -0.01em;
+}
+
+h3 {
+  font-size: 1rem;
+  margin: 1.6rem 0 0.5rem;
+  color: var(--soft);
+}
+
+p,
+li {
+  color: var(--soft);
+}
+
+li {
+  margin-bottom: 0.4rem;
+}
+
+a {
+  color: var(--green);
+}
+
+strong {
+  color: var(--ink);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0 1.5rem;
+  font-size: 0.95rem;
+}
+
+th,
+td {
+  text-align: left;
+  vertical-align: top;
+  padding: 0.7rem 0.8rem 0.7rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+th {
+  color: var(--ink);
+  font-weight: 600;
+  white-space: nowrap;
+  padding-right: 1.25rem;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 1.1rem 1.25rem;
+  margin: 1.5rem 0;
+}
+
+.card p:last-child {
+  margin-bottom: 0;
+}
+
+.card p:first-child {
+  margin-top: 0;
+}
+
+footer {
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+nav.pages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+nav.pages a {
+  display: inline-block;
+  padding: 0.55rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+
+nav.pages a:hover {
+  border-color: var(--green);
+}

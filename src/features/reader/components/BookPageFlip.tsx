@@ -1446,6 +1446,24 @@ export const BookPageFlip = memo(
           : { width: mountWidth, page: pageRef.current || startPage },
       );
     }, [mountWidth, startPage]);
+
+    /**
+     * The page the view would be *asked* for is the page the reader is on.
+     *
+     * Switching reading mode changes what the document view is told — the
+     * pager's direction above all — and on Android that number is counted
+     * from the other end of the book. `openPage` is derived from the page the
+     * view was mounted on, so without this a switch would ask for the page
+     * the book was opened at, from the wrong end: the reader chose a mode and
+     * lost their place. Moving `mount.page` to where they actually are keeps
+     * the number the same across the switch, whichever way it goes.
+     */
+    useEffect(() => {
+      setMount(current => {
+        const here = pageRef.current || current.page;
+        return current.page === here ? current : { ...current, page: here };
+      });
+    }, [reversedIndices]);
     const readySource = useMemo(() => (ready ? { uri: ready } : null), [ready]);
 
     // The box has taken the page's shape (or changed it): the document view

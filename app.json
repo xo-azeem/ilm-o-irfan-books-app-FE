@@ -4,9 +4,6 @@
   "expo": {
     "name": "Ilm o Irfan",
     "slug": "ilm-o-irfan",
-    "version": "1.0.0",
-    "plugins": [
-      "expo-asset"
-    ]
+    "version": "1.0.0"
   }
 }

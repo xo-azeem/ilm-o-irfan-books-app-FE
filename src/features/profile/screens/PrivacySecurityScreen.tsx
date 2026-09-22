@@ -55,8 +55,17 @@ import {
 import { cancellationAvailability, storeName } from '@/services/billing';
 import { fontSize } from '@/theme/typography';
 
-const PRIVACY_POLICY_URL = 'https://ilmoirfan.com/privacy';
-const TERMS_URL = 'https://ilmoirfan.com/terms';
+/**
+ * The published legal pages. Both stores require a live privacy policy
+ * before a build is reviewed, and a reviewer opens these links — so they
+ * point at pages that are actually served. They move to the publisher's own
+ * domain once it is hosting again; the app only needs the two constants
+ * changed for that.
+ */
+const PRIVACY_POLICY_URL =
+  'https://xo-azeem.github.io/ilm-o-irfan-books-app-FE/privacy.html';
+const TERMS_URL =
+  'https://xo-azeem.github.io/ilm-o-irfan-books-app-FE/terms.html';
 
 /** Where the store keeps the reader's subscriptions — the only place to cancel. */
 const MANAGE_SUBSCRIPTIONS_URL =

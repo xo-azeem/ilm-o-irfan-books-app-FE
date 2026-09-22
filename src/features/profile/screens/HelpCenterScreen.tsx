@@ -1,5 +1,5 @@
 import { memo, useCallback, useMemo, useState } from 'react';
-import { Linking, Pressable, StyleSheet, View } from 'react-native';
+import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { ChevronDown, ChevronUp, Mail } from 'lucide-react-native';
 
 import {
@@ -23,7 +23,15 @@ import { fontSize } from '@/theme/typography';
 import { useTheme } from '@/theme/ThemeContext';
 import { useStrings } from '@/i18n';
 
-const STORE_REVIEW_URL = 'https://ilmoirfan.com/rate';
+/**
+ * Where "Rate the app" goes: the app's own Play listing, which is the page
+ * that can actually take a review. The old link was a redirect on a domain
+ * that never served it.
+ */
+const STORE_REVIEW_URL =
+  Platform.OS === 'ios'
+    ? 'https://apps.apple.com/app/id0000000000?action=write-review'
+    : 'https://play.google.com/store/apps/details?id=com.ilmoirfanapp';
 
 /**
  * Help center.

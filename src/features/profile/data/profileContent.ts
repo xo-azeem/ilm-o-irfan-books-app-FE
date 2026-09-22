@@ -137,7 +137,7 @@ export type LegalRowId = (typeof legalRows)[number];
 /** The help topics live in the dictionary (`profile.help.topics`). */
 
 export const supportContact = {
-  email: 'support@ilmoirfan.com',
+  email: 'ilmoirfanapp@gmail.com',
 };
 
 /** Labelled by `profile.help[id]`. */

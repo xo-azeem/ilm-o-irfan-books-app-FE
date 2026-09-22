@@ -19,6 +19,36 @@ export function describeAuthError(error: unknown, fallback: string): string {
   ) {
     return s.invalidCredentials;
   }
+  // Identity linking, before the generic "already exists" below: the same
+  // words there would tell a reader to sign in when what they need is to
+  // pick a different Google account, or to set a password first.
+  if (
+    code === 'identity_already_exists' ||
+    /identity is already linked to another user/i.test(text)
+  ) {
+    return s.identityTaken;
+  }
+  if (/identity is already linked$/i.test(message.trim())) {
+    return s.identityAlreadyLinked;
+  }
+  if (
+    code === 'manual_linking_disabled' ||
+    /manual linking is disabled/i.test(text)
+  ) {
+    return s.linkingDisabled;
+  }
+  if (
+    code === 'single_identity_not_deletable' ||
+    /only.*identity|at least one identity/i.test(text)
+  ) {
+    return s.lastIdentity;
+  }
+  if (
+    code === 'email_conflict_identity_not_deletable' ||
+    /unlinking this identity causes the user's account to change/i.test(text)
+  ) {
+    return s.unlinkEmailConflict;
+  }
   if (
     code === 'user_already_exists' ||
     code === 'email_exists' ||

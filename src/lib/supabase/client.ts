@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 
 import { env } from '@/config/env';
 import { deviceUserAgent } from '@/lib/device';
+import { headerSafe } from '@/lib/headerValue';
 import { supabaseAuthStorage } from '@/lib/supabase/storage';
 
 const REQUEST_TIMEOUT_MS = 12_000;
@@ -36,7 +37,14 @@ export const supabase = createClient(env.supabaseUrl, env.supabaseAnonKey, {
     fetch: fetchWithTimeout,
     // Stored on the auth session row, which is how Profile → Signed-in
     // devices can name this phone. See lib/device.ts.
-    headers: { 'User-Agent': deviceUserAgent() },
+    //
+    // Sent only when it is a value the HTTP stack will accept: a header
+    // outside printable US-ASCII makes it reject every request, and no
+    // device name is worth an app that cannot reach the server. Naming the
+    // phone is a nicety; the default agent does no harm.
+    headers: headerSafe(deviceUserAgent())
+      ? { 'User-Agent': deviceUserAgent() }
+      : {},
   },
   auth: {
     storage: supabaseAuthStorage,

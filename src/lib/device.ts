@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 
+import { asciiHeaderValue } from '@/lib/headerValue';
 import { strings } from '@/i18n/strings';
 
 import appConfig from '../../app.json';
@@ -34,9 +35,16 @@ export function deviceLabel(): string {
  * Supabase Auth stores it on the session row, which is how "Signed-in
  * devices" can name a phone rather than showing `okhttp/4.12`. Parsed back by
  * `parseDeviceUserAgent`.
+ *
+ * ASCII only, and never empty. This string is a header on every request the
+ * app makes, and a header value outside printable US-ASCII is refused by the
+ * HTTP stack outright — `Unexpected char 0xb7` from the middle dot in the
+ * label used to fail *every* call, sign-in included. The label is built for
+ * human eyes; this is what may go on the wire.
  */
 export function deviceUserAgent(): string {
-  return `IlmOIrfan/${APP_VERSION} (${deviceLabel()})`;
+  const label = asciiHeaderValue(deviceLabel()) || Platform.OS;
+  return asciiHeaderValue(`IlmOIrfan/${APP_VERSION} (${label})`);
 }
 
 /**

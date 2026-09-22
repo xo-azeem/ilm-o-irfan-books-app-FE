@@ -45,6 +45,19 @@ export const auth = {
     samePassword: 'The new password must be different from the old one.',
     network: 'Could not reach the server. Check your connection and try again.',
     signupsClosed: 'New accounts are not being created right now.',
+    // Identity linking. Supabase answers these in its own words; each one
+    // means something a reader can actually act on, so each is said plainly.
+    identityTaken:
+      'That Google account is already connected to another Ilm o Irfan account. Sign in with it instead, or pick a different Google account.',
+    identityAlreadyLinked: 'That account is already connected to this one.',
+    linkingDisabled:
+      'Connecting accounts is turned off right now. Try again later.',
+    lastIdentity:
+      'This is the only way into your account. Set a password first, then you can remove it.',
+    unlinkEmailConflict:
+      'That connection cannot be removed while it is the address the account signs in with.',
+    verifyBeforeGoogle:
+      'An account already uses that email but has not been verified yet. Sign in with your password and verify the address, then connect Google from Sign-in methods.',
   },
 
   // Login

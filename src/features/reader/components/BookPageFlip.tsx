@@ -471,7 +471,7 @@ export const BookPageFlip = memo(
 
     // How far past the screen this book's page may be drawn: its own blank
     // margin, measured from the page — see `pageInk.ts` / `usePageFit`.
-    const { fillLimit, measureNow, measureLater } = usePageFit(
+    const { fillLimit, measureNow } = usePageFit(
       shapeKey,
       PAGE_FILL_LIMIT,
       shotRef,
@@ -941,6 +941,13 @@ export const BookPageFlip = memo(
         };
         turnRef.current = turn;
 
+        // The page is in hand and starting to lift: paper sounds as it is
+        // taken, not once it has landed, so the sound runs under the fold
+        // rather than arriving after it. A drag that falls back where it
+        // started made that sound too, which is why this is not held back
+        // for the commit.
+        playPageTurn();
+
         foldToken.current += 1;
         setFold({
           token: foldToken.current,
@@ -963,7 +970,7 @@ export const BookPageFlip = memo(
           if (turnRef.current === turn) cover();
         }, PAGE_FLIP.coverMs);
       },
-      [capture, cover, tryCover],
+      [capture, cover, playPageTurn, tryCover],
     );
 
     // The document view is moved only once the picture is on screen and
@@ -1004,8 +1011,6 @@ export const BookPageFlip = memo(
           closeFold(pageRef.current);
           return;
         }
-        // The leaf has come over: the one moment that sounds like a page.
-        if (commit) playPageTurn();
         turn.landed = true;
         if (coverTimerRef.current) {
           clearTimeout(coverTimerRef.current);
@@ -1027,7 +1032,7 @@ export const BookPageFlip = memo(
           PAGE_FLIP.graceMs,
         );
       },
-      [applyPage, closeFold, playPageTurn],
+      [applyPage, closeFold],
     );
 
     const paperFlip = usePaperFlip({
@@ -1343,11 +1348,10 @@ export const BookPageFlip = memo(
         // The new page is here. A swipe still drawn back from a flick grows it
         // in from this, rather than guessing at when the pager would land.
         settleTurn();
-        measureLater();
 
         handlers.current.onPageChanged(landed, total);
       },
-      [closeFold, measureLater, setBounds, settleTurn],
+      [closeFold, setBounds, settleTurn],
     );
 
     const handleLoadProgress = useCallback((percent: number) => {

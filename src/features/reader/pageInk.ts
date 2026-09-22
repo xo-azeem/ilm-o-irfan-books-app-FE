@@ -81,8 +81,15 @@ export function measureSideMargins(
 
 /** Kept back from a measured margin, for rounding and the odd wide line. */
 const MARGIN_SAFETY = 0.02;
-/** Never wider than this, whatever the margins: a page has to stay a page. */
-export const MAX_PAGE_FILL = 1.6;
+/**
+ * A guard against nonsense, not a design limit.
+ *
+ * `pageBox` never draws wider than fills the frame's height, so the fill a
+ * page actually gets is the smaller of "what fills the screen" and "what this
+ * book's margins allow". This only stops a wild measurement — a page that is
+ * almost all white — from asking for something absurd.
+ */
+export const MAX_PAGE_FILL = 2.2;
 
 /**
  * How much wider than the frame a page with these margins may be drawn.

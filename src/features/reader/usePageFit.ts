@@ -26,11 +26,18 @@ function marginsOf(margin: number | null): SideMargins | null {
  * the page itself — see `pageInk.ts`.
  *
  * Starts from what was learnt on an earlier open (or the default before any
- * measurement), measures the page once it is on screen, and measures again
- * after each turn. The limit may grow only while the book is opening — under
- * the loader, so the page is never seen to jump — and may shrink at any time,
- * because a page with less margin than the rest must not have its type
- * clipped, even if that means a moment's relayout.
+ * measurement) and is settled once, while the book is opening — under the
+ * loader, so the page is never seen to change size.
+ *
+ * It is then **fixed for the whole session**. It used to be re-measured after
+ * every turn so that a tighter page could pull it back in; what that actually
+ * did was resize the page mid-read. The document view fits its page when it
+ * loads, so a box that changes under it leaves the page drawn at the old
+ * scale inside the new box — a band down one side, and a stutter as the fold
+ * and the stage relaid out around it. A page that does not move is worth more
+ * than a percent of width, and the measurement is remembered per book: a
+ * tighter page found on one open governs the next
+ * (`rememberPageMargin` keeps the smallest margin ever seen).
  */
 export function usePageFit(
   shapeKey: string | undefined,
@@ -44,9 +51,14 @@ export function usePageFit(
   fillRef.current = fillLimit;
   const measuring = useRef<Promise<void> | null>(null);
 
+  // Measured once per book. A second pass could only tell us what the first
+  // already did, and the limit is not allowed to move again anyway.
+  const settled = useRef<string | undefined>(undefined);
+
   const measure = useCallback(
     (allowGrow: boolean): Promise<void> => {
       if (measuring.current) return measuring.current;
+      if (settled.current === shapeKey) return Promise.resolve();
       const run = (async () => {
         const view = shotRef.current;
         if (!view) return;
@@ -71,6 +83,7 @@ export function usePageFit(
           return;
         }
         if (!margins) return;
+        settled.current = shapeKey;
 
         const margin = Math.min(margins.left, margins.right);
         const known = rememberPageMargin(shapeKey, margin);
@@ -91,22 +104,14 @@ export function usePageFit(
     [defaultFill, shapeKey, shotRef],
   );
 
-  // A turn has landed: check the new page's margins, a beat later so the
-  // document view has drawn it. Shrink only.
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const measureLater = useCallback(() => {
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => {
-      timer.current = null;
-      void measure(false);
-    }, 450);
-  }, [measure]);
-  useEffect(
-    () => () => {
-      if (timer.current) clearTimeout(timer.current);
-    },
-    [],
-  );
+  // A different book gets its own measurement, from its own remembered
+  // margin, the next time one is asked for.
+  useEffect(() => {
+    settled.current = undefined;
+    const next = fillLimitFor(marginsOf(readPageMargin(shapeKey)), defaultFill);
+    fillRef.current = next;
+    setFillLimit(next);
+  }, [defaultFill, shapeKey]);
 
-  return { fillLimit, measureNow: measure, measureLater };
+  return { fillLimit, measureNow: measure };
 }

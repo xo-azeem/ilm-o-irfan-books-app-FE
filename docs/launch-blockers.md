@@ -222,6 +222,13 @@ nothing to sell until the products exist in each store.
    backend's secret of the same name must be the dashboard's identifier
    (`ilm_o_irfan_pro`), or a purchase the SDK reports never unlocks.
 
+   **No rebuild needed for the keys.** Leave both key slots empty in `.env`
+   and set them later in the admin tool — **System → App settings → Billing**.
+   `app-status` serves them to every install (they are public keys), the app
+   configures the SDK with them on its next launch, and checkout switches on
+   for a build that shipped before RevenueCat existed. A key in `.env` wins
+   over the admin-set one, so leave `.env` empty unless you mean to pin it.
+
    **Testing before the stores are set up.** A RevenueCat *Test Store* key
    (`test_…`) goes in both key slots; the SDK then sells the offering from
    the Test Store with no App Store / Play products at all, and the webhook

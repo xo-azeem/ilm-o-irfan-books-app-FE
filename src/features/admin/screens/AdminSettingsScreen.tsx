@@ -12,6 +12,7 @@ import {
   AdminActionBar,
   AdminBackLink,
   AdminButton,
+  AdminCard,
   AdminErrorState,
   AdminEyebrow,
   AdminField,
@@ -66,6 +67,8 @@ export function AdminSettingsScreen() {
     minVersion: '',
     supportEmail: '',
     featuredCollectionId: null as string | null,
+    revenueCatAndroidKey: '',
+    revenueCatIosKey: '',
   });
   const [showCollectionPicker, setShowCollectionPicker] = useState(false);
 
@@ -83,6 +86,8 @@ export function AdminSettingsScreen() {
       minVersion: data.min_supported_version ?? '',
       supportEmail: data.support_email ?? '',
       featuredCollectionId: data.featured_collection_id,
+      revenueCatAndroidKey: data.revenuecat_android_key ?? '',
+      revenueCatIosKey: data.revenuecat_ios_key ?? '',
     });
   }, [data]);
 
@@ -107,7 +112,21 @@ export function AdminSettingsScreen() {
     item => item.id === form.featuredCollectionId,
   );
 
+  // Public SDK keys only. The backend refuses anything else as well, but a
+  // secret key should be stopped before it leaves this screen.
+  const androidKey = form.revenueCatAndroidKey.trim();
+  const iosKey = form.revenueCatIosKey.trim();
+  const androidKeyValid =
+    !androidKey || /^(goog|test)_[A-Za-z0-9]+$/.test(androidKey);
+  const iosKeyValid = !iosKey || /^(appl|test)_[A-Za-z0-9]+$/.test(iosKey);
+
   const handleSave = () => {
+    if (!androidKeyValid || !iosKeyValid) {
+      toast.error(
+        words.revenueCatKeyError(!androidKeyValid ? 'goog_' : 'appl_'),
+      );
+      return;
+    }
     update.mutate(
       {
         maintenance_mode: form.maintenanceMode,
@@ -116,6 +135,8 @@ export function AdminSettingsScreen() {
         min_supported_version: form.minVersion || null,
         support_email: form.supportEmail || null,
         featured_collection_id: form.featuredCollectionId,
+        revenuecat_android_key: androidKey || null,
+        revenuecat_ios_key: iosKey || null,
       },
       {
         onSuccess: () => {
@@ -254,6 +275,39 @@ export function AdminSettingsScreen() {
                 : words.minVersionHint(APP_VERSION)
             }
             helperTone={versionAboveThisBuild ? 'warning' : undefined}
+          />
+        </View>
+
+        <View style={styles.block}>
+          <AdminEyebrow>{words.billing}</AdminEyebrow>
+          <AdminCard>
+            <Text size={12.5} leading={1.5} tone="muted">
+              {words.billingNote}
+            </Text>
+          </AdminCard>
+          <AdminField
+            label={words.revenueCatAndroidKey}
+            value={form.revenueCatAndroidKey}
+            onChangeText={value =>
+              setForm(current => ({ ...current, revenueCatAndroidKey: value }))
+            }
+            placeholder="goog_…"
+            autoCapitalize="none"
+            mono
+            error={!androidKeyValid ? words.revenueCatKeyError('goog_') : null}
+            helper={words.revenueCatKeyHint('goog_')}
+          />
+          <AdminField
+            label={words.revenueCatIosKey}
+            value={form.revenueCatIosKey}
+            onChangeText={value =>
+              setForm(current => ({ ...current, revenueCatIosKey: value }))
+            }
+            placeholder="appl_…"
+            autoCapitalize="none"
+            mono
+            error={!iosKeyValid ? words.revenueCatKeyError('appl_') : null}
+            helper={words.revenueCatKeyHint('appl_')}
           />
         </View>
 

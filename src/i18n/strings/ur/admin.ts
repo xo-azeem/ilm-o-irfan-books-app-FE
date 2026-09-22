@@ -264,6 +264,15 @@ export const admin: typeof en = {
     supportVersions: 'سپورٹ اور ورژن',
     supportEmail: 'سپورٹ ای میل',
     supportEmailHint: 'قاری ایپ کے مدد مرکز میں دکھایا جاتا ہے۔',
+    billing: 'بلنگ (RevenueCat)',
+    billingNote:
+      'RevenueCat → Apps سے عوامی SDK کیز۔ ہر انسٹال شدہ ایپ اگلی بار کھلنے پر انہیں اٹھا لیتی ہے، اس لیے نئی بلڈ کے بغیر خریداری چالو ہو جاتی ہے۔ خفیہ کی (sk_…) یہاں کبھی نہ لکھیں۔',
+    revenueCatAndroidKey: 'اینڈرائیڈ کی',
+    revenueCatIosKey: 'iOS کی',
+    revenueCatKeyHint: prefix =>
+      `${prefix} سے شروع ہوتی ہے، یا ٹیسٹ اسٹور کے لیے test_۔ خالی چھوڑیں تو خریداری بند رہتی ہے۔`,
+    revenueCatKeyError: prefix =>
+      `${prefix} یا test_ سے شروع ہونی چاہیے — عوامی SDK کی، خفیہ کی نہیں۔`,
     minVersion: 'قدیم ترین قابلِ قبول ایپ ورژن',
     minVersionError:
       '1.2.0 جیسا ورژن لکھیں۔ باقی کچھ بھی ایپ نظر انداز کر دیتی ہے۔',

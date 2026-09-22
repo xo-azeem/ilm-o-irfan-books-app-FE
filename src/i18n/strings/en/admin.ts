@@ -277,6 +277,15 @@ export const admin = {
       `Higher than this build (${build}) — every reader on it will be asked to update. Make sure that version is in the stores first.`,
     minVersionHint: (build: string) =>
       `Older builds are asked to update before reading. This build is ${build}. Leave empty for no floor.`,
+    billing: 'Billing (RevenueCat)',
+    billingNote:
+      'The public SDK keys from RevenueCat → Apps. Every installed app picks them up on its next launch, so checkout can be switched on without a new build. Never paste the secret key (sk_…) here.',
+    revenueCatAndroidKey: 'Android key',
+    revenueCatIosKey: 'iOS key',
+    revenueCatKeyHint: (prefix: string) =>
+      `Starts with ${prefix}, or test_ for the Test Store. Leave empty to keep checkout off.`,
+    revenueCatKeyError: (prefix: string) =>
+      `Must start with ${prefix} or test_ — the public SDK key, not the secret key.`,
     pdfNote:
       "PDF access is decided by the reader's subscription at the moment they ask for a file. There is deliberately no switch here that could open the whole library by accident.",
     auditNote:

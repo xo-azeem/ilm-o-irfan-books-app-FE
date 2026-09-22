@@ -10,7 +10,8 @@ import { strings } from '@/i18n/strings';
 
 const SETTINGS_COLUMNS =
   'maintenance_mode,maintenance_message,signup_enabled,' +
-  'min_supported_version,support_email,featured_collection_id,updated_at';
+  'min_supported_version,support_email,featured_collection_id,' +
+  'revenuecat_android_key,revenuecat_ios_key,updated_at';
 
 export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
   const row = (unwrap(await supabase.rpc('admin_dashboard_stats')) ??

@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 import { queryClient } from '@/lib/queryClient';
@@ -10,8 +10,10 @@ import {
   forgetPurchaser,
   identifyPurchaser,
 } from '@/services/billing';
+import { useAppStatus } from '@/hooks/useAppStatus';
 import { useAccessStore } from '@/stores/accessStore';
 import { useAuthStore } from '@/stores/authStore';
+import { useBillingKeyStore } from '@/stores/billingKeyStore';
 
 /**
  * Nudges the screens that render the plan and the renewal date.
@@ -46,19 +48,39 @@ export function AccessProvider({ children }: { children: ReactNode }) {
   const recheck = useAccessStore(state => state.recheck);
   const reset = useAccessStore(state => state.reset);
 
+  // The RevenueCat key the backend hands this install — set from the admin
+  // tool once RevenueCat exists, so a build made before then can sell without
+  // a rebuild. A key baked into the build wins over it (see `billingKey`).
+  const status = useAppStatus();
+  const runtimeKey =
+    Platform.OS === 'ios'
+      ? status.revenueCatIosKey
+      : Platform.OS === 'android'
+        ? status.revenueCatAndroidKey
+        : null;
+  const setRuntimeKey = useBillingKeyStore(state => state.setRuntimeKey);
+  useEffect(() => {
+    setRuntimeKey(runtimeKey);
+  }, [runtimeKey, setRuntimeKey]);
+
   // The store SDK is bound to the Supabase user id and nothing else: the
   // billing webhook looks the reader up by `app_user_id`, so an email or an
   // anonymous id there means a completed purchase that unlocks nobody. Signing
   // out returns the SDK to an anonymous id, so the next reader on this device
   // does not inherit the previous one's receipts.
+  //
+  // Re-run when the key lands: the first pass may have found none, and the
+  // SDK is only configured — and the reader only identified — once there is
+  // a key to configure it with.
   useEffect(() => {
     if (!userId) {
       void forgetPurchaser();
       return;
     }
-    configureBilling();
-    void identifyPurchaser(userId);
-  }, [userId]);
+    if (configureBilling()) {
+      void identifyPurchaser(userId);
+    }
+  }, [runtimeKey, userId]);
 
   // Signing out drops the lock state with the session. Nothing the reader owns
   // goes with it — progress, highlights, wishlist and downloads are all

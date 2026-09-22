@@ -9,6 +9,7 @@ import { getPlans } from '@/services/catalog';
 import {
   BILLING_STORE,
   PREMIUM_PLAN_CODE,
+  billingKey,
   getBillingOffering,
   isBillingAvailable,
   openManageSubscriptions,
@@ -29,6 +30,7 @@ import {
 } from '@/services/billing/options';
 import { useAccessStore } from '@/stores/accessStore';
 import { useAuthStore } from '@/stores/authStore';
+import { useBillingKeyStore } from '@/stores/billingKeyStore';
 
 /**
  * Checkout, as the paywall sees it.
@@ -51,12 +53,25 @@ import { useAuthStore } from '@/stores/authStore';
  * appear there when available). There is no separate wallet SDK in this app.
  */
 
+/**
+ * Whether checkout can open, as a subscription: the key may arrive with
+ * `app-status` after the first render, and the paywall has to notice.
+ */
+export function useBillingAvailable(): boolean {
+  const runtimeKey = useBillingKeyStore(state => state.runtimeKey);
+  // `runtimeKey` is read only to subscribe; the decision is the service's.
+  return Boolean(runtimeKey) || isBillingAvailable();
+}
+
 /** The store's packages. Refetched rarely; prices do not move hour to hour. */
 export function useBillingOffering() {
+  const available = useBillingAvailable();
   return useQuery({
-    queryKey: ['billing', 'offering'],
+    // The key is part of the identity: an offering read under one key is
+    // not the answer for another.
+    queryKey: ['billing', 'offering', billingKey()],
     queryFn: getBillingOffering,
-    enabled: isBillingAvailable(),
+    enabled: available,
     staleTime: 30 * 60_000,
     retry: 1,
   });
@@ -94,6 +109,7 @@ export function useMembershipOptions() {
     error: offeringError,
   } = useBillingOffering();
   const { data: plans } = usePlans();
+  const available = useBillingAvailable();
 
   const options = useMemo<MembershipOption[]>(
     () =>
@@ -112,14 +128,13 @@ export function useMembershipOptions() {
     cheapest: cheapestRow(options),
     /** The bullets to show when no single plan is selected yet. */
     features: defaultFeatures(plans, PREMIUM_PLAN_CODE),
-    isPending: isBillingAvailable() && offeringPending,
+    isPending: available && offeringPending,
     /**
      * True when there is nothing to sell: no key in this build, no current
      * offering, or the store could not be reached. The paywall says so instead
      * of opening a sheet that cannot complete.
      */
-    unavailable:
-      !isBillingAvailable() || Boolean(offeringError) || options.length === 0,
+    unavailable: !available || Boolean(offeringError) || options.length === 0,
     /**
      * The store answered but none of its packages matches a plan the admin
      * has set up, so the in-app paywall has nothing to quote. RevenueCat's
@@ -127,7 +142,7 @@ export function useMembershipOptions() {
      * describes it — and is offered in that one case.
      */
     hostedPaywallOnly:
-      isBillingAvailable() &&
+      available &&
       !offeringPending &&
       !offeringError &&
       (offering?.packages.length ?? 0) > 0 &&

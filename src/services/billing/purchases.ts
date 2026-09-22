@@ -13,6 +13,7 @@ import { env } from '@/config/env';
 import { strings } from '@/i18n/strings';
 import { manageSubscriptionsUrl } from '@/services/billing/cancellation';
 import type { BillingStore } from '@/services/billing/options';
+import { useBillingKeyStore } from '@/stores/billingKeyStore';
 
 /**
  * Checkout.
@@ -61,20 +62,35 @@ export const BILLING_STORE: BillingStore =
       : 'unknown';
 
 /**
+ * The public SDK key this install runs on.
+ *
+ * A key baked into the build (`REVENUECAT_*_KEY` in `.env`) wins, so a
+ * release pinned to a key is unaffected by the admin tool. Otherwise the key
+ * the backend sent with `app-status` — set by an admin once RevenueCat
+ * exists — which is what lets a build made before then sell without a
+ * rebuild. `''` means neither: checkout is unavailable.
+ */
+export function billingKey(): string {
+  return env.revenueCatKey || useBillingKeyStore.getState().runtimeKey;
+}
+
+/**
  * Whether the store SDK can be used at all.
  *
- * False on a build with no RevenueCat key — a simulator or a CI build — and the
- * paywall says so rather than opening a sheet that cannot complete. It is also
- * false on any platform but iOS and Android, neither of which has a store.
+ * False with no RevenueCat key from either source — a simulator, a CI build,
+ * or an install the admin has not yet given a key — and the paywall says so
+ * rather than opening a sheet that cannot complete. It is also false on any
+ * platform but iOS and Android, neither of which has a store.
  */
 export function isBillingAvailable(): boolean {
   return (
-    Boolean(env.revenueCatKey) &&
+    Boolean(billingKey()) &&
     (Platform.OS === 'ios' || Platform.OS === 'android')
   );
 }
 
-let configured = false;
+/** The key the SDK was configured with this launch, or `null` before that. */
+let configuredKey: string | null = null;
 
 /**
  * Configures the SDK once per launch.
@@ -88,12 +104,18 @@ export function configureBilling(): boolean {
   if (!isBillingAvailable()) {
     return false;
   }
-  if (configured) {
+  const key = billingKey();
+  if (configuredKey !== null) {
+    // The SDK takes one key per launch. A key rotated in the admin tool
+    // mid-session is picked up on the next launch, not by reconfiguring.
+    if (__DEV__ && configuredKey !== key) {
+      console.warn('[billing] key changed after configure; restart to apply');
+    }
     return true;
   }
 
-  Purchases.configure({ apiKey: env.revenueCatKey });
-  configured = true;
+  Purchases.configure({ apiKey: key });
+  configuredKey = key;
 
   // Verbose in development, where the SDK's own log is the fastest way to
   // see a misconfigured product or entitlement; quiet in a release build.
@@ -136,7 +158,7 @@ export async function identifyPurchaser(userId: string): Promise<void> {
  * previous one's purchases in the SDK's local view of the world.
  */
 export async function forgetPurchaser(): Promise<void> {
-  if (!configured) {
+  if (configuredKey === null) {
     return;
   }
 

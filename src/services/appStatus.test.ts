@@ -18,6 +18,8 @@ describe('parseAppStatus', () => {
         signupEnabled: false,
         minSupportedVersion: '1.2.0',
         supportEmail: 'help@example.com',
+        revenueCatAndroidKey: 'goog_abc123',
+        revenueCatIosKey: null,
       }),
       {
         maintenanceMode: true,
@@ -25,8 +27,19 @@ describe('parseAppStatus', () => {
         signupEnabled: false,
         minSupportedVersion: '1.2.0',
         supportEmail: 'help@example.com',
+        revenueCatAndroidKey: 'goog_abc123',
+        revenueCatIosKey: null,
       },
     );
+  });
+
+  it('accepts only public-shaped RevenueCat keys', () => {
+    const status = parseAppStatus({
+      revenueCatAndroidKey: 'sk_should_never_be_here',
+      revenueCatIosKey: ' appl_ok9 ',
+    });
+    assert.equal(status.revenueCatAndroidKey, null);
+    assert.equal(status.revenueCatIosKey, 'appl_ok9');
   });
 
   it('tolerates the snake_case column names', () => {

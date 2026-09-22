@@ -26,6 +26,13 @@ export type AppStatus = {
   minSupportedVersion: string | null;
   /** Where Help Center writes to. `null` falls back to the bundled address. */
   supportEmail: string | null;
+  /**
+   * RevenueCat public SDK keys, set from the admin tool once RevenueCat
+   * exists. A key baked into the build wins; `null` means not configured,
+   * and checkout reports itself unavailable until it is.
+   */
+  revenueCatAndroidKey: string | null;
+  revenueCatIosKey: string | null;
 };
 
 export const DEFAULT_APP_STATUS: AppStatus = {
@@ -34,6 +41,8 @@ export const DEFAULT_APP_STATUS: AppStatus = {
   signupEnabled: true,
   minSupportedVersion: null,
   supportEmail: null,
+  revenueCatAndroidKey: null,
+  revenueCatIosKey: null,
 };
 
 /** The wire shape — camelCase from the endpoint, snake_case tolerated. */
@@ -48,6 +57,10 @@ export type AppStatusPayload = Partial<{
   min_supported_version: unknown;
   supportEmail: unknown;
   support_email: unknown;
+  revenueCatAndroidKey: unknown;
+  revenuecat_android_key: unknown;
+  revenueCatIosKey: unknown;
+  revenuecat_ios_key: unknown;
 }>;
 
 function bool(value: unknown, fallback: boolean): boolean {
@@ -76,5 +89,22 @@ export function parseAppStatus(
       row.minSupportedVersion ?? row.min_supported_version,
     ),
     supportEmail: text(row.supportEmail ?? row.support_email),
+    revenueCatAndroidKey: publicSdkKey(
+      row.revenueCatAndroidKey ?? row.revenuecat_android_key,
+    ),
+    revenueCatIosKey: publicSdkKey(
+      row.revenueCatIosKey ?? row.revenuecat_ios_key,
+    ),
   };
+}
+
+/**
+ * Only a value shaped like a RevenueCat *public* key is accepted — the
+ * backend refuses anything else too, but the SDK is configured with this
+ * string and a stray value would be a confusing failure rather than a safe
+ * "not configured".
+ */
+function publicSdkKey(value: unknown): string | null {
+  const key = text(value);
+  return key && /^(goog|appl|test)_[A-Za-z0-9]+$/.test(key) ? key : null;
 }

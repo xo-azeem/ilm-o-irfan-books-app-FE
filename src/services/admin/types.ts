@@ -291,6 +291,14 @@ export type AdminSettings = {
   min_supported_version: string | null;
   support_email: string | null;
   featured_collection_id: string | null;
+  /**
+   * RevenueCat public SDK keys (goog_… / appl_…, or a test_… Test Store
+   * key), served to every install by `app-status`. Public by design; the
+   * backend refuses anything not shaped like one, so the secret key cannot
+   * be pasted here by mistake.
+   */
+  revenuecat_android_key: string | null;
+  revenuecat_ios_key: string | null;
   updated_at: string;
 };
 

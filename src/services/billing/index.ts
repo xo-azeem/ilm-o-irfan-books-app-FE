@@ -2,6 +2,7 @@ export {
   BILLING_STORE,
   PREMIUM_ENTITLEMENT,
   PREMIUM_PLAN_CODE,
+  billingKey,
   configureBilling,
   forgetPurchaser,
   getBillingOffering,

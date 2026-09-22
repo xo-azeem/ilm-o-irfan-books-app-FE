@@ -30,6 +30,7 @@ export {
 export { describeOtpError, type OtpErrorKind } from './otpErrors';
 export { describeAuthError } from './authErrors';
 export {
+  GoogleEmailConflict,
   GoogleSignInCancelled,
   forgetGoogleSession,
   isGoogleSignInAvailable,

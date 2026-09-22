@@ -129,14 +129,55 @@ function translateGoogleError(error: unknown): Error {
 }
 
 /**
+ * An account already uses the Google address, and it is not linkable yet.
+ *
+ * Supabase links a Google identity to an existing account automatically when
+ * that account's email is *confirmed* — which is the whole of "one account,
+ * two doors". An account that signed up with a password and never confirmed
+ * is the exception: linking it on the word of whoever typed the address in
+ * first would hand them the Google user's library, so Supabase refuses and
+ * the app sends the reader to confirm the address instead.
+ */
+export class GoogleEmailConflict extends Error {
+  readonly googleEmail: string | null;
+  /** What Supabase actually answered, for the log. */
+  readonly reason: unknown;
+
+  constructor(email: string | null, reason: unknown) {
+    super(strings().auth.errors.verifyBeforeGoogle);
+    this.name = 'GoogleEmailConflict';
+    this.googleEmail = email;
+    this.reason = reason;
+  }
+}
+
+/** Whether a failed sign-in is "that address already has an account". */
+function isEmailConflict(error: unknown): boolean {
+  const code = (error as { code?: string } | undefined)?.code ?? '';
+  const message = error instanceof Error ? error.message : '';
+  const text = `${code} ${message}`;
+  return (
+    code === 'email_exists' ||
+    code === 'user_already_exists' ||
+    code === 'identity_already_exists' ||
+    /already (been )?registered|already exists|email address is taken/i.test(
+      text,
+    )
+  );
+}
+
+/**
  * Signs in (or up) with Google.
  *
- * Returns the Supabase session data. Same email as an existing email/password
- * account → that account; a new email → a new account whose email Google has
- * already verified, so there is no confirmation step.
+ * Returns the Supabase session data. Same email as an existing *verified*
+ * email/password account → that account, with the Google identity linked to
+ * it; a new email → a new account whose email Google has already verified,
+ * so there is no confirmation step. An unverified account on that address
+ * throws `GoogleEmailConflict`, which the caller turns into "verify, then
+ * connect Google".
  */
 export async function signInWithGoogle() {
-  const { idToken } = await getGoogleIdToken();
+  const { idToken, email } = await getGoogleIdToken();
 
   const { data, error } = await supabase.auth.signInWithIdToken({
     provider: 'google',
@@ -144,7 +185,9 @@ export async function signInWithGoogle() {
   });
 
   if (error) {
-    throw error;
+    throw isEmailConflict(error)
+      ? new GoogleEmailConflict(email, error)
+      : error;
   }
 
   return data;

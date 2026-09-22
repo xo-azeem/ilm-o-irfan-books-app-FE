@@ -108,12 +108,21 @@ export function SignInMethodsScreen() {
     if (!data) {
       return;
     }
+    // Google is the only identity: removing it would lock the reader out,
+    // so the dialog offers the way forward rather than only refusing.
     if (!data.hasPassword) {
       showDialog({
         title: words.onlyWayIn,
         message: words.onlyWayInMessage,
         tone: 'warning',
         icon: KeyRound,
+        actions: [
+          { label: words.notNow, style: 'cancel' },
+          {
+            label: words.setPassword,
+            onPress: () => navigation.navigate('ChangePassword'),
+          },
+        ],
       });
       return;
     }
@@ -137,7 +146,7 @@ export function SignInMethodsScreen() {
         },
       ],
     });
-  }, [data, s, unlink, words]);
+  }, [data, navigation, s, unlink, words]);
 
   return (
     <ProfileSubScreenLayout title={words.title} subtitle={words.subtitle}>
@@ -183,6 +192,17 @@ export function SignInMethodsScreen() {
           title={words.changeEmail}
           subtitle={words.changeEmailHint}
           onPress={() => navigation.navigate('ChangeEmail')}
+        />
+        {/* A reader who came in through Google has no password at all, and
+            needs one before Google can be removed — so the row leads with
+            setting one rather than changing it. */}
+        <SettingsRow
+          title={data?.hasPassword ? words.changePassword : words.setPassword}
+          subtitle={
+            data?.hasPassword ? words.changePasswordHint : words.setPasswordHint
+          }
+          icon={KeyRound}
+          onPress={() => navigation.navigate('ChangePassword')}
         />
       </SettingsGroup>
 

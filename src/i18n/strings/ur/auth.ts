@@ -71,6 +71,7 @@ export const auth: typeof en = {
     googleUnavailable:
       'اس بلڈ میں Google کلائنٹ موجود نہیں۔ اپنے ای میل اور پاس ورڈ سے سائن ان کریں۔',
     googleFailedTitle: 'Google سائن ان ناکام',
+    verifyEmailAction: 'ای میل کی تصدیق کریں',
     enterEmailTitle: 'اپنا ای میل درج کریں',
     enterEmailForCode:
       'وہ ای میل لکھیں جس سے آپ نے اکاؤنٹ بنایا تھا، ہم آپ کو کوڈ بھیج دیں گے۔',

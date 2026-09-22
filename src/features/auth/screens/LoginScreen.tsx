@@ -16,6 +16,7 @@ import { useStrings } from '@/i18n';
 import { resumeAfterAuth, waitForAccessCheck } from '@/lib/access';
 import {
   describeAuthError,
+  GoogleEmailConflict,
   GoogleSignInCancelled,
   isEmailNotConfirmed,
   isGoogleSignInAvailable,
@@ -109,6 +110,30 @@ export function LoginScreen() {
       resumeAfterAuth(navigation, returnTo);
     } catch (error) {
       if (error instanceof GoogleSignInCancelled) {
+        return;
+      }
+      // An unverified account already holds that address: the way in is to
+      // confirm it, which the verify screen does and then returns here.
+      if (error instanceof GoogleEmailConflict) {
+        const conflictEmail = error.googleEmail;
+        showDialog({
+          title: s.auth.login.googleFailedTitle,
+          message: error.message,
+          tone: 'warning',
+          actions: conflictEmail
+            ? [
+                { label: s.common.cancel, style: 'cancel' },
+                {
+                  label: s.auth.login.verifyEmailAction,
+                  onPress: () =>
+                    navigation.navigate(ROUTES.VERIFY_EMAIL, {
+                      email: conflictEmail,
+                      ...(returnTo ? { returnTo } : null),
+                    }),
+                },
+              ]
+            : undefined,
+        });
         return;
       }
       showDialog({

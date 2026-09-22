@@ -76,6 +76,7 @@ export const auth = {
     googleUnavailable:
       'This build has no Google client configured. Sign in with your email and password.',
     googleFailedTitle: 'Google sign-in failed',
+    verifyEmailAction: 'Verify email',
     enterEmailTitle: 'Enter your email',
     enterEmailForCode:
       'Type the address you signed up with and we will email a code.',

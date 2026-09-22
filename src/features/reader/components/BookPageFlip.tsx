@@ -37,6 +37,7 @@ import { useReaderSurface } from '@/features/reader/useReaderSurface';
 import { usePageCapture } from '@/features/reader/usePageCapture';
 import { usePageTurn, type TurnDirection } from '@/features/reader/usePageTurn';
 import { usePageTurnSound } from '@/features/reader/usePageTurnSound';
+import { pageBox, type Box } from '@/features/reader/pageBox';
 import { usePageFit } from '@/features/reader/usePageFit';
 import { usePaperFlip } from '@/features/reader/usePaperFlip';
 
@@ -104,38 +105,6 @@ function clampScale(value: number) {
   return Math.min(MAX_SCALE, Math.max(MIN_SCALE, value));
 }
 
-type Box = { width: number; height: number };
-
-/**
- * How large to draw the page, given the shape of the page and of the screen.
- *
- * The page is drawn as wide as the frame at least, and wider — up to the fill
- * limit — while that buys height. Anything past the frame's edge is the page's
- * margin, and the stage clips it.
- */
-function pageBox(frame: Box, aspect: number, fillLimit: number): Box | null {
-  if (
-    frame.width <= 0 ||
-    frame.height <= 0 ||
-    !Number.isFinite(aspect) ||
-    aspect <= 0
-  ) {
-    return null;
-  }
-
-  // What it would take to fill the height outright, and what we will allow.
-  const toFill = (frame.height * aspect) / frame.width;
-  const fill = Math.min(Math.max(toFill, 1), fillLimit);
-  const width = frame.width * fill;
-  const height = Math.min(frame.height, width / aspect);
-
-  // A page wider than it is tall fits the frame with room to spare, and is
-  // better left alone than blown past the edges.
-  return height >= frame.height
-    ? { width: frame.height * aspect, height: frame.height }
-    : { width, height };
-}
-
 /**
  * What the document view is asked to open on under Android's reversed page
  * order. Its own rule there is odd: a request for page 1 lands on the *last*
@@ -147,6 +116,18 @@ const RTL_OPEN_PAGE = 2;
 
 /** How long after a load the first page is given to appear before it is assumed to have. */
 const RENDER_DEADLINE_MS = 1500;
+
+/**
+ * How many times the opening margin measurement is retried, and how long
+ * between tries.
+ *
+ * The document view reports a page drawn before the frame is composited, so
+ * the first picture of it can come back blank. Four tries a beat apart is
+ * well inside the render deadline above, and all of it happens under the
+ * loader.
+ */
+const PAGE_FIT_TRIES = 4;
+const PAGE_FIT_RETRY_MS = 140;
 
 /** Identity of a document, so a new one remounts rather than mutating in place. */
 function sourceKey(source: BookPdfSource) {
@@ -471,7 +452,7 @@ export const BookPageFlip = memo(
 
     // How far past the screen this book's page may be drawn: its own blank
     // margin, measured from the page — see `pageInk.ts` / `usePageFit`.
-    const { fillLimit, measureNow } = usePageFit(
+    const { fillLimit, measureNow, isSettled } = usePageFit(
       shapeKey,
       PAGE_FILL_LIMIT,
       shotRef,
@@ -590,25 +571,51 @@ export const BookPageFlip = memo(
 
     /**
      * The page is on screen. Before the loader lifts, its margins are read
-     * and the fill may grow to them — which changes the box, remounts the
+     * and the fill is set to them — which changes the box, remounts the
      * document view at the new width, and brings a second render, announced
      * then. Only a first open of a book takes that road; later opens start
      * at the width learnt here.
+     *
+     * The first picture of a page can come back blank: the document view
+     * says it has drawn before the frame is composited, and a picture with
+     * no ink in it teaches nothing. That used to leave the book at its
+     * default width for the whole session — the margins a reader saw only
+     * correct themselves when something else remounted the view. So a
+     * measurement that learnt nothing is tried again, a beat later, while
+     * the loader is still up and nothing is on screen to jump.
      */
     const fillRef = useRef(fillLimit);
     fillRef.current = fillLimit;
+    const measureTriesRef = useRef(0);
+    const measureTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const handleRendered = useCallback(() => {
       const before = fillRef.current;
-      void measureNow(true).finally(() => {
-        if (Math.abs(fillRef.current - before) < 1e-6) {
-          announceRender();
-        } else {
-          // Growing: the view is about to be mounted again at the new width,
-          // and that load gets its own deadline.
-          expectRender();
-        }
-      });
+      const attempt = () => {
+        measureTimerRef.current = null;
+        void measureNow(true).then(learnt => {
+          if (!learnt && measureTriesRef.current < PAGE_FIT_TRIES) {
+            measureTriesRef.current += 1;
+            measureTimerRef.current = setTimeout(attempt, PAGE_FIT_RETRY_MS);
+            return;
+          }
+          measureTriesRef.current = 0;
+          if (Math.abs(fillRef.current - before) < 1e-6) {
+            announceRender();
+          } else {
+            // Growing: the view is about to be mounted again at the new
+            // width, and that load gets its own deadline.
+            expectRender();
+          }
+        });
+      };
+      attempt();
     }, [announceRender, expectRender, measureNow]);
+    useEffect(
+      () => () => {
+        if (measureTimerRef.current) clearTimeout(measureTimerRef.current);
+      },
+      [],
+    );
     useEffect(
       () => () => {
         if (renderDeadlineRef.current != null) {
@@ -1348,10 +1355,15 @@ export const BookPageFlip = memo(
         // The new page is here. A swipe still drawn back from a flick grows it
         // in from this, rather than guessing at when the pager would land.
         settleTurn();
+        // Nothing was learnt while the book opened — a blank first page, or
+        // a picture that would not come. The page now on screen is measured
+        // and remembered, but not applied: the fill stays where it is for
+        // this reading, and the next open of this book starts at it.
+        if (!isSettled()) void measureNow(false);
 
         handlers.current.onPageChanged(landed, total);
       },
-      [closeFold, setBounds, settleTurn],
+      [closeFold, isSettled, measureNow, setBounds, settleTurn],
     );
 
     const handleLoadProgress = useCallback((percent: number) => {

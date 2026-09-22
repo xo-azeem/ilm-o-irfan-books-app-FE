@@ -20,6 +20,12 @@ import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
  * audible. So the turn is handed to a player that is already wound back, and
  * the one just used is rewound behind it. Three is enough for a reader
  * flicking through a book as fast as a hand can move.
+ *
+ * A player is **paused before it is rewound**. One that has run to the end is
+ * still "playing" as far as the platform is concerned — it has simply run out
+ * of clip — so seeking it back to the start sets it going again, and the
+ * reader hears a second turn a beat after the first. That is the one thing
+ * this file must not do: one turn, one sound.
  */
 
 // Metro bundles the mp3 like an image; the require yields an asset id.
@@ -80,6 +86,8 @@ export function usePageTurnSound(enabled = true) {
     const timer = setTimeout(() => {
       rewinds.current = rewinds.current.filter(item => item !== timer);
       try {
+        // Paused first, or the seek would start the clip over — see above.
+        player.pause();
         void player.seekTo(0);
       } catch {
         // Released before the clip finished. Nothing to wind back.

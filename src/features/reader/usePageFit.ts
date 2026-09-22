@@ -36,8 +36,15 @@ function marginsOf(margin: number | null): SideMargins | null {
  * scale inside the new box — a band down one side, and a stutter as the fold
  * and the stage relaid out around it. A page that does not move is worth more
  * than a percent of width, and the measurement is remembered per book: a
- * tighter page found on one open governs the next
- * (`rememberPageMargin` keeps the smallest margin ever seen).
+ * tighter page found on one open governs the next (`rememberPageMargin` keeps
+ * the smallest margin ever seen).
+ *
+ * `measure` reports whether it learnt anything. A picture taken the instant
+ * the document view says it has drawn can come back blank — the frame is not
+ * composited yet — and a measurement that finds no ink teaches nothing. The
+ * caller retries while the loader is still up rather than leaving the book at
+ * its default for the whole session, which is what a single failed attempt
+ * used to do.
  */
 export function usePageFit(
   shapeKey: string | undefined,
@@ -49,19 +56,23 @@ export function usePageFit(
   );
   const fillRef = useRef(fillLimit);
   fillRef.current = fillLimit;
-  const measuring = useRef<Promise<void> | null>(null);
+  const measuring = useRef<Promise<boolean> | null>(null);
 
-  // Measured once per book. A second pass could only tell us what the first
-  // already did, and the limit is not allowed to move again anyway.
+  // Measured once per book, and only a measurement that found ink counts.
   const settled = useRef<string | undefined>(undefined);
 
   const measure = useCallback(
-    (allowGrow: boolean): Promise<void> => {
+    /**
+     * @param apply whether what is learnt may move the fill. True while the
+     * book is opening; false afterwards, when the page must not be resized
+     * under the reader — the margin is still remembered, for the next open.
+     */
+    (apply: boolean): Promise<boolean> => {
       if (measuring.current) return measuring.current;
-      if (settled.current === shapeKey) return Promise.resolve();
+      if (settled.current === shapeKey) return Promise.resolve(true);
       const run = (async () => {
         const view = shotRef.current;
-        if (!view) return;
+        if (!view) return false;
         let base64: string;
         try {
           base64 = await captureRef(view, {
@@ -73,28 +84,31 @@ export function usePageFit(
           });
         } catch {
           // The view is gone, or cannot be drawn just now. Nothing learnt.
-          return;
+          return false;
         }
         let margins: SideMargins | null;
         try {
           const image = decode(toByteArray(base64), { useTArray: true });
           margins = measureSideMargins(image.data, image.width, image.height);
         } catch {
-          return;
+          return false;
         }
-        if (!margins) return;
-        settled.current = shapeKey;
+        // No ink at all: a blank page, or a frame drawn before the document
+        // reached it. Either way there is nothing to learn from, and the
+        // book is not settled.
+        if (!margins) return false;
 
         const margin = Math.min(margins.left, margins.right);
         const known = rememberPageMargin(shapeKey, margin);
+        if (!apply) return true;
+
+        settled.current = shapeKey;
         const next = fillLimitFor(marginsOf(known), defaultFill);
-        if (
-          next < fillRef.current - 1e-6 ||
-          (allowGrow && next > fillRef.current + 1e-6)
-        ) {
+        if (Math.abs(next - fillRef.current) > 1e-6) {
           fillRef.current = next;
           setFillLimit(next);
         }
+        return true;
       })().finally(() => {
         measuring.current = null;
       });
@@ -113,5 +127,8 @@ export function usePageFit(
     setFillLimit(next);
   }, [defaultFill, shapeKey]);
 
-  return { fillLimit, measureNow: measure };
+  /** Whether this book's fill is the measured one rather than the default. */
+  const isSettled = useCallback(() => settled.current === shapeKey, [shapeKey]);
+
+  return { fillLimit, measureNow: measure, isSettled };
 }

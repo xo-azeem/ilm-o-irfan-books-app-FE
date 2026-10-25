@@ -15,6 +15,7 @@ import {
   StreakBars,
   Text,
   TextButton,
+  type LucideIcon,
 } from '@/components/ui';
 import { radius } from '@/theme/palette';
 import { fontSize } from '@/theme/typography';
@@ -123,8 +124,14 @@ export const GoalCard = memo(function GoalCard({
 export type Achievement = {
   /** Names the badge: the caption comes from `profile.achievements.names`. */
   id: AchievementId;
-  /** A numeral or glyph — "7", "25", "☾". */
-  mark: string;
+  /**
+   * A numeral — "7", "25" — or an icon for a badge that is not a number.
+   *
+   * An icon rather than a character like "☾": the Display face carries 564
+   * glyphs and the symbol ones are not among them, so a badge marked with a
+   * character drew an empty box on the medal.
+   */
+  mark: string | LucideIcon;
   earned: boolean;
   /** Gold for streaks, green for volume. Locked badges are neither. */
   tone?: 'gold' | 'primary';
@@ -223,14 +230,26 @@ const AchievementBadge = memo(function AchievementBadge({
               },
             ]}
           >
-            <Display
-              size={achievement.mark.length > 1 ? 10 : 12}
-              weight="700"
-              tone="inherit"
-              style={{ color: MEDAL_INK[tone] }}
-            >
-              {achievement.mark}
-            </Display>
+            {typeof achievement.mark === 'string' ? (
+              <Display
+                size={achievement.mark.length > 1 ? 10 : 12}
+                weight="700"
+                tone="inherit"
+                style={{ color: MEDAL_INK[tone] }}
+              >
+                {achievement.mark}
+              </Display>
+            ) : (
+              // Filled, so it carries the weight of the 700 numerals on the
+              // medals beside it; an outline read as the weaker badge.
+              <Icon
+                icon={achievement.mark}
+                size={12}
+                color={MEDAL_INK[tone]}
+                fill={MEDAL_INK[tone]}
+                strokeWidth={1.6}
+              />
+            )}
           </View>
         </View>
       ) : (

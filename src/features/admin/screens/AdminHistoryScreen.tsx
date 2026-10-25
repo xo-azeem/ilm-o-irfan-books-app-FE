@@ -264,7 +264,7 @@ const HistoryEntry = memo(function HistoryEntry({
                 uppercase={false}
                 tone="dim"
               >
-                →
+                ›
               </Label>
               <Label
                 size={11}

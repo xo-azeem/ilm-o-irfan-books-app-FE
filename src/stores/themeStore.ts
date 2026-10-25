@@ -67,12 +67,22 @@ type ThemeState = {
   pageTone: PageTone;
   readingMode: ReadingMode;
   keepScreenAwake: boolean;
+  /**
+   * Whether a page makes a sound as it turns.
+   *
+   * On by default — the sound is half of what makes the flip read as paper —
+   * but it is the one piece of the reader that carries into the room, so it
+   * has to be switchable. It already respects the phone's silent switch; this
+   * is for a reader who wants the silence with the ringer on.
+   */
+  pageTurnSound: boolean;
 
   setThemePreference: (preference: ThemePreference) => void;
   setFontScale: (scale: FontScale) => void;
   setPageTone: (tone: PageTone) => void;
   setReadingMode: (mode: ReadingMode) => void;
   setKeepScreenAwake: (value: boolean) => void;
+  setPageTurnSound: (value: boolean) => void;
 };
 
 export function applyThemePreference(preference: ThemePreference) {
@@ -96,6 +106,7 @@ type ThemeSettings = Pick<
   | 'pageTone'
   | 'readingMode'
   | 'keepScreenAwake'
+  | 'pageTurnSound'
 >;
 
 function pick<T extends string>(
@@ -126,6 +137,8 @@ function sanitizeSettings(persisted: unknown): ThemeSettings {
     ),
     keepScreenAwake:
       typeof saved.keepScreenAwake === 'boolean' ? saved.keepScreenAwake : true,
+    pageTurnSound:
+      typeof saved.pageTurnSound === 'boolean' ? saved.pageTurnSound : true,
   };
 }
 
@@ -141,6 +154,7 @@ export const useThemeStore = create<ThemeState>()(
       pageTone: DEFAULT_PAGE_TONE,
       readingMode: DEFAULT_READING_MODE,
       keepScreenAwake: true,
+      pageTurnSound: true,
 
       setThemePreference: preference => {
         applyThemePreference(preference);
@@ -150,6 +164,7 @@ export const useThemeStore = create<ThemeState>()(
       setPageTone: pageTone => set({ pageTone }),
       setReadingMode: readingMode => set({ readingMode }),
       setKeepScreenAwake: keepScreenAwake => set({ keepScreenAwake }),
+      setPageTurnSound: pageTurnSound => set({ pageTurnSound }),
     }),
     {
       name: 'ilm-theme-preference',
@@ -165,6 +180,7 @@ export const useThemeStore = create<ThemeState>()(
         pageTone: state.pageTone,
         readingMode: state.readingMode,
         keepScreenAwake: state.keepScreenAwake,
+        pageTurnSound: state.pageTurnSound,
       }),
 
       // Version 1 wrote every setting back on any change, so a record from

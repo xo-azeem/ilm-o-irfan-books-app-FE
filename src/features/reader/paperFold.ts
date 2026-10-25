@@ -173,6 +173,112 @@ export type FoldFrame = {
 const NO_FOLD: number[] = [1, 0, 0, 1, 0, 0];
 const NO_AXIS: number[] = [0, 0, 0, 0];
 
+/**
+ * The side of the square a half-plane clipper has to be to cover the page.
+ *
+ * A clipper is a square laid with one edge along the crease and its contents
+ * counter-transformed, so the page shows through exactly where the square
+ * does. It has to reach every corner of the page from wherever the crease
+ * happens to be: the crease midpoint is always on the page, and the furthest
+ * any point on the page can be from another is its diagonal, so half the side
+ * must be at least the diagonal.
+ *
+ * It used to be `2 * (width + height)`, which is the same thing measured
+ * along two edges instead of across — up to 41% longer on a side, and so
+ * nearly twice the area, on every one of the five clippers, every frame.
+ * Rotated views with `overflow: hidden` are composited by area, and the page
+ * got wider when it started filling the screen edge to edge, which is when
+ * the turn stopped feeling smooth.
+ */
+export function clipperSize(w: number, h: number): number {
+  'worklet';
+  return 2 * Math.hypot(w, h);
+}
+
+/** What the renderer actually reads from the fold, once a frame. */
+export type FoldSummary = {
+  /** The leaf has folded right over: nothing of it is left on the page. */
+  gone: boolean;
+  /** How much of the shadow the raised leaf throws: none flat, most midway. */
+  cast: number;
+};
+
+/**
+ * The two numbers the renderer needs, and nothing else.
+ *
+ * `foldFrame` below computes a whole frame of the fold — two clip paths as
+ * SVG strings, a reflection matrix, two gradient axes, a halo. The native
+ * renderer uses none of it: it draws the fold with rotated views and reads
+ * only whether the leaf has gone and how dark its shadow is. It was still
+ * calling `foldFrame` on every frame of every turn and throwing the rest
+ * away, which meant building two strings with `toFixed` per vertex, and
+ * seven polygon allocations, sixty times a second, for two scalars.
+ *
+ * So this is the same geometry with the dead work removed. It is deliberately
+ * the *same* algorithm — `gone` still means "the mirrored flap, clipped to the
+ * page, has no area" — because that is what decides when the leaf disappears,
+ * and a cheaper approximation would change where that happens.
+ */
+export function foldSummary(
+  w: number,
+  h: number,
+  cy: number,
+  fx: number,
+  fy: number,
+): FoldSummary {
+  'worklet';
+  const ox = w;
+  const oy = cy;
+
+  if (
+    w <= 0 ||
+    h <= 0 ||
+    (Math.abs(fx - ox) < 1.5 && Math.abs(fy - oy) < 1.5)
+  ) {
+    return { gone: true, cast: 0 };
+  }
+
+  let nx = ox - fx;
+  let ny = oy - fy;
+  const len = Math.hypot(nx, ny) || 1;
+  nx /= len;
+  ny /= len;
+
+  const m = { x: (ox + fx) / 2, y: (oy + fy) / 2 };
+  const n = { x: nx, y: ny };
+
+  // Symmetric about the half-way mark, so a fold coming back is as bright as
+  // the same fold going out — see the note in `foldFrame`.
+  const cast = Math.min(1, Math.sin(progressOf(fx, 1, w) * Math.PI) * 1.15);
+
+  const rect: Pt[] = [
+    { x: 0, y: 0 },
+    { x: w, y: 0 },
+    { x: w, y: h },
+    { x: 0, y: h },
+  ];
+
+  const flap = half(rect, m, n, 1);
+  if (flap.length < 3) return { gone: true, cast };
+
+  const mirror = (p: Pt): Pt => {
+    'worklet';
+    const t = 2 * ((p.x - m.x) * nx + (p.y - m.y) * ny);
+    return { x: p.x - t * nx, y: p.y - t * ny };
+  };
+
+  let land = flap.map(mirror);
+  land = half(land, { x: 0, y: 0 }, { x: 1, y: 0 }, 1);
+  if (land.length < 3) return { gone: true, cast };
+  land = half(land, { x: w, y: 0 }, { x: -1, y: 0 }, 1);
+  if (land.length < 3) return { gone: true, cast };
+  land = half(land, { x: 0, y: 0 }, { x: 0, y: 1 }, 1);
+  if (land.length < 3) return { gone: true, cast };
+  land = half(land, { x: 0, y: h }, { x: 0, y: -1 }, 1);
+
+  return { gone: land.length < 3, cast };
+}
+
 export function foldFrame(
   w: number,
   h: number,

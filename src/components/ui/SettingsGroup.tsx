@@ -72,8 +72,14 @@ export const SettingsGroup = memo(function SettingsGroup({
 export type SettingsRowProps = {
   title: string;
   subtitle?: string;
-  /** Right-aligned current value — "Premium", "English", "6". */
-  value?: string;
+  /**
+   * Right-aligned current value — "Premium", "English", "6".
+   *
+   * A node is allowed so a row can show marks the text faces cannot draw: a
+   * rank of stars is five icons, never "★★★★★", because U+2605 is in none of
+   * the bundled fonts and renders as tofu.
+   */
+  value?: string | ReactNode;
   icon?: LucideIcon;
   iconTone?: IconTileTone;
   /** Replaces the chevron with a switch. */
@@ -128,11 +134,13 @@ export const SettingsRow = memo(function SettingsRow({
           </Text>
         ) : null}
       </View>
-      {value ? (
+      {typeof value === 'string' || typeof value === 'number' ? (
         <Text size={fontSize.caption + 0.5} leading={1} tone="muted">
           {value}
         </Text>
-      ) : null}
+      ) : (
+        (value ?? null)
+      )}
       {toggle ? (
         <Toggle
           value={toggle.value}

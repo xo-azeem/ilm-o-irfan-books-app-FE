@@ -1,7 +1,8 @@
 import { memo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import { Infinity as InfinityIcon } from 'lucide-react-native';
 
-import { Display, LinearGradient, Text } from '@/components/ui';
+import { Icon, LinearGradient, Text } from '@/components/ui';
 import { useStrings } from '@/i18n';
 import { radius } from '@/theme/palette';
 import { fontSize } from '@/theme/typography';
@@ -50,9 +51,15 @@ export const MembershipBand = memo(function MembershipBand({
           { backgroundColor: colors.goldFill, borderColor: colors.goldBorder },
         ]}
       >
-        <Display size={17} tone="gold">
-          ∞
-        </Display>
+        {/*
+         * Drawn from the icon set, not as the character "∞". Newsreader — the
+         * Display face — carries 564 glyphs and U+221E is not among them, so
+         * the mark rendered as tofu on every device: the membership band's one
+         * piece of gold, blank. A UI mark has to come from a font we know
+         * carries it, and the only one we can say that of is the icon set.
+         */}
+        {/* The system's own stroke: heavier reads as a different icon set. */}
+        <Icon icon={InfinityIcon} size={18} tone="gold" strokeWidth={1.8} />
       </View>
 
       <View style={styles.body}>

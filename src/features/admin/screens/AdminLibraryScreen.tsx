@@ -14,11 +14,9 @@ import {
 } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
-  Crown,
   Eye,
   EyeOff,
   Trash2,
-  Unlock,
   Upload,
   type LucideIcon,
 } from 'lucide-react-native';
@@ -648,20 +646,13 @@ export function AdminLibraryScreen() {
               }
             />
           </View>
-          <View style={styles.bulkRow}>
-            <BulkButton
-              label={words.markPremium}
-              Icon={Crown}
-              disabled={selected.length === 0}
-              onPress={() => runBulk({ is_premium: true }, words.markedPremium)}
-            />
-            <BulkButton
-              label={words.makeFree}
-              Icon={Unlock}
-              disabled={selected.length === 0}
-              onPress={() => runBulk({ is_premium: false }, words.madeFree)}
-            />
-          </View>
+          {/*
+           * There is no "Make free" any more, and no "Mark premium" to pair
+           * with it: the catalogue is subscription-only and every book is
+           * premium by construction — `books_no_free_titles` will not let a
+           * row say otherwise. Leaving the buttons would offer an action the
+           * database now refuses.
+           */}
           <View style={styles.bulkRow}>
             <BulkButton
               label={

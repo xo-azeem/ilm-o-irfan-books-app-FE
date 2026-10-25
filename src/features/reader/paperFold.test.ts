@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { foldFrame, half, sweepProgress, type Pt } from './paperFold';
+import {
+  clipperSize,
+  foldFrame,
+  foldSummary,
+  half,
+  sweepProgress,
+  type Pt,
+} from './paperFold';
 
 /**
  * The fold, as the design has it.
@@ -399,5 +406,116 @@ describe('sweepProgress', () => {
     assert.equal(sweepProgress(0, 1, 0, 393), 0);
     assert.equal(sweepProgress(-9999, 1, 570, 393), 1);
     assert.equal(sweepProgress(9999, 1, 570, 393), 0);
+  });
+});
+
+/**
+ * The renderer's hot path.
+ *
+ * `PaperFold` redraws the fold on every frame of every turn, and for a long
+ * time it did that by calling `foldFrame` — which builds two SVG path strings
+ * and five polygons — and then reading two numbers off the result. The rest
+ * was computed and dropped, sixty times a second, while the page it was
+ * computed from grew wide enough to fill the screen.
+ *
+ * `foldSummary` is that path with the dead work taken out. These hold it to
+ * the only thing that matters: it must say exactly what `foldFrame` said.
+ */
+describe('foldSummary matches foldFrame, cheaply', () => {
+  const SHAPES = [
+    { w: 393, h: 820, label: 'phone, fitted' },
+    { w: 578, h: 820, label: 'phone, filling the screen' },
+    { w: 865, h: 820, label: 'a page wider than it is tall' },
+    { w: 800, h: 1180, label: 'tablet' },
+    { w: 344, h: 796, label: 'narrow foldable' },
+  ];
+
+  it('agrees on `gone` and on the shadow, everywhere on the page', () => {
+    for (const { w, h, label } of SHAPES) {
+      for (const cy of [0, h / 2, h]) {
+        // Right across the sweep, and past both ends of it.
+        for (let step = -12; step <= 24; step += 1) {
+          const fx = w - (step / 12) * w;
+          for (const fy of [0, cy, h * 0.37, h]) {
+            const frame = foldFrame(w, h, cy, fx, fy);
+            const summary = foldSummary(w, h, cy, fx, fy);
+            const where = `${label} cy=${cy} fx=${fx.toFixed(1)} fy=${fy}`;
+            assert.equal(summary.gone, frame.gone, `${where}: gone`);
+            assert.ok(
+              Math.abs(summary.cast - frame.castOpacity) < 1e-12,
+              `${where}: cast ${summary.cast} != ${frame.castOpacity}`,
+            );
+          }
+        }
+      }
+    }
+  });
+
+  it('answers a sheet nobody has touched the way the full frame does', () => {
+    const frame = foldFrame(400, 800, 800, 400, 800);
+    const summary = foldSummary(400, 800, 800, 400, 800);
+    assert.equal(summary.gone, frame.gone);
+    assert.equal(summary.cast, frame.castOpacity);
+  });
+
+  it('has nothing to draw on a stage with no size', () => {
+    assert.deepEqual(foldSummary(0, 0, 0, 0, 0), { gone: true, cast: 0 });
+    assert.deepEqual(foldSummary(400, 0, 0, 10, 10), { gone: true, cast: 0 });
+  });
+});
+
+/**
+ * The clipper squares.
+ *
+ * Each half of the fold is drawn by a square view laid along the crease with
+ * `overflow: hidden`. It has to reach every corner of the page from wherever
+ * the crease is; any larger and the compositor is blending pixels that can
+ * never show, on five views, every frame.
+ */
+describe('clipperSize covers the page and no more', () => {
+  const SHAPES = [
+    { w: 393, h: 820 },
+    { w: 578, h: 820 },
+    { w: 865, h: 820 },
+    { w: 800, h: 1180 },
+    { w: 1280, h: 740 },
+    { w: 344, h: 796 },
+  ];
+
+  it('reaches every corner from any crease the page can have', () => {
+    for (const { w, h } of SHAPES) {
+      const size = clipperSize(w, h);
+      // The crease midpoint is the midpoint of the resting corner and the
+      // carried one, so it can sit anywhere on or just off the page. The
+      // square spans `size` along the normal and `size/2` either side of the
+      // midpoint across it, so `size/2` must clear the furthest corner.
+      for (const mx of [0, w / 2, w]) {
+        for (const my of [0, h / 2, h]) {
+          for (const [cx, cyy] of [
+            [0, 0],
+            [w, 0],
+            [w, h],
+            [0, h],
+          ]) {
+            const reach = Math.hypot(cx - mx, cyy - my);
+            assert.ok(
+              size / 2 >= reach - 1e-9,
+              `${w}x${h}: half-side ${size / 2} short of corner at ${reach}`,
+            );
+          }
+        }
+      }
+    }
+  });
+
+  it('is smaller than the box it replaced, which is the point', () => {
+    for (const { w, h } of SHAPES) {
+      const now = clipperSize(w, h);
+      const before = 2 * (w + h);
+      assert.ok(now <= before, `${w}x${h}: ${now} > ${before}`);
+      // Area is what the compositor pays for.
+      const saved = 1 - (now * now) / (before * before);
+      assert.ok(saved > 0.25, `${w}x${h}: only ${(saved * 100).toFixed(0)}% off`);
+    }
   });
 });

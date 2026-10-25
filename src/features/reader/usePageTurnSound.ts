@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
 
+import { nextSlot, REWIND_MS, SOUND_POOL } from '@/features/reader/soundPool';
+
 /**
  * The sound of a page turning.
  *
@@ -14,12 +16,25 @@ import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
  * carries on underneath — and it respects the phone's silent switch, as a UI
  * sound should.
  *
- * Three players rather than one. A player that has just been used sits at the
- * end of the clip and must be rewound before it can speak again, and a seek
- * is asynchronous: waiting for one would put the delay right where it is most
- * audible. So the turn is handed to a player that is already wound back, and
- * the one just used is rewound behind it. Three is enough for a reader
- * flicking through a book as fast as a hand can move.
+ * ## Why a pool, and why it has to be checked
+ *
+ * A player that has just been used sits at the end of the clip and must be
+ * wound back before it can speak again, and a seek is asynchronous: waiting
+ * for one would put the delay exactly where it is most audible. So turns are
+ * handed to players round-robin and each is wound back behind itself.
+ *
+ * The first version of this took that on faith — three players, each rewound
+ * on a timer, and the next turn simply told to play. That is fine at reading
+ * speed and silent at browsing speed: flick through a book faster than the
+ * pool comes round and the turn lands on a player still parked at the end of
+ * its clip, `play()` does nothing, and **that flip makes no sound at all**.
+ * Which is exactly how it was reported — the sound "not perfectly sounding".
+ *
+ * So a slot now says whether it is wound back, and a turn that finds a slot
+ * still dirty winds it back itself before playing rather than trusting the
+ * timer to have run. The pool is sized so that path is almost never taken
+ * (see `soundPool.ts`), but it is there, which is the difference between a
+ * missed sound and a late one.
  *
  * A player is **paused before it is rewound**. One that has run to the end is
  * still "playing" as far as the platform is concerned — it has simply run out
@@ -31,19 +46,24 @@ import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
 // Metro bundles the mp3 like an image; the require yields an asset id.
 const PAPER_FOLD = require('@/assets/sounds/paper-fold.mp3');
 
-/** Long enough for the clip (0.62s) to finish before the player is rewound. */
-const REWIND_MS = 800;
-
 let audioModeSet = false;
 
 export function usePageTurnSound(enabled = true) {
-  // Hooks, so one per line rather than a loop.
+  // Hooks, so one per line rather than a loop. `SOUND_POOL` is the length of
+  // this list and the two are asserted equal below.
   const first = useAudioPlayer(PAPER_FOLD);
   const second = useAudioPlayer(PAPER_FOLD);
   const third = useAudioPlayer(PAPER_FOLD);
+  const fourth = useAudioPlayer(PAPER_FOLD);
+  const fifth = useAudioPlayer(PAPER_FOLD);
 
-  const players = useRef([first, second, third]);
-  players.current = [first, second, third];
+  const players = useRef([first, second, third, fourth, fifth]);
+  players.current = [first, second, third, fourth, fifth];
+
+  /** Which slots have been played and not yet wound back. */
+  const dirty = useRef<boolean[]>(
+    Array.from({ length: SOUND_POOL }, () => false),
+  );
   const next = useRef(0);
   const rewinds = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -73,22 +93,33 @@ export function usePageTurnSound(enabled = true) {
 
   return useCallback(() => {
     if (!enabledRef.current) return;
-    const player = players.current[next.current];
-    next.current = (next.current + 1) % players.current.length;
+
+    const slot = next.current;
+    const player = players.current[slot];
+    next.current = nextSlot(slot);
+
     try {
-      // Already at the start: nothing to wait for between the finger and the
-      // sound.
+      if (dirty.current[slot]) {
+        // Came round before the timer did. Wind it back here rather than let
+        // the turn fall silent: paused first, or the seek restarts the clip
+        // and the reader hears the turn twice.
+        player.pause();
+        void player.seekTo(0);
+      }
       player.play();
+      dirty.current[slot] = true;
     } catch {
       // The player has been released with the stage; nothing to play on.
       return;
     }
+
     const timer = setTimeout(() => {
       rewinds.current = rewinds.current.filter(item => item !== timer);
       try {
         // Paused first, or the seek would start the clip over — see above.
         player.pause();
         void player.seekTo(0);
+        dirty.current[slot] = false;
       } catch {
         // Released before the clip finished. Nothing to wind back.
       }

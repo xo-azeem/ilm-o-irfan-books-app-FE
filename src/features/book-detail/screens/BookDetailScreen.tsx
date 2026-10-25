@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
@@ -6,6 +6,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronLeft, Lock, MoreVertical, Play } from 'lucide-react-native';
 
 import type { RootStackParamList } from '@/app/navigation/types';
+import { prepareToOpen } from '@/services/bookVault';
 import {
   AccessLabel,
   accessFor,
@@ -82,6 +83,19 @@ export function BookDetailScreen() {
     useAccess();
 
   const [expanded, setExpanded] = useState(false);
+
+  // A reader on this page is most of the way to tapping Read, so the open is
+  // readied now — the vault, the device key, and the signed URL — and the tap
+  // starts the download at once instead of a round trip later. None of it
+  // downloads the book, so it costs nothing on a metered connection. Keyed on
+  // the route's id rather than the loaded book, so it starts before the
+  // details have arrived. Only for a reader who may open it: anyone else
+  // would only be refused.
+  useEffect(() => {
+    if (isAuthenticated && canOpenBooks && !isSubscriptionLoading) {
+      prepareToOpen(bookId);
+    }
+  }, [bookId, canOpenBooks, isAuthenticated, isSubscriptionLoading]);
 
   const goBack = useCallback(() => navigation.goBack(), [navigation]);
 

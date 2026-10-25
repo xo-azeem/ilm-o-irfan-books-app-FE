@@ -279,7 +279,7 @@ export const admin = {
       `Older builds are asked to update before reading. This build is ${build}. Leave empty for no floor.`,
     billing: 'Billing (RevenueCat)',
     billingNote:
-      'The public SDK keys from RevenueCat → Apps. Every installed app picks them up on its next launch, so checkout can be switched on without a new build. Never paste the secret key (sk_…) here.',
+      'The public SDK keys from RevenueCat › Apps. Every installed app picks them up on its next launch, so checkout can be switched on without a new build. Never paste the secret key (sk_…) here.',
     revenueCatAndroidKey: 'Android key',
     revenueCatIosKey: 'iOS key',
     revenueCatKeyHint: (prefix: string) =>

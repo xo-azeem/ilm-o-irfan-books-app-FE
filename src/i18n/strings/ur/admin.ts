@@ -266,7 +266,7 @@ export const admin: typeof en = {
     supportEmailHint: 'قاری ایپ کے مدد مرکز میں دکھایا جاتا ہے۔',
     billing: 'بلنگ (RevenueCat)',
     billingNote:
-      'RevenueCat → Apps سے عوامی SDK کیز۔ ہر انسٹال شدہ ایپ اگلی بار کھلنے پر انہیں اٹھا لیتی ہے، اس لیے نئی بلڈ کے بغیر خریداری چالو ہو جاتی ہے۔ خفیہ کی (sk_…) یہاں کبھی نہ لکھیں۔',
+      'RevenueCat › Apps سے عوامی SDK کیز۔ ہر انسٹال شدہ ایپ اگلی بار کھلنے پر انہیں اٹھا لیتی ہے، اس لیے نئی بلڈ کے بغیر خریداری چالو ہو جاتی ہے۔ خفیہ کی (sk_…) یہاں کبھی نہ لکھیں۔',
     revenueCatAndroidKey: 'اینڈرائیڈ کی',
     revenueCatIosKey: 'iOS کی',
     revenueCatKeyHint: prefix =>

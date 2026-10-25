@@ -9,6 +9,7 @@ import {
 import { fromByteArray, toByteArray } from 'react-native-quick-base64';
 
 import { getSignedPdfUrl } from '@/lib/supabase';
+import { takeSignedPdf, warmSignedPdf } from '@/services/signedPdfCache';
 import { checkBookFiles, syncDownload } from '@/services/account';
 import {
   abortError,
@@ -22,6 +23,7 @@ import {
   type RevocationReason,
 } from '@/services/vaultReconcile';
 import { useAccessStore } from '@/stores/accessStore';
+import { useAuthStore } from '@/stores/authStore';
 import { keyValueStore } from '@/stores/storage';
 import { strings } from '@/i18n/strings';
 
@@ -631,6 +633,50 @@ function purge(bookId: string) {
 }
 
 /**
+ * The URL to download a book from: the one warmed while the reader looked at
+ * the book's page, if it is still good, and a fresh one otherwise. Held per
+ * reader — see `signedPdfHold.ts` — so with no reader there is nothing to
+ * reuse and the request goes straight out.
+ */
+function signedUrlFor(bookId: string) {
+  const userId = useAuthStore.getState().userId;
+  return userId ? takeSignedPdf(userId, bookId) : getSignedPdfUrl(bookId);
+}
+
+/**
+ * Gets everything ready for a book the reader is about to open, and returns
+ * at once.
+ *
+ * Called from the book's page, where the reader is most of the way to
+ * tapping Read. Three things an open would otherwise do *after* the tap are
+ * done before it:
+ *
+ *   · the vault's launch sweep, once per launch;
+ *   · the device key, a keystore read on the first open of a launch — and a
+ *     mint and a write on the first open ever;
+ *   · for a book not on the device, the signed URL: a TLS handshake and an
+ *     Edge Function round trip that otherwise sat in front of every byte.
+ *
+ * None of it downloads the book. The URL is a few hundred bytes of JSON, so
+ * this costs a reader's data plan nothing for a book they never open — which
+ * is why it runs on any connection, and why the download itself still waits
+ * for the tap. Everything here is idempotent and every failure is left for
+ * the open to find: a warm-up that fails costs nothing the open would not
+ * have paid anyway.
+ */
+export function prepareToOpen(bookId: string): void {
+  void (async () => {
+    await bootVault();
+    void loadKey().catch(() => undefined);
+    // Read-only checks — no file is touched — so this needs no turn of its
+    // own on the book's chain.
+    if (readEntry(bookId) || openCopyIsUsable(bookId, null)) return;
+    const userId = useAuthStore.getState().userId;
+    if (userId) warmSignedPdf(userId, bookId);
+  })().catch(() => undefined);
+}
+
+/**
  * Gets a book ready to read.
  *
  * In order: the plaintext already open from earlier this session (reopened
@@ -700,7 +746,7 @@ export function openBook(
 
     ensure(readerDirectory());
     const target = openFile(bookId);
-    const { url, fileSizeBytes, pdfUpdatedAt } = await getSignedPdfUrl(bookId);
+    const { url, fileSizeBytes, pdfUpdatedAt } = await signedUrlFor(bookId);
     // Twice over: the plaintext to read from, and the seal cached behind it.
     ensureSpace((fileSizeBytes ?? 0) * 2);
     await downloadToPath(url, plainPath(target), {
@@ -816,7 +862,7 @@ export function keepBook(
       if (!openCopyIsUsable(bookId, null)) {
         ensure(readerDirectory());
         const { url, fileSizeBytes, pdfUpdatedAt } =
-          await getSignedPdfUrl(bookId);
+          await signedUrlFor(bookId);
         // Kept twice over: the plaintext to read from now, the seal to keep.
         ensureSpace((fileSizeBytes ?? 0) * 2);
         // The transfer owns the first 85% of the bar; the seal, the rest.

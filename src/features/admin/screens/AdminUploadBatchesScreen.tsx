@@ -280,7 +280,7 @@ const BatchRow = memo(function BatchRow({
         </Text>
         {destination ? (
           <Text size={11} leading={1.2} tone="faint" numberOfLines={1}>
-            {`→ ${destination}`}
+            {`› ${destination}`}
           </Text>
         ) : null}
       </View>

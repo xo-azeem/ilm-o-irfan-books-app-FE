@@ -410,7 +410,10 @@ export const BookPageFlip = memo(
     const zoomed = zoom > MIN_SCALE + ZOOM_EPS;
     const zoomRef = useRef(zoom);
     zoomRef.current = zoom;
-    const playPageTurn = usePageTurnSound();
+    // Off is a real choice, and the reader's: the sound is the one part of
+    // the flip that carries into the room.
+    const pageTurnSound = useThemeStore(state => state.pageTurnSound);
+    const playPageTurn = usePageTurnSound(pageTurnSound);
     const paged = readingMode !== 'scroll';
     /**
      * The swipe mode of a right-bound book: the document view's own pager

@@ -221,7 +221,9 @@ function toBook(book: NestedBook): CatalogBook {
       price_cents: 0,
       currency: 'USD',
       format: strings().services.book.digitalEdition,
-      is_premium: false,
+      // Not carried by this embed, but not unknown either: the catalogue is
+      // subscription-only and `books_no_free_titles` makes every book premium.
+      is_premium: true,
     },
     publicCoverUrl(book.cover_path),
   );

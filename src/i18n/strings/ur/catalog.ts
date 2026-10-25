@@ -29,7 +29,7 @@ export const catalog: typeof en = {
       count === 1 ? '1 کتاب دکھائیں' : `${formatted} کتابیں دکھائیں`,
     onlyInMembership: 'صرف میری رکنیت والی کتابیں',
     downloadedOnly: 'صرف ڈاؤن لوڈ شدہ',
-    ratedFourUp: '4★ یا زیادہ',
+    ratedFourUp: '4.0 یا زیادہ',
     ratedFourUpA11y: '4 ستارے یا زیادہ',
     lengths: {
       short: '200 صفحات سے کم',
@@ -47,7 +47,7 @@ export const catalog: typeof en = {
       subject: 'زمرہ',
       inMembership: 'رکنیت میں',
       downloaded: 'ڈاؤن لوڈ شدہ',
-      rating: '4★ یا زیادہ',
+      rating: '4.0 یا زیادہ',
     },
   },
   library: {

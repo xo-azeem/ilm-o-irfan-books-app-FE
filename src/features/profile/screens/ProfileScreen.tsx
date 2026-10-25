@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { Moon } from 'lucide-react-native';
 
 import { GuestAuthPanel } from '@/components/auth/GuestAuthPanel';
 import { Screen } from '@/components/layout';
@@ -40,7 +41,7 @@ const ACHIEVEMENT_FACES: Record<
   'first-book': { mark: '1', tone: 'primary' },
   'streak-7': { mark: '7', tone: 'gold' },
   'books-25': { mark: '25', tone: 'primary' },
-  'night-reader': { mark: '☾', tone: 'primary' },
+  'night-reader': { mark: Moon, tone: 'primary' },
 };
 
 const ACHIEVEMENT_ORDER: AchievementId[] = [

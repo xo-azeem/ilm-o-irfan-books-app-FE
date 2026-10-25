@@ -266,7 +266,7 @@ export const account = {
       reasonTooLong: (max: number, now: number) =>
         `Keep the reason under ${max} characters (${now} now).`,
       footer:
-        'Sending a request does not delete anything yet. Our team will let you know the decision, and you can cancel from Profile → Privacy & security at any time before the deletion runs.',
+        'Sending a request does not delete anything yet. Our team will let you know the decision, and you can cancel from Profile › Privacy & security at any time before the deletion runs.',
     },
     link: {
       couldNotOpen: 'Could not open link',

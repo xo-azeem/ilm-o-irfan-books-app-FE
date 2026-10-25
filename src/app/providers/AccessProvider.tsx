@@ -11,6 +11,7 @@ import {
   identifyPurchaser,
 } from '@/services/billing';
 import { useAppStatus } from '@/hooks/useAppStatus';
+import { clearSignedPdfs } from '@/services/signedPdfCache';
 import { useAccessStore } from '@/stores/accessStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useBillingKeyStore } from '@/stores/billingKeyStore';
@@ -88,6 +89,9 @@ export function AccessProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!userId) {
       reset();
+      // Signed URLs warmed for the reader who just left. They are held per
+      // reader and could never reach the next one anyway; this lets them go.
+      clearSignedPdfs();
     }
   }, [reset, userId]);
 

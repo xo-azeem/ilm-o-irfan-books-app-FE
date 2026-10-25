@@ -18,11 +18,12 @@ import {
   CAST_SPAN,
   CURL_FROM,
   bandXf,
+  clipperSize,
   clipperXf,
   contentXf,
   creaseOf,
   curlSpan,
-  foldFrame,
+  foldSummary,
   reflectXf,
   type Xf,
 } from '@/features/reader/paperFold';
@@ -67,9 +68,7 @@ const SPINE_STOPS: GradientStop[] = [
  * this large, laid with one edge on the crease, covers the whole of it from
  * any angle with room to spare.
  */
-function sizeFor(width: number, height: number) {
-  return 2 * (width + height);
-}
+const sizeFor = clipperSize;
 
 /** Where the crease is, and everything the views need to know about it. */
 type Crease = {
@@ -237,7 +236,10 @@ export const PaperFold = memo(function PaperFold({
     const on = live.value;
     const c = on ? creaseOf(width, height, cy.value, fx.value, fy.value) : null;
     if (!c) return noCrease(width, on);
-    const frame = foldFrame(width, height, cy.value, fx.value, fy.value);
+    // Only `gone` and `cast` are read below, so only those are computed. The
+    // full `foldFrame` built two SVG path strings and five more polygons per
+    // frame that nothing here has ever drawn — see `foldSummary`.
+    const frame = foldSummary(width, height, cy.value, fx.value, fy.value);
     return {
       on,
       mx: c.mx,
@@ -245,7 +247,7 @@ export const PaperFold = memo(function PaperFold({
       th: c.th,
       flat: 0,
       gone: frame.gone ? 1 : 0,
-      cast: frame.castOpacity,
+      cast: frame.cast,
     };
   }, [width, height]);
 

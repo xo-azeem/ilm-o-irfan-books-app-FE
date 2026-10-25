@@ -29,7 +29,7 @@ export const catalog = {
       count === 1 ? 'Show 1 book' : `Show ${formatted} books`,
     onlyInMembership: 'Only books in my membership',
     downloadedOnly: 'Downloaded only',
-    ratedFourUp: 'Rated 4★ and up',
+    ratedFourUp: 'Rated 4.0 and up',
     ratedFourUpA11y: 'Rated 4 stars and up',
     lengths: { short: 'Under 200p', medium: '200–599p', long: '600p+' },
     languages: { urdu: 'Urdu', english: 'English', arabic: 'Arabic' },
@@ -43,7 +43,7 @@ export const catalog = {
       subject: 'Category',
       inMembership: 'In membership',
       downloaded: 'Downloaded',
-      rating: '4★ and up',
+      rating: '4.0 and up',
     },
   },
   library: {

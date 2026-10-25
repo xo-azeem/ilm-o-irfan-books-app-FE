@@ -231,6 +231,9 @@ function bookPayload(input: AdminBookInput) {
     price_cents: Math.max(0, Math.round(input.price_cents)),
     currency: input.currency.trim().toUpperCase() || 'PKR',
     format: input.format.trim() || 'Digital edition',
+    // numeric(2, 1), checked 0..5 by the column. Clamped and rounded here so
+    // a stray keystroke is a corrected value rather than a failed save.
+    rating: Math.min(5, Math.max(0, Math.round((input.rating || 0) * 10) / 10)),
     is_premium: input.is_premium,
     is_published: input.is_published,
     // published_at is stamped by a database trigger.
@@ -298,6 +301,7 @@ export async function duplicateAdminBook(id: string): Promise<string> {
     price_cents: source.price_cents,
     currency: source.currency,
     format: source.format,
+    rating: source.rating,
     is_premium: source.is_premium,
     is_published: false,
     category_ids: source.category_ids,

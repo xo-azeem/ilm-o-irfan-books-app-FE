@@ -9,6 +9,8 @@ import {
   type ViewStyle,
 } from 'react-native';
 
+import { Check } from 'lucide-react-native';
+
 import { Icon, type LucideIcon } from '@/components/ui/Icon';
 import { Label, Text } from '@/components/ui/Text';
 import { layout, radius } from '@/theme/palette';
@@ -25,6 +27,12 @@ export type ChipProps = Omit<PressableProps, 'style' | 'children'> & {
   /** A trailing count, e.g. the "2" on an active Filters chip. */
   count?: number | string;
   icon?: LucideIcon;
+  /**
+   * A trailing glyph, for a chip that *does* something rather than counting —
+   * the dismiss on an active filter, say. An icon rather than a `count` of
+   * "✕", because the bundled text faces carry no such character.
+   */
+  trailingIcon?: LucideIcon;
   /** `solid` fills fully green — used for the onboarding subject chips. */
   variant?: 'outline' | 'solid';
   size?: 'sm' | 'md';
@@ -36,6 +44,7 @@ export const Chip = memo(function Chip({
   selected = false,
   count,
   icon,
+  trailingIcon,
   variant = 'outline',
   size = 'md',
   style,
@@ -104,15 +113,20 @@ export const Chip = memo(function Chip({
           {String(count)}
         </Text>
       ) : null}
+      {trailingIcon ? (
+        <Icon
+          icon={trailingIcon}
+          size={12}
+          tone={labelTone === 'onPrimary' ? 'onPrimary' : 'soft'}
+          strokeWidth={2.2}
+        />
+      ) : null}
       {solidSelected ? (
-        <Text
-          size={fontSize.caption}
-          leading={1}
-          tone="onPrimary"
-          style={styles.tick}
-        >
-          ✓
-        </Text>
+        // From the icon set, not the character "✓": U+2713 is in none of the
+        // five bundled faces, so it drew as tofu on a selected chip.
+        <View style={styles.tick}>
+          <Icon icon={Check} size={fontSize.caption} tone="onPrimary" />
+        </View>
       ) : null}
     </Pressable>
   );

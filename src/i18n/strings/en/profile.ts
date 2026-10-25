@@ -98,6 +98,8 @@ export const profile = {
     readingMode: 'Reading mode',
     keepAwake: 'Keep screen awake',
     keepAwakeHint: 'While the reader is open',
+    pageTurnSound: 'Page turn sound',
+    pageTurnSoundHint: 'A sheet of paper, as the page folds over',
   },
   notifications: {
     title: 'Notifications',
@@ -176,7 +178,7 @@ export const profile = {
       {
         question: 'How do I download books for offline reading?',
         answer:
-          'Open any book and tap the download icon on the reader screen. Downloaded titles appear under Profile → Downloads.',
+          'Open any book and tap the download icon on the reader screen. Downloaded titles appear under Profile › Downloads.',
       },
       {
         question: 'Can I sync progress across devices?',
@@ -186,12 +188,12 @@ export const profile = {
       {
         question: 'How do I manage my subscription?',
         answer:
-          'Go to Profile → Subscription to view your plan, renewal date, and billing options.',
+          'Go to Profile › Subscription to view your plan, renewal date, and billing options.',
       },
       {
         question: 'How do I change the app language?',
         answer:
-          'Open Profile → Language and choose from the available languages. The app will apply your selection immediately.',
+          'Open Profile › Language and choose from the available languages. The app will apply your selection immediately.',
       },
     ],
   },

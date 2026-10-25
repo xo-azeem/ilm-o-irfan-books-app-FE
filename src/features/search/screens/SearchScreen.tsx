@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Shapes, SlidersHorizontal } from 'lucide-react-native';
+import { Shapes, SlidersHorizontal, X } from 'lucide-react-native';
 
 import type { RootStackParamList } from '@/app/navigation/types';
 import {
@@ -622,7 +622,7 @@ function FilterChip({
   return (
     <Chip
       label={label}
-      count="✕"
+      trailingIcon={X}
       selected
       size="sm"
       onPress={handlePress}

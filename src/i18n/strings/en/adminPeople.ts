@@ -245,7 +245,7 @@ export const adminPeople = {
     noOpen: 'No open requests',
     nothingHere: 'Nothing here yet',
     noOpenMessage:
-      'Readers ask to delete their account from Profile → Privacy & security. Requests land here for review.',
+      'Readers ask to delete their account from Profile › Privacy & security. Requests land here for review.',
     decidedStay: 'Decided requests stay on record here.',
     approveAndDeleteNow: 'Approve and delete now',
     approveDeletion: 'Approve deletion',

@@ -1,6 +1,6 @@
 import { memo, useCallback, useMemo, useState } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
-import { ChevronDown, ChevronUp, Mail } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, Mail, Star } from 'lucide-react-native';
 
 import {
   Card,
@@ -176,7 +176,7 @@ export function HelpCenterScreen() {
         ))}
         <SettingsRow
           title={words.rateApp}
-          value="★★★★★"
+          value={<RatingStars />}
           onPress={rateApp}
           dense
         />
@@ -237,7 +237,40 @@ const HelpTopic = memo(function HelpTopic({
   );
 });
 
+/**
+ * The five stars beside "Rate the app".
+ *
+ * Icons rather than the string "★★★★★": U+2605 is carried by none of the five
+ * bundled text faces, so the row showed five empty boxes.
+ *
+ * Muted, not gold. They stand where the row's value text stands, and that
+ * text is muted; gold is the membership's colour and nothing else's, so a row
+ * about rating the app does not get to borrow it.
+ */
+const RatingStars = memo(function RatingStars() {
+  const { colors } = useTheme();
+  return (
+    <View style={styles.stars}>
+      {[0, 1, 2, 3, 4].map(index => (
+        <Icon
+          key={index}
+          icon={Star}
+          size={12}
+          tone="muted"
+          fill={colors.muted}
+          strokeWidth={1.4}
+        />
+      ))}
+    </View>
+  );
+});
+
 const styles = StyleSheet.create({
+  stars: {
+    flexDirection: 'row',
+    gap: 2.5,
+    alignItems: 'center',
+  },
   topics: {
     gap: 11,
   },

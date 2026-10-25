@@ -51,7 +51,6 @@ import {
   AdminSectionHeader,
   AdminTag,
   AdminTextAction,
-  AdminToggleRow,
   AdminUploadProgress,
   type ChecklistItem,
 } from '@/features/admin/components/AdminUi';
@@ -106,6 +105,14 @@ type FormState = {
   pdfPath: string | null;
   fileSizeBytes: number | null;
   readTime: string;
+  /**
+   * The book's rating, 0.0–5.0, as typed.
+   *
+   * Editorial, not earned: there is no reviews table and nothing in the
+   * system has ever written this column, so every book sat at 0.0 while the
+   * catalogue sorted and filtered on it.
+   */
+  rating: string;
   price: string;
   currency: string;
   format: string;
@@ -129,6 +136,7 @@ const EMPTY: FormState = {
   pdfPath: null,
   fileSizeBytes: null,
   readTime: '',
+  rating: '0',
   price: '0',
   currency: 'PKR',
   format: 'Digital edition',
@@ -217,6 +225,7 @@ export function AdminBookEditorScreen() {
       readTime: existing.read_time_minutes
         ? String(existing.read_time_minutes)
         : '',
+      rating: existing.rating.toFixed(1),
       price: String((existing.price_cents ?? 0) / 100),
       currency: existing.currency,
       format: existing.format,
@@ -273,6 +282,15 @@ export function AdminBookEditorScreen() {
     readTime:
       form.readTime && !Number.isFinite(Number(form.readTime))
         ? words.enterMinutes
+        : null,
+    // The column is checked 0..5; saying so here beats a constraint
+    // violation coming back from the database with no field name on it.
+    rating:
+      form.rating &&
+      (!Number.isFinite(Number(form.rating)) ||
+        Number(form.rating) < 0 ||
+        Number(form.rating) > 5)
+        ? words.enterRating
         : null,
   };
   const hasErrors = Object.values(errors).some(Boolean);
@@ -372,6 +390,7 @@ export function AdminBookEditorScreen() {
     pdf_path: form.pdfPath,
     file_size_bytes: form.fileSizeBytes,
     read_time_minutes: form.readTime ? Math.round(Number(form.readTime)) : null,
+    rating: Math.min(5, Math.max(0, Number(form.rating) || 0)),
     price_cents: Math.round((Number(form.price) || 0) * 100),
     currency: form.currency,
     format: form.format,
@@ -925,14 +944,13 @@ export function AdminBookEditorScreen() {
                   ) : null}
                 </View>
 
-                <AdminCard>
-                  <AdminToggleRow
-                    label={words.premium}
-                    description={words.premiumHint}
-                    value={form.isPremium}
-                    onValueChange={value => patch({ isPremium: value })}
-                  />
-                </AdminCard>
+                {/*
+                 * No premium switch. The catalogue is subscription-only —
+                 * every book requires a membership, and the database will
+                 * not store a book that says otherwise
+                 * (`books_no_free_titles`). A switch here would offer a
+                 * choice that does not exist and that the save would reject.
+                 */}
               </View>
             </View>
 
@@ -984,6 +1002,29 @@ export function AdminBookEditorScreen() {
                       error={errors.readTime}
                     />
                   </View>
+                  <View style={styles.grow}>
+                    <AdminField
+                      label={words.ratingField}
+                      value={form.rating}
+                      onChangeText={value =>
+                        // One leading number, one dot, one decimal: the
+                        // column is numeric(2, 1).
+                        patch({
+                          rating: value
+                            .replace(/[^0-9.]/g, '')
+                            .replace(/^(\d)(\d+)/, '$1')
+                            .replace(/^(\d*\.\d).*$/, '$1'),
+                        })
+                      }
+                      keyboardType="decimal-pad"
+                      suffix="/ 5"
+                      error={errors.rating}
+                      helper={words.ratingHint}
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.row}>
                   <View style={styles.grow}>
                     <AdminField
                       label={words.format}

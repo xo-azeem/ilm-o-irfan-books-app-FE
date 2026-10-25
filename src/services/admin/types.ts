@@ -74,6 +74,11 @@ export type AdminBookInput = {
   price_cents: number;
   currency: string;
   format: string;
+  /**
+   * 0.0–5.0. An editorial figure, not an earned one: there is no reviews
+   * table, so this column is only ever what an admin sets it to.
+   */
+  rating: number;
   is_premium: boolean;
   is_published: boolean;
   category_ids: string[];

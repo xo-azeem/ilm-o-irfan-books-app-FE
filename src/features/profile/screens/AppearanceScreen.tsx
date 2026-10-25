@@ -48,6 +48,8 @@ export function AppearanceScreen() {
   const setReadingMode = useThemeStore(state => state.setReadingMode);
   const keepScreenAwake = useThemeStore(state => state.keepScreenAwake);
   const setKeepScreenAwake = useThemeStore(state => state.setKeepScreenAwake);
+  const pageTurnSound = useThemeStore(state => state.pageTurnSound);
+  const setPageTurnSound = useThemeStore(state => state.setPageTurnSound);
 
   return (
     <ProfileSubScreenLayout title={words.title} subtitle={words.subtitle}>
@@ -161,6 +163,24 @@ export function AppearanceScreen() {
               value={keepScreenAwake}
               onValueChange={setKeepScreenAwake}
               accessibilityLabel={words.keepAwake}
+            />
+          </View>
+
+          <Divider />
+
+          <View style={styles.row}>
+            <View style={styles.rowBody}>
+              <Text size={fontSize.body} leading={1}>
+                {words.pageTurnSound}
+              </Text>
+              <Text size={12.5} leading={1.2} tone="muted">
+                {words.pageTurnSoundHint}
+              </Text>
+            </View>
+            <Toggle
+              value={pageTurnSound}
+              onValueChange={setPageTurnSound}
+              accessibilityLabel={words.pageTurnSound}
             />
           </View>
         </Card>

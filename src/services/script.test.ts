@@ -18,16 +18,26 @@ describe('scriptOf', () => {
 });
 
 describe('readsRightToLeft', () => {
-  it('turns a recorded Urdu or Arabic book the other way', () => {
+  it('binds Urdu and Arabic on the right — forward turn is left to right', () => {
+    // Free edge on the left; the reader carries that edge over to the right.
     assert.equal(readsRightToLeft('urdu'), true);
     assert.equal(readsRightToLeft('arabic'), true);
   });
 
-  it('turns everything else the way an English book turns', () => {
+  it('binds English on the left — forward turn is right to left', () => {
     assert.equal(readsRightToLeft('english'), false);
     // No language recorded is not a guess either way: the book turns as it
     // always has, whatever script its title is in.
     assert.equal(readsRightToLeft(null), false);
     assert.equal(readsRightToLeft(undefined), false);
+  });
+
+  it('ignores title script when deciding which way pages turn', () => {
+    // A romanised Urdu title is Latin script but still an Urdu book once
+    // `language` says so; an Arabic-script English title stays left-bound.
+    assert.equal(readsRightToLeft('urdu'), true);
+    assert.equal(isUrduTitle('Jannat Ki Talash'), false);
+    assert.equal(readsRightToLeft('english'), false);
+    assert.equal(isUrduTitle('تفسیر'), true);
   });
 });

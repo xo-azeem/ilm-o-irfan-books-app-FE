@@ -47,8 +47,8 @@ export const PAGE_TURN = {
   tapMs: 400,
   /** Travel before a touch reads as a drag rather than a tap. */
   slop: 10,
-  /** How small a page gets at the middle of a turn. Subtle, on purpose. */
-  liftScale: 0.92,
+  /** How small a page gets at the middle of a turn. A touch deeper than before. */
+  liftScale: 0.89,
   /** How much of that give a page at either end of the book is allowed. */
   edgeLift: 0.3,
   /** A flick this fast (px/s) is going to turn the page, however short it was. */
@@ -56,18 +56,18 @@ export const PAGE_TURN = {
   /** ...and so is a drag that has already covered this much of a page. */
   flickRatio: 0.3,
   /** The page leaving drawing back, while the pager carries the turn on. */
-  shrinkMs: 130,
+  shrinkMs: 140,
   /** The page arriving growing into place. Slower: an arrival, not a snap. */
-  growMs: 280,
+  growMs: 320,
   /** How long a turn waits for its new page before growing back regardless. */
   graceMs: 240,
   /** A drag let go of short of a turn, settling back. */
-  settleMs: 240,
+  settleMs: 260,
   /** A page jumped to rather than turned: dip out, change, come back. */
   dipMs: 160,
   /** The beat with the stage bare, while the document view changes page. */
   swapMs: 70,
-  riseMs: 240,
+  riseMs: 260,
 } as const;
 
 /**
@@ -100,15 +100,15 @@ export const PAGE_FLIP = {
    * the corner comes up two — and this is the whole reason the fold feels like
    * paper under the thumb rather than a slider.
    */
-  amplify: 2,
+  amplify: 2.25,
   /**
    * The corner chases the finger rather than being pinned to it: it closes
    * this much of the remaining gap on every pointer report, and a little less
    * on every frame between reports. A pointer stream is coarse and arrives in
    * bursts; a leaf of paper has weight, and this is where it comes from.
    */
-  followTouch: 0.42,
-  followFrame: 0.3,
+  followTouch: 0.34,
+  followFrame: 0.24,
   /**
    * A fold let go of past this much of a *sweep* turns the page regardless.
    *
@@ -138,11 +138,11 @@ export const PAGE_FLIP = {
   /** That give coming back once the reader has let go. */
   edgeMs: 250,
   /** The leaf carrying the rest of the way over, once the reader has let go. */
-  turnMs: 340,
+  turnMs: 430,
   /** A fold let go of short of the commit, dropping back flat. */
-  settleMs: 260,
+  settleMs: 300,
   /** A whole turn run by a control rather than a finger. */
-  autoMs: 420,
+  autoMs: 480,
   /**
    * How long the stage holds the landed leaf over the document view while it
    * changes page underneath. A turn ends with the leaf lying flat across the
@@ -158,14 +158,14 @@ export const PAGE_FLIP = {
    */
   coverMs: 320,
   /** How hard both shadows are laid on. 1 is the design; 0 is none of it. */
-  shadowStrength: 1,
+  shadowStrength: 1.12,
   /** The lit edge of the crease on the folded half. 0 turns it off. */
-  curlHighlight: 0.62,
+  curlHighlight: 0.72,
   /** The paper the leaf is cut from, and the slightly duller back of it. */
   paper: '#FBF9F4',
   paperBack: '#F7F4EC',
   /** The ink of the book: what its shading and its texture are drawn in. */
   ink: '48,48,43',
   /** How wide the shading along the spine reaches into the page, in points. */
-  spine: 30,
+  spine: 34,
 } as const;

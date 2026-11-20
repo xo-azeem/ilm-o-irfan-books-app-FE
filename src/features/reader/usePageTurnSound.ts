@@ -4,11 +4,13 @@ import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
 /**
  * The sound of a page turning.
  *
- * One short recording of a sheet of paper folding over, played the moment the
- * page is *taken* — the instant a drag lifts the corner, or a control starts
- * the turn — so the sound runs under the animation rather than arriving after
- * it, the way paper does. A drag that falls back where it started still made
- * that sound; a touch that never lifted a page makes none.
+ * One short recording of a sheet of paper folding over, played the moment a
+ * turn *commits* — the finger has let go and the leaf will carry the rest of
+ * the way — so the sound rides under the finish of the fold rather than firing
+ * like a trigger on every peel, including ones that settle back.
+ *
+ * Kept soft on purpose: half volume and a slightly slower rate, so a turn
+ * feels like a calm rustle rather than a click.
  *
  * It plays *with* whatever else is playing — a reader's audiobook or music
  * carries on underneath — and it respects the phone's silent switch, as a UI
@@ -31,8 +33,13 @@ import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
 // Metro bundles the mp3 like an image; the require yields an asset id.
 const PAPER_FOLD = require('@/assets/sounds/paper-fold.mp3');
 
-/** Long enough for the clip (0.62s) to finish before the player is rewound. */
-const REWIND_MS = 800;
+/** Soft enough to feel like paper, not a UI click. */
+const VOLUME = 0.42;
+/** Slightly slower than real-time — calms a clipped rustle. */
+const PLAYBACK_RATE = 0.9;
+
+/** Long enough for the slowed clip (~0.7s) to finish before rewind. */
+const REWIND_MS = 950;
 
 let audioModeSet = false;
 
@@ -46,6 +53,7 @@ export function usePageTurnSound(enabled = true) {
   players.current = [first, second, third];
   const next = useRef(0);
   const rewinds = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const levelsSet = useRef(false);
 
   const enabledRef = useRef(enabled);
   enabledRef.current = enabled;
@@ -62,6 +70,20 @@ export function usePageTurnSound(enabled = true) {
     }).catch(() => {});
   }, []);
 
+  // Soft levels once the players exist. Re-applied if the hook remounts.
+  useEffect(() => {
+    if (levelsSet.current) return;
+    levelsSet.current = true;
+    for (const player of players.current) {
+      try {
+        player.volume = VOLUME;
+        player.playbackRate = PLAYBACK_RATE;
+      } catch {
+        // Player not ready yet; play() below will still work at defaults.
+      }
+    }
+  }, [first, second, third]);
+
   // A reader who leaves the book mid-turn takes the players with them.
   useEffect(() => {
     const timers = rewinds;
@@ -76,7 +98,10 @@ export function usePageTurnSound(enabled = true) {
     const player = players.current[next.current];
     next.current = (next.current + 1) % players.current.length;
     try {
-      // Already at the start: nothing to wait for between the finger and the
+      // Keep soft even if a remount skipped the level effect.
+      player.volume = VOLUME;
+      player.playbackRate = PLAYBACK_RATE;
+      // Already at the start: nothing to wait for between the commit and the
       // sound.
       player.play();
     } catch {

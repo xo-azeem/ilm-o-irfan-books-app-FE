@@ -97,7 +97,8 @@ android {
         applicationId "com.ilmoirfanapp"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 6
+        // High enough for a Play update; EAS production also autoIncrements.
+        versionCode 23
         versionName "1.0.0"
     }
     signingConfigs {

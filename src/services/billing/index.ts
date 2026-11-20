@@ -29,3 +29,11 @@ export {
   type CancellationFacts,
   type EntitlementStore,
 } from './cancellation';
+export {
+  isHostedPaywallOnly,
+  isPaywallPending,
+  isPaywallUnavailable,
+  paywallCtaKind,
+  type PaywallCtaKind,
+  type PaywallOfferInput,
+} from './paywallState';

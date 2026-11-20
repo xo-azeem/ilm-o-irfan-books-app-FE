@@ -103,8 +103,13 @@ export function SubscriptionScreen() {
   const { data: library } = useLibrary();
   const { reason, expiresAt } = useAccess();
 
-  const { options, features, unavailable, hostedPaywallOnly } =
-    useMembershipOptions();
+  const {
+    options,
+    features,
+    isPending: offeringPending,
+    unavailable,
+    hostedPaywallOnly,
+  } = useMembershipOptions();
   const purchase = usePurchaseMembership();
   const hostedPaywall = usePresentHostedPaywall();
   const { restore, isPending: isRestoring } = useRestorePurchases();
@@ -455,6 +460,7 @@ export function SubscriptionScreen() {
           options={options}
           features={features}
           reason={reason}
+          isPending={offeringPending}
           unavailable={unavailable}
           isPurchasing={purchase.isPending || hostedPaywall.isPending}
           isRestoring={isRestoring}

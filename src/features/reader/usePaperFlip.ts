@@ -150,6 +150,7 @@ export function usePaperFlip({
   enabled,
   rtl = false,
   onBegin,
+  onCommit,
   onEnd,
   onTap,
   onTouch,
@@ -160,6 +161,12 @@ export function usePaperFlip({
   rtl?: boolean;
   /** A fold has started. The stage brings the leaf up and moves the document. */
   onBegin: (dir: TurnDirection) => void;
+  /**
+   * The fold will complete. Fires when the commit is decided — the start of
+   * the carry-over animation — so a page-turn sound can ride under it.
+   * Aborted peels never call this.
+   */
+  onCommit?: (dir: TurnDirection) => void;
   /** The leaf has landed, turned or not. The stage settles the document view. */
   onEnd: (commit: boolean, dir: TurnDirection) => void;
   /** A tap on the stage beside the page. Taps on the page are the page's own. */
@@ -220,11 +227,15 @@ export function usePaperFlip({
 
   // What the worklets need from JS is held at a fixed identity — that is what
   // keeps the gesture from being rebuilt on every render of the reader.
-  const handlers = useRef({ onBegin, onEnd, onTap, onTouch });
-  handlers.current = { onBegin, onEnd, onTap, onTouch };
+  const handlers = useRef({ onBegin, onCommit, onEnd, onTap, onTouch });
+  handlers.current = { onBegin, onCommit, onEnd, onTap, onTouch };
 
   const began = useCallback(
     (value: TurnDirection) => handlers.current.onBegin(value),
+    [],
+  );
+  const committed = useCallback(
+    (value: TurnDirection) => handlers.current.onCommit?.(value),
     [],
   );
   const ended = useCallback(
@@ -307,6 +318,11 @@ export function usePaperFlip({
     (commit: boolean, config: typeof TURN | typeof AUTO | typeof SETTLE) => {
       'worklet';
       const value = dir.value;
+      if (commit) {
+        // Sound and anything else that should ride under the carry-over —
+        // not under an aborted peel that settles back.
+        runOnJS(committed)(value);
+      }
       const to = commit ? turnedX(value) : restX(value);
       tx.value = to;
       ty.value = cy.value;
@@ -318,7 +334,7 @@ export function usePaperFlip({
         runOnJS(ended)(commit, value);
       });
     },
-    [cy, dir, ended, fx, fy, restX, turnedX, tx, ty],
+    [committed, cy, dir, ended, fx, fy, restX, turnedX, tx, ty],
   );
 
   /** How far the fold has come, against the sweep a hand can make. */

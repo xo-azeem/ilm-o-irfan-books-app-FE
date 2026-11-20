@@ -3,10 +3,32 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <!--
-      No READ_MEDIA_IMAGES: the admin cover picker uses the system photo
-      picker on Android 13+, which needs no permission, and Play's photo
-      policy would otherwise want a justification. Older devices keep the
-      legacy read permission for the same picker.
+      A dependency merges wifi as required; that blocks install on devices
+      without Wi-Fi hardware. Mark it optional so mobile data is enough.
+    -->
+    <uses-feature
+        android:name="android.hardware.wifi"
+        android:required="false"
+        tools:replace="android:required" />
+    <!--
+      expo-screen-capture merges READ_MEDIA_IMAGES (for screenshot *listening*).
+      We only call usePreventScreenCapture (FLAG_SECURE), which needs none of
+      that — and Play rejects READ_MEDIA_* when the system photo picker is
+      enough for avatar/cover picks. Strip both media permissions from every
+      merged library so the AAB stays policy-clean.
+    -->
+    <uses-permission
+        android:name="android.permission.READ_MEDIA_IMAGES"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.READ_MEDIA_VIDEO"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED"
+        tools:node="remove" />
+    <!--
+      Legacy gallery access only below API 33. Avatar/cover picks use the
+      system photo picker on 13+ (no broad storage permission).
     -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <!-- Android 13+: the tray is opt-in; the app asks after the splash. -->

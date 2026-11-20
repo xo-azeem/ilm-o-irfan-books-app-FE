@@ -444,6 +444,7 @@ export const account = {
     recommended: 'RECOMMENDED',
     unavailable:
       'Membership cannot be purchased on this device right now. Check your connection and try again.',
+    loadingPlans: 'Loading plans…',
     seeOptions: 'See membership options',
     subscribeFor: (price: string) => `Subscribe for ${price}`,
     subscribe: 'Subscribe',

@@ -4,6 +4,15 @@
   "expo": {
     "name": "Ilm o Irfan",
     "slug": "ilm-o-irfan",
-    "version": "1.0.0"
+    "version": "1.0.0",
+    "extra": {
+      "eas": {
+        "projectId": "2b31a59c-eaab-46b9-94ad-3c822178b43c"
+      }
+    },
+    "owner": "shayancodi",
+    "android": {
+      "versionCode": 23
+    }
   }
 }

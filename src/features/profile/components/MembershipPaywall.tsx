@@ -43,6 +43,7 @@ export const MembershipPaywall = memo(function MembershipPaywall({
   options,
   features,
   reason,
+  isPending,
   unavailable,
   isPurchasing,
   isRestoring,
@@ -56,15 +57,17 @@ export const MembershipPaywall = memo(function MembershipPaywall({
   features: string[];
   /** Why the reader is here — never subscribed, lapsed, expired. Copy only. */
   reason: AccessReason | null;
-  /** No store key, no current offering, or the store could not be reached. */
+  /** Offering still loading — show a loading CTA, never "unavailable". */
+  isPending?: boolean;
+  /** Settled: no store key, no packages, or the store could not be reached. */
   unavailable?: boolean;
   isPurchasing?: boolean;
   isRestoring?: boolean;
   onSubscribe: (option: MembershipOption) => void;
   onRestore?: () => void;
   /**
-   * Opens RevenueCat's own paywall. Given only when the store is selling
-   * something the in-app list cannot quote — see `hostedPaywallOnly`.
+   * Opens RevenueCat's own paywall. Given when the store is selling something
+   * the in-app list cannot quote — see `hostedPaywallOnly`.
    */
   onOpenHostedPaywall?: () => void;
 }) {
@@ -170,7 +173,26 @@ export const MembershipPaywall = memo(function MembershipPaywall({
           </View>
         ) : null}
 
-        {onOpenHostedPaywall ? (
+        {isPending ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={words.loadingPlans}
+            accessibilityState={{ disabled: true }}
+            disabled
+            style={[styles.cta, styles.pressed]}
+          >
+            <LinearGradient
+              angle={120}
+              stops={[
+                { offset: 0, color: colors.goldBright },
+                { offset: 1, color: colors.gold },
+              ]}
+            />
+            <Text size={fontSize.body} leading={1} weight="700" tone="onGold">
+              {words.loadingPlans}
+            </Text>
+          </Pressable>
+        ) : onOpenHostedPaywall ? (
           <Button
             label={isPurchasing ? words.openingStore : words.seeOptions}
             variant="gold"

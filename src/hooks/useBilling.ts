@@ -28,6 +28,12 @@ import {
   defaultFeatures,
   type MembershipRow,
 } from '@/services/billing/options';
+import {
+  isHostedPaywallOnly,
+  isPaywallPending,
+  isPaywallUnavailable,
+  paywallCtaKind,
+} from '@/services/billing/paywallState';
 import { useAccessStore } from '@/stores/accessStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useBillingKeyStore } from '@/stores/billingKeyStore';
@@ -122,31 +128,45 @@ export function useMembershipOptions() {
     [offering?.packages, plans],
   );
 
+  const offer = useMemo(
+    () => ({
+      available,
+      offeringPending: available && offeringPending,
+      offeringError: Boolean(offeringError),
+      packageCount: offering?.packages.length ?? 0,
+      optionCount: options.length,
+    }),
+    [
+      available,
+      offering?.packages.length,
+      offeringError,
+      offeringPending,
+      options.length,
+    ],
+  );
+
+  const cta = paywallCtaKind(offer);
+
   return {
     options,
     /** The cheapest package, for a "from …" line. */
     cheapest: cheapestRow(options),
     /** The bullets to show when no single plan is selected yet. */
     features: defaultFeatures(plans, PREMIUM_PLAN_CODE),
-    isPending: available && offeringPending,
+    /** Which primary CTA the non-member paywall should draw. */
+    cta,
+    /** Offering still loading — not the same as unavailable. */
+    isPending: isPaywallPending(offer),
     /**
-     * True when there is nothing to sell: no key in this build, no current
-     * offering, or the store could not be reached. The paywall says so instead
-     * of opening a sheet that cannot complete.
+     * True only after settle when there is nothing to sell: no key, no
+     * packages, or the store could not be reached. Never true while pending.
      */
-    unavailable: !available || Boolean(offeringError) || options.length === 0,
+    unavailable: isPaywallUnavailable(offer),
     /**
-     * The store answered but none of its packages matches a plan the admin
-     * has set up, so the in-app paywall has nothing to quote. RevenueCat's
-     * own paywall still can — it sells the offering as the dashboard
-     * describes it — and is offered in that one case.
+     * The store answered with packages the in-app list cannot quote.
+     * RevenueCat's own paywall still can.
      */
-    hostedPaywallOnly:
-      available &&
-      !offeringPending &&
-      !offeringError &&
-      (offering?.packages.length ?? 0) > 0 &&
-      options.length === 0,
+    hostedPaywallOnly: isHostedPaywallOnly(offer),
   };
 }
 

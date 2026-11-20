@@ -948,13 +948,6 @@ export const BookPageFlip = memo(
         };
         turnRef.current = turn;
 
-        // The page is in hand and starting to lift: paper sounds as it is
-        // taken, not once it has landed, so the sound runs under the fold
-        // rather than arriving after it. A drag that falls back where it
-        // started made that sound too, which is why this is not held back
-        // for the commit.
-        playPageTurn();
-
         foldToken.current += 1;
         setFold({
           token: foldToken.current,
@@ -977,7 +970,7 @@ export const BookPageFlip = memo(
           if (turnRef.current === turn) cover();
         }, PAGE_FLIP.coverMs);
       },
-      [capture, cover, playPageTurn, tryCover],
+      [capture, cover, tryCover],
     );
 
     // The document view is moved only once the picture is on screen and
@@ -1046,6 +1039,8 @@ export const BookPageFlip = memo(
       enabled: folding && !zoomed,
       rtl,
       onBegin: handleFoldBegin,
+      // Sound rides under the carry-over, not under an aborted peel.
+      onCommit: playPageTurn,
       onEnd: handleFoldEnd,
       onTap: handleSingleTap,
       onTouch: handleTouch,

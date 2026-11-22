@@ -98,7 +98,7 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         // High enough for a Play update; EAS production also autoIncrements.
-        versionCode 24
+        versionCode 26
         versionName "1.0.0"
     }
     signingConfigs {

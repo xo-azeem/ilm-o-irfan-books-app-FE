@@ -41,7 +41,7 @@ import {
   pullPosition,
   recordPosition,
 } from '@/services/readingPosition';
-import { useAccess } from '@/lib/access';
+import { canOpenCatalogBook, useAccess } from '@/lib/access';
 import type { AccessReason } from '@/services/api/types';
 import { strings } from '@/i18n/strings';
 import { reasonCopy } from '@/services/entitlements';
@@ -259,6 +259,16 @@ function BookReader() {
   const downloadedUri = useRef<string | null>(null);
   const { canOpenBooks, isAuthenticated, isSubscriptionLoading, reason } =
     useAccess();
+  /** Free catalogue rows open without membership; premium still need it. */
+  const mayOpen =
+    book != null &&
+    canOpenCatalogBook({
+      isPremium: book.isPremium,
+      canOpenBooks,
+    });
+  /** Membership entitlement wait — skipped for free titles once the row is known. */
+  const waitingOnMembership =
+    isSubscriptionLoading && (book == null || book.isPremium);
   // Whether the local countdown is what locked the book, for the lock's wording.
   const expired = useAccessStore(state => state.expired);
   /** True once a page has actually been on screen for this book. */
@@ -297,10 +307,13 @@ function BookReader() {
       navigation.replace(ROUTES.LOGIN, { returnTo: { bookId } });
       return;
     }
-    if (isSubscriptionLoading) {
+    if (book == null) {
       return;
     }
-    if (!canOpenBooks) {
+    if (waitingOnMembership) {
+      return;
+    }
+    if (!mayOpen) {
       // Nothing is fetched. The lock is drawn in place — see `locked` below —
       // rather than the reader being bounced somewhere else: the book stays on
       // the shelf, and this screen is where the membership is checked.
@@ -374,13 +387,14 @@ function BookReader() {
       abort.abort();
     };
   }, [
+    book,
     bookId,
-    canOpenBooks,
     isAuthenticated,
-    isSubscriptionLoading,
+    mayOpen,
     navigation,
     retryToken,
     userId,
+    waitingOnMembership,
   ]);
 
   /**
@@ -412,7 +426,7 @@ function BookReader() {
    * `pullPosition` has already merged it and handed back whichever won.
    */
   useEffect(() => {
-    if (!userId || !canOpenBooks) {
+    if (!userId || !mayOpen) {
       return;
     }
     let active = true;
@@ -445,7 +459,7 @@ function BookReader() {
     return () => {
       active = false;
     };
-  }, [bookId, canOpenBooks, userId, retryToken]);
+  }, [bookId, mayOpen, userId, retryToken]);
 
   /** Plans live in the profile stack, which the reader sits above. */
   const openPaywall = useCallback(() => {
@@ -487,7 +501,12 @@ function BookReader() {
    * recover the screen without restarting the app.
    */
   useEffect(() => {
-    if (canOpenBooks) {
+    if (mayOpen) {
+      setLockedMidRead(false);
+      return;
+    }
+    // Free titles never lock mid-read for membership expiry.
+    if (book != null && !book.isPremium) {
       setLockedMidRead(false);
       return;
     }
@@ -497,7 +516,7 @@ function BookReader() {
     flushProgress();
     setLockedMidRead(true);
     setPdfSource(null);
-  }, [canOpenBooks, flushProgress]);
+  }, [book, flushProgress, mayOpen]);
 
   const handleLoadComplete = useCallback((numberOfPages: number) => {
     documentReady.current = true;
@@ -815,7 +834,10 @@ function BookReader() {
   const locked =
     lockedMidRead ||
     refused ||
-    (isAuthenticated && !isSubscriptionLoading && !canOpenBooks);
+    (isAuthenticated &&
+      !waitingOnMembership &&
+      book != null &&
+      !mayOpen);
 
   // Ahead of the error state: a lock is not a fault, and offering "retry" for
   // an ended membership would be telling the reader to try the door again.

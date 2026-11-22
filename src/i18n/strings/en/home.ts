@@ -27,7 +27,12 @@ export const home = {
   allCount: (count: number) => `All ${count}`,
   curatedCollections: 'Curated collections',
   curatedSubtitle: 'Reading paths built by our editors',
-  featuredOf: (index: number, count: number) => `Featured ${index} of ${count}`,
+  weeklyFreeBooks: {
+    title: 'Weekly free books',
+    subtitle: 'A new free selection each week',
+  },
+  featuredOf: (index: number, count: number) =>
+    `Free book ${index} of ${count}`,
   readNow: 'Read now',
   coverCaption: (title: string) => `COVER · ${title.toUpperCase()}`,
   removeFromWishlist: 'Remove from wishlist',

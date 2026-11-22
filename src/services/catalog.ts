@@ -350,6 +350,108 @@ function toSlide(row: CarouselSlideRow): CatalogSlide {
   };
 }
 
+/** How many free titles to keep in the weekly-draw pool before picking. */
+const FREE_POOL_SIZE = 24;
+
+/**
+ * ISO week key shared by every device that week, e.g. `2026-W47`.
+ * Used to seed the weekly free carousel so the set is stable until Monday.
+ */
+export function isoWeekKey(date = new Date()): string {
+  const d = new Date(
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
+  );
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil(
+    ((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7,
+  );
+  return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+}
+
+function hashSeed(value: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < value.length; i += 1) {
+    h ^= value.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function mulberry32(seed: number): () => number {
+  let a = seed;
+  return () => {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * Deterministic weekly pick of free titles — same order for every reader
+ * until the ISO week rolls over.
+ */
+export function pickWeeklyFreeBooks(
+  pool: CatalogBook[],
+  limit = 10,
+  weekKey = isoWeekKey(),
+): CatalogBook[] {
+  if (pool.length === 0 || limit <= 0) {
+    return [];
+  }
+  const rng = mulberry32(hashSeed(`weekly-free:${weekKey}`));
+  const shuffled = [...pool];
+  for (let i = shuffled.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(rng() * (i + 1));
+    const tmp = shuffled[i];
+    shuffled[i] = shuffled[j];
+    shuffled[j] = tmp;
+  }
+  return shuffled.slice(0, Math.min(limit, shuffled.length));
+}
+
+/** A free catalogue row as a hero slide (badge applied by the Home screen). */
+export function slideFromFreeBook(book: CatalogBook): CatalogSlide {
+  return {
+    id: book.id,
+    bookId: book.id,
+    headline: book.title,
+    accent: book.coverColor,
+    imageUrl: book.coverUrl,
+    coverUrl: book.coverUrl,
+    title: book.title,
+    author: book.author,
+    rating: book.rating,
+    isPremium: false,
+  };
+}
+
+/**
+ * Published free titles for the Discovery weekly carousel.
+ *
+ * Soft-fails to `[]` so a missing view or RLS hiccup never blanks the rest of
+ * Home — the carousel simply stays hidden when there is nothing free.
+ */
+async function loadWeeklyFreeSlides(): Promise<CatalogSlide[]> {
+  try {
+    const rows = unwrap(
+      await supabase
+        .from('book_list_items')
+        .select(LIST_FIELDS)
+        .eq('is_premium', false)
+        .order('published_at', { ascending: false })
+        .limit(FREE_POOL_SIZE),
+    ) as CatalogListRow[];
+    const pool = rows.map(fromViewRow);
+    return pickWeeklyFreeBooks(pool).map(slideFromFreeBook);
+  } catch {
+    return [];
+  }
+}
+
 /**
  * How many books the rails draw.
  *
@@ -505,9 +607,14 @@ function feedIsEnough(feed: HomeFeedPayload | null): boolean {
 }
 
 async function homeFromEndpoints(signal?: AbortSignal) {
-  const feed = await requestData<HomeFeedPayload>(ENDPOINTS.homeFeed, {
+  const feedPromise = requestData<HomeFeedPayload>(ENDPOINTS.homeFeed, {
     signal,
   });
+  // Free carousel is assembled client-side from published free rows; it does
+  // not use the admin carousel payload.
+  const weeklyFreePromise = loadWeeklyFreeSlides();
+
+  const feed = await feedPromise;
 
   // One round trip is enough when the feed already carries the whole of Home.
   // Otherwise the catalogue is read for what the rails are short of — the same
@@ -521,15 +628,14 @@ async function homeFromEndpoints(signal?: AbortSignal) {
         })
       ).data;
 
+  const weeklyFreeSlides = await weeklyFreePromise;
+
   return {
-    // Rendered in the order given, or not at all. The backend already stands
-    // in its weekly draw when the admin has curated nothing, so an empty list
-    // means there is nothing to show (no published books, or the carousel read
-    // failed server-side) — not a gap for the app to fill.
+    // Kept for debugging / older callers; Discovery no longer draws this rail.
     carousel: (feed?.carousel ?? []).map(toSlide),
-    // Which of the two the backend sent. Analytics and debugging only; the UI
-    // draws both identically.
     carouselSource: feed?.carouselSource ?? null,
+    /** Free titles for the Discovery hero, rotated by ISO week. */
+    weeklyFreeSlides,
     ...railsFrom(feed ?? null, pool),
     // Where "See all" on each rail goes. Absent on an older deployment, in
     // which case the rails draw without one — there is no page that is
@@ -546,8 +652,8 @@ async function homeFromEndpoints(signal?: AbortSignal) {
 }
 
 async function homeFromTables() {
-  const [hero, trending, arrivals, collections, categories] = await Promise.all(
-    [
+  const [hero, trending, arrivals, collections, categories, weeklyFreeSlides] =
+    await Promise.all([
       supabase
         .from('books')
         .select(DETAIL_FIELDS)
@@ -574,15 +680,13 @@ async function homeFromTables() {
         .select('id,label,icon_key,accent,accent_dark,book_count,sort_order')
         .order('sort_order')
         .limit(10),
-    ],
-  );
+      loadWeeklyFreeSlides(),
+    ]);
 
   return {
-    // The carousel lives only behind its endpoint. There is no table read that
-    // reproduces an admin's slides, and inventing one here is the curation this
-    // removed — a project without the functions deployed shows no carousel.
     carousel: [] as CatalogSlide[],
     carouselSource: null as CarouselSource | null,
+    weeklyFreeSlides,
     // Only this rail carries real blurbs, so the hero keeps the `books` read.
     hero: unwrap(hero).map(fromJoinedRow),
     trending: unwrap(trending).map(row => fromViewRow(row as CatalogListRow)),

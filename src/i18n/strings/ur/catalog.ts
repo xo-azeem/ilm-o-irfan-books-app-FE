@@ -122,5 +122,6 @@ export const catalog: typeof en = {
     includedWithMembership: 'رکنیت میں شامل',
     inMembership: 'رکنیت میں',
     inYourLibrary: 'آپ کی لائبریری میں',
+    free: 'مفت',
   },
 };

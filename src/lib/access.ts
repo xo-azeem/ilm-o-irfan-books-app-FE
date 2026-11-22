@@ -6,22 +6,18 @@ import { useAccessStore } from '@/stores/accessStore';
 import { useAuthStore } from '@/stores/authStore';
 
 /**
- * The one gate every reader entry point asks.
+ * The membership gate every reader entry point asks.
  *
- * Two ways in and no third: the admin role, or a live membership. This mirrors
- * `get-signed-pdf` exactly — admins may open anything, including unpublished
- * drafts, and everyone else needs an active subscription. There is no build
- * flag, no `__DEV__` bypass and no server-side override, so the app can never
- * offer a book the backend would then refuse to sign.
+ * Two ways into the **premium** catalogue: the admin role, or a live
+ * membership. Free titles (`is_premium = false`) are opened with
+ * {@link canOpenCatalogBook} instead — sign-in only.
  *
- * What it does **not** look at:
+ * What `canOpenBooks` does **not** look at:
  *
  *   · `status`. `trial`, `cancelled`, `grace` and `billing_issue` all still
  *     grant access — a cancelled membership is paid through to its end date,
  *     and a failing card is inside a period already paid for. Branching on
  *     `status === 'active'` is the exact bug the backend just removed.
- *   · a book's `is_premium`. That is a catalogue label and a Discover filter,
- *     not an access signal — every book needs a membership.
  *   · whether a file is already downloaded. Bytes on disk are not permission.
  *
  * `expired` is the local countdown having passed `expiresAt`, which is what
@@ -58,6 +54,17 @@ export function useAccess() {
     subscriptionReady: !waitForGate,
     isSubscriptionLoading: Boolean(waitForGate),
   };
+}
+
+/**
+ * Whether this catalogue row may be opened by the signed-in reader.
+ * Free titles skip the membership check; premium titles need `canOpenBooks`.
+ */
+export function canOpenCatalogBook(options: {
+  isPremium: boolean;
+  canOpenBooks: boolean;
+}): boolean {
+  return !options.isPremium || options.canOpenBooks;
 }
 
 export function navigateToLogin(

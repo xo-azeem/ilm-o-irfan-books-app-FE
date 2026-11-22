@@ -28,7 +28,11 @@ export const home: typeof en = {
   allCount: count => `تمام ${count}`,
   curatedCollections: 'منتخب مجموعے',
   curatedSubtitle: 'ہمارے مدیروں کی ترتیب دی ہوئی مطالعاتی راہیں',
-  featuredOf: (index, count) => `نمایاں ${index} از ${count}`,
+  weeklyFreeBooks: {
+    title: 'ہفتہ وار مفت کتابیں',
+    subtitle: 'ہر ہفتے مفت کتابوں کا نیا انتخاب',
+  },
+  featuredOf: (index, count) => `مفت کتاب ${index} از ${count}`,
   readNow: 'ابھی پڑھیں',
   coverCaption: title => `سرورق · ${title}`,
   removeFromWishlist: 'خواہش کی فہرست سے ہٹائیں',

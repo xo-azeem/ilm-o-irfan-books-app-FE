@@ -36,7 +36,7 @@ import {
 import { useWishlistMutation, useWishlistStatus } from '@/hooks/useAccount';
 import { useStrings } from '@/i18n';
 import { useBook, useHomeCatalog } from '@/hooks/useCatalog';
-import { useAccess } from '@/lib/access';
+import { canOpenCatalogBook, useAccess } from '@/lib/access';
 import { reasonCopy } from '@/services/entitlements';
 import { isUrduTitle } from '@/services/script';
 
@@ -80,6 +80,12 @@ export function BookDetailScreen() {
   const wishlistMutation = useWishlistMutation(bookId);
   const { isAuthenticated, canOpenBooks, isSubscriptionLoading, reason } =
     useAccess();
+  const mayOpen = book
+    ? canOpenCatalogBook({
+        isPremium: book.isPremium,
+        canOpenBooks,
+      })
+    : false;
 
   const [expanded, setExpanded] = useState(false);
 
@@ -102,10 +108,16 @@ export function BookDetailScreen() {
       navigation.navigate(ROUTES.LOGIN, { returnTo: { bookId: book.id } });
       return;
     }
-    if (isSubscriptionLoading) {
+    // Free titles do not wait on the entitlement fetch.
+    if (book.isPremium && isSubscriptionLoading) {
       return;
     }
-    if (!canOpenBooks) {
+    if (
+      !canOpenCatalogBook({
+        isPremium: book.isPremium,
+        canOpenBooks,
+      })
+    ) {
       // The wording follows the reason the backend gave — "renew" reads wrong
       // to someone who has never subscribed, and a pitch reads wrong to someone
       // whose membership lapsed last week. The reason never decides anything;
@@ -297,7 +309,7 @@ export function BookDetailScreen() {
       <View style={styles.actions}>
         <Button
           label={
-            canOpenBooks
+            mayOpen
               ? s.catalog.detail.readNow
               : s.catalog.detail.startReading
           }

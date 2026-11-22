@@ -118,5 +118,6 @@ export const catalog = {
     includedWithMembership: 'INCLUDED WITH MEMBERSHIP',
     inMembership: 'IN MEMBERSHIP',
     inYourLibrary: 'IN YOUR LIBRARY',
+    free: 'FREE',
   },
 };

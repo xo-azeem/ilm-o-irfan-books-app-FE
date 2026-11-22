@@ -307,19 +307,44 @@ export async function duplicateAdminBook(id: string): Promise<string> {
 
 export type BulkResult = { updated: number; skipped: number };
 
+/**
+ * Publish / premium flags for a selection.
+ *
+ * Writes `books` directly instead of `admin_bulk_update_books`. That RPC
+ * historically skipped or refused `is_premium = false` while the catalogue
+ * was membership-only; free titles are allowed again, so the client updates
+ * the rows itself (admin RLS) and reports how many came back.
+ */
 export async function bulkUpdateBooks(
   ids: string[],
   changes: { is_published?: boolean; is_premium?: boolean },
 ): Promise<BulkResult> {
-  const data = unwrap(
-    await supabase.rpc('admin_bulk_update_books', {
-      p_ids: ids,
-      p_is_published: changes.is_published ?? null,
-      p_is_premium: changes.is_premium ?? null,
-    }),
-  ) as { updated?: number; skipped?: number };
+  const unique = [...new Set(ids)];
+  if (unique.length === 0) {
+    return { updated: 0, skipped: 0 };
+  }
 
-  return { updated: num(data.updated), skipped: num(data.skipped) };
+  const patch: { is_published?: boolean; is_premium?: boolean } = {};
+  if (changes.is_published !== undefined) {
+    patch.is_published = changes.is_published;
+  }
+  if (changes.is_premium !== undefined) {
+    patch.is_premium = changes.is_premium;
+  }
+  if (Object.keys(patch).length === 0) {
+    return { updated: 0, skipped: unique.length };
+  }
+
+  let updated = 0;
+  for (let start = 0; start < unique.length; start += ID_CHUNK) {
+    const chunk = unique.slice(start, start + ID_CHUNK);
+    const rows = unwrap(
+      await supabase.from('books').update(patch).in('id', chunk).select('id'),
+    ) as Array<{ id: string }>;
+    updated += rows.length;
+  }
+
+  return { updated, skipped: unique.length - updated };
 }
 
 /** Removes the rows, then the storage objects they owned. */

@@ -19,7 +19,7 @@ import {
 } from '@/components/books';
 import { Screen } from '@/components/layout';
 import { HomeCatalogSkeleton } from '@/components/skeletons/CatalogSkeletons';
-import { EmptyState, HeaderWash } from '@/components/ui';
+import { EmptyState, HeaderWash, SectionHeader } from '@/components/ui';
 import { ROUTES } from '@/constants/routes';
 import { HeroCarousel } from '@/features/home/components/HeroCarousel';
 import type { HeroSlide } from '@/features/home/components/HeroSlideCard';
@@ -232,13 +232,15 @@ export function HomeScreen() {
     [navigation],
   );
 
-  // The carousel is the backend's, top to bottom: which slides, in what order,
-  // and every word on them — the admin's curated list, or the weekly draw the
-  // backend stands in when there is none. Nothing is picked, sorted or padded
-  // here, and an empty list draws no rail rather than being backfilled.
+  // Free titles for this ISO week — same set for every reader until the week
+  // rolls. Empty when the catalogue has no free published books.
   const slides = useMemo<HeroSlide[]>(
-    () => (data?.carousel ?? []).map(toSlide),
-    [data?.carousel],
+    () =>
+      (data?.weeklyFreeSlides ?? []).map(slide => ({
+        ...toSlide(slide),
+        badge: s.catalog.access.free,
+      })),
+    [data?.weeklyFreeSlides, s.catalog.access.free],
   );
 
   // Books the reader has started but not finished. `library-overview` returns
@@ -326,11 +328,20 @@ export function HomeScreen() {
         <HomeCatalogSkeleton />
       ) : (
         <>
-          <HeroCarousel
-            slides={slides}
-            onRead={readSlide}
-            onPress={openSlide}
-          />
+          {slides.length > 0 ? (
+            <View style={{ gap: 14 }}>
+              <SectionHeader
+                title={s.home.weeklyFreeBooks.title}
+                subtitle={s.home.weeklyFreeBooks.subtitle}
+                variant="display"
+              />
+              <HeroCarousel
+                slides={slides}
+                onRead={readSlide}
+                onPress={openSlide}
+              />
+            </View>
+          ) : null}
 
           {inProgress.length > 0 ? (
             <BookRail

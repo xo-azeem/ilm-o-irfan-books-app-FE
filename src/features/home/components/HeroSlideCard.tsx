@@ -41,6 +41,8 @@ export type HeroSlide = {
   title: string;
   author?: string;
   rating?: number;
+  /** false = free for signed-in readers; true/undefined = membership. */
+  isPremium?: boolean;
   /** The headline leads in Nastaliq rather than Latin. */
   isUrdu?: boolean;
 };

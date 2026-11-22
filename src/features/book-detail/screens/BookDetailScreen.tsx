@@ -135,7 +135,10 @@ export function BookDetailScreen() {
       });
       return;
     }
-    navigation.navigate(ROUTES.BOOK_READER, { bookId: book.id });
+    navigation.navigate(ROUTES.BOOK_READER, {
+      bookId: book.id,
+      isPremium: book.isPremium,
+    });
   }, [
     book,
     canOpenBooks,

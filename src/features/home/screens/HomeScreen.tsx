@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Lock } from 'lucide-react-native';
 
 import type {
   RootStackParamList,
@@ -19,7 +20,12 @@ import {
 } from '@/components/books';
 import { Screen } from '@/components/layout';
 import { HomeCatalogSkeleton } from '@/components/skeletons/CatalogSkeletons';
-import { EmptyState, HeaderWash, SectionHeader } from '@/components/ui';
+import {
+  EmptyState,
+  HeaderWash,
+  SectionHeader,
+  showDialog,
+} from '@/components/ui';
 import { ROUTES } from '@/constants/routes';
 import { HeroCarousel } from '@/features/home/components/HeroCarousel';
 import type { HeroSlide } from '@/features/home/components/HeroSlideCard';
@@ -42,9 +48,10 @@ import {
 } from '@/hooks/useAccount';
 import { useMembershipOptions } from '@/hooks/useBilling';
 import { useStrings } from '@/i18n';
-import { useAccess } from '@/lib/access';
+import { canOpenCatalogBook, useAccess } from '@/lib/access';
 import { useHomeCatalog } from '@/hooks/useCatalog';
 import { useRecommendations } from '@/hooks/useRecommendations';
+import { reasonCopy } from '@/services/entitlements';
 import type { RecommendationRail } from '@/services/recommendations';
 import {
   HOME_RAIL_LIMIT,
@@ -143,7 +150,7 @@ export function HomeScreen() {
   const [mood, setMood] = useState<ReadingMood | null>(null);
   // The lock's own view of things — a card that is failing or a membership
   // winding down both still read, and both deserve to be told about.
-  const { reason, expiresAt } = useAccess();
+  const { reason, expiresAt, canOpenBooks } = useAccess();
 
   const openBook = useCallback(
     (book: { id: string }) =>
@@ -152,8 +159,11 @@ export function HomeScreen() {
   );
 
   const readBook = useCallback(
-    (book: { id: string }) =>
-      navigation.navigate(ROUTES.BOOK_READER, { bookId: book.id }),
+    (book: { id: string; isPremium?: boolean }) =>
+      navigation.navigate(ROUTES.BOOK_READER, {
+        bookId: book.id,
+        isPremium: book.isPremium,
+      }),
     [navigation],
   );
 
@@ -162,12 +172,6 @@ export function HomeScreen() {
   const openSlide = useCallback(
     (slide: HeroSlide) =>
       navigation.navigate(ROUTES.BOOK_DETAIL, { bookId: slide.bookId }),
-    [navigation],
-  );
-
-  const readSlide = useCallback(
-    (slide: HeroSlide) =>
-      navigation.navigate(ROUTES.BOOK_READER, { bookId: slide.bookId }),
     [navigation],
   );
 
@@ -232,16 +236,46 @@ export function HomeScreen() {
     [navigation],
   );
 
-  // Free titles for this ISO week — same set for every reader until the week
-  // rolls. Empty when the catalogue has no free published books.
-  const slides = useMemo<HeroSlide[]>(
-    () =>
-      (data?.weeklyFreeSlides ?? []).map(slide => ({
-        ...toSlide(slide),
-        badge: s.catalog.access.free,
-      })),
-    [data?.weeklyFreeSlides, s.catalog.access.free],
+  const readSlide = useCallback(
+    (slide: HeroSlide) => {
+      // Weekly free slides are always free; do not wait on book-detail.
+      const isPremium = slide.isPremium !== false;
+      if (!canOpenCatalogBook({ isPremium, canOpenBooks })) {
+        const copy = reasonCopy(reason);
+        showDialog({
+          title: copy.title,
+          message: copy.message,
+          tone: 'info',
+          icon: Lock,
+          actions: [
+            { label: s.catalog.detail.notNow, style: 'cancel' },
+            { label: s.catalog.detail.viewPlans, onPress: openMembership },
+          ],
+        });
+        return;
+      }
+      navigation.navigate(ROUTES.BOOK_READER, {
+        bookId: slide.bookId,
+        isPremium,
+      });
+    },
+    [canOpenBooks, navigation, openMembership, reason, s],
   );
+
+  // Free titles for this ISO week — never the admin carousel. Prefer the
+  // dedicated field; fall back to `carousel` only when it was already replaced
+  // with weekly free slides by the catalog layer.
+  const slides = useMemo<HeroSlide[]>(() => {
+    const source =
+      data?.weeklyFreeSlides?.length
+        ? data.weeklyFreeSlides
+        : (data?.carousel ?? []).filter(slide => slide.isPremium === false);
+    return source.map(slide => ({
+      ...toSlide(slide),
+      isPremium: false,
+      badge: s.catalog.access.free,
+    }));
+  }, [data?.carousel, data?.weeklyFreeSlides, s.catalog.access.free]);
 
   // Books the reader has started but not finished. `library-overview` returns
   // that shelf already split from the finished one and ordered most-recently

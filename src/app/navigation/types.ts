@@ -39,7 +39,11 @@ export type RootStackParamList = {
   };
   MainTabs: NavigatorScreenParams<RootTabParamList> | undefined;
   BookDetail: { bookId: string };
-  BookReader: { bookId: string };
+  /**
+   * `isPremium: false` lets a free title open without membership even when
+   * `book-detail` is slow or still reports premium — Discovery already knew.
+   */
+  BookReader: { bookId: string; isPremium?: boolean };
   /**
    * One of the two handles, never both — `collection-books` rejects that. The
    * title is not carried here: the endpoint sends the collection back with the

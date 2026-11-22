@@ -41,6 +41,7 @@ import { palette } from '@/theme/palette';
 import {
   asNumber,
   authorName,
+  isPremiumFlag,
   mapCatalogBook,
   stripStoragePrefix,
   type CatalogListRow,
@@ -346,7 +347,7 @@ function toSlide(row: CarouselSlideRow): CatalogSlide {
     title: row.title,
     author: authorName(row.author_name),
     rating: asNumber(row.rating),
-    isPremium: Boolean(row.is_premium),
+    isPremium: isPremiumFlag(row.is_premium),
   };
 }
 
@@ -432,24 +433,55 @@ export function slideFromFreeBook(book: CatalogBook): CatalogSlide {
 /**
  * Published free titles for the Discovery weekly carousel.
  *
- * Soft-fails to `[]` so a missing view or RLS hiccup never blanks the rest of
- * Home — the carousel simply stays hidden when there is nothing free.
+ * Tries `books` first (authoritative `is_premium`), then `book_list_items`,
+ * then any free rows already in the home-feed pool. Soft-fails to `[]` so a
+ * missing view never blanks the rest of Home.
  */
-async function loadWeeklyFreeSlides(): Promise<CatalogSlide[]> {
+async function loadWeeklyFreeSlides(
+  seed: CatalogBook[] = [],
+): Promise<CatalogSlide[]> {
+  const byId = new Map<string, CatalogBook>();
+  const add = (books: CatalogBook[]) => {
+    for (const book of books) {
+      if (!book.isPremium && !byId.has(book.id)) {
+        byId.set(book.id, book);
+      }
+    }
+  };
+
+  add(seed);
+
   try {
     const rows = unwrap(
       await supabase
-        .from('book_list_items')
-        .select(LIST_FIELDS)
+        .from('books')
+        .select(DETAIL_FIELDS)
+        .eq('is_published', true)
         .eq('is_premium', false)
         .order('published_at', { ascending: false })
         .limit(FREE_POOL_SIZE),
-    ) as CatalogListRow[];
-    const pool = rows.map(fromViewRow);
-    return pickWeeklyFreeBooks(pool).map(slideFromFreeBook);
+    ) as JoinedBookRow[];
+    add(rows.map(fromJoinedRow));
   } catch {
-    return [];
+    // Fall through to the list view / seed.
   }
+
+  if (byId.size === 0) {
+    try {
+      const rows = unwrap(
+        await supabase
+          .from('book_list_items')
+          .select(LIST_FIELDS)
+          .eq('is_premium', false)
+          .limit(FREE_POOL_SIZE),
+      ) as CatalogListRow[];
+      add(rows.map(fromViewRow));
+    } catch {
+      // Leave the pool as whatever seed provided.
+    }
+  }
+
+  return pickWeeklyFreeBooks([...byId.values()]).map(slideFromFreeBook);
 }
 
 /**
@@ -607,14 +639,9 @@ function feedIsEnough(feed: HomeFeedPayload | null): boolean {
 }
 
 async function homeFromEndpoints(signal?: AbortSignal) {
-  const feedPromise = requestData<HomeFeedPayload>(ENDPOINTS.homeFeed, {
+  const feed = await requestData<HomeFeedPayload>(ENDPOINTS.homeFeed, {
     signal,
   });
-  // Free carousel is assembled client-side from published free rows; it does
-  // not use the admin carousel payload.
-  const weeklyFreePromise = loadWeeklyFreeSlides();
-
-  const feed = await feedPromise;
 
   // One round trip is enough when the feed already carries the whole of Home.
   // Otherwise the catalogue is read for what the rails are short of — the same
@@ -628,15 +655,28 @@ async function homeFromEndpoints(signal?: AbortSignal) {
         })
       ).data;
 
-  const weeklyFreeSlides = await weeklyFreePromise;
+  const rails = railsFrom(feed ?? null, pool);
+  // Seed the weekly free rail from everything the feed already gave us so a
+  // separate free query is not the only way Discovery gets a hero.
+  const seedFree = dedupeById([
+    ...pool,
+    ...(feed?.books ?? []),
+    ...(feed?.shelves?.hero ?? []),
+    ...(feed?.shelves?.trending ?? []),
+    ...(feed?.shelves?.newArrivals ?? []),
+  ])
+    .map(fromListItem)
+    .filter(book => !book.isPremium);
+
+  const weeklyFreeSlides = await loadWeeklyFreeSlides(seedFree);
 
   return {
-    // Kept for debugging / older callers; Discovery no longer draws this rail.
-    carousel: (feed?.carousel ?? []).map(toSlide),
-    carouselSource: feed?.carouselSource ?? null,
-    /** Free titles for the Discovery hero, rotated by ISO week. */
+    // Discovery draws `weeklyFreeSlides` only. Mirror them here so nothing
+    // still keyed on `carousel` can resurrect the admin hero.
+    carousel: weeklyFreeSlides,
+    carouselSource: null as CarouselSource | null,
     weeklyFreeSlides,
-    ...railsFrom(feed ?? null, pool),
+    ...rails,
     // Where "See all" on each rail goes. Absent on an older deployment, in
     // which case the rails draw without one — there is no page that is
     // guaranteed to hold the same list.
@@ -683,14 +723,31 @@ async function homeFromTables() {
       loadWeeklyFreeSlides(),
     ]);
 
+  const heroBooks = unwrap(hero).map(fromJoinedRow);
+  const trendingBooks = unwrap(trending).map(row =>
+    fromViewRow(row as CatalogListRow),
+  );
+  const arrivalBooks = unwrap(arrivals).map(row =>
+    fromViewRow(row as CatalogListRow),
+  );
+  // Prefer the dedicated free query; if it came back empty, seed from rails.
+  const freeSlides =
+    weeklyFreeSlides.length > 0
+      ? weeklyFreeSlides
+      : await loadWeeklyFreeSlides([
+          ...heroBooks,
+          ...trendingBooks,
+          ...arrivalBooks,
+        ]);
+
   return {
-    carousel: [] as CatalogSlide[],
+    carousel: freeSlides,
     carouselSource: null as CarouselSource | null,
-    weeklyFreeSlides,
+    weeklyFreeSlides: freeSlides,
     // Only this rail carries real blurbs, so the hero keeps the `books` read.
-    hero: unwrap(hero).map(fromJoinedRow),
-    trending: unwrap(trending).map(row => fromViewRow(row as CatalogListRow)),
-    arrivals: unwrap(arrivals).map(row => fromViewRow(row as CatalogListRow)),
+    hero: heroBooks,
+    trending: trendingBooks,
+    arrivals: arrivalBooks,
     // The tables path has no `collection-books` behind it, so there is no full
     // page for a rail to open.
     trendingLink: null as ShelfLink | null,
@@ -1241,11 +1298,31 @@ export async function getPlans(signal?: AbortSignal): Promise<PlanRow[]> {
   );
 }
 
+/**
+ * Live `books.is_premium` from PostgREST — used to correct a stale or
+ * membership-only `book-detail` payload so free titles open without a plan.
+ */
+async function readPremiumFlag(id: string): Promise<boolean | null> {
+  try {
+    const result = await supabase
+      .from('books')
+      .select('is_premium')
+      .eq('id', id)
+      .maybeSingle();
+    if (result.error || result.data == null) {
+      return null;
+    }
+    return isPremiumFlag(result.data.is_premium);
+  } catch {
+    return null;
+  }
+}
+
 export async function getBook(
   id: string,
   signal?: AbortSignal,
 ): Promise<CatalogBook | null> {
-  return withEndpoint(
+  const book = await withEndpoint(
     ENDPOINTS.bookDetail,
     async () => {
       try {
@@ -1282,6 +1359,16 @@ export async function getBook(
       return result.data ? fromJoinedRow(result.data as JoinedBookRow) : null;
     },
   );
+
+  if (!book) {
+    return null;
+  }
+
+  const livePremium = await readPremiumFlag(id);
+  if (livePremium == null || livePremium === book.isPremium) {
+    return book;
+  }
+  return { ...book, isPremium: livePremium };
 }
 
 function fromDetail(row: BookDetailRow): CatalogBook {

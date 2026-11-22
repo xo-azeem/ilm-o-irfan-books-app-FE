@@ -26,7 +26,7 @@ export type CatalogListRow = {
   price_cents: number | string | null;
   currency: string | null;
   format: string | null;
-  is_premium: boolean | null;
+  is_premium: boolean | number | string | null;
   description?: string | null;
   language?: BookLanguage | null;
   page_count?: number | null;
@@ -109,6 +109,11 @@ export function authorName(
   return authors.name?.trim() || unknownAuthor();
 }
 
+/** Premium only when the row clearly says so — never via Boolean("false"). */
+export function isPremiumFlag(value: unknown): boolean {
+  return value === true || value === 1 || value === '1' || value === 'true';
+}
+
 export function mapCatalogBook(row: CatalogListRow, coverUrl?: string) {
   const author = authorName(row.author_name);
 
@@ -132,7 +137,7 @@ export function mapCatalogBook(row: CatalogListRow, coverUrl?: string) {
     price: centsToAmount(asNumber(row.price_cents) ?? 0),
     currency: row.currency ?? DEFAULT_CURRENCY,
     format: row.format ?? strings().services.book.digitalEdition,
-    isPremium: Boolean(row.is_premium),
+    isPremium: isPremiumFlag(row.is_premium),
     /** The recorded language, or `null` when the catalogue has not said. */
     language: row.language ?? null,
     /** A real count once a reader has opened the book; `null` before that. */

@@ -188,6 +188,8 @@ function BookReader() {
   const navigation = useNavigation<BookReaderNavigationProp>();
   const route = useRoute<BookReaderRouteProp>();
   const bookId = route.params.bookId;
+  /** Hint from Discovery/detail when the catalogue already knew free vs paid. */
+  const routeIsPremium = route.params.isPremium;
   const { data: book } = useBook(bookId);
   const userId = useAuthStore(state => state.userId);
   const s = useStrings();
@@ -259,16 +261,20 @@ function BookReader() {
   const downloadedUri = useRef<string | null>(null);
   const { canOpenBooks, isAuthenticated, isSubscriptionLoading, reason } =
     useAccess();
-  /** Free catalogue rows open without membership; premium still need it. */
-  const mayOpen =
-    book != null &&
-    canOpenCatalogBook({
-      isPremium: book.isPremium,
-      canOpenBooks,
-    });
-  /** Membership entitlement wait — skipped for free titles once the row is known. */
-  const waitingOnMembership =
-    isSubscriptionLoading && (book == null || book.isPremium);
+  /**
+   * Free if the route said so (weekly carousel / detail) or the live row is
+   * free. Prefer either signal so a stale book-detail cannot lock a free title.
+   */
+  const isPremiumBook =
+    book != null
+      ? book.isPremium && routeIsPremium !== false
+      : routeIsPremium !== false;
+  const mayOpen = canOpenCatalogBook({
+    isPremium: isPremiumBook,
+    canOpenBooks,
+  });
+  /** Membership entitlement wait — skipped for free titles. */
+  const waitingOnMembership = isSubscriptionLoading && isPremiumBook;
   // Whether the local countdown is what locked the book, for the lock's wording.
   const expired = useAccessStore(state => state.expired);
   /** True once a page has actually been on screen for this book. */
@@ -307,7 +313,9 @@ function BookReader() {
       navigation.replace(ROUTES.LOGIN, { returnTo: { bookId } });
       return;
     }
-    if (book == null) {
+    // Free titles can start opening before book-detail lands when the route
+    // already said they are free; premium still waits for the row + entitlement.
+    if (book == null && routeIsPremium !== false) {
       return;
     }
     if (waitingOnMembership) {
@@ -393,6 +401,7 @@ function BookReader() {
     mayOpen,
     navigation,
     retryToken,
+    routeIsPremium,
     userId,
     waitingOnMembership,
   ]);
@@ -506,7 +515,7 @@ function BookReader() {
       return;
     }
     // Free titles never lock mid-read for membership expiry.
-    if (book != null && !book.isPremium) {
+    if (!isPremiumBook) {
       setLockedMidRead(false);
       return;
     }
@@ -516,7 +525,7 @@ function BookReader() {
     flushProgress();
     setLockedMidRead(true);
     setPdfSource(null);
-  }, [book, flushProgress, mayOpen]);
+  }, [flushProgress, isPremiumBook, mayOpen]);
 
   const handleLoadComplete = useCallback((numberOfPages: number) => {
     documentReady.current = true;
@@ -834,10 +843,7 @@ function BookReader() {
   const locked =
     lockedMidRead ||
     refused ||
-    (isAuthenticated &&
-      !waitingOnMembership &&
-      book != null &&
-      !mayOpen);
+    (isAuthenticated && !waitingOnMembership && !mayOpen);
 
   // Ahead of the error state: a lock is not a fault, and offering "retry" for
   // an ended membership would be telling the reader to try the door again.

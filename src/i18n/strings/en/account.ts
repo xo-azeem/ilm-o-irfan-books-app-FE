@@ -410,10 +410,10 @@ export const account = {
     interval: (interval: string) => `${interval}ly`,
     whatsIncluded: 'What’s included',
     includes: [
-      'Unlimited access to all books',
-      'Offline downloads',
-      'Audio lessons & highlights',
-      'Early access to new releases',
+      'Unlimited access to the full book catalogue',
+      'Offline reading and downloads on your devices',
+      'Reading progress synced when you sign in',
+      'Wishlist, page bookmarks, and monthly reading goals',
     ],
     thisMonth: 'This month',
     notFinished: 'Cancellation not finished',
@@ -436,10 +436,10 @@ export const account = {
     blurb:
       'Full access to the whole Ilm-o-Irfan catalogue, offline on every device you own.',
     benefits: [
-      'Every book in the catalogue, unlimited',
-      'Offline reading and downloads',
-      'Early access to new releases',
-      'Reading statistics and goals',
+      'Unlimited access to the full book catalogue',
+      'Offline reading and downloads on your devices',
+      'Reading progress synced when you sign in',
+      'Wishlist, page bookmarks, and monthly reading goals',
     ],
     recommended: 'RECOMMENDED',
     unavailable:

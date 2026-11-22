@@ -548,8 +548,7 @@ export function SubscriptionScreen() {
           {words.whatsIncluded}
         </Label>
         <Card tone="surface" padded={16} gap={10}>
-          {(plan?.features?.length ? plan.features : words.includes).map(
-            feature => (
+          {words.includes.map(feature => (
               <View key={feature} style={styles.feature}>
                 <Icon icon={Check} size={13} tone="primary" strokeWidth={2.6} />
                 <Text

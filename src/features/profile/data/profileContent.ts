@@ -150,7 +150,7 @@ export const aboutDetails: {
   { id: 'platform', value: 'React Native' },
 ];
 
-// The standing membership pitch — for a deployment whose plans carry no
-// `features[]` — lives in the dictionary (`account.paywall.benefits` and
-// `account.subscription.includes`). Prices are deliberately absent from it:
-// the only price the app may show is the store's own `priceString`.
+// The standing membership pitch lives in the dictionary
+// (`account.paywall.benefits` and `account.subscription.includes`). Prices are
+// deliberately absent from it: the only price the app may show is the store's
+// own `priceString`.

@@ -97,14 +97,14 @@ export const MembershipPaywall = memo(function MembershipPaywall({
     }
   }, [chosen, onSubscribe]);
 
-  // The plan's own bullets where it has them, the app's standing list otherwise,
-  // so an admin can rewrite the pitch without a release and nothing goes blank
-  // if they have not.
-  const bullets = chosen?.features.length
-    ? chosen.features
-    : features.length
-      ? features
-      : words.benefits;
+  // Standing membership pitch from the app dictionary. Plan `features[]` from
+  // the admin can drift (audio / early-access claims we do not sell), so the
+  // paywall always shows what this build actually offers.
+  const bullets = words.benefits.length
+    ? words.benefits
+    : chosen?.features.length
+      ? chosen.features
+      : features;
 
   const copy = reasonCopy(reason);
   // A reader who has subscribed before is being asked to come back, not sold to

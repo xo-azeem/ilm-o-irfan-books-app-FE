@@ -129,57 +129,99 @@ export async function getAuthUser() {
   return data.user;
 }
 
+/** Signed-URL life for free titles opened via the Storage fallback (seconds). */
+const FREE_PDF_TTL_SEC = 60 * 15;
+
+/**
+ * Opens a published free book without `get-signed-pdf`.
+ *
+ * Used when the Edge Function still requires membership for every title.
+ * Relies on `free_book_pdf_path` + the `free_published_pdfs_select` storage
+ * policy (see BE migration `20261122235900_free_book_pdf_access.sql`).
+ */
+async function tryFreeSignedPdf(bookId: string) {
+  const { data: pdfPath, error: pathError } = await supabase.rpc(
+    'free_book_pdf_path',
+    { p_book_id: bookId },
+  );
+
+  if (pathError || typeof pdfPath !== 'string' || !pdfPath) {
+    return null;
+  }
+
+  const objectPath = pdfPath.replace(/^pdfs\//, '');
+  const { data: signed, error: signError } = await supabase.storage
+    .from('pdfs')
+    .createSignedUrl(objectPath, FREE_PDF_TTL_SEC);
+
+  if (signError || !signed?.signedUrl) {
+    return null;
+  }
+
+  // Do not call applySignedPdfAccess — that marks the reader as premium, and
+  // opening one free title must not unlock the whole membership catalogue.
+
+  return {
+    url: signed.signedUrl,
+    fileSizeBytes: undefined as number | undefined,
+    pdfUpdatedAt: null as string | null,
+    expiresIn: FREE_PDF_TTL_SEC,
+  };
+}
+
 /**
  * Asks the `get-signed-pdf` Edge Function for a short-lived download URL.
  *
- * The function is the only PDF gate, and it grants access on two conditions
- * and no others: the admin role, or an active entitlement — for every book,
- * with no exception for one left unflagged. Anyone else gets
- * `PREMIUM_REQUIRED`, which the reader screen turns into the paywall.
+ * The function is the only PDF gate for premium titles. Free titles may also
+ * open via Storage when the Edge Function still returns `PREMIUM_REQUIRED`
+ * (redeploy pending) — see `tryFreeSignedPdf`.
  *
- * A successful call is also the freshest proof of access there is, so the
- * countdown is re-anchored from the `access` block it carries: a new deadline,
- * and the server's clock to measure it against.
- *
- * `expiresIn` is not a constant. The backend clamps the URL's life to what is
- * left of the membership, with a 15-second floor, so a reader in their last
- * minute gets a URL that dies with it. Nothing may cache this URL and assume it
- * still works later.
+ * A successful Edge call re-anchors the countdown from its `access` block.
  *
  * The older `/functions/v1/signed-pdf` route now answers 410; this is the
  * supported one.
  */
 export async function getSignedPdfUrl(bookId: string) {
-  const body = await request<SignedPdfPayload & { data?: SignedPdfPayload }>(
-    ENDPOINTS.signedPdf,
-    { method: 'POST', auth: true, body: { bookId } },
-  );
-
-  // The function moved onto the shared `{ data }` envelope. Older deployments
-  // still answer with the payload at the top level, and a project can be on
-  // either until the functions are redeployed, so both are accepted.
-  const payload = body?.data ?? body;
-
-  if (!payload?.signedUrl) {
-    throw new ApiError(
-      'Signed URL missing from response',
-      502,
-      'PDF_URL_MISSING',
+  try {
+    const body = await request<SignedPdfPayload & { data?: SignedPdfPayload }>(
+      ENDPOINTS.signedPdf,
+      { method: 'POST', auth: true, body: { bookId } },
     );
+
+    // The function moved onto the shared `{ data }` envelope. Older deployments
+    // still answer with the payload at the top level, and a project can be on
+    // either until the functions are redeployed, so both are accepted.
+    const payload = body?.data ?? body;
+
+    if (!payload?.signedUrl) {
+      throw new ApiError(
+        'Signed URL missing from response',
+        502,
+        'PDF_URL_MISSING',
+      );
+    }
+
+    // Every open re-anchors the lock. Absent on an older deployment, in which
+    // case the state stands as the last poll left it.
+    useAccessStore.getState().applySignedPdfAccess(payload.access);
+
+    return {
+      url: payload.signedUrl,
+      fileSizeBytes: payload.fileSizeBytes ?? undefined,
+      /** Which file this is; `null` until the backend sends it. */
+      pdfUpdatedAt: payload.pdfUpdatedAt ?? null,
+      /** Seconds this URL is good for — already clamped to the membership. */
+      expiresIn: payload.expiresIn,
+    };
+  } catch (error) {
+    if (error instanceof ApiError && error.code === 'PREMIUM_REQUIRED') {
+      const free = await tryFreeSignedPdf(bookId);
+      if (free) {
+        return free;
+      }
+    }
+    throw error;
   }
-
-  // Every open re-anchors the lock. Absent on an older deployment, in which
-  // case the state stands as the last poll left it.
-  useAccessStore.getState().applySignedPdfAccess(payload.access);
-
-  return {
-    url: payload.signedUrl,
-    fileSizeBytes: payload.fileSizeBytes ?? undefined,
-    /** Which file this is; `null` until the backend sends it. */
-    pdfUpdatedAt: payload.pdfUpdatedAt ?? null,
-    /** Seconds this URL is good for — already clamped to the membership. */
-    expiresIn: payload.expiresIn,
-  };
 }
 
 // ---------------------------------------------------------------------------
